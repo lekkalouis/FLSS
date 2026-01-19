@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FLOCS — Flippen Lekka Order Capturing System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg:#020617;
+      --panel:#0f172a;
+      --panel-soft:#020617;
+      --accent:#38bdf8;
+      --accent-soft:rgba(56,189,248,.12);
+      --accent-strong:rgba(34,197,94,.9);
+      --danger:#f97373;
+      --text:#e5e7eb;
+      --muted:#94a3b8;
+      --radius-lg:.85rem;
+      --radius-md:.6rem;
+      --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
+      --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    }
+    * { box-sizing:border-box; }
+
+    body {
+      margin:0;
+      min-height:100vh;
+      background:radial-gradient(circle at 0 0,rgba(248,250,252,.08),transparent 60%),
+                 radial-gradient(circle at 100% 0,rgba(56,189,248,.10),transparent 55%),
+                 var(--bg);
+      color:var(--text);
+      font-family:var(--sans);
+    }
+
+    .flocs-shell {
+      max-width:1200px;
+      margin:0 auto;
+      padding:1.25rem .9rem 2.5rem;
+    }
+
+    header.flocs-header {
+      display:flex;
+      flex-wrap:wrap;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:.75rem;
+      margin-bottom:1rem;
+    }
+
+    .flocs-titleBlock {
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+    }
+    .flocs-title {
+      font-size:1.15rem;
+      font-weight:700;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+    }
+    .flocs-sub {
+      font-size:.8rem;
+      color:var(--muted);
+    }
+    .flocs-badge {
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      background:var(--panel);
+      border-radius:999px;
+      padding:.25rem .75rem;
+      font-size:.75rem;
+      border:1px solid rgba(148,163,184,.4);
+    }
+    .flocs-dot {
+      width:.45rem; height:.45rem;
+      border-radius:999px;
+      background:#22c55e;
+      box-shadow:0 0 10px rgba(34,197,94,.9);
+    }
+
+    .flocs-layout {
+      display:flex;
+      gap:1rem;
+    }
+    @media (max-width:900px) {
+      .flocs-layout { flex-direction:column; }
+    }
+
+    .flocs-panel {
+      background:linear-gradient(to bottom right,rgba(15,23,42,.98),rgba(15,23,42,.92));
+      border-radius:var(--radius-lg);
+      border:1px solid rgba(148,163,184,.4);
+      box-shadow:0 18px 60px rgba(0,0,0,.65);
+      padding:1rem;
+      position:relative;
+    }
+
+    .flocs-panel.form {
+      flex:1.15;
+      min-width:0;
+    }
+    .flocs-panel.preview {
+      flex:.95;
+      min-width:0;
+      background:radial-gradient(circle at 0 0,rgba(56,189,248,.15),transparent 60%),
+                 linear-gradient(to bottom right,rgba(15,23,42,.98),rgba(15,23,42,.94));
+    }
+
+    .flocs-formSection {
+      margin-bottom:.9rem;
+      padding-bottom:.75rem;
+      border-bottom:1px dashed rgba(148,163,184,.3);
+    }
+    .flocs-formSection:last-of-type {
+      border-bottom:none;
+      padding-bottom:0;
+      margin-bottom:0;
+    }
+
+    .flocs-labelRow {
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      margin-bottom:.35rem;
+      gap:.5rem;
+    }
+    .flocs-labelRow span {
+      font-size:.8rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      color:var(--muted);
+    }
+    .flocs-hint {
+      font-size:.7rem;
+      color:var(--muted);
+    }
+
+    .flocs-input,
+    .flocs-select {
+      width:100%;
+      border-radius:.55rem;
+      border:1px solid rgba(148,163,184,.4);
+      background:var(--panel-soft);
+      color:var(--text);
+      padding:.45rem .6rem;
+      font-size:.85rem;
+      outline:none;
+      font-family:var(--sans);
+    }
+    .flocs-input:focus,
+    .flocs-select:focus {
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px rgba(56,189,248,.4);
+    }
+
+    .flocs-row {
+      display:flex;
+      gap:.5rem;
+    }
+    .flocs-row > * { flex:1; }
+    @media (max-width:700px) {
+      .flocs-row { flex-direction:column; }
+    }
+
+    .flocs-customerResults {
+      margin-top:.4rem;
+      max-height:190px;
+      overflow:auto;
+      border-radius:.6rem;
+      border:1px solid rgba(148,163,184,.4);
+      background:rgba(15,23,42,.96);
+    }
+    .flocs-customerItem {
+      padding:.4rem .55rem;
+      font-size:.8rem;
+      cursor:pointer;
+      border-bottom:1px solid rgba(30,41,59,.9);
+    }
+    .flocs-customerItem:hover {
+      background:rgba(56,189,248,.14);
+    }
+    .flocs-customerItem strong {
+      display:block;
+      margin-bottom:.15rem;
+    }
+    .flocs-customerItem-meta {
+      color:var(--muted);
+      font-size:.7rem;
+    }
+    .flocs-customerEmpty {
+      padding:.5rem .6rem;
+      font-size:.75rem;
+      color:var(--muted);
+    }
+
+    .flocs-chipRow {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.35rem;
+      margin-top:.3rem;
+    }
+    .flocs-chip {
+      padding:.18rem .55rem;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.4);
+      font-size:.7rem;
+      color:var(--muted);
+    }
+
+    .flocs-radioGroup {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.45rem;
+    }
+    .flocs-radioPill {
+      position:relative;
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      padding:.25rem .6rem;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.4);
+      font-size:.8rem;
+      cursor:pointer;
+      user-select:none;
+    }
+    .flocs-radioPill input {
+      appearance:none;
+      width:.7rem; height:.7rem;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.5);
+      background:transparent;
+      position:relative;
+    }
+    .flocs-radioPill input:checked {
+      border-color:#22c55e;
+      box-shadow:0 0 0 2px rgba(34,197,94,.5);
+    }
+    .flocs-radioPill input:checked::after {
+      content:"";
+      position:absolute;
+      inset:.13rem;
+      border-radius:inherit;
+      background:#22c55e;
+    }
+
+    .flocs-addressPreview {
+      margin-top:.35rem;
+      padding:.45rem .55rem;
+      border-radius:.45rem;
+      font-size:.75rem;
+      border:1px dashed rgba(148,163,184,.4);
+      background:rgba(15,23,42,.9);
+      white-space:pre-line;
+    }
+
+    .flocs-productsTable {
+      width:100%;
+      border-collapse:collapse;
+      font-size:.78rem;
+      border-radius:.6rem;
+      overflow:hidden;
+      border:1px solid rgba(148,163,184,.4);
+      background:rgba(15,23,42,.9);
+    }
+    .flocs-productsTable thead {
+      background:rgba(15,23,42,1);
+    }
+    .flocs-productsTable th,
+    .flocs-productsTable td {
+      padding:.3rem .45rem;
+      border-bottom:1px solid rgba(30,41,59,1);
+    }
+    .flocs-productsTable th {
+      text-align:left;
+      font-weight:600;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      font-size:.7rem;
+    }
+    .flocs-productsTable tbody tr:last-child td {
+      border-bottom:none;
+    }
+    .flocs-productsTable code {
+      font-family:var(--mono);
+      font-size:.78rem;
+    }
+    .flocs-qtyInput {
+      width:4.2rem;
+      border-radius:.45rem;
+      border:1px solid rgba(148,163,184,.4);
+      background:rgba(15,23,42,1);
+      color:var(--text);
+      padding:.2rem .35rem;
+      font-size:.78rem;
+      text-align:right;
+      outline:none;
+      font-family:var(--sans);
+    }
+    .flocs-qtyInput:focus {
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px rgba(56,189,248,.45);
+    }
+
+    .flocs-actionsRow {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:.5rem;
+      margin-top:.55rem;
+    }
+
+    .flocs-btn {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.35rem;
+      border-radius:999px;
+      border:none;
+      font-size:.8rem;
+      padding:.4rem .9rem;
+      cursor:pointer;
+      font-weight:600;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+      background:var(--accent-soft);
+      color:var(--accent);
+    }
+    .flocs-btn span.icon {
+      font-size:1rem;
+      line-height:1;
+    }
+    .flocs-btn.primary {
+      background:var(--accent);
+      color:#0f172a;
+    }
+    .flocs-btn.primary:disabled {
+      opacity:.4;
+      cursor:default;
+    }
+
+    .flocs-badgeShipping {
+      font-size:.75rem;
+      color:var(--muted);
+    }
+
+    .flocs-errors {
+      margin-top:.4rem;
+      font-size:.72rem;
+      color:var(--danger);
+      white-space:pre-line;
+    }
+
+    /* === Preview "invoice" card === */
+    .flocs-previewHeader {
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:.75rem;
+      margin-bottom:.6rem;
+    }
+    .flocs-previewTitle {
+      font-size:.9rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+    .flocs-previewTag {
+      padding:.18rem .45rem;
+      border-radius:999px;
+      font-size:.7rem;
+      background:rgba(15,23,42,.8);
+      border:1px solid rgba(148,163,184,.5);
+      color:var(--muted);
+    }
+    .flocs-invoice {
+      background:#f9fafb;
+      color:#020617;
+      border-radius:.7rem;
+      padding:.75rem;
+      font-size:.78rem;
+    }
+    .flocs-invoiceHeader {
+      display:flex;
+      justify-content:space-between;
+      gap:.5rem;
+      margin-bottom:.4rem;
+    }
+    .flocs-invoiceBrand {
+      font-weight:700;
+      font-size:.9rem;
+    }
+    .flocs-invoiceSub {
+      font-size:.72rem;
+      color:#4b5563;
+    }
+    .flocs-invoiceCols {
+      display:flex;
+      gap:.75rem;
+      margin-bottom:.5rem;
+    }
+    .flocs-invoiceCol {
+      flex:1;
+      white-space:pre-line;
+      font-size:.74rem;
+      color:#111827;
+    }
+    .flocs-invoiceColTitle {
+      font-weight:600;
+      margin-bottom:.2rem;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      font-size:.68rem;
+      color:#6b7280;
+    }
+    .flocs-invoiceTable {
+      width:100%;
+      border-collapse:collapse;
+      font-size:.74rem;
+      margin-bottom:.4rem;
+    }
+    .flocs-invoiceTable th,
+    .flocs-invoiceTable td {
+      padding:.25rem .2rem;
+      border-bottom:1px solid #e5e7eb;
+    }
+    .flocs-invoiceTable th {
+      text-align:left;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      font-size:.66rem;
+      color:#6b7280;
+    }
+    .flocs-invoiceTable td:last-child,
+    .flocs-invoiceTable th:last-child {
+      text-align:right;
+    }
+    .flocs-invoiceTotals {
+      font-size:.75rem;
+    }
+    .flocs-invoiceTotalsRow {
+      display:flex;
+      justify-content:space-between;
+    }
+    .flocs-invoiceTotalsRow span.label {
+      color:#4b5563;
+    }
+    .flocs-invoiceTotalsRow span.val {
+      font-weight:600;
+    }
+    .flocs-invoiceNote {
+      margin-top:.35rem;
+      font-size:.7rem;
+      color:#6b7280;
+    }
+
+    .flocs-toast {
+      position:fixed;
+      right:1rem;
+      bottom:1rem;
+      padding:.7rem .9rem;
+      border-radius:.75rem;
+      font-size:.78rem;
+      background:rgba(15,23,42,.96);
+      border:1px solid rgba(34,197,94,.6);
+      color:#bbf7d0;
+      max-width:260px;
+      box-shadow:0 18px 60px rgba(0,0,0,.8);
+      z-index:40;
+      display:none;
+    }
+
+    /* === Ready glow & central confirm CTA === */
+    .flocs-shell.flocs-ready .flocs-panel.form,
+    .flocs-shell.flocs-ready .flocs-panel.preview {
+      box-shadow:
+        0 0 0 1px rgba(34,197,94,.65),
+        0 0 0 5px rgba(22,163,74,.45),
+        0 24px 70px rgba(22,163,74,.5);
+      border-color:rgba(74,222,128,.7);
+    }
+
+    .flocs-confirmOverlay {
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      pointer-events:none;
+      z-index:30;
+      transition:opacity .15s ease;
+      opacity:0;
+    }
+    .flocs-shell.flocs-ready .flocs-confirmOverlay {
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .flocs-confirmBtn {
+      min-width:220px;
+      border-radius:999px;
+      border:none;
+      padding:.7rem 1.4rem;
+      font-size:.9rem;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.6rem;
+      background:var(--accent-strong);
+      color:#022c22;
+      box-shadow:0 0 0 2px rgba(187,247,208,.7),
+                 0 24px 70px rgba(22,163,74,.7);
+      cursor:pointer;
+    }
+    .flocs-confirmBtn span.icon {
+      font-size:1.1rem;
+    }
+    .flocs-confirmBtn:disabled {
+      opacity:.6;
+      cursor:default;
+      box-shadow:0 0 0 2px rgba(148,163,184,.7),
+                 0 18px 45px rgba(15,23,42,.9);
+    }
+  </style>
+</head>
+<body>
+  <div class="flocs-shell" id="flocs-shell">
+    <header class="flocs-header">
+      <div class="flocs-titleBlock">
+        <div class="flocs-title">Flippen Lekka Order Capturing System</div>
+        <div class="flocs-sub">FLOCS · fast operator-friendly order entry into Shopify draft orders</div>
+      </div>
+      <div class="flocs-badge">
+        <span class="flocs-dot"></span>
+        <span>Backend: Scan Station Node/Express & SWE v28</span>
+      </div>
+    </header>
+
+    <main class="flocs-layout">
+      <!-- LEFT: FORM -->
+      <section class="flocs-panel form" id="flocs-formPanel">
+        <!-- Customer -->
+        <div class="flocs-formSection">
+          <div class="flocs-labelRow">
+            <span>Customer</span>
+            <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
+          </div>
+          <input id="flocs-customerSearch" class="flocs-input" type="text"
+                 placeholder="Type to search Shopify customers…" autocomplete="off" />
+          <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
+          <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
+        </div>
+
+        <!-- PO + Delivery method -->
+        <div class="flocs-formSection">
+          <div class="flocs-row">
+            <div>
+              <div class="flocs-labelRow">
+                <span>Customer PO</span>
+                <span class="flocs-hint">Stored on draft order note & metafield</span>
+              </div>
+              <input id="flocs-po" class="flocs-input" type="text" placeholder="PO / reference (optional)" />
+            </div>
+            <div>
+              <div class="flocs-labelRow">
+                <span>Delivery type</span>
+                <span class="flocs-hint">Uses customer metafield custom.delivery_method if set</span>
+              </div>
+              <div class="flocs-radioGroup" id="flocs-deliveryGroup">
+                <label class="flocs-radioPill">
+                  <input type="radio" name="delivery" value="ship" checked />
+                  <span>Ship</span>
+                </label>
+                <label class="flocs-radioPill">
+                  <input type="radio" name="delivery" value="pickup" />
+                  <span>Pickup</span>
+                </label>
+                <label class="flocs-radioPill">
+                  <input type="radio" name="delivery" value="deliver" />
+                  <span>Deliver (own vehicle)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shipping address selector (only when Ship) -->
+        <div class="flocs-formSection" id="flocs-shipSection">
+          <div class="flocs-labelRow">
+            <span>Ship-to address</span>
+            <span class="flocs-hint">Pulled from customer’s Shopify addresses</span>
+          </div>
+          <select id="flocs-addressSelect" class="flocs-select">
+            <option value="">Select a customer first…</option>
+          </select>
+          <div id="flocs-addressPreview" class="flocs-addressPreview" hidden></div>
+        </div>
+
+        <!-- Product grid -->
+        <div class="flocs-formSection">
+          <div class="flocs-labelRow">
+            <span>Items</span>
+            <span class="flocs-hint">Predefined SKUs with quick quantity inputs</span>
+          </div>
+          <table class="flocs-productsTable">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Description</th>
+                <th style="width:10%">Qty</th>
+              </tr>
+            </thead>
+            <tbody id="flocs-productsBody">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+          <div class="flocs-actionsRow">
+            <button id="flocs-calcShip" class="flocs-btn" type="button">
+              <span class="icon">⛟</span><span>Calculate shipping (SWE quote)</span>
+            </button>
+            <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
+          </div>
+          <div id="flocs-errors" class="flocs-errors"></div>
+        </div>
+      </section>
+
+      <!-- RIGHT: PREVIEW -->
+      <section class="flocs-panel preview">
+        <div class="flocs-previewHeader">
+          <div>
+            <div class="flocs-previewTitle">Invoice-style preview</div>
+            <div class="flocs-hint">Live view of what the customer’s document will roughly look like</div>
+          </div>
+          <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
+        </div>
+
+        <div class="flocs-invoice" id="flocs-invoice">
+          <!-- Filled by JS -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Global toast -->
+  <div id="flocs-toast" class="flocs-toast"></div>
+
+  <!-- Ready/confirm overlay -->
+  <div id="flocs-confirmOverlay" class="flocs-confirmOverlay">
+    <button id="flocs-confirmBtn" class="flocs-confirmBtn" type="button">
+      <span class="icon">✅</span>
+      <span>Lock order & create Shopify draft</span>
+    </button>
+  </div>
+
+  <script src="/flocs.js"></script>
+</body>
+</html>
