@@ -1173,7 +1173,7 @@ async function handleScan(code) {
         <div class="dispatchCard">
           <div class="dispatchCardTitle"><span>${title}</span></div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
-          <div class="dispatchCardAddress">${addrHtml}</div>
+         
           <div class="dispatchCardLines">${lines}</div>
         </div>`;
     };
