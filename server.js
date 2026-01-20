@@ -26,7 +26,7 @@ const {
   PORT = 3000,
   HOST = "0.0.0.0",
   NODE_ENV = "development",
-  FRONTEND_ORIGIN = "http://localhost:3000",
+  FRONTEND_ORIGIN = "http://localhost:3000,http://192.168.101.171:3000",
 
   PP_BASE_URL = "",
   PP_TOKEN = "",
