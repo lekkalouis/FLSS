@@ -550,6 +550,99 @@ app.get("/shopify/products/search", async (req, res) => {
   }
 });
 
+// ===== 2c.1) Shopify: products from collection =====
+app.get("/shopify/products/collection", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const handle = String(req.query.handle || "").trim();
+    if (!handle) {
+      return badRequest(res, "Missing collection handle (?handle=...)");
+    }
+
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+    const customUrl = `${base}/custom_collections.json?handle=${encodeURIComponent(
+      handle
+    )}&fields=id,title`;
+    const smartUrl = `${base}/smart_collections.json?handle=${encodeURIComponent(
+      handle
+    )}&fields=id,title`;
+
+    const [customResp, smartResp] = await Promise.all([
+      shopifyFetch(customUrl, { method: "GET" }),
+      shopifyFetch(smartUrl, { method: "GET" })
+    ]);
+
+    let collectionId = null;
+    if (customResp.ok) {
+      const data = await customResp.json();
+      const list = Array.isArray(data.custom_collections)
+        ? data.custom_collections
+        : [];
+      if (list.length) collectionId = list[0].id;
+    }
+    if (!collectionId && smartResp.ok) {
+      const data = await smartResp.json();
+      const list = Array.isArray(data.smart_collections)
+        ? data.smart_collections
+        : [];
+      if (list.length) collectionId = list[0].id;
+    }
+
+    if (!collectionId) {
+      return res
+        .status(404)
+        .json({ error: "NOT_FOUND", message: "Collection not found" });
+    }
+
+    const productUrl = `${base}/collections/${collectionId}/products.json?limit=250&fields=id,title,variants`;
+    const prodResp = await shopifyFetch(productUrl, { method: "GET" });
+    if (!prodResp.ok) {
+      const body = await prodResp.text();
+      return res.status(502).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: prodResp.status,
+        statusText: prodResp.statusText,
+        body
+      });
+    }
+
+    const prodData = await prodResp.json();
+    const products = Array.isArray(prodData.products) ? prodData.products : [];
+    const normalized = [];
+    const seen = new Set();
+
+    products.forEach((p) => {
+      const variantsList = Array.isArray(p.variants) ? p.variants : [];
+      variantsList.forEach((v) => {
+        const title =
+          v.title && v.title !== "Default Title"
+            ? `${p.title} – ${v.title}`
+            : p.title;
+        const entry = {
+          variantId: v.id,
+          sku: v.sku || "",
+          title,
+          price: v.price != null ? Number(v.price) : null,
+          weightKg: toKg(v.weight, v.weight_unit)
+        };
+        const key = String(entry.variantId);
+        if (!seen.has(key)) {
+          seen.add(key);
+          normalized.push(entry);
+        }
+      });
+    });
+
+    return res.json({ products: normalized });
+  } catch (err) {
+    console.error("Shopify collection products error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 // ===== 2d) Shopify: create draft order =====
 app.post("/shopify/draft-orders", async (req, res) => {
   try {
@@ -561,6 +654,7 @@ app.post("/shopify/draft-orders", async (req, res) => {
       shippingMethod,
       shippingPrice,
       shippingService,
+      shippingQuoteNo,
       billingAddress,
       shippingAddress,
       lineItems
@@ -577,6 +671,7 @@ app.post("/shopify/draft-orders", async (req, res) => {
     const noteParts = [];
     if (poNumber) noteParts.push(`PO: ${poNumber}`);
     if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
+    if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
 
     const payload = {
       draft_order: {
@@ -598,9 +693,14 @@ app.post("/shopify/draft-orders", async (req, res) => {
         }),
         billing_address: billingAddress || undefined,
         shipping_address: shippingAddress || undefined,
-        note_attributes: poNumber
-          ? [{ name: "po_number", value: String(poNumber) }]
-          : []
+        note_attributes: [
+          ...(poNumber
+            ? [{ name: "po_number", value: String(poNumber) }]
+            : []),
+          ...(shippingQuoteNo
+            ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
+            : [])
+        ]
       }
     };
 
