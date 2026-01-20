@@ -1123,7 +1123,8 @@ async function handleScan(code) {
       "parmesan popcorn sprinkle": "PAR",
       "cheese and onion popcorn sprinkle": "CHO",
       "salt & vinegar popcorn sprinkle": "SV",
-      "flippen lekka curry mix": "Curry"
+      "flippen lekka curry mix": "Curry",
+      "original multi purpose basting sauce": "Basting"
     };
     const lineItemOrder = Object.keys(lineItemAbbreviations);
     const lineItemOrderIndex = new Map(
