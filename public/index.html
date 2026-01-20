@@ -230,7 +230,7 @@ body, html {
 }
 
 /* lanes across the screen */
-#dispatchBoard {
+#dispatchBoardGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1.25rem;
@@ -307,11 +307,11 @@ body, html {
 
 
   <div id="dispatchBoardContainer">
-    <div id="dispatchBoard"> <div class="sectionTitle" style="margin-top:.4rem">
+    <div class="dispatchBoardPanel"> <div class="sectionTitle" style="margin-top:.4rem">
       <span>Dispatch Whiteboard</span>
       <span id="dispatchStamp" class="dispatchStamp">–</span>
     </div>
-    <div class="dispatchBoard" id="dispatchBoard">
+    <div class="dispatchBoard" id="dispatchBoardGrid">
       <div class="dispatchBoardEmpty">Loading open orders…</div>
     </div></div>
   </div>
@@ -395,12 +395,10 @@ body, html {
     <button id="modeToggle" type="button">MODE: AUTO</button>
 
     </div>
+    <div class="sectionTitle" style="margin-top:.4rem"><span>Waybill Label Preview (100×150 mm)</span><span style="font-size:.7rem;color:#94a3b8;font-family:var(--mono)">auto prints after booking</span></div>
     <div class="waybillSheetPreview" id="stickerPreview" aria-live="polite">
       (Will show label after first booking)
     </div>
-
-    <div class="sectionTitle" style="margin-top:.4rem"><span>Waybill Label Preview (100×150 mm)</span><span style="font-size:.7rem;color:#94a3b8;font-family:var(--mono)">auto prints after booking</span></div>
-    <div class="waybillSheetPreview" id="stickerPreview" aria-live="polite">(Will show label after first booking)</div>
   </section>
 </div>
 
