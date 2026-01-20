@@ -24,9 +24,8 @@ const app = express();
 // ===== Config (env) =====
 const {
   PORT = 3000,
-  HOST = "0.0.0.0",
   NODE_ENV = "development",
-  FRONTEND_ORIGIN = "http://localhost:3000",
+  FRONTEND_ORIGIN = "http://localhost:3000,http://192.168.101.171:3000",
 
   PP_BASE_URL = "",
   PP_TOKEN = "",
@@ -55,20 +54,9 @@ const allowedOrigins = new Set(
     .map((s) => s.trim())
     .filter(Boolean)
 );
-const allowAllOrigins = allowedOrigins.has("*");
 
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      if (!origin || allowAllOrigins || allowedOrigins.has(origin)) return cb(null, true);
-      return cb(new Error("CORS: origin not allowed"));
-    },
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: false,
-    maxAge: 86400
-  })
-);
+app.use(cors({ origin: true }));
+
 app.options("*", (_, res) => res.sendStatus(204));
 
 app.use(
@@ -176,24 +164,12 @@ async function shopifyFetch(pathname, { method = "GET", headers = {}, body } = {
 }
 
 // ===== 1) ParcelPerfect proxy (v28, POST form) =====
-function normalizeParcelPerfectClass(value) {
-  if (!value) return value;
-  const raw = String(value).trim();
-  const lower = raw.toLowerCase();
-  if (lower === "quote") return "Quote";
-  if (lower === "collection") return "Collection";
-  if (lower === "waybill") return "Waybill";
-  if (lower === "auth") return "Auth";
-  return raw;
-}
-
 app.post("/pp", async (req, res) => {
   try {
-    const { method, classVal, class: classNameRaw, params } = req.body || {};
-    const className = normalizeParcelPerfectClass(classVal || classNameRaw);
+    const { method, classVal, params } = req.body || {};
 
-    if (!method || !className || typeof params !== "object") {
-      return badRequest(res, "Expected { method, classVal|class, params } in body");
+    if (!method || !classVal || typeof params !== "object") {
+      return badRequest(res, "Expected { method, classVal, params } in body");
     }
 
     if (!PP_BASE_URL || !PP_BASE_URL.startsWith("http")) {
@@ -205,7 +181,7 @@ app.post("/pp", async (req, res) => {
 
     const form = new URLSearchParams();
     form.set("method", String(method));
-    form.set("class", String(className));
+    form.set("class", String(classVal));
     form.set("params", JSON.stringify(params));
 
     const mustUseToken = String(PP_REQUIRE_TOKEN) === "true";
@@ -361,12 +337,6 @@ const customer_name =
         customer_name,
         created_at: o.processed_at || o.created_at,
         fulfillment_status: o.fulfillment_status,
-        tags: o.tags || "",
-        shipping_lines: (o.shipping_lines || []).map((line) => ({
-          title: line.title || "",
-          code: line.code || "",
-          price: line.price || ""
-        })),
         shipping_city: shipping.city || "",
         shipping_postal: shipping.zip || "",
         shipping_address1: shipping.address1 || "",
@@ -378,7 +348,6 @@ const customer_name =
         parcel_count: parcelCountFromTag,
         line_items: (o.line_items || []).map((li) => ({
           title: li.title,
-          variant_title: li.variant_title,
           quantity: li.quantity
         }))
       };
@@ -493,7 +462,7 @@ app.post("/shopify/fulfill", async (req, res) => {
   }
 });
 
-// ===== ParcelPerfect place lookup (Quote.getPlacesByName/Postcode) =====
+// ===== ParcelPerfect place lookup (Waybill.getPlace) =====
 app.get("/pp/place", async (req, res) => {
   try {
     const query = (req.query.q || req.query.query || "").trim();
@@ -509,27 +478,29 @@ app.get("/pp/place", async (req, res) => {
     if (!PP_TOKEN) {
       return res.status(500).json({
         error: "CONFIG_ERROR",
-        message: "PP_TOKEN is required for place lookups"
+        message: "PP_TOKEN is required for getPlace"
       });
     }
 
-    const isPostcode = /^[0-9]{3,10}$/.test(query);
-    const method = isPostcode ? "getPlacesByPostcode" : "getPlacesByName";
-    const paramsObj = isPostcode ? { postcode: query } : { name: query };
+    const paramsObj = {
+      id: PP_PLACE_ID || "ShopifyScanStation",
+      accnum: PP_ACCNUM || "",
+      ppcust: ""
+    };
 
-    const form = new URLSearchParams();
-    form.set("method", method);
-    form.set("class", "Quote");
-    form.set("token_id", PP_TOKEN);
-    form.set("params", JSON.stringify(paramsObj));
+    const qs = new URLSearchParams();
+    qs.set("Class", "Waybill");
+    qs.set("method", "getPlace");
+    qs.set("token_id", PP_TOKEN);
+    qs.set("params", JSON.stringify(paramsObj));
+    qs.set("query", query);
 
-    const upstream = await fetch(PP_BASE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form.toString()
-    });
+    const base = PP_BASE_URL.endsWith("/") ? PP_BASE_URL : PP_BASE_URL + "/";
+    const url = `${base}?${qs.toString()}`;
 
+    const upstream = await fetch(url, { method: "GET" });
     const text = await upstream.text();
+
     let json;
     try {
       json = JSON.parse(text);
@@ -539,7 +510,7 @@ app.get("/pp/place", async (req, res) => {
 
     return res.status(upstream.status).json(json);
   } catch (err) {
-    console.error("PP place lookup error:", err);
+    console.error("PP getPlace error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)
@@ -614,16 +585,15 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 // Serve static frontend from /public
 app.use(express.static(path.join(__dirname, "public")));
-app.get("/flocs", (req, res) => res.sendFile(path.join(__dirname, "public", "flocs.html")));
+app.get("/flocs", (req, res) => res.sendFile(path.join(__dirname, "public", "flos.html")));
 
 // SPA fallback
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 // ===== Start =====
-app.listen(PORT, HOST, () => {
-  const hostLabel = HOST === "0.0.0.0" ? "all interfaces" : HOST;
-  console.log(`Scan Station server listening on http://${hostLabel}:${PORT}`);
-  console.log(`Allowed origins: ${allowAllOrigins ? "*" : [...allowedOrigins].join(", ")}`);
+app.listen(PORT, () => {
+  console.log(`Scan Station server listening on port ${PORT}`);
+  console.log(`Allowed origins: ${[...allowedOrigins].join(", ")}`);
   console.log("PP_BASE_URL:", PP_BASE_URL || "(NOT SET)");
   console.log("Shopify configured:", Boolean(SHOPIFY_STORE && SHOPIFY_CLIENT_ID && SHOPIFY_CLIENT_SECRET));
 });
