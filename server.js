@@ -759,6 +759,171 @@ app.post("/shopify/draft-orders", async (req, res) => {
   }
 });
 
+// ===== 2e) Shopify: complete draft order =====
+app.post("/shopify/draft-orders/complete", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { draftOrderId } = req.body || {};
+    if (!draftOrderId) {
+      return badRequest(res, "Missing draftOrderId");
+    }
+
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+    const resp = await shopifyFetch(
+      `${base}/draft_orders/${draftOrderId}/complete.json`,
+      {
+        method: "POST",
+        body: JSON.stringify({ draft_order: { id: draftOrderId } })
+      }
+    );
+
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body: data
+      });
+    }
+
+    const order = data.order || null;
+    return res.json({
+      ok: true,
+      order: order
+        ? { id: order.id, name: order.name, orderNumber: order.order_number }
+        : null
+    });
+  } catch (err) {
+    console.error("Shopify draft order complete error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+// ===== 2f) Shopify: create order =====
+app.post("/shopify/orders", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const {
+      customerId,
+      poNumber,
+      shippingMethod,
+      shippingPrice,
+      shippingService,
+      shippingQuoteNo,
+      billingAddress,
+      shippingAddress,
+      lineItems
+    } = req.body || {};
+
+    if (!customerId) {
+      return badRequest(res, "Missing customerId");
+    }
+    if (!Array.isArray(lineItems) || !lineItems.length) {
+      return badRequest(res, "Missing lineItems");
+    }
+
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+    const noteParts = [];
+    if (poNumber) noteParts.push(`PO: ${poNumber}`);
+    if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
+    if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
+
+    const orderPayload = {
+      order: {
+        customer: { id: customerId },
+        note: noteParts.join(" | "),
+        line_items: lineItems.map((li) => {
+          const entry = {
+            quantity: li.quantity || 1
+          };
+          if (li.variantId) {
+            entry.variant_id = li.variantId;
+          } else {
+            entry.title = li.title || li.sku || "Custom item";
+            if (li.price != null) entry.price = String(li.price);
+          }
+          if (li.sku) entry.sku = li.sku;
+          if (li.price != null && !entry.price) entry.price = String(li.price);
+          return entry;
+        }),
+        billing_address: billingAddress || undefined,
+        shipping_address: shippingAddress || undefined,
+        note_attributes: [
+          ...(poNumber
+            ? [{ name: "po_number", value: String(poNumber) }]
+            : []),
+          ...(shippingQuoteNo
+            ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
+            : [])
+        ],
+        financial_status: "pending"
+      }
+    };
+
+    if (shippingMethod && shippingMethod !== "ship") {
+      orderPayload.order.tags = `delivery_${shippingMethod}`;
+    }
+
+    if (shippingPrice != null && shippingMethod === "ship") {
+      orderPayload.order.shipping_lines = [
+        {
+          title: shippingService || "Courier",
+          price: String(shippingPrice)
+        }
+      ];
+    }
+
+    const resp = await shopifyFetch(`${base}/orders.json`, {
+      method: "POST",
+      body: JSON.stringify(orderPayload)
+    });
+
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body: data
+      });
+    }
+
+    const order = data.order || {};
+    return res.json({
+      ok: true,
+      order: {
+        id: order.id,
+        name: order.name,
+        orderNumber: order.order_number
+      }
+    });
+  } catch (err) {
+    console.error("Shopify order create error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 // ===== 3) Shopify: find order by name =====
 app.get("/shopify/orders/by-name/:name", async (req, res) => {
   try {
