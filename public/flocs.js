@@ -477,6 +477,62 @@ ${state.customer.email || ""}${
     return rates[0];
   }
 
+  async function lookupPlaceCodeForAddress(addr) {
+    const queries = [];
+    const postcode = (addr.zip || "").trim();
+    const city = (addr.city || "").trim();
+    const suburb = (addr.address2 || "").trim();
+
+    if (postcode) queries.push(postcode);
+    if (suburb) queries.push(suburb);
+    if (city && city.toLowerCase() !== suburb.toLowerCase()) {
+      queries.push(city);
+      if (suburb) queries.push(`${suburb} ${city}`);
+    }
+
+    for (const q of queries) {
+      try {
+        const res = await fetch(`/pp/place?q=${encodeURIComponent(q)}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (data.errorcode && Number(data.errorcode) !== 0) continue;
+
+        const list = Array.isArray(data.results) ? data.results : [];
+        if (!list.length) continue;
+
+        const normalized = list.map((p) => {
+          const name = (p.name || p.town || p.place || p.pcode || "").toString();
+          const town = (p.town || p.name || "").toString();
+          const place = p.place ?? p.pcode ?? p.placecode ?? null;
+          const ring = p.ring ?? "0";
+          return { ...p, name, town, place, ring };
+        });
+
+        const targetTown = city.toLowerCase();
+        const targetSuburb = suburb.toLowerCase();
+
+        const best =
+          (targetSuburb &&
+            normalized.find((p) => {
+              const n = (p.name || "").toLowerCase();
+              const t = (p.town || "").toLowerCase();
+              return (n.includes(targetSuburb) || t.includes(targetSuburb)) && String(p.ring) === "0";
+            })) ||
+          (targetTown &&
+            normalized.find((p) => (p.town || "").trim().toLowerCase() === targetTown && String(p.ring) === "0")) ||
+          normalized.find((p) => String(p.ring) === "0") ||
+          normalized[0];
+
+        if (!best || best.place == null) continue;
+        return Number(best.place) || best.place;
+      } catch (e) {
+        console.warn("PP place lookup failed:", e);
+      }
+    }
+
+    return null;
+  }
+
   async function requestShippingQuote() {
     if (currentDelivery() !== "ship") {
       state.shippingQuote = null;
@@ -499,6 +555,17 @@ ${state.customer.email || ""}${
 
     calcShipBtn.disabled = true;
     shippingSummary.textContent = "Fetching SWE quote…";
+
+    const destplace = await lookupPlaceCodeForAddress(addr);
+    if (!destplace) {
+      showToast("Could not resolve a place code for this address.", "err");
+      shippingSummary.textContent = "Quote error: missing destination place code.";
+      state.shippingQuote = null;
+      validate();
+      renderInvoice();
+      calcShipBtn.disabled = false;
+      return;
+    }
 
     // Details (origin is your Scan Station ORIGIN equivalent – simplified here)
     const details = {
@@ -527,7 +594,7 @@ ${state.customer.email || ""}${
       destperadd4: addr.province || "",
       destperpcode: addr.zip || "",
       desttown: addr.city || "",
-      destplace: null, // you can wire place codes later, this is only for quoting
+      destplace,
       destpercontact:
         `${addr.first_name || ""} ${addr.last_name || ""}`.trim(),
       destperphone: state.customer?.phone || "",
