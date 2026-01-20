@@ -1096,16 +1096,35 @@ async function handleScan(code) {
     });
 
     filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-    const list = filtered.slice(0, 40);
+    const list = filtered.slice(0, 60);
 
     if (!list.length) {
       dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
       return;
     }
 
-    const cols = [{ id: "lane1", label: "" }, { id: "lane2", label: "" }, { id: "lane3", label: "" }, { id: "lane4", label: "" }];
-    const lanes = cols.map(() => []);
-    list.forEach((o, idx) => lanes[idx % lanes.length].push(o));
+    const cols = [
+      { id: "delivery", label: "Delivery" },
+      { id: "shipping", label: "Shipping" },
+      { id: "pickup", label: "Pickup" }
+    ];
+    const lanes = Object.fromEntries(cols.map((col) => [col.id, []]));
+
+    const laneFromOrder = (order) => {
+      const tags = String(order.tags || "").toLowerCase();
+      const shippingTitles = (order.shipping_lines || [])
+        .map((line) => String(line.title || "").toLowerCase())
+        .join(" ");
+      const combined = `${tags} ${shippingTitles}`.trim();
+      if (/(pickup|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
+      if (/(delivery|local|courier|same\s*day)/.test(combined)) return "delivery";
+      return "shipping";
+    };
+
+    list.forEach((o) => {
+      const laneId = laneFromOrder(o);
+      (lanes[laneId] || lanes.shipping).push(o);
+    });
 
     const lineItemAbbreviations = {
       "original multi-purpose spice": "",
@@ -1179,8 +1198,8 @@ async function handleScan(code) {
     };
 
     dispatchBoard.innerHTML = cols
-      .map((col, idx) => {
-        const cards = lanes[idx].map(cardHTML).join("") || `<div class="dispatchBoardEmptyCol">No jobs.</div>`;
+      .map((col) => {
+        const cards = lanes[col.id].map(cardHTML).join("") || `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
         return `
           <div class="dispatchCol">
             <div class="dispatchColHeader">${col.label}</div>
