@@ -176,12 +176,24 @@ async function shopifyFetch(pathname, { method = "GET", headers = {}, body } = {
 }
 
 // ===== 1) ParcelPerfect proxy (v28, POST form) =====
+function normalizeParcelPerfectClass(value) {
+  if (!value) return value;
+  const raw = String(value).trim();
+  const lower = raw.toLowerCase();
+  if (lower === "quote") return "Quote";
+  if (lower === "collection") return "Collection";
+  if (lower === "waybill") return "Waybill";
+  if (lower === "auth") return "Auth";
+  return raw;
+}
+
 app.post("/pp", async (req, res) => {
   try {
-    const { method, classVal, params } = req.body || {};
+    const { method, classVal, class: classNameRaw, params } = req.body || {};
+    const className = normalizeParcelPerfectClass(classVal || classNameRaw);
 
-    if (!method || !classVal || typeof params !== "object") {
-      return badRequest(res, "Expected { method, classVal, params } in body");
+    if (!method || !className || typeof params !== "object") {
+      return badRequest(res, "Expected { method, classVal|class, params } in body");
     }
 
     if (!PP_BASE_URL || !PP_BASE_URL.startsWith("http")) {
@@ -193,7 +205,7 @@ app.post("/pp", async (req, res) => {
 
     const form = new URLSearchParams();
     form.set("method", String(method));
-    form.set("class", String(classVal));
+    form.set("class", String(className));
     form.set("params", JSON.stringify(params));
 
     const mustUseToken = String(PP_REQUIRE_TOKEN) === "true";
@@ -481,7 +493,7 @@ app.post("/shopify/fulfill", async (req, res) => {
   }
 });
 
-// ===== ParcelPerfect place lookup (Waybill.getPlace) =====
+// ===== ParcelPerfect place lookup (Quote.getPlacesByName/Postcode) =====
 app.get("/pp/place", async (req, res) => {
   try {
     const query = (req.query.q || req.query.query || "").trim();
@@ -497,29 +509,27 @@ app.get("/pp/place", async (req, res) => {
     if (!PP_TOKEN) {
       return res.status(500).json({
         error: "CONFIG_ERROR",
-        message: "PP_TOKEN is required for getPlace"
+        message: "PP_TOKEN is required for place lookups"
       });
     }
 
-    const paramsObj = {
-      id: PP_PLACE_ID || "ShopifyScanStation",
-      accnum: PP_ACCNUM || "",
-      ppcust: ""
-    };
+    const isPostcode = /^[0-9]{3,10}$/.test(query);
+    const method = isPostcode ? "getPlacesByPostcode" : "getPlacesByName";
+    const paramsObj = isPostcode ? { postcode: query } : { name: query };
 
-    const qs = new URLSearchParams();
-    qs.set("Class", "Waybill");
-    qs.set("method", "getPlace");
-    qs.set("token_id", PP_TOKEN);
-    qs.set("params", JSON.stringify(paramsObj));
-    qs.set("query", query);
+    const form = new URLSearchParams();
+    form.set("method", method);
+    form.set("class", "Quote");
+    form.set("token_id", PP_TOKEN);
+    form.set("params", JSON.stringify(paramsObj));
 
-    const base = PP_BASE_URL.endsWith("/") ? PP_BASE_URL : PP_BASE_URL + "/";
-    const url = `${base}?${qs.toString()}`;
+    const upstream = await fetch(PP_BASE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form.toString()
+    });
 
-    const upstream = await fetch(url, { method: "GET" });
     const text = await upstream.text();
-
     let json;
     try {
       json = JSON.parse(text);
@@ -529,7 +539,7 @@ app.get("/pp/place", async (req, res) => {
 
     return res.status(upstream.status).json(json);
   } catch (err) {
-    console.error("PP getPlace error:", err);
+    console.error("PP place lookup error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)
