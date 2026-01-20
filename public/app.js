@@ -1165,6 +1165,8 @@ async function handleScan(code) {
 
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navOps?.classList.toggle("flNavBtn--active", !showScan);
+    navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
+    navOps?.setAttribute("aria-selected", showScan ? "false" : "true");
 
     if (showScan) {
       statusExplain("Ready to scan orders…", "info");
