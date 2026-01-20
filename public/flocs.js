@@ -9,11 +9,35 @@
     // Configure your real SKUs + variant IDs and optional weights/prices here.
     PRODUCTS: [
       // Example entries – replace variantId / title / weightKg / price as needed
-      { sku: "FL002", title: "FL002 – Braai Spice 200ml", variantId: 0, weightKg: 0.25, price: 24.00 },
-      { sku: "FL003", title: "FL003 – Chicken Spice 200ml", variantId: 0, weightKg: 0.25, price: 24.00 },
-      { sku: "FL004", title: "FL004 – Steak & Chops 200ml", variantId: 0, weightKg: 0.25, price: 24.00 },
+      {
+        sku: "FL002",
+        title: "FL002 – Braai Spice 200ml",
+        flavour: "Braai",
+        size: "200ml",
+        variantId: 0,
+        weightKg: 0.25,
+        prices: { retailer: 24.0, agent: 22.0, private: 25.0 }
+      },
+      {
+        sku: "FL003",
+        title: "FL003 – Chicken Spice 200ml",
+        flavour: "Chicken",
+        size: "200ml",
+        variantId: 0,
+        weightKg: 0.25,
+        prices: { retailer: 24.0, agent: 22.0, private: 25.0 }
+      },
+      {
+        sku: "FL004",
+        title: "FL004 – Steak & Chops 200ml",
+        flavour: "Steak & Chops",
+        size: "200ml",
+        variantId: 0,
+        weightKg: 0.25,
+        prices: { retailer: 24.0, agent: 22.0, private: 25.0 }
+      },
       // Add as many as you want, sorted by SKU
-      // { sku:"FL101", title:"FL101 – Example", variantId:1234567890, weightKg:1.0, price:80 }
+      // { sku:"FL101", title:"FL101 – Example", flavour:"Chilli", size:"500ml", variantId:1234567890, weightKg:1.0, prices:{ retailer:80, agent:70, export:85, private:90, fkb:75 } }
     ]
   };
 
@@ -49,6 +73,8 @@
   const productSearch    = document.getElementById("flocs-productSearch");
   const productResults   = document.getElementById("flocs-productResults");
   const productStatus    = document.getElementById("flocs-productStatus");
+  const filterFlavour    = document.getElementById("flocs-filterFlavour");
+  const filterSize       = document.getElementById("flocs-filterSize");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
@@ -70,7 +96,10 @@
     products: [...CONFIG.PRODUCTS],
     shippingQuote: null,     // { service, total, quoteno, raw }
     errors: [],
-    isSubmitting: false
+    isSubmitting: false,
+    priceTier: null,
+    customerTags: [],
+    filters: { flavour: "", size: "" }
   };
 
   // ===== HELPERS =====
@@ -103,6 +132,44 @@
 
   const productKey = (p) =>
     String(p.variantId || p.sku || p.title || "").trim();
+
+  const PRICE_TAGS = ["agent", "retailer", "export", "private", "fkb"];
+
+  function normalizeTags(tags) {
+    if (!tags) return [];
+    if (Array.isArray(tags)) {
+      return tags.map((t) => String(t).trim()).filter(Boolean);
+    }
+    if (typeof tags === "string") {
+      return tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }
+
+  function resolvePriceTier(tags) {
+    const normalized = tags.map((t) => t.toLowerCase());
+    return (
+      PRICE_TAGS.find((tag) => normalized.includes(tag)) || null
+    );
+  }
+
+  function priceForCustomer(product) {
+    if (!product) return null;
+    const tier = state.priceTier;
+    if (tier && product.prices && product.prices[tier] != null) {
+      return Number(product.prices[tier]);
+    }
+    if (product.prices && product.prices.default != null) {
+      return Number(product.prices.default);
+    }
+    if (product.price != null) {
+      return Number(product.price);
+    }
+    return null;
+  }
 
   function setShellReady(ready) {
     if (!shell) return;
@@ -149,7 +216,7 @@
         variantId: p.variantId,
         quantity: qty,
         weightKg: p.weightKg || 0,
-        price: p.price // optional
+        price: priceForCustomer(p) // optional
       });
     }
     return out.sort((a, b) =>
@@ -189,27 +256,48 @@
   // ===== UI: products table rendering =====
   function renderProductsTable() {
     if (!productsBody) return;
-    productsBody.innerHTML = state.products.map((p) => {
-      const name = (p.title || p.sku || "").trim();
-      const key = productKey(p);
-      const value = state.items[key] || "";
-      return `
+    const flavourFilter = (state.filters.flavour || "").toLowerCase();
+    const sizeFilter = (state.filters.size || "").toLowerCase();
+
+    const filtered = state.products.filter((p) => {
+      const flavour = (p.flavour || "").toLowerCase();
+      const size = (p.size || "").toLowerCase();
+      if (flavourFilter && flavour !== flavourFilter) return false;
+      if (sizeFilter && size !== sizeFilter) return false;
+      return true;
+    });
+
+    productsBody.innerHTML = filtered
+      .map((p) => {
+        const name = (p.title || p.sku || "").trim();
+        const key = productKey(p);
+        const value = state.items[key] || "";
+        const price = priceForCustomer(p);
+        return `
         <tr>
           <td><code>${p.sku}</code></td>
           <td>${name}</td>
+          <td>${p.flavour || "—"}</td>
+          <td>${p.size || "—"}</td>
+          <td>${price != null ? money(price) : "—"}</td>
           <td>
-            <input class="flocs-qtyInput"
-                   type="number"
-                   min="0"
-                   step="1"
-                   data-key="${key}"
-                   data-sku="${p.sku || ""}"
-                   inputmode="numeric"
-                   value="${value}" />
+            <div class="flocs-qtyWrap">
+              <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
+              <input class="flocs-qtyInput"
+                     type="number"
+                     min="0"
+                     step="1"
+                     data-key="${key}"
+                     data-sku="${p.sku || ""}"
+                     inputmode="numeric"
+                     value="${value}" />
+              <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+            </div>
           </td>
         </tr>
       `;
-    }).join("");
+      })
+      .join("");
   }
 
   // ===== UI: selected customer chips & address selector =====
@@ -229,14 +317,26 @@
         ? "Deliver"
         : "Ship";
 
+    const tagChips = state.customerTags.length
+      ? state.customerTags
+          .map((t) => `<span class="flocs-chip">Tag: ${t}</span>`)
+          .join("")
+      : `<span class="flocs-chip">Tags: none</span>`;
+
+    const tierLabel = state.priceTier
+      ? `Pricing: ${state.priceTier}`
+      : "Pricing: default";
+
     customerChips.innerHTML = `
       <span class="flocs-chip">Customer: ${c.name}</span>
       <span class="flocs-chip">Delivery: ${deliveryLabel}</span>
+      <span class="flocs-chip">${tierLabel}</span>
       ${
         addr
           ? `<span class="flocs-chip">Ship-to: ${addr.city || ""} ${addr.zip || ""}</span>`
           : ""
       }
+      ${tagChips}
     `;
   }
 
@@ -347,6 +447,10 @@ ${state.customer.email || ""}${
         </tr>
       `;
 
+    const pricingNote = state.priceTier
+      ? `Pricing tier: ${state.priceTier}`
+      : "Pricing tier: default";
+
     invoice.innerHTML = `
       <div class="flocs-invoiceHeader">
         <div>
@@ -402,7 +506,7 @@ ${state.customer.email || ""}${
       </div>
 
       <div class="flocs-invoiceNote">
-        Final pricing and tax are still controlled in Shopify. FLOCS only seeds the draft order.
+        ${pricingNote}. Final pricing and tax are still controlled in Shopify. FLOCS only seeds the draft order.
       </div>
     `;
   }
@@ -720,7 +824,7 @@ ${state.customer.email || ""}${
               c.delivery_method
                 ? ` · default delivery: ${c.delivery_method}`
                 : ""
-            }
+            }${c.tags ? ` · tags: ${c.tags}` : ""}
           </div>
         </div>
       `
@@ -926,7 +1030,10 @@ ${state.customer.email || ""}${
 
     if (customerResults) customerResults.hidden = true;
     if (customerStatus) customerStatus.textContent = `Selected: ${c.name}`;
+    state.customerTags = normalizeTags(c.tags);
+    state.priceTier = resolvePriceTier(state.customerTags);
     renderCustomerChips();
+    renderProductsTable();
     renderAddressSelect();
     renderInvoice();
     validate();
@@ -944,6 +1051,28 @@ ${state.customer.email || ""}${
     renderProductsTable();
     renderInvoice();
     validate();
+  }
+
+  function updateFiltersFromProducts() {
+    if (!filterFlavour || !filterSize) return;
+    const flavours = new Set();
+    const sizes = new Set();
+    state.products.forEach((p) => {
+      if (p.flavour) flavours.add(p.flavour);
+      if (p.size) sizes.add(p.size);
+    });
+    const flavourOptions = ["", ...Array.from(flavours).sort()];
+    const sizeOptions = ["", ...Array.from(sizes).sort()];
+
+    filterFlavour.innerHTML = flavourOptions
+      .map((f) => `<option value="${f}">${f || "All flavours"}</option>`)
+      .join("");
+    filterSize.innerHTML = sizeOptions
+      .map((s) => `<option value="${s}">${s || "All sizes"}</option>`)
+      .join("");
+
+    filterFlavour.value = state.filters.flavour || "";
+    filterSize.value = state.filters.size || "";
   }
 
   async function createDraftOrder() {
@@ -1060,6 +1189,9 @@ ${state.customer.email || ""}${
     state.shippingQuote = null;
     state.errors = [];
     state.isSubmitting = false;
+    state.customerTags = [];
+    state.priceTier = null;
+    state.filters = { flavour: "", size: "" };
 
     if (customerSearch) customerSearch.value = "";
     if (poInput) poInput.value = "";
@@ -1092,6 +1224,8 @@ ${state.customer.email || ""}${
     }
 
     renderCustomerChips();
+    updateFiltersFromProducts();
+    renderProductsTable();
     renderAddressSelect();
     renderInvoice();
     validate();
@@ -1190,6 +1324,35 @@ ${state.customer.email || ""}${
         renderInvoice();
         validate();
       });
+
+      productsBody.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const key = btn.dataset.key;
+        if (!key) return;
+        const current = Number(state.items[key] || 0);
+        if (action === "inc") {
+          state.items[key] = current + 1;
+        } else if (action === "dec") {
+          const next = Math.max(0, current - 1);
+          if (next === 0) {
+            delete state.items[key];
+          } else {
+            state.items[key] = next;
+          }
+        } else {
+          return;
+        }
+        const input = productsBody.querySelector(
+          `input[data-key="${CSS.escape(key)}"]`
+        );
+        if (input) {
+          input.value = state.items[key] ? String(state.items[key]) : "";
+        }
+        renderInvoice();
+        validate();
+      });
     }
 
     if (productSearch) {
@@ -1212,6 +1375,20 @@ ${state.customer.email || ""}${
       });
     }
 
+    if (filterFlavour) {
+      filterFlavour.addEventListener("change", () => {
+        state.filters.flavour = filterFlavour.value || "";
+        renderProductsTable();
+      });
+    }
+
+    if (filterSize) {
+      filterSize.addEventListener("change", () => {
+        state.filters.size = filterSize.value || "";
+        renderProductsTable();
+      });
+    }
+
     if (calcShipBtn) {
       calcShipBtn.addEventListener("click", () => {
         requestShippingQuote();
@@ -1227,6 +1404,7 @@ ${state.customer.email || ""}${
 
   // ===== BOOT =====
   function boot() {
+    updateFiltersFromProducts();
     renderProductsTable();
     resetForm();
     initEvents();
