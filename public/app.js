@@ -676,29 +676,36 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
         if (data.errorcode && Number(data.errorcode) !== 0) continue;
 
         const list = Array.isArray(data.results) ? data.results : [];
-        if (!list.length) continue;
+        const normalized = list.map((p) => {
+          const name = (p.name || p.town || p.place || p.pcode || "").toString();
+          const town = (p.town || p.name || "").toString();
+          const place = p.place ?? p.pcode ?? p.placecode ?? null;
+          const ring = p.ring ?? "0";
+          return { ...p, name, town, place, ring };
+        });
+        if (!normalized.length) continue;
 
         const targetTown = town.toLowerCase();
         const targetSuburb = suburb.toLowerCase();
 
         let best =
           (targetSuburb &&
-            list.find((p) => {
+            normalized.find((p) => {
               const name = (p.name || "").toLowerCase();
               const t = (p.town || "").toLowerCase();
               return ((name.includes(targetSuburb) || t.includes(targetSuburb)) && String(p.ring) === "0");
             })) ||
           (targetSuburb &&
-            list.find((p) => {
+            normalized.find((p) => {
               const name = (p.name || "").toLowerCase();
               const t = (p.town || "").toLowerCase();
               return name.includes(targetSuburb) || t.includes(targetSuburb);
             })) ||
           (targetTown &&
-            list.find((p) => (p.town || "").trim().toLowerCase() === targetTown && String(p.ring) === "0")) ||
-          (targetTown && list.find((p) => (p.town || "").trim().toLowerCase() === targetTown)) ||
-          list.find((p) => String(p.ring) === "0") ||
-          list[0];
+            normalized.find((p) => (p.town || "").trim().toLowerCase() === targetTown && String(p.ring) === "0")) ||
+          (targetTown && normalized.find((p) => (p.town || "").trim().toLowerCase() === targetTown)) ||
+          normalized.find((p) => String(p.ring) === "0") ||
+          normalized[0];
 
         if (!best || best.place == null) continue;
 
@@ -869,7 +876,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       return;
     }
 
-    const quoteRes = await ppCall({ method: "requestQuote", classVal: "quote", params: payload });
+    const quoteRes = await ppCall({ method: "requestQuote", classVal: "Quote", params: payload });
     if (!quoteRes || quoteRes.status !== 200) {
       statusExplain("Quote failed", "err");
       if (bookingSummary) {
@@ -902,13 +909,13 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
     await ppCall({
       method: "updateService",
-      classVal: "quote",
+      classVal: "Quote",
       params: { quoteno, service: pickedService, reference: String(activeOrderNo) }
     });
 
     const collRes = await ppCall({
       method: "quoteToCollection",
-      classVal: "collection",
+      classVal: "Collection",
       params: { quoteno, starttime: "12:00", endtime: "15:00", printLabels: 1, printWaybill: 0 }
     });
 

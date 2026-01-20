@@ -527,7 +527,7 @@ ${state.customer.email || ""}${
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           method: "requestQuote",
-          classVal: "quote",
+          classVal: "Quote",
           params: { details, contents }
         })
       });
