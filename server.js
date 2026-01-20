@@ -358,6 +358,7 @@ const customer_name =
         parcel_count: parcelCountFromTag,
         line_items: (o.line_items || []).map((li) => ({
           title: li.title,
+          variant_title: li.variant_title,
           quantity: li.quantity
         }))
       };
