@@ -1108,20 +1108,22 @@ async function handleScan(code) {
     list.forEach((o, idx) => lanes[idx % lanes.length].push(o));
 
     const lineItemAbbreviations = {
-      "original multi purpose spice": "",
-      "hot and spicy multi purpose spice": "H",
-      "worcestershire sauce sprinkle": "WS",
-      "red wine and garlic sprinkle": "RG",
+      "original multi-purpose spice": "",
+      "original multi-purpose spice - tub": "",
+      "hot & spicy multi-purpose spice": "H",
+      "worcester sauce spice": "WS",
+      "worcester sauce spice - tub": "WS",
+      "red wine & garlic sprinkle": "RG",
       "chutney sprinkle": "CS",
       "savoury herb mix": "SH",
       "salt & vinegar seasoning": "SV",
-      "butter (popcorn sprinkle)": "BUT",
-      "sour cream & chives (popcorn sprinkle)": "SCC",
-      "chutney (popcorn sprinkle)": "CHUT",
-      "parmesan (popcorn sprinkle)": "PAR",
-      "cheese and onion (popcorn sprinkle)": "CHO",
-      "salt & vinegar (popcorn sprinkle)": "SV",
-      "curry mix": "Curry"
+      "butter popcorn sprinkle": "BUT",
+      "sour cream & chives popcorn sprinkle": "SCC",
+      "chutney popcorn sprinkle": "CHUT",
+      "parmesan popcorn sprinkle": "PAR",
+      "cheese and onion popcorn sprinkle": "CHO",
+      "salt & vinegar popcorn sprinkle": "SV",
+      "flippen lekka curry mix": "Curry"
     };
 
     const cardHTML = (o) => {
