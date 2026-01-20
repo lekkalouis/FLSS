@@ -24,6 +24,7 @@ const app = express();
 // ===== Config (env) =====
 const {
   PORT = 3000,
+  HOST = "0.0.0.0",
   NODE_ENV = "development",
   FRONTEND_ORIGIN = "http://localhost:3000",
 
@@ -54,11 +55,12 @@ const allowedOrigins = new Set(
     .map((s) => s.trim())
     .filter(Boolean)
 );
+const allowAllOrigins = allowedOrigins.has("*");
 
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin || allowedOrigins.has(origin)) return cb(null, true);
+      if (!origin || allowAllOrigins || allowedOrigins.has(origin)) return cb(null, true);
       return cb(new Error("CORS: origin not allowed"));
     },
     methods: ["GET", "POST", "OPTIONS"],
@@ -608,9 +610,10 @@ app.get("/flocs", (req, res) => res.sendFile(path.join(__dirname, "public", "flo
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 // ===== Start =====
-app.listen(PORT, () => {
-  console.log(`Scan Station server listening on http://localhost:${PORT}`);
-  console.log(`Allowed origins: ${[...allowedOrigins].join(", ")}`);
+app.listen(PORT, HOST, () => {
+  const hostLabel = HOST === "0.0.0.0" ? "all interfaces" : HOST;
+  console.log(`Scan Station server listening on http://${hostLabel}:${PORT}`);
+  console.log(`Allowed origins: ${allowAllOrigins ? "*" : [...allowedOrigins].join(", ")}`);
   console.log("PP_BASE_URL:", PP_BASE_URL || "(NOT SET)");
   console.log("Shopify configured:", Boolean(SHOPIFY_STORE && SHOPIFY_CLIENT_ID && SHOPIFY_CLIENT_SECRET));
 });
