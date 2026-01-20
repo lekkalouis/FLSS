@@ -36,6 +36,7 @@
   const uiCountdown = $("uiCountdown");
   const shipToCard = $("shipToCard");
   const parcelList = $("parcelList");
+  const parcelNumbers = $("parcelNumbers");
   const bookingSummary = $("bookingSummary");
   const statusChip = $("statusChip");
   const stickerPreview = $("stickerPreview");
@@ -89,7 +90,8 @@
       "actionFlash--info",
       "actionFlash--ok",
       "actionFlash--warn",
-      "actionFlash--err"
+      "actionFlash--err",
+      "actionFlash--booked"
     );
 
     const cls =
@@ -108,6 +110,13 @@
     actionFlash._fadeTimer = setTimeout(() => {
       actionFlash.style.opacity = "0.4";
     }, 2000);
+  };
+
+  const triggerBookedFlash = () => {
+    if (!actionFlash) return;
+    actionFlash.classList.remove("actionFlash--booked");
+    void actionFlash.offsetWidth;
+    actionFlash.classList.add("actionFlash--booked");
   };
 
   const appendDebug = (msg) => {
@@ -478,6 +487,28 @@ function scheduleIdleAutoBook() {
       const lastScanLine = lastScanAt ? `Last scan: ${new Date(lastScanAt).toLocaleTimeString()} (${lastScanCode || "n/a"})` : "Last scan: --";
       const listLine = idxs.length ? `Scanned IDs: ${idxs.join(", ")}` : "Scanned IDs: --";
       parcelList.textContent = `${scannedLine}\n${missingLine}\n${lastScanLine}\n${listLine}${tagInfo}${manualInfo}`;
+    }
+
+    if (parcelNumbers) {
+      if (!activeOrderNo) {
+        parcelNumbers.innerHTML = `<div class="parcelNumbersEmpty">Scan an order to show parcel numbers.</div>`;
+      } else if (expected && expected > 0) {
+        const tiles = Array.from({ length: expected }, (_, i) => {
+          const num = i + 1;
+          const isScanned = parcelsForOrder.has(num);
+          return `<div class="parcelNumber ${isScanned ? "is-scanned" : ""}">${num}</div>`;
+        }).join("");
+        parcelNumbers.innerHTML = tiles || `<div class="parcelNumbersEmpty">Waiting for scans.</div>`;
+      } else if (idxs.length) {
+        const tiles = idxs
+          .slice()
+          .sort((a, b) => a - b)
+          .map((num) => `<div class="parcelNumber is-scanned">${num}</div>`)
+          .join("");
+        parcelNumbers.innerHTML = tiles || `<div class="parcelNumbersEmpty">Waiting for scans.</div>`;
+      } else {
+        parcelNumbers.innerHTML = `<div class="parcelNumbersEmpty">Waiting for scans.</div>`;
+      }
     }
 
     if (shipToCard) {
@@ -975,7 +1006,6 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     } else {
       const labels = parcelIndexes.map((idx) => renderLabelHTML(waybillNo, pickedService, quoteCost, orderDetails, idx, expected));
       mountLabelToPreviewAndPrint(labels[0], labels.join("\n"));
-      statusExplain("Booked", "ok");
 
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       await inlineImages(printMount);
@@ -984,6 +1014,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       if (labels.length) window.print();
     }
 
+    statusExplain("Booked", "ok");
+    triggerBookedFlash();
     if (statusChip) statusChip.textContent = "Booked";
     if (bookingSummary) {
       bookingSummary.textContent = `WAYBILL: ${waybillNo}
