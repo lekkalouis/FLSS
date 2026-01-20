@@ -347,6 +347,12 @@ const customer_name =
         customer_name,
         created_at: o.processed_at || o.created_at,
         fulfillment_status: o.fulfillment_status,
+        tags: o.tags || "",
+        shipping_lines: (o.shipping_lines || []).map((line) => ({
+          title: line.title || "",
+          code: line.code || "",
+          price: line.price || ""
+        })),
         shipping_city: shipping.city || "",
         shipping_postal: shipping.zip || "",
         shipping_address1: shipping.address1 || "",
