@@ -29,6 +29,10 @@
   const scanInput = $("scanInput");
   const uiOrderNo = $("uiOrderNo");
   const uiParcelCount = $("uiParcelCount");
+  const uiExpectedCount = $("uiExpectedCount");
+  const uiSessionMode = $("uiSessionMode");
+  const uiParcelSource = $("uiParcelSource");
+  const uiAutoBook = $("uiAutoBook");
   const uiCountdown = $("uiCountdown");
   const shipToCard = $("shipToCard");
   const parcelList = $("parcelList");
@@ -48,8 +52,10 @@
 
   const navScan = $("navScan");
   const navOps = $("navOps");
+  const navDocs = $("navDocs");
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
+  const viewDocs = $("viewDocs");
   const actionFlash = $("actionFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -61,6 +67,8 @@
   let orderDetails = null;
   let parcelsForOrder = new Set();
   let armedForBooking = false;
+  let lastScanAt = null;
+  let lastScanCode = null;
 
   let placeCodeOverride = null;
   let serviceOverride = "RFX";
@@ -207,10 +215,17 @@ function isAutoBookOrder(details) {
 </svg>`;
   }
 let autoBookTimer = null;
+let autoBookEndsAt = null;
+let autoBookTicker = null;
 
 function cancelAutoBookTimer() {
   if (autoBookTimer) clearTimeout(autoBookTimer);
   autoBookTimer = null;
+  autoBookEndsAt = null;
+  if (autoBookTicker) {
+    clearInterval(autoBookTicker);
+    autoBookTicker = null;
+  }
 }
 
 function scheduleIdleAutoBook() {
@@ -224,8 +239,16 @@ function scheduleIdleAutoBook() {
   // Need at least 1 scan
   if (parcelsForOrder.size <= 0) return;
 
+  autoBookEndsAt = Date.now() + CONFIG.BOOKING_IDLE_MS;
+  autoBookTicker = setInterval(renderSessionUI, 250);
+
   autoBookTimer = setTimeout(async () => {
     autoBookTimer = null;
+    autoBookEndsAt = null;
+    if (autoBookTicker) {
+      clearInterval(autoBookTicker);
+      autoBookTicker = null;
+    }
 
     // Still valid?
     if (!activeOrderNo || !orderDetails) return;
@@ -382,6 +405,23 @@ function scheduleIdleAutoBook() {
     const expected = getExpectedParcelCount(orderDetails || {});
     const idxs = getParcelIndexesForCurrentOrder(orderDetails || {});
     if (uiParcelCount) uiParcelCount.textContent = String(idxs.length);
+    if (uiExpectedCount) uiExpectedCount.textContent = expected ? String(expected) : "--";
+
+    const parcelSource = hasParcelCountTag(orderDetails)
+      ? `Tag parcel_count_${orderDetails.parcelCountFromTag}`
+      : orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
+      ? `Manual ${orderDetails.manualParcelCount}`
+      : idxs.length
+      ? "Scanned"
+      : "--";
+    if (uiParcelSource) uiParcelSource.textContent = parcelSource;
+
+    const sessionMode = hasParcelCountTag(orderDetails)
+      ? "Tag auto-book"
+      : activeOrderNo
+      ? "Manual / idle auto-book"
+      : "Waiting";
+    if (uiSessionMode) uiSessionMode.textContent = sessionMode;
 
     const tagInfo =
       orderDetails && typeof orderDetails.parcelCountFromTag === "number" && orderDetails.parcelCountFromTag > 0
@@ -394,9 +434,16 @@ function scheduleIdleAutoBook() {
         : "";
 
     if (parcelList) {
-      parcelList.textContent = idxs.length
-        ? `Parcels: ${idxs.join(", ")}${tagInfo}${manualInfo}`
-        : "No parcels (scan parcel labels).";
+      const missing =
+        expected && expected > 0
+          ? Array.from({ length: expected }, (_, i) => i + 1).filter((i) => !parcelsForOrder.has(i))
+          : [];
+      const scannedLine = idxs.length ? `Scanned: ${idxs.length}${expected ? ` / ${expected}` : ""}` : "Scanned: 0";
+      const missingLine =
+        expected && missing.length ? `Missing: ${missing.length} (${missing.join(", ")})` : expected ? "Missing: 0" : "Missing: --";
+      const lastScanLine = lastScanAt ? `Last scan: ${new Date(lastScanAt).toLocaleTimeString()} (${lastScanCode || "n/a"})` : "Last scan: --";
+      const listLine = idxs.length ? `Scanned IDs: ${idxs.join(", ")}` : "Scanned IDs: --";
+      parcelList.textContent = `${scannedLine}\n${missingLine}\n${lastScanLine}\n${listLine}${tagInfo}${manualInfo}`;
     }
 
     if (shipToCard) {
@@ -417,6 +464,21 @@ Email: ${orderDetails.email || ""}`.trim();
       );
     } else if (activeOrderNo) {
       statusExplain(hasParcelCountTag(orderDetails) ? "Scan parcels until complete." : "Scan parcels, then BOOK NOW.", "info");
+    }
+
+    if (uiAutoBook) {
+      if (!activeOrderNo) {
+        uiAutoBook.textContent = "Idle";
+      } else if (hasParcelCountTag(orderDetails)) {
+        uiAutoBook.textContent = "Immediate on first scan";
+      } else if (autoBookEndsAt) {
+        const remainingMs = Math.max(0, autoBookEndsAt - Date.now());
+        uiAutoBook.textContent = `Auto-book in ${(remainingMs / 1000).toFixed(1)}s`;
+      } else if (idxs.length) {
+        uiAutoBook.textContent = "Waiting for scans";
+      } else {
+        uiAutoBook.textContent = "Idle";
+      }
     }
 
     updateBookNowButton();
@@ -904,6 +966,8 @@ function resetSession() {
   orderDetails = null;
   parcelsForOrder = new Set();
   armedForBooking = false;
+  lastScanAt = null;
+  lastScanCode = null;
 
   placeCodeOverride = null;
   if (placeCodeInput) placeCodeInput.value = "";
@@ -928,6 +992,8 @@ async function startOrder(orderNo) {
   activeOrderNo = orderNo;
   parcelsForOrder = new Set();
   armedForBooking = false;
+  lastScanAt = null;
+  lastScanCode = null;
 
   placeCodeOverride = null;
   if (placeCodeInput) placeCodeInput.value = "";
@@ -968,6 +1034,8 @@ async function handleScan(code) {
 
 
   parcelsForOrder.add(parsed.parcelSeq);
+  lastScanAt = Date.now();
+  lastScanCode = code;
   armedForBooking = false;
 
   const expected = getExpectedParcelCount(orderDetails);
@@ -1224,24 +1292,33 @@ async function handleScan(code) {
 
   function switchMainView(view) {
     const showScan = view === "scan";
+    const showDocs = view === "docs";
 
     if (viewScan) {
       viewScan.hidden = !showScan;
       viewScan.classList.toggle("flView--active", showScan);
     }
     if (viewOps) {
-      viewOps.hidden = showScan;
-      viewOps.classList.toggle("flView--active", !showScan);
+      viewOps.hidden = showScan || showDocs;
+      viewOps.classList.toggle("flView--active", !showScan && !showDocs);
+    }
+    if (viewDocs) {
+      viewDocs.hidden = !showDocs;
+      viewDocs.classList.toggle("flView--active", showDocs);
     }
 
     navScan?.classList.toggle("flNavBtn--active", showScan);
-    navOps?.classList.toggle("flNavBtn--active", !showScan);
+    navOps?.classList.toggle("flNavBtn--active", !showScan && !showDocs);
+    navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
-    navOps?.setAttribute("aria-selected", showScan ? "false" : "true");
+    navOps?.setAttribute("aria-selected", !showScan && !showDocs ? "true" : "false");
+    navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
 
     if (showScan) {
       statusExplain("Ready to scan orders…", "info");
       scanInput?.focus();
+    } else if (showDocs) {
+      statusExplain("Viewing operator documentation", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -1295,6 +1372,7 @@ btnBookNow?.addEventListener("click", async () => {
 
   navScan?.addEventListener("click", () => switchMainView("scan"));
   navOps?.addEventListener("click", () => switchMainView("ops"));
+  navDocs?.addEventListener("click", () => switchMainView("docs"));
 
   loadBookedOrders();
   renderSessionUI();

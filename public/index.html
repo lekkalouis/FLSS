@@ -334,11 +334,73 @@
   padding: 0.35rem 0.1rem;
 }
 
-.dispatchStamp{
+  .dispatchStamp{
   font-size:.7rem;
   color:var(--text-muted);
   font-family:var(--mono);
 }
+
+  /* Documentation */
+  .docsShell{
+    max-width:980px;
+    margin:0 auto;
+    background:rgba(255,255,255,.96);
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-lg);
+    box-shadow:0 30px 80px rgba(15,23,42,.12);
+    padding:1.5rem;
+  }
+  .docsShell h2{
+    font-size:1rem;
+    margin:1.25rem 0 .5rem;
+  }
+  .docsShell h3{
+    font-size:.9rem;
+    margin:1rem 0 .4rem;
+  }
+  .docsShell p,
+  .docsShell li{
+    font-size:.85rem;
+    color:var(--text);
+    line-height:1.5;
+  }
+  .docsGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));
+    gap:1rem;
+  }
+  .docsCard{
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    padding:1rem;
+    background:var(--panel);
+  }
+  .docsMeta{
+    font-family:var(--mono);
+    font-size:.78rem;
+    color:var(--text-muted);
+  }
+  .docsCode{
+    font-family:var(--mono);
+    font-size:.78rem;
+    background:var(--panel-muted);
+    border:1px dashed var(--panel-strong);
+    padding:.5rem .6rem;
+    border-radius:var(--radius-md);
+    color:#0c4a6e;
+  }
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    padding:.2rem .5rem;
+    border-radius:999px;
+    border:1px solid rgba(56,189,248,.5);
+    background:var(--accent-soft);
+    color:#0c4a6e;
+    font-size:.7rem;
+    font-weight:600;
+  }
 
 </style>
 </head>
@@ -349,6 +411,7 @@
       <div class="flNavGroup" role="tablist" aria-label="Primary views">
         <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true">Scan Station</button>
         <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false">Dispatch Board</button>
+        <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false">Documentation</button>
       </div>
       <div class="flNavStatus">
         <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -364,7 +427,10 @@
       <div class="line1">Flippen Lekka Scan Station <span class="badge" aria-live="polite">v0.3</span></div>
       <div class="sessionInfo" aria-live="polite">
         <div>Order: <span id="uiOrderNo">--</span></div>
-        <div>Parcels scanned: <span id="uiParcelCount">0</span></div>
+        <div>Session mode: <span id="uiSessionMode">Waiting</span></div>
+        <div>Parcels: <span id="uiParcelCount">0</span> / <span id="uiExpectedCount">--</span></div>
+        <div>Parcel source: <span id="uiParcelSource">--</span></div>
+        <div>Auto-book: <span id="uiAutoBook">Idle</span></div>
       
       </div>
     </div>
@@ -414,7 +480,7 @@
 
     <!-- Info cards -->
     <div class="minigrid">
-      <div class="card"><div class="cardHeader">Session Parcels</div><div class="cardBody" id="parcelList">No parcels scanned yet.</div></div>
+      <div class="card"><div class="cardHeader">Scanned Parcel Details</div><div class="cardBody" id="parcelList">No parcels scanned yet.</div></div>
       <div class="card"><div class="cardHeader">Ship To</div><div class="cardBody" id="shipToCard">None yet.</div></div>
       
         <div id="last-booking" class="card">
@@ -452,6 +518,74 @@
           </div>
           <div class="dispatchBoard" id="dispatchBoardGrid">
             <div class="dispatchBoardEmpty">Loading open orders…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flView" id="viewDocs" hidden>
+      <div class="docsShell">
+        <div class="pill">Operator Guide</div>
+        <h2>Scan Station Overview</h2>
+        <p>This console books shipments automatically based on scanned parcel labels and Shopify order metadata. The session banner shows the active order, mode, expected parcel count, and auto-book countdown so operators can confirm readiness before booking.</p>
+
+        <div class="docsGrid">
+          <div class="docsCard">
+            <h3>Quick Start (Daily Use)</h3>
+            <ol>
+              <li>Open the Scan Station view and keep the cursor in the scan field.</li>
+              <li>Scan parcel barcodes in order; the session panel will show scanned vs expected parcels.</li>
+              <li>If a <span class="pill">parcel_count_#</span> tag exists, the booking is triggered on the first scan.</li>
+              <li>If no tag exists, the system auto-books after the idle timer expires or you can tap <strong>BOOK NOW</strong>.</li>
+              <li>Print labels from the preview once the booking confirms.</li>
+            </ol>
+          </div>
+          <div class="docsCard">
+            <h3>Session Details Explained</h3>
+            <ul>
+              <li><strong>Session mode</strong> shows whether the booking is tag-driven or manual.</li>
+              <li><strong>Parcel source</strong> clarifies if the count came from tags, manual entry, or live scans.</li>
+              <li><strong>Auto-book</strong> updates with the idle countdown when scans are still incoming.</li>
+              <li><strong>Scanned Parcel Details</strong> lists missing parcels and last scan time so you can resolve gaps fast.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h2>Dispatch Board</h2>
+        <p>The Dispatch Board groups open Shopify orders by urgency. Each card lists customer details, service code, tags, and a parcel count indicator so planners can prioritize packing.</p>
+
+        <h2>Mobile Access (Same Network)</h2>
+        <p>To access the app from a phone or tablet on the same Wi-Fi, the server must listen on all interfaces and allow the phone's origin.</p>
+        <div class="docsCard">
+          <h3>Step-by-Step</h3>
+          <ol>
+            <li>Find the computer's IP address on your network (example: <span class="docsCode">192.168.1.25</span>).</li>
+            <li>Start the server with <span class="docsCode">HOST=0.0.0.0</span>.</li>
+            <li>Set <span class="docsCode">FRONTEND_ORIGIN</span> to include both desktop and mobile origins (comma-separated), or use <span class="docsCode">*</span> for local testing.</li>
+            <li>On the phone, open <span class="docsCode">http://192.168.1.25:3000</span>.</li>
+          </ol>
+          <p class="docsMeta">Tip: If you see a CORS error, update <span class="docsCode">FRONTEND_ORIGIN</span> to include the mobile address.</p>
+        </div>
+
+        <h2>Endpoints</h2>
+        <div class="docsGrid">
+          <div class="docsCard">
+            <h3>Core API</h3>
+            <ul>
+              <li><span class="docsCode">POST /pp</span> — ParcelPerfect proxy for bookings and quotes.</li>
+              <li><span class="docsCode">GET /shopify/orders/by-name/:name</span> — Order lookup by Shopify name.</li>
+              <li><span class="docsCode">GET /shopify/orders/open</span> — Dispatch board feed.</li>
+              <li><span class="docsCode">POST /shopify/fulfill</span> — Fulfillment + tracking update.</li>
+              <li><span class="docsCode">GET /healthz</span> — Service health check.</li>
+            </ul>
+          </div>
+          <div class="docsCard">
+            <h3>Operator Tips</h3>
+            <ul>
+              <li>Use <strong>Emergency Stop</strong> to clear the session if the wrong order is scanned.</li>
+              <li>If an order is already booked, scans are blocked to prevent duplicates.</li>
+              <li>Keep labels flat in the printer; the preview matches the 100×150mm output.</li>
+            </ul>
           </div>
         </div>
       </div>
