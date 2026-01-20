@@ -47,6 +47,8 @@
   const customerResults  = document.getElementById("flocs-customerResults");
   const customerStatus   = document.getElementById("flocs-customerStatus");
   const customerChips    = document.getElementById("flocs-selectedCustomerChips");
+  const customerCreateToggle = document.getElementById("flocs-customerCreateToggle");
+  const customerCreatePanel = document.getElementById("flocs-customerCreatePanel");
   const customerCreateStatus = document.getElementById("flocs-customerCreateStatus");
   const customerFirst    = document.getElementById("flocs-customerFirst");
   const customerLast     = document.getElementById("flocs-customerLast");
@@ -175,6 +177,20 @@
     if (!shell) return;
     if (ready) shell.classList.add("flocs-ready");
     else shell.classList.remove("flocs-ready");
+  }
+
+  function setCustomerCreateVisible(visible) {
+    if (customerCreatePanel) {
+      customerCreatePanel.hidden = !visible;
+    }
+    if (customerCreateToggle) {
+      customerCreateToggle.textContent = visible
+        ? "Hide new customer form"
+        : "Add new customer";
+    }
+    if (visible && customerFirst) {
+      customerFirst.focus();
+    }
   }
 
   function currentDelivery() {
@@ -439,13 +455,7 @@ ${state.customer.email || ""}${
         `
           )
           .join("")
-      : `
-        <tr>
-          <td colspan="4" style="text-align:center;color:#6b7280">
-            No line items yet. Enter quantities on the left.
-          </td>
-        </tr>
-      `;
+      : "";
 
     const pricingNote = state.priceTier
       ? `Pricing tier: ${state.priceTier}`
@@ -979,6 +989,7 @@ ${state.customer.email || ""}${
       }
       showToast("Customer created.", "ok");
       resetCustomerForm();
+      setCustomerCreateVisible(false);
     } catch (e) {
       console.error("Customer create error:", e);
       showToast("Customer create failed.", "err");
@@ -1217,6 +1228,7 @@ ${state.customer.email || ""}${
     if (errorsBox) {
       errorsBox.textContent = "";
     }
+    setCustomerCreateVisible(false);
     // reset qty inputs
     if (productsBody) {
       const inputs = productsBody.querySelectorAll("input[data-key]");
@@ -1260,6 +1272,13 @@ ${state.customer.email || ""}${
     if (customerResetBtn) {
       customerResetBtn.addEventListener("click", () => {
         resetCustomerForm();
+      });
+    }
+
+    if (customerCreateToggle) {
+      customerCreateToggle.addEventListener("click", () => {
+        const isHidden = customerCreatePanel?.hidden !== false;
+        setCustomerCreateVisible(isHidden);
       });
     }
 
