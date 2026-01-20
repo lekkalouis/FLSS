@@ -138,6 +138,23 @@
   .scanBox label small{ color:#7c8da1; font-weight:400; font-size:.7rem; }
   #scanInput{ width:100%; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:1rem; outline:none; padding:.5rem .6rem; }
   #scanInput:focus{ border-color:var(--accent); box-shadow:0 0 20px rgba(56,189,248,.4); }
+  .btn{
+    border:1px solid rgba(56,189,248,.5);
+    background:var(--accent-soft);
+    color:#0c4a6e;
+    font-weight:700;
+    font-size:.85rem;
+    padding:.55rem .9rem;
+    border-radius:.7rem;
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover{ transform:translateY(-1px); box-shadow:0 6px 14px rgba(56,189,248,.2); }
+  .btnPrimary{
+    background:#0ea5e9;
+    border-color:#0ea5e9;
+    color:#fff;
+  }
 
   /* Address picker */
   .addrBox{ margin-bottom:1rem; }
@@ -165,6 +182,16 @@
     background:radial-gradient(circle at 50% 0%, rgba(56,189,248,.12) 0%, rgba(255,255,255,0) 70%), linear-gradient(to bottom right, rgba(255,255,255,.9), rgba(241,245,249,.6));
   }
   .sectionTitle{ font-size:.82rem; color:var(--text); font-weight:700; display:flex; justify-content:space-between; gap:.5rem 1rem; margin-bottom:.6rem; }
+  #modeToggle{
+    border:1px solid rgba(56,189,248,.5);
+    background:var(--accent-soft);
+    color:#0c4a6e;
+    font-weight:700;
+    font-size:.75rem;
+    padding:.35rem .6rem;
+    border-radius:.55rem;
+    cursor:pointer;
+  }
   .statusChip{ font-size:.7rem; background:var(--panel-muted); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.35rem .5rem; color:var(--text-muted); }
   .summaryCard{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.75rem; margin-bottom:.8rem; font-family:var(--mono); font-size:.7rem; line-height:1.4; color:#0c4a6e; white-space:pre-wrap; word-break:break-word; max-height:240px; overflow:auto; }
   .waybillSheetPreview{ background:#fff; color:#000; border-radius:var(--radius-md); padding:.75rem; font-family:var(--mono); font-size:.72rem; line-height:1.4; min-height:180px; overflow:auto; }
@@ -292,17 +319,42 @@
   text-overflow:ellipsis;
 }
 
-.dispatchCardLines {
-  font-size: 0.72rem;
-  color: #334155;
-  line-height: 1.25;
-  white-space: pre-line;
-  display:-webkit-box;
-  -webkit-line-clamp:4;
-  -webkit-box-orient:vertical;
-  overflow:hidden;
-  word-break:break-word;
-}
+  .dispatchCardLines {
+    font-size: 0.72rem;
+    color: #334155;
+    line-height: 1.25;
+    white-space: pre-line;
+    display:-webkit-box;
+    -webkit-line-clamp:4;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    word-break:break-word;
+  }
+
+  .dispatchCardActions{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:.5rem;
+  }
+
+  .dispatchBookBtn{
+    border:1px solid rgba(56,189,248,.45);
+    background:rgba(56,189,248,.12);
+    color:#0c4a6e;
+    font-size:.7rem;
+    font-weight:700;
+    padding:.35rem .55rem;
+    border-radius:.5rem;
+    cursor:pointer;
+  }
+
+  .dispatchBookBtn:hover{
+    background:rgba(56,189,248,.22);
+  }
+  .dispatchBookBtn:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+  }
 
 .dispatchColBody {
   overflow-y: auto;
@@ -535,6 +587,7 @@
             <ol>
               <li>Open the Scan Station view and keep the cursor in the scan field.</li>
               <li>Scan parcel barcodes in order; the session panel will show scanned vs expected parcels.</li>
+              <li>Use the <strong>MODE</strong> toggle to switch between Auto (tag/idle booking) and Manual (tap Book Now).</li>
               <li>If a <span class="pill">parcel_count_#</span> tag exists, the booking is triggered on the first scan.</li>
               <li>If no tag exists, the system auto-books after the idle timer expires or you can tap <strong>BOOK NOW</strong>.</li>
               <li>Print labels from the preview once the booking confirms.</li>
@@ -553,6 +606,7 @@
 
         <h2>Dispatch Board</h2>
         <p>The Dispatch Board groups open Shopify orders by urgency. Each card lists customer details, service code, tags, and a parcel count indicator so planners can prioritize packing.</p>
+        <p>Tap <strong>Book Now</strong> on a card to enter the number of boxes and immediately book the shipment for that order.</p>
 
         <h2>Mobile Access (Same Network)</h2>
         <p>To access the app from a phone or tablet on the same Wi-Fi, the server must listen on all interfaces and allow the phone's origin.</p>
