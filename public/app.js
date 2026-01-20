@@ -1222,7 +1222,7 @@ async function handleScan(code) {
         .join(" ");
       const combined = `${tags} ${shippingTitles}`.trim();
       if (/(pickup|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-      if (/(delivery|local|courier|same\s*day)/.test(combined)) return "delivery";
+      if (/(local delivery|courier|same\s*day)/.test(combined)) return "delivery";
       return "shipping";
     };
 

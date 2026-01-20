@@ -303,11 +303,12 @@
   font-size: 0.85rem;
   color: var(--text);
   margin-bottom: 0.2rem;
-  display:-webkit-box;
-  -webkit-line-clamp:2;
-  -webkit-box-orient:vertical;
-  overflow:hidden;
-  word-break:break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .dispatchCardMeta {
@@ -318,6 +319,7 @@
   overflow:hidden;
   text-overflow:ellipsis;
 }
+
 
   .dispatchCardLines {
     font-size: 0.72rem;
@@ -590,18 +592,9 @@
               <li>Use the <strong>MODE</strong> toggle to switch between Auto (tag/idle booking) and Manual (tap Book Now).</li>
               <li>If a <span class="pill">parcel_count_#</span> tag exists, the booking is triggered on the first scan.</li>
               <li>If no tag exists, the system auto-books after the idle timer expires or you can tap <strong>BOOK NOW</strong>.</li>
-              <li>Print labels from the preview once the booking confirms.</li>
-            </ol>
+              
           </div>
-          <div class="docsCard">
-            <h3>Session Details Explained</h3>
-            <ul>
-              <li><strong>Session mode</strong> shows whether the booking is tag-driven or manual.</li>
-              <li><strong>Parcel source</strong> clarifies if the count came from tags, manual entry, or live scans.</li>
-              <li><strong>Auto-book</strong> updates with the idle countdown when scans are still incoming.</li>
-              <li><strong>Scanned Parcel Details</strong> lists missing parcels and last scan time so you can resolve gaps fast.</li>
-            </ul>
-          </div>
+         
         </div>
 
         <h2>Dispatch Board</h2>
