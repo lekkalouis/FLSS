@@ -1112,7 +1112,16 @@ async function handleScan(code) {
       const city = o.shipping_city || "";
       const postal = o.shipping_postal || "";
       const created = o.created_at ? new Date(o.created_at).toLocaleTimeString() : "";
-      const lines = (o.line_items || []).slice(0, 6).map((li) => `• ${li.quantity} × ${li.title}`).join("<br>");
+      const lines = (o.line_items || [])
+        .slice(0, 6)
+        .map((li) => {
+          const baseTitle = li.title || "";
+          const variantTitle = (li.variant_title || "").trim();
+          const hasVariant = variantTitle && variantTitle.toLowerCase() !== "default title";
+          const fullTitle = hasVariant ? `${variantTitle} ${baseTitle}` : baseTitle;
+          return `• ${li.quantity} × ${fullTitle}`;
+        })
+        .join("<br>");
       const addr1 = o.shipping_address1 || "";
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
