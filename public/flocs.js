@@ -80,13 +80,19 @@
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
+  const collectionSelect = document.getElementById("flocs-collectionSelect");
+  const collectionLoadBtn = document.getElementById("flocs-collectionLoadBtn");
 
   const invoice          = document.getElementById("flocs-invoice");
   const previewTag       = document.getElementById("flocs-previewTag");
+  const armBtn           = document.getElementById("flocs-armBtn");
+  const convertBtn       = document.getElementById("flocs-convertBtn");
+  const createOrderBtn   = document.getElementById("flocs-createOrderBtn");
 
   const toast            = document.getElementById("flocs-toast");
   const confirmOverlay   = document.getElementById("flocs-confirmOverlay");
   const confirmBtn       = document.getElementById("flocs-confirmBtn");
+  const disarmBtn        = document.getElementById("flocs-disarmBtn");
 
   // ===== STATE =====
   const state = {
@@ -99,6 +105,8 @@
     shippingQuote: null,     // { service, total, quoteno, raw }
     errors: [],
     isSubmitting: false,
+    lockArmed: true,
+    lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
     filters: { flavour: "", size: "" }
@@ -175,8 +183,18 @@
 
   function setShellReady(ready) {
     if (!shell) return;
-    if (ready) shell.classList.add("flocs-ready");
+    if (ready && state.lockArmed) shell.classList.add("flocs-ready");
     else shell.classList.remove("flocs-ready");
+  }
+
+  function renderConvertButton() {
+    if (!convertBtn) return;
+    convertBtn.hidden = !state.lastDraftOrderId;
+  }
+
+  function renderCreateOrderButton(ready) {
+    if (!createOrderBtn) return;
+    createOrderBtn.hidden = !ready || state.isSubmitting;
   }
 
   function setCustomerCreateVisible(visible) {
@@ -267,6 +285,22 @@
     }
     if (!kg) return CONFIG.BOX_DIM.massKg;
     return kg;
+  }
+
+  function computeBoxCount(totalWeightKg) {
+    const base = Number(totalWeightKg || 0);
+    const boxes = Math.ceil(base * 0.051 + 0.5);
+    return Math.max(boxes, 0);
+  }
+
+  function computeBoxWeightKg(totalWeightKg) {
+    const boxes = computeBoxCount(totalWeightKg);
+    return boxes * 0.5;
+  }
+
+  function computeGrossWeightKg(totalWeightKg) {
+    const boxWeight = computeBoxWeightKg(totalWeightKg);
+    return totalWeightKg + boxWeight;
   }
 
   // ===== UI: products table rendering =====
@@ -435,7 +469,9 @@ ${state.customer.email || ""}${
 
     const shippingLine =
       delivery === "ship" && state.shippingQuote
-        ? `Shipping (${state.shippingQuote.service || "Courier"}): ${money(
+        ? `Shipping (${state.shippingQuote.service || "Courier"} @ ${money(
+            state.shippingQuote.ratePerKg || 0
+          )}/kg, quoteno ${state.shippingQuote.quoteno}): ${money(
             state.shippingQuote.total
           )}`
         : delivery === "ship"
@@ -556,14 +592,22 @@ ${state.customer.email || ""}${
         previewTag.textContent = "Add item quantities…";
       } else if (currentDelivery() === "ship" && !state.shippingQuote) {
         previewTag.textContent = "Awaiting SWE shipping quote…";
-      } else if (ready) {
+      } else if (ready && state.lockArmed) {
         previewTag.textContent = "Ready to lock in (green)";
+      } else if (ready) {
+        previewTag.textContent = "Ready (lock disarmed)";
       } else {
         previewTag.textContent = "Incomplete order";
       }
     }
 
-    confirmBtn.disabled = !ready;
+    if (armBtn) {
+      armBtn.hidden = !(ready && !state.lockArmed);
+    }
+
+    confirmBtn.disabled = !ready || !state.lockArmed;
+    renderConvertButton();
+    renderCreateOrderButton(ready);
   }
 
   // ===== SWE quote helpers (reusing your v28 flow) =====
@@ -718,6 +762,9 @@ ${state.customer.email || ""}${
     };
 
     const totalWeightKg = computeTotalWeightKg(items);
+    const boxCount = computeBoxCount(totalWeightKg);
+    const boxWeightKg = computeBoxWeightKg(totalWeightKg);
+    const grossWeightKg = computeGrossWeightKg(totalWeightKg);
     const contents = [
       {
         item: 1,
@@ -725,7 +772,7 @@ ${state.customer.email || ""}${
         dim1: CONFIG.BOX_DIM.dim1,
         dim2: CONFIG.BOX_DIM.dim2,
         dim3: CONFIG.BOX_DIM.dim3,
-        actmass: totalWeightKg
+        actmass: grossWeightKg
       }
     ];
 
@@ -768,15 +815,21 @@ ${state.customer.email || ""}${
 
       const total =
         Number(picked.total ?? picked.subtotal ?? picked.charge ?? 0) || 0;
+      const ratePerKg = grossWeightKg ? total / grossWeightKg : 0;
       state.shippingQuote = {
         service: picked.service,
         total,
         quoteno,
+        ratePerKg,
+        grossWeightKg,
+        boxCount,
+        boxWeightKg,
         raw: { rates }
       };
 
       shippingSummary.textContent =
-        `Quote: ${picked.service} – ${money(total)} (quoteno ${quoteno})`;
+        `Quote: ${picked.service} – ${money(total)} (${money(ratePerKg)}/kg · ${grossWeightKg.toFixed(2)}kg gross incl ${boxCount} boxes)` +
+        ` (quoteno ${quoteno})`;
 
       validate();
       renderInvoice();
@@ -909,6 +962,59 @@ ${state.customer.email || ""}${
           e?.message || e
         )}</div>`;
       productStatus.textContent = "Error searching products.";
+    }
+  }
+
+  async function loadCollectionProducts() {
+    if (!collectionSelect || !collectionLoadBtn) return;
+    const handle = (collectionSelect.value || "").trim();
+    if (!handle) {
+      showToast("Select a collection to load.", "err");
+      return;
+    }
+
+    collectionLoadBtn.disabled = true;
+    productStatus.textContent = "Loading collection products…";
+
+    try {
+      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/collection?handle=${encodeURIComponent(
+        handle
+      )}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const list = Array.isArray(data.products) ? data.products : [];
+      if (!list.length) {
+        showToast("No products found in that collection.", "err");
+        productStatus.textContent = "No collection products found.";
+        return;
+      }
+
+      let added = 0;
+      list.forEach((p) => {
+        const key = productKey(p);
+        if (!key) return;
+        const exists = state.products.some((sp) => productKey(sp) === key);
+        if (!exists) {
+          state.products.push(p);
+          added += 1;
+        }
+      });
+
+      updateFiltersFromProducts();
+      renderProductsTable();
+      renderInvoice();
+      validate();
+      showToast(
+        `Loaded ${list.length} collection products (${added} new).`,
+        "ok"
+      );
+      productStatus.textContent = "Collection products loaded.";
+    } catch (e) {
+      console.error("Collection load error:", e);
+      productStatus.textContent = "Error loading collection products.";
+      showToast("Collection load failed.", "err");
+    } finally {
+      collectionLoadBtn.disabled = false;
     }
   }
 
@@ -1113,6 +1219,10 @@ ${state.customer.email || ""}${
       delivery === "ship" && state.shippingQuote
         ? state.shippingQuote.service
         : null;
+    const shippingQuoteNo =
+      delivery === "ship" && state.shippingQuote
+        ? state.shippingQuote.quoteno
+        : null;
 
     const billingAddress =
       state.customer?.default_address || null;
@@ -1125,6 +1235,7 @@ ${state.customer.email || ""}${
       shippingMethod: delivery,
       shippingPrice,
       shippingService,
+      shippingQuoteNo,
       billingAddress,
       shippingAddress,
       lineItems: items.map((li) => ({
@@ -1179,8 +1290,10 @@ ${state.customer.email || ""}${
         console.log("Draft order admin URL:", d.adminUrl);
       }
 
-      // Reset form
-      resetForm();
+      state.lastDraftOrderId = d.id || null;
+
+      // Reset form (keep convert action available)
+      resetForm({ keepDraftOrder: true });
     } catch (e) {
       console.error("Draft order create exception:", e);
       showToast("Draft order error: " + String(e?.message || e), "err");
@@ -1191,7 +1304,108 @@ ${state.customer.email || ""}${
     }
   }
 
-  function resetForm() {
+  async function createOrderNow() {
+    if (state.errors.length) {
+      showToast("Fix errors before creating order.", "err");
+      return;
+    }
+
+    const items = buildItemsArray();
+    if (!items.length) {
+      showToast("No line items.", "err");
+      return;
+    }
+
+    state.isSubmitting = true;
+    validate();
+    if (createOrderBtn) {
+      createOrderBtn.disabled = true;
+    }
+
+    const delivery = currentDelivery();
+    const addr = currentAddress();
+    const shippingPrice =
+      delivery === "ship" && state.shippingQuote
+        ? state.shippingQuote.total
+        : null;
+    const shippingService =
+      delivery === "ship" && state.shippingQuote
+        ? state.shippingQuote.service
+        : null;
+    const shippingQuoteNo =
+      delivery === "ship" && state.shippingQuote
+        ? state.shippingQuote.quoteno
+        : null;
+
+    const billingAddress =
+      state.customer?.default_address || null;
+    const shippingAddress =
+      delivery === "ship" && addr ? addr : null;
+
+    const payload = {
+      customerId: state.customer.id,
+      poNumber: state.po || null,
+      shippingMethod: delivery,
+      shippingPrice,
+      shippingService,
+      shippingQuoteNo,
+      billingAddress,
+      shippingAddress,
+      lineItems: items.map((li) => ({
+        sku: li.sku,
+        title: li.title,
+        variantId: li.variantId,
+        quantity: li.quantity,
+        price: li.price
+      }))
+    };
+
+    try {
+      const resp = await fetch(
+        `${CONFIG.SHOPIFY.PROXY_BASE}/orders`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
+      );
+      const text = await resp.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
+
+      if (!resp.ok || !data.ok) {
+        console.error("Order create error:", text);
+        showToast(
+          "Order create failed: " +
+            (data?.body?.errors || resp.statusText || "unknown"),
+          "err"
+        );
+        return;
+      }
+
+      showToast(
+        `Order ${data.order?.name || data.order?.id || ""} created.`,
+        "ok"
+      );
+      resetForm();
+    } catch (e) {
+      console.error("Order create exception:", e);
+      showToast("Order create error: " + String(e?.message || e), "err");
+    } finally {
+      state.isSubmitting = false;
+      if (createOrderBtn) {
+        createOrderBtn.disabled = false;
+      }
+      validate();
+    }
+  }
+
+  function resetForm(options = {}) {
+    const { keepDraftOrder = false } = options;
     state.customer = null;
     state.po = "";
     state.delivery = "ship";
@@ -1200,6 +1414,10 @@ ${state.customer.email || ""}${
     state.shippingQuote = null;
     state.errors = [];
     state.isSubmitting = false;
+    state.lockArmed = true;
+    if (!keepDraftOrder) {
+      state.lastDraftOrderId = null;
+    }
     state.customerTags = [];
     state.priceTier = null;
     state.filters = { flavour: "", size: "" };
@@ -1241,6 +1459,52 @@ ${state.customer.email || ""}${
     renderAddressSelect();
     renderInvoice();
     validate();
+    renderConvertButton();
+  }
+
+  async function convertDraftToOrder() {
+    if (!state.lastDraftOrderId) {
+      showToast("No draft order to convert yet.", "err");
+      return;
+    }
+
+    convertBtn.disabled = true;
+    try {
+      const resp = await fetch(
+        `${CONFIG.SHOPIFY.PROXY_BASE}/draft-orders/complete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ draftOrderId: state.lastDraftOrderId })
+        }
+      );
+      const text = await resp.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
+
+      if (!resp.ok || !data.ok) {
+        console.error("Draft order complete error:", text);
+        showToast(
+          "Draft order convert failed: " +
+            (data?.body?.errors || resp.statusText || "unknown"),
+          "err"
+        );
+        return;
+      }
+
+      showToast(`Draft converted to order ${data.order?.name || ""}`.trim(), "ok");
+      state.lastDraftOrderId = null;
+      renderConvertButton();
+    } catch (e) {
+      console.error("Draft order complete exception:", e);
+      showToast("Convert error: " + String(e?.message || e), "err");
+    } finally {
+      convertBtn.disabled = false;
+    }
   }
 
   // ===== EVENT WIRING =====
@@ -1380,6 +1644,12 @@ ${state.customer.email || ""}${
       );
     }
 
+    if (collectionLoadBtn) {
+      collectionLoadBtn.addEventListener("click", () => {
+        loadCollectionProducts();
+      });
+    }
+
     if (productResults) {
       productResults.addEventListener("click", (e) => {
         const row = e.target.closest(".flocs-productItem");
@@ -1417,6 +1687,32 @@ ${state.customer.email || ""}${
     if (confirmBtn) {
       confirmBtn.addEventListener("click", () => {
         createDraftOrder();
+      });
+    }
+
+    if (armBtn) {
+      armBtn.addEventListener("click", () => {
+        state.lockArmed = true;
+        validate();
+      });
+    }
+
+    if (disarmBtn) {
+      disarmBtn.addEventListener("click", () => {
+        state.lockArmed = false;
+        validate();
+      });
+    }
+
+    if (convertBtn) {
+      convertBtn.addEventListener("click", () => {
+        convertDraftToOrder();
+      });
+    }
+
+    if (createOrderBtn) {
+      createOrderBtn.addEventListener("click", () => {
+        createOrderNow();
       });
     }
   }

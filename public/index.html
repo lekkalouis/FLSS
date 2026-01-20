@@ -74,6 +74,9 @@
     border-radius:.7rem;
     cursor:pointer;
     transition:all .2s ease;
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
   }
   .flNavBtn:hover{
     border-color:rgba(56,189,248,.65);
@@ -532,6 +535,7 @@
         <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true">Scan Station</button>
         <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false">Dispatch Board</button>
         <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false">Documentation</button>
+        <a class="flNavBtn" href="/flocs">Order capture (FLOCS)</a>
       </div>
       <div class="flNavStatus">
         <span id="statusChip" class="statusChip">Ready to scan orders…</span>
