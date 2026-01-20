@@ -99,6 +99,45 @@ function requireShopifyConfigured(res) {
   return true;
 }
 
+function normalizeCustomer(customer, deliveryMethod) {
+  if (!customer) return null;
+  const first = (customer.first_name || "").trim();
+  const last = (customer.last_name || "").trim();
+  const fullName =
+    customer.name ||
+    `${first} ${last}`.trim() ||
+    customer.email ||
+    customer.phone ||
+    "Unnamed customer";
+
+  return {
+    id: customer.id,
+    name: fullName,
+    email: customer.email || "",
+    phone: customer.phone || "",
+    addresses: Array.isArray(customer.addresses) ? customer.addresses : [],
+    default_address: customer.default_address || null,
+    delivery_method: deliveryMethod || null
+  };
+}
+
+function toKg(weight, unit) {
+  const val = Number(weight || 0);
+  if (!val) return 0;
+  switch (String(unit || "").toLowerCase()) {
+    case "g":
+      return val / 1000;
+    case "kg":
+      return val;
+    case "lb":
+      return val * 0.45359237;
+    case "oz":
+      return val * 0.0283495;
+    default:
+      return val;
+  }
+}
+
 // ===== Shopify token cache (client_credentials) =====
 let cachedToken = null;
 let tokenExpiresAtMs = 0;
@@ -238,7 +277,388 @@ app.post("/pp", async (req, res) => {
   }
 });
 
-// ===== 2) Shopify: find order by name =====
+// ===== 2) Shopify: customers search =====
+app.get("/shopify/customers/search", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const q = String(req.query.q || "").trim();
+    if (!q) return badRequest(res, "Missing search query (?q=...)");
+
+    const limit = Math.min(Math.max(Number(req.query.limit || 10), 1), 50);
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+    const url =
+      `${base}/customers/search.json?limit=${limit}` +
+      `&query=${encodeURIComponent(q)}` +
+      `&fields=id,first_name,last_name,email,phone,addresses,default_address`;
+
+    const resp = await shopifyFetch(url, { method: "GET" });
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body
+      });
+    }
+
+    const data = await resp.json();
+    const customers = Array.isArray(data.customers) ? data.customers : [];
+
+    const deliveries = await Promise.all(
+      customers.map(async (cust) => {
+        try {
+          const metaUrl = `${base}/customers/${cust.id}/metafields.json`;
+          const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
+          if (!metaResp.ok) return null;
+          const metaData = await metaResp.json();
+          const m = (metaData.metafields || []).find(
+            (mf) => mf.namespace === "custom" && mf.key === "delivery_method"
+          );
+          return m?.value || null;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const normalized = customers
+      .map((cust, idx) => normalizeCustomer(cust, deliveries[idx]))
+      .filter(Boolean);
+
+    return res.json({ customers: normalized });
+  } catch (err) {
+    console.error("Shopify customer search error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+// ===== 2b) Shopify: create customer =====
+app.post("/shopify/customers", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      company,
+      deliveryMethod,
+      address
+    } = req.body || {};
+
+    if (!firstName && !lastName && !email && !phone) {
+      return badRequest(res, "Provide at least a name, email, or phone number");
+    }
+
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+    const payload = {
+      customer: {
+        first_name: firstName || "",
+        last_name: lastName || "",
+        email: email || "",
+        phone: phone || "",
+        addresses: address
+          ? [
+              {
+                address1: address.address1 || "",
+                address2: address.address2 || "",
+                city: address.city || "",
+                province: address.province || "",
+                zip: address.zip || "",
+                country: address.country || "",
+                company: company || "",
+                first_name: firstName || "",
+                last_name: lastName || "",
+                phone: phone || ""
+              }
+            ]
+          : [],
+        note: company ? `Company: ${company}` : undefined,
+        metafields: deliveryMethod
+          ? [
+              {
+                namespace: "custom",
+                key: "delivery_method",
+                type: "single_line_text_field",
+                value: deliveryMethod
+              }
+            ]
+          : []
+      }
+    };
+
+    const resp = await shopifyFetch(`${base}/customers.json`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body: data
+      });
+    }
+
+    const customer = normalizeCustomer(
+      data.customer,
+      deliveryMethod || null
+    );
+    return res.json({ ok: true, customer });
+  } catch (err) {
+    console.error("Shopify customer create error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+// ===== 2c) Shopify: products search =====
+app.get("/shopify/products/search", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const q = String(req.query.q || "").trim();
+    if (!q) return badRequest(res, "Missing search query (?q=...)");
+
+    const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 50);
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+
+    const productUrl =
+      `${base}/products.json?limit=${limit}` +
+      `&title=${encodeURIComponent(q)}` +
+      `&fields=id,title,variants`;
+
+    const variantUrl =
+      `${base}/variants.json?limit=${limit}` +
+      `&sku=${encodeURIComponent(q)}` +
+      `&fields=id,product_id,title,sku,price,weight,weight_unit`;
+
+    const [prodResp, varResp] = await Promise.all([
+      shopifyFetch(productUrl, { method: "GET" }),
+      shopifyFetch(variantUrl, { method: "GET" })
+    ]);
+
+    if (!prodResp.ok || !varResp.ok) {
+      const prodText = await prodResp.text();
+      const varText = await varResp.text();
+      return res.status(502).json({
+        error: "SHOPIFY_UPSTREAM",
+        statusText: `${prodResp.statusText} / ${varResp.statusText}`,
+        body: { products: prodText, variants: varText }
+      });
+    }
+
+    const prodData = await prodResp.json();
+    const varData = await varResp.json();
+    const products = Array.isArray(prodData.products) ? prodData.products : [];
+    const variants = Array.isArray(varData.variants) ? varData.variants : [];
+
+    const productTitleById = new Map(
+      products.map((p) => [p.id, p.title])
+    );
+
+    const missingProductIds = [
+      ...new Set(
+        variants
+          .map((v) => v.product_id)
+          .filter((id) => id && !productTitleById.has(id))
+      )
+    ];
+
+    if (missingProductIds.length) {
+      const idsParam = missingProductIds.slice(0, 250).join(",");
+      const idUrl = `${base}/products.json?ids=${idsParam}&fields=id,title`;
+      const idResp = await shopifyFetch(idUrl, { method: "GET" });
+      if (idResp.ok) {
+        const idData = await idResp.json();
+        const idProducts = Array.isArray(idData.products)
+          ? idData.products
+          : [];
+        idProducts.forEach((p) => {
+          productTitleById.set(p.id, p.title);
+        });
+      }
+    }
+
+    const normalized = [];
+    const seen = new Set();
+
+    products.forEach((p) => {
+      const variantsList = Array.isArray(p.variants) ? p.variants : [];
+      variantsList.forEach((v) => {
+        const title =
+          v.title && v.title !== "Default Title"
+            ? `${p.title} – ${v.title}`
+            : p.title;
+        const entry = {
+          variantId: v.id,
+          sku: v.sku || "",
+          title,
+          price: v.price != null ? Number(v.price) : null,
+          weightKg: toKg(v.weight, v.weight_unit)
+        };
+        const key = String(entry.variantId);
+        if (!seen.has(key)) {
+          seen.add(key);
+          normalized.push(entry);
+        }
+      });
+    });
+
+    variants.forEach((v) => {
+      const baseTitle = productTitleById.get(v.product_id) || "Variant";
+      const title =
+        v.title && v.title !== "Default Title"
+          ? `${baseTitle} – ${v.title}`
+          : baseTitle;
+      const entry = {
+        variantId: v.id,
+        sku: v.sku || "",
+        title,
+        price: v.price != null ? Number(v.price) : null,
+        weightKg: toKg(v.weight, v.weight_unit)
+      };
+      const key = String(entry.variantId);
+      if (!seen.has(key)) {
+        seen.add(key);
+        normalized.push(entry);
+      }
+    });
+
+    return res.json({ products: normalized });
+  } catch (err) {
+    console.error("Shopify product search error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+// ===== 2d) Shopify: create draft order =====
+app.post("/shopify/draft-orders", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const {
+      customerId,
+      poNumber,
+      shippingMethod,
+      shippingPrice,
+      shippingService,
+      billingAddress,
+      shippingAddress,
+      lineItems
+    } = req.body || {};
+
+    if (!customerId) {
+      return badRequest(res, "Missing customerId");
+    }
+    if (!Array.isArray(lineItems) || !lineItems.length) {
+      return badRequest(res, "Missing lineItems");
+    }
+
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+    const noteParts = [];
+    if (poNumber) noteParts.push(`PO: ${poNumber}`);
+    if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
+
+    const payload = {
+      draft_order: {
+        customer: { id: customerId },
+        note: noteParts.join(" | "),
+        line_items: lineItems.map((li) => {
+          const entry = {
+            quantity: li.quantity || 1
+          };
+          if (li.variantId) {
+            entry.variant_id = li.variantId;
+          } else {
+            entry.title = li.title || li.sku || "Custom item";
+            if (li.price != null) entry.price = String(li.price);
+          }
+          if (li.sku) entry.sku = li.sku;
+          if (li.price != null && !entry.price) entry.price = String(li.price);
+          return entry;
+        }),
+        billing_address: billingAddress || undefined,
+        shipping_address: shippingAddress || undefined,
+        note_attributes: poNumber
+          ? [{ name: "po_number", value: String(poNumber) }]
+          : []
+      }
+    };
+
+    if (shippingMethod && shippingMethod !== "ship") {
+      payload.draft_order.tags = `delivery_${shippingMethod}`;
+    }
+
+    if (shippingPrice != null && shippingMethod === "ship") {
+      payload.draft_order.shipping_line = {
+        title: shippingService || "Courier",
+        price: String(shippingPrice)
+      };
+    }
+
+    const resp = await shopifyFetch(`${base}/draft_orders.json`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body: data
+      });
+    }
+
+    const d = data.draft_order || {};
+    const adminUrl = d.id
+      ? `https://${SHOPIFY_STORE}.myshopify.com/admin/draft_orders/${d.id}`
+      : null;
+
+    return res.json({
+      ok: true,
+      draftOrder: {
+        id: d.id,
+        name: d.name,
+        invoiceUrl: d.invoice_url || null,
+        adminUrl
+      }
+    });
+  } catch (err) {
+    console.error("Shopify draft order create error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+// ===== 3) Shopify: find order by name =====
 app.get("/shopify/orders/by-name/:name", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;

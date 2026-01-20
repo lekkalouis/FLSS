@@ -172,6 +172,13 @@
       border:1px solid rgba(148,163,184,.4);
       background:rgba(15,23,42,.96);
     }
+    .flocs-subSection {
+      margin-top:.6rem;
+      padding:.6rem;
+      border-radius:.6rem;
+      border:1px dashed rgba(148,163,184,.35);
+      background:rgba(15,23,42,.65);
+    }
     .flocs-customerItem {
       padding:.4rem .55rem;
       font-size:.8rem;
@@ -193,6 +200,27 @@
       padding:.5rem .6rem;
       font-size:.75rem;
       color:var(--muted);
+    }
+    .flocs-inlineActions {
+      display:flex;
+      gap:.5rem;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .flocs-miniBtn {
+      padding:.3rem .65rem;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.5);
+      background:rgba(15,23,42,.9);
+      color:var(--text);
+      font-size:.7rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      cursor:pointer;
+    }
+    .flocs-miniBtn:hover {
+      border-color:var(--accent);
+      color:var(--accent);
     }
 
     .flocs-chipRow {
@@ -303,6 +331,30 @@
     .flocs-qtyInput:focus {
       border-color:var(--accent);
       box-shadow:0 0 0 1px rgba(56,189,248,.45);
+    }
+    .flocs-productResults {
+      margin-top:.45rem;
+      max-height:180px;
+      overflow:auto;
+      border-radius:.6rem;
+      border:1px solid rgba(148,163,184,.4);
+      background:rgba(15,23,42,.96);
+    }
+    .flocs-productItem {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.5rem;
+      padding:.4rem .55rem;
+      border-bottom:1px solid rgba(30,41,59,.9);
+      font-size:.78rem;
+    }
+    .flocs-productItem:last-child {
+      border-bottom:none;
+    }
+    .flocs-productMeta {
+      color:var(--muted);
+      font-size:.7rem;
     }
 
     .flocs-actionsRow {
@@ -557,6 +609,47 @@
                  placeholder="Type to search Shopify customers…" autocomplete="off" />
           <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
           <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
+          <div class="flocs-subSection">
+            <div class="flocs-labelRow">
+              <span>Create new customer</span>
+              <span class="flocs-hint" id="flocs-customerCreateStatus">Add a customer if search returns nothing.</span>
+            </div>
+            <div class="flocs-row">
+              <input id="flocs-customerFirst" class="flocs-input" type="text" placeholder="First name" />
+              <input id="flocs-customerLast" class="flocs-input" type="text" placeholder="Last name" />
+            </div>
+            <div class="flocs-row" style="margin-top:.4rem">
+              <input id="flocs-customerEmail" class="flocs-input" type="email" placeholder="Email" />
+              <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
+            </div>
+            <div class="flocs-row" style="margin-top:.4rem">
+              <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
+              <select id="flocs-customerDelivery" class="flocs-select">
+                <option value="">Default delivery (optional)</option>
+                <option value="ship">Ship</option>
+                <option value="pickup">Pickup</option>
+                <option value="deliver">Deliver</option>
+              </select>
+            </div>
+            <div class="flocs-row" style="margin-top:.4rem">
+              <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1" />
+              <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
+            </div>
+            <div class="flocs-row" style="margin-top:.4rem">
+              <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
+              <input id="flocs-customerProvince" class="flocs-input" type="text" placeholder="Province" />
+            </div>
+            <div class="flocs-row" style="margin-top:.4rem">
+              <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />
+              <input id="flocs-customerCountry" class="flocs-input" type="text" placeholder="Country" value="South Africa" />
+            </div>
+            <div class="flocs-inlineActions" style="margin-top:.5rem">
+              <button id="flocs-customerCreateBtn" class="flocs-btn primary" type="button">
+                <span class="icon">➕</span><span>Create customer</span>
+              </button>
+              <button id="flocs-customerResetBtn" class="flocs-miniBtn" type="button">Clear form</button>
+            </div>
+          </div>
         </div>
 
         <!-- PO + Delivery method -->
@@ -608,8 +701,11 @@
         <div class="flocs-formSection">
           <div class="flocs-labelRow">
             <span>Items</span>
-            <span class="flocs-hint">Predefined SKUs with quick quantity inputs</span>
+            <span class="flocs-hint" id="flocs-productStatus">Search by SKU or product title</span>
           </div>
+          <input id="flocs-productSearch" class="flocs-input" type="text"
+                 placeholder="Search Shopify products (SKU/title)..." autocomplete="off" />
+          <div id="flocs-productResults" class="flocs-productResults" hidden></div>
           <table class="flocs-productsTable">
             <thead>
               <tr>

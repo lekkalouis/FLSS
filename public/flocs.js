@@ -23,6 +23,21 @@
   const customerResults  = document.getElementById("flocs-customerResults");
   const customerStatus   = document.getElementById("flocs-customerStatus");
   const customerChips    = document.getElementById("flocs-selectedCustomerChips");
+  const customerCreateStatus = document.getElementById("flocs-customerCreateStatus");
+  const customerFirst    = document.getElementById("flocs-customerFirst");
+  const customerLast     = document.getElementById("flocs-customerLast");
+  const customerEmail    = document.getElementById("flocs-customerEmail");
+  const customerPhone    = document.getElementById("flocs-customerPhone");
+  const customerCompany  = document.getElementById("flocs-customerCompany");
+  const customerDelivery = document.getElementById("flocs-customerDelivery");
+  const customerAddr1    = document.getElementById("flocs-customerAddr1");
+  const customerAddr2    = document.getElementById("flocs-customerAddr2");
+  const customerCity     = document.getElementById("flocs-customerCity");
+  const customerProvince = document.getElementById("flocs-customerProvince");
+  const customerZip      = document.getElementById("flocs-customerZip");
+  const customerCountry  = document.getElementById("flocs-customerCountry");
+  const customerCreateBtn = document.getElementById("flocs-customerCreateBtn");
+  const customerResetBtn = document.getElementById("flocs-customerResetBtn");
 
   const poInput          = document.getElementById("flocs-po");
   const deliveryGroup    = document.getElementById("flocs-deliveryGroup");
@@ -31,6 +46,9 @@
   const addrPreview      = document.getElementById("flocs-addressPreview");
 
   const productsBody     = document.getElementById("flocs-productsBody");
+  const productSearch    = document.getElementById("flocs-productSearch");
+  const productResults   = document.getElementById("flocs-productResults");
+  const productStatus    = document.getElementById("flocs-productStatus");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
@@ -49,6 +67,7 @@
     delivery: "ship",        // ship | pickup | deliver
     addressIndex: null,      // index in customer.addresses
     items: {},               // sku -> qty
+    products: [...CONFIG.PRODUCTS],
     shippingQuote: null,     // { service, total, quoteno, raw }
     errors: [],
     isSubmitting: false
@@ -81,6 +100,9 @@
       toast.style.display = "none";
     }, 4500);
   }
+
+  const productKey = (p) =>
+    String(p.variantId || p.sku || p.title || "").trim();
 
   function setShellReady(ready) {
     if (!shell) return;
@@ -117,8 +139,9 @@
 
   function buildItemsArray() {
     const out = [];
-    for (const p of CONFIG.PRODUCTS) {
-      const qty = Number(state.items[p.sku] || 0);
+    for (const p of state.products) {
+      const key = productKey(p);
+      const qty = Number(state.items[key] || 0);
       if (!qty || qty <= 0) continue;
       out.push({
         sku: p.sku,
@@ -166,8 +189,10 @@
   // ===== UI: products table rendering =====
   function renderProductsTable() {
     if (!productsBody) return;
-    productsBody.innerHTML = CONFIG.PRODUCTS.map((p) => {
+    productsBody.innerHTML = state.products.map((p) => {
       const name = (p.title || p.sku || "").trim();
+      const key = productKey(p);
+      const value = state.items[key] || "";
       return `
         <tr>
           <td><code>${p.sku}</code></td>
@@ -177,8 +202,10 @@
                    type="number"
                    min="0"
                    step="1"
-                   data-sku="${p.sku}"
-                   inputmode="numeric" />
+                   data-key="${key}"
+                   data-sku="${p.sku || ""}"
+                   inputmode="numeric"
+                   value="${value}" />
           </td>
         </tr>
       `;
@@ -585,6 +612,7 @@ ${state.customer.email || ""}${
 
   // ===== Shopify calls =====
   const searchCustomersDebounced = debounce(searchCustomersNow, 320);
+  const searchProductsDebounced = debounce(searchProductsNow, 320);
 
   async function searchCustomersNow() {
     const q = (customerSearch.value || "").trim();
@@ -642,6 +670,213 @@ ${state.customer.email || ""}${
         )}</div>`;
       customerStatus.textContent = "Error searching customers.";
     }
+  }
+
+  async function searchProductsNow() {
+    const q = (productSearch?.value || "").trim();
+    if (!productResults || !productStatus) return;
+    if (!q) {
+      productResults.hidden = true;
+      productResults.innerHTML = "";
+      productStatus.textContent = "Search by SKU or product title";
+      return;
+    }
+
+    productStatus.textContent = "Searching products…";
+    productResults.hidden = false;
+    productResults.innerHTML =
+      `<div class="flocs-customerEmpty">Searching…</div>`;
+
+    try {
+      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/search?q=${encodeURIComponent(
+        q
+      )}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const list = Array.isArray(data.products) ? data.products : [];
+
+      if (!list.length) {
+        productResults.innerHTML =
+          `<div class="flocs-customerEmpty">No products found.</div>`;
+        productStatus.textContent = "No products found. Refine search.";
+        return;
+      }
+
+      productResults.innerHTML = list
+        .map(
+          (p, idx) => `
+        <div class="flocs-productItem" data-idx="${idx}">
+          <div>
+            <strong>${p.title || p.sku || "Untitled item"}</strong>
+            <div class="flocs-productMeta">
+              ${p.sku || "no sku"} · ${
+                p.price != null ? money(p.price) : "price n/a"
+              }
+            </div>
+          </div>
+          <button class="flocs-miniBtn" type="button" data-action="add">Add</button>
+        </div>
+      `
+        )
+        .join("");
+      productResults._data = list;
+      productStatus.textContent = "Click add to include in the order.";
+    } catch (e) {
+      console.error("Product search error:", e);
+      productResults.innerHTML =
+        `<div class="flocs-customerEmpty">Error searching: ${String(
+          e?.message || e
+        )}</div>`;
+      productStatus.textContent = "Error searching products.";
+    }
+  }
+
+  async function createCustomer() {
+    if (!customerCreateBtn) return;
+    const firstName = customerFirst?.value?.trim() || "";
+    const lastName = customerLast?.value?.trim() || "";
+    const email = customerEmail?.value?.trim() || "";
+    const phone = customerPhone?.value?.trim() || "";
+    const company = customerCompany?.value?.trim() || "";
+    const deliveryMethod = customerDelivery?.value || "";
+    const address1 = customerAddr1?.value?.trim() || "";
+    const address2 = customerAddr2?.value?.trim() || "";
+    const city = customerCity?.value?.trim() || "";
+    const province = customerProvince?.value?.trim() || "";
+    const zip = customerZip?.value?.trim() || "";
+    const country = customerCountry?.value?.trim() || "";
+
+    if (!firstName && !lastName && !email && !phone) {
+      showToast("Provide at least a name, email, or phone.", "err");
+      if (customerCreateStatus) {
+        customerCreateStatus.textContent =
+          "Please enter name, email, or phone before creating.";
+      }
+      return;
+    }
+
+    customerCreateBtn.disabled = true;
+    if (customerCreateStatus) {
+      customerCreateStatus.textContent = "Creating customer…";
+    }
+
+    const payload = {
+      firstName,
+      lastName,
+      email,
+      phone,
+      company,
+      deliveryMethod,
+      address: address1 || address2 || city || province || zip || country
+        ? { address1, address2, city, province, zip, country }
+        : null
+    };
+
+    try {
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
+
+      if (!res.ok || !data.ok) {
+        console.error("Customer create error:", data);
+        showToast("Customer create failed.", "err");
+        if (customerCreateStatus) {
+          customerCreateStatus.textContent =
+            data?.body?.errors || data?.message || "Customer create failed.";
+        }
+        return;
+      }
+
+      if (!data.customer) {
+        showToast("Customer created, but no data returned.", "err");
+        return;
+      }
+
+      applySelectedCustomer(data.customer);
+      if (customerCreateStatus) {
+        customerCreateStatus.textContent =
+          `Created: ${data.customer.name}`;
+      }
+      showToast("Customer created.", "ok");
+      resetCustomerForm();
+    } catch (e) {
+      console.error("Customer create error:", e);
+      showToast("Customer create failed.", "err");
+      if (customerCreateStatus) {
+        customerCreateStatus.textContent = String(e?.message || e);
+      }
+    } finally {
+      customerCreateBtn.disabled = false;
+    }
+  }
+
+  function resetCustomerForm() {
+    if (customerFirst) customerFirst.value = "";
+    if (customerLast) customerLast.value = "";
+    if (customerEmail) customerEmail.value = "";
+    if (customerPhone) customerPhone.value = "";
+    if (customerCompany) customerCompany.value = "";
+    if (customerDelivery) customerDelivery.value = "";
+    if (customerAddr1) customerAddr1.value = "";
+    if (customerAddr2) customerAddr2.value = "";
+    if (customerCity) customerCity.value = "";
+    if (customerProvince) customerProvince.value = "";
+    if (customerZip) customerZip.value = "";
+    if (customerCountry) customerCountry.value = "South Africa";
+    if (customerCreateStatus) {
+      customerCreateStatus.textContent =
+        "Add a customer if search returns nothing.";
+    }
+  }
+
+  function applySelectedCustomer(c) {
+    state.customer = c;
+
+    if (c.delivery_method) {
+      state.delivery = c.delivery_method;
+    } else {
+      state.delivery = "ship";
+    }
+
+    const addrs = Array.isArray(c.addresses) ? c.addresses : [];
+    if (c.default_address) {
+      const did = c.default_address.id;
+      const foundIdx = addrs.findIndex((a) => a.id === did);
+      state.addressIndex =
+        foundIdx >= 0 ? foundIdx : addrs.length ? 0 : null;
+    } else {
+      state.addressIndex = addrs.length ? 0 : null;
+    }
+
+    if (customerResults) customerResults.hidden = true;
+    if (customerStatus) customerStatus.textContent = `Selected: ${c.name}`;
+    renderCustomerChips();
+    renderAddressSelect();
+    renderInvoice();
+    validate();
+  }
+
+  function addProductToOrder(product) {
+    if (!product) return;
+    const key = productKey(product);
+    if (!key) return;
+    const existing = state.products.find((p) => productKey(p) === key);
+    if (!existing) {
+      state.products.push(product);
+    }
+    state.items[key] = (state.items[key] || 0) + 1;
+    renderProductsTable();
+    renderInvoice();
+    validate();
   }
 
   async function createDraftOrder() {
@@ -785,7 +1020,7 @@ ${state.customer.email || ""}${
     }
     // reset qty inputs
     if (productsBody) {
-      const inputs = productsBody.querySelectorAll("input[data-sku]");
+      const inputs = productsBody.querySelectorAll("input[data-key]");
       inputs.forEach((inp) => (inp.value = ""));
     }
 
@@ -811,33 +1046,19 @@ ${state.customer.email || ""}${
         const list = customerResults._data;
         const c = list[idx];
         if (!c) return;
+        applySelectedCustomer(c);
+      });
+    }
 
-        state.customer = c;
+    if (customerCreateBtn) {
+      customerCreateBtn.addEventListener("click", () => {
+        createCustomer();
+      });
+    }
 
-        // Default delivery from metafield if set
-        if (c.delivery_method) {
-          state.delivery = c.delivery_method;
-        } else {
-          state.delivery = "ship";
-        }
-
-        // Prefer default_address index
-        const addrs = Array.isArray(c.addresses) ? c.addresses : [];
-        if (c.default_address) {
-          const did = c.default_address.id;
-          const foundIdx = addrs.findIndex((a) => a.id === did);
-          state.addressIndex =
-            foundIdx >= 0 ? foundIdx : addrs.length ? 0 : null;
-        } else {
-          state.addressIndex = addrs.length ? 0 : null;
-        }
-
-        customerResults.hidden = true;
-        customerStatus.textContent = `Selected: ${c.name}`;
-        renderCustomerChips();
-        renderAddressSelect();
-        renderInvoice();
-        validate();
+    if (customerResetBtn) {
+      customerResetBtn.addEventListener("click", () => {
+        resetCustomerForm();
       });
     }
 
@@ -890,17 +1111,37 @@ ${state.customer.email || ""}${
       productsBody.addEventListener("input", (e) => {
         const t = e.target;
         if (!(t instanceof HTMLInputElement)) return;
-        const sku = t.dataset.sku;
-        if (!sku) return;
+        const key = t.dataset.key;
+        if (!key) return;
         const v = Number(t.value || 0);
         if (!v || v < 0) {
-          delete state.items[sku];
+          delete state.items[key];
         } else {
-          state.items[sku] = Math.floor(v);
+          state.items[key] = Math.floor(v);
           t.value = String(Math.floor(v));
         }
         renderInvoice();
         validate();
+      });
+    }
+
+    if (productSearch) {
+      productSearch.addEventListener("input", () =>
+        searchProductsDebounced()
+      );
+    }
+
+    if (productResults) {
+      productResults.addEventListener("click", (e) => {
+        const row = e.target.closest(".flocs-productItem");
+        if (!row || !productResults._data) return;
+        const action = e.target.closest("[data-action]");
+        if (!action) return;
+        const idx = Number(row.dataset.idx);
+        const list = productResults._data;
+        const p = list[idx];
+        if (!p) return;
+        addProductToOrder(p);
       });
     }
 
