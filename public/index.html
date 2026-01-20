@@ -104,6 +104,19 @@
   .actionFlash--ok{ border-color:rgba(34,197,94,.55); color:#bbf7d0; }
   .actionFlash--warn{ border-color:rgba(251,191,36,.6); color:#fde68a; }
   .actionFlash--err{ border-color:rgba(248,113,113,.6); color:#fecaca; }
+  .actionFlash--booked{
+    color:#052e16;
+    border-color:rgba(34,197,94,.85);
+    background:linear-gradient(120deg, rgba(34,197,94,.9), rgba(74,222,128,.8));
+    box-shadow:0 0 24px rgba(34,197,94,.55);
+    animation:bookedFlash 1.2s ease-in-out 2;
+  }
+  @keyframes bookedFlash{
+    0%{ transform:scale(1); opacity:.7; }
+    35%{ transform:scale(1.06); opacity:1; }
+    70%{ transform:scale(1); opacity:.85; }
+    100%{ transform:scale(1); opacity:.7; }
+  }
   .flView{
     width:100%;
   }
@@ -456,6 +469,58 @@
     font-size:.7rem;
     font-weight:600;
   }
+  .parcelNumbersPanel{
+    background:linear-gradient(145deg, rgba(15,23,42,.04), rgba(148,163,184,.1));
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-lg);
+    padding:1rem;
+    min-height:320px;
+    display:flex;
+    flex-direction:column;
+    gap:.75rem;
+  }
+  .parcelNumbersHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-weight:700;
+    color:var(--text);
+  }
+  .parcelNumbersSub{
+    font-size:.78rem;
+    color:var(--text-muted);
+  }
+  .parcelNumbersGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(80px, 1fr));
+    gap:.75rem;
+  }
+  .parcelNumber{
+    display:grid;
+    place-items:center;
+    font-size:2.1rem;
+    font-weight:800;
+    border-radius:1rem;
+    min-height:80px;
+    background:#fff;
+    border:2px dashed rgba(148,163,184,.5);
+    color:#94a3b8;
+    transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  }
+  .parcelNumber.is-scanned{
+    border-style:solid;
+    border-color:rgba(34,197,94,.6);
+    color:#16a34a;
+    box-shadow:0 10px 25px rgba(34,197,94,.15);
+    background:rgba(240,253,244,.9);
+    transform:translateY(-2px);
+  }
+  .parcelNumbersEmpty{
+    color:var(--text-muted);
+    font-size:.9rem;
+    padding:1.5rem 0;
+    text-align:center;
+  }
 
 </style>
 </head>
@@ -550,15 +615,18 @@
   <!-- RIGHT -->
   <section class="rightPane">
 
-
-    <!-- existing label preview below this -->
     <div class="sectionTitle" style="margin-top:.8rem">
     <button id="modeToggle" type="button">MODE: AUTO</button>
 
     </div>
-    <div class="sectionTitle" style="margin-top:.4rem"><span>Waybill Label Preview (100×150 mm)</span><span style="font-size:.7rem;color:#94a3b8;font-family:var(--mono)">auto prints after booking</span></div>
-    <div class="waybillSheetPreview" id="stickerPreview" aria-live="polite">
-      (Will show label after first booking)
+    <div class="parcelNumbersPanel" aria-live="polite">
+      <div class="parcelNumbersHeader">
+        <span>Parcel Numbers</span>
+        <span class="parcelNumbersSub">Large scan confirmation</span>
+      </div>
+      <div id="parcelNumbers" class="parcelNumbersGrid">
+        <div class="parcelNumbersEmpty">Scan an order to show parcel numbers.</div>
+      </div>
     </div>
   </section>
 </div>
