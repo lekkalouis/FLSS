@@ -1221,8 +1221,8 @@ async function handleScan(code) {
         .map((line) => String(line.title || "").toLowerCase())
         .join(" ");
       const combined = `${tags} ${shippingTitles}`.trim();
-      if (/(pickup|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-      if (/(local delivery|courier|same\s*day)/.test(combined)) return "delivery";
+      if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
+      if (/(local delivery|same\s*day)/.test(combined)) return "delivery";
       return "shipping";
     };
 
