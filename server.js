@@ -595,7 +595,7 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 // Serve static frontend from /public
 app.use(express.static(path.join(__dirname, "public")));
-app.get("/flops", (req, res) => res.sendFile(path.join(__dirname, "public", "flops.html")));
+app.get("/flocs", (req, res) => res.sendFile(path.join(__dirname, "public", "flocs.html")));
 
 // SPA fallback
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
