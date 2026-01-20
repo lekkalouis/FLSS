@@ -26,7 +26,6 @@ const {
   PORT = 3000,
   HOST = "0.0.0.0",
   NODE_ENV = "development",
-  FRONTEND_ORIGIN = "http://localhost:3000,http://192.168.101.171:3000",
 
   PP_BASE_URL = "",
   PP_TOKEN = "",
@@ -43,6 +42,9 @@ const {
   PRINTNODE_API_KEY,
   PRINTNODE_PRINTER_ID
 } = process.env;
+
+const FRONTEND_ORIGIN =
+  process.env.FRONTEND_ORIGIN || (NODE_ENV === "production" ? "http://localhost:3000" : "*");
 
 // ===== Middleware =====
 app.disable("x-powered-by");
@@ -1309,6 +1311,9 @@ app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.ht
 app.listen(PORT, HOST, () => {
   const hostLabel = HOST === "0.0.0.0" ? "all interfaces" : HOST;
   console.log(`Scan Station server listening on http://${hostLabel}:${PORT}`);
+  if (HOST === "localhost" || HOST === "127.0.0.1") {
+    console.warn("Warning: HOST is loopback-only; other devices on your LAN cannot connect.");
+  }
   console.log(`Allowed origins: ${allowAllOrigins ? "*" : [...allowedOrigins].join(", ")}`);
   console.log("PP_BASE_URL:", PP_BASE_URL || "(NOT SET)");
   console.log("Shopify configured:", Boolean(SHOPIFY_STORE && SHOPIFY_CLIENT_ID && SHOPIFY_CLIENT_SECRET));
