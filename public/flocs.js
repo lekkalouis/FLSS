@@ -86,6 +86,8 @@
   const invoice          = document.getElementById("flocs-invoice");
   const previewTag       = document.getElementById("flocs-previewTag");
   const armBtn           = document.getElementById("flocs-armBtn");
+  const convertBtn       = document.getElementById("flocs-convertBtn");
+  const createOrderBtn   = document.getElementById("flocs-createOrderBtn");
 
   const toast            = document.getElementById("flocs-toast");
   const confirmOverlay   = document.getElementById("flocs-confirmOverlay");
@@ -104,6 +106,7 @@
     errors: [],
     isSubmitting: false,
     lockArmed: true,
+    lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
     filters: { flavour: "", size: "" }
@@ -182,6 +185,16 @@
     if (!shell) return;
     if (ready && state.lockArmed) shell.classList.add("flocs-ready");
     else shell.classList.remove("flocs-ready");
+  }
+
+  function renderConvertButton() {
+    if (!convertBtn) return;
+    convertBtn.hidden = !state.lastDraftOrderId;
+  }
+
+  function renderCreateOrderButton(ready) {
+    if (!createOrderBtn) return;
+    createOrderBtn.hidden = !ready || state.isSubmitting;
   }
 
   function setCustomerCreateVisible(visible) {
@@ -593,6 +606,8 @@ ${state.customer.email || ""}${
     }
 
     confirmBtn.disabled = !ready || !state.lockArmed;
+    renderConvertButton();
+    renderCreateOrderButton(ready);
   }
 
   // ===== SWE quote helpers (reusing your v28 flow) =====
@@ -1275,8 +1290,10 @@ ${state.customer.email || ""}${
         console.log("Draft order admin URL:", d.adminUrl);
       }
 
-      // Reset form
-      resetForm();
+      state.lastDraftOrderId = d.id || null;
+
+      // Reset form (keep convert action available)
+      resetForm({ keepDraftOrder: true });
     } catch (e) {
       console.error("Draft order create exception:", e);
       showToast("Draft order error: " + String(e?.message || e), "err");
@@ -1287,7 +1304,108 @@ ${state.customer.email || ""}${
     }
   }
 
-  function resetForm() {
+  async function createOrderNow() {
+    if (state.errors.length) {
+      showToast("Fix errors before creating order.", "err");
+      return;
+    }
+
+    const items = buildItemsArray();
+    if (!items.length) {
+      showToast("No line items.", "err");
+      return;
+    }
+
+    state.isSubmitting = true;
+    validate();
+    if (createOrderBtn) {
+      createOrderBtn.disabled = true;
+    }
+
+    const delivery = currentDelivery();
+    const addr = currentAddress();
+    const shippingPrice =
+      delivery === "ship" && state.shippingQuote
+        ? state.shippingQuote.total
+        : null;
+    const shippingService =
+      delivery === "ship" && state.shippingQuote
+        ? state.shippingQuote.service
+        : null;
+    const shippingQuoteNo =
+      delivery === "ship" && state.shippingQuote
+        ? state.shippingQuote.quoteno
+        : null;
+
+    const billingAddress =
+      state.customer?.default_address || null;
+    const shippingAddress =
+      delivery === "ship" && addr ? addr : null;
+
+    const payload = {
+      customerId: state.customer.id,
+      poNumber: state.po || null,
+      shippingMethod: delivery,
+      shippingPrice,
+      shippingService,
+      shippingQuoteNo,
+      billingAddress,
+      shippingAddress,
+      lineItems: items.map((li) => ({
+        sku: li.sku,
+        title: li.title,
+        variantId: li.variantId,
+        quantity: li.quantity,
+        price: li.price
+      }))
+    };
+
+    try {
+      const resp = await fetch(
+        `${CONFIG.SHOPIFY.PROXY_BASE}/orders`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
+      );
+      const text = await resp.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
+
+      if (!resp.ok || !data.ok) {
+        console.error("Order create error:", text);
+        showToast(
+          "Order create failed: " +
+            (data?.body?.errors || resp.statusText || "unknown"),
+          "err"
+        );
+        return;
+      }
+
+      showToast(
+        `Order ${data.order?.name || data.order?.id || ""} created.`,
+        "ok"
+      );
+      resetForm();
+    } catch (e) {
+      console.error("Order create exception:", e);
+      showToast("Order create error: " + String(e?.message || e), "err");
+    } finally {
+      state.isSubmitting = false;
+      if (createOrderBtn) {
+        createOrderBtn.disabled = false;
+      }
+      validate();
+    }
+  }
+
+  function resetForm(options = {}) {
+    const { keepDraftOrder = false } = options;
     state.customer = null;
     state.po = "";
     state.delivery = "ship";
@@ -1297,6 +1415,9 @@ ${state.customer.email || ""}${
     state.errors = [];
     state.isSubmitting = false;
     state.lockArmed = true;
+    if (!keepDraftOrder) {
+      state.lastDraftOrderId = null;
+    }
     state.customerTags = [];
     state.priceTier = null;
     state.filters = { flavour: "", size: "" };
@@ -1338,6 +1459,52 @@ ${state.customer.email || ""}${
     renderAddressSelect();
     renderInvoice();
     validate();
+    renderConvertButton();
+  }
+
+  async function convertDraftToOrder() {
+    if (!state.lastDraftOrderId) {
+      showToast("No draft order to convert yet.", "err");
+      return;
+    }
+
+    convertBtn.disabled = true;
+    try {
+      const resp = await fetch(
+        `${CONFIG.SHOPIFY.PROXY_BASE}/draft-orders/complete`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ draftOrderId: state.lastDraftOrderId })
+        }
+      );
+      const text = await resp.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
+
+      if (!resp.ok || !data.ok) {
+        console.error("Draft order complete error:", text);
+        showToast(
+          "Draft order convert failed: " +
+            (data?.body?.errors || resp.statusText || "unknown"),
+          "err"
+        );
+        return;
+      }
+
+      showToast(`Draft converted to order ${data.order?.name || ""}`.trim(), "ok");
+      state.lastDraftOrderId = null;
+      renderConvertButton();
+    } catch (e) {
+      console.error("Draft order complete exception:", e);
+      showToast("Convert error: " + String(e?.message || e), "err");
+    } finally {
+      convertBtn.disabled = false;
+    }
   }
 
   // ===== EVENT WIRING =====
@@ -1534,6 +1701,18 @@ ${state.customer.email || ""}${
       disarmBtn.addEventListener("click", () => {
         state.lockArmed = false;
         validate();
+      });
+    }
+
+    if (convertBtn) {
+      convertBtn.addEventListener("click", () => {
+        convertDraftToOrder();
+      });
+    }
+
+    if (createOrderBtn) {
+      createOrderBtn.addEventListener("click", () => {
+        createOrderNow();
       });
     }
   }

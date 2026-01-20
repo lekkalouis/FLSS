@@ -673,6 +673,30 @@
       letter-spacing:.08em;
       cursor:pointer;
     }
+    .flocs-convertBtn {
+      border-radius:999px;
+      border:1px solid rgba(14,165,233,.85);
+      background:rgba(14,165,233,.18);
+      color:#e0f2fe;
+      padding:.35rem .9rem;
+      font-size:.7rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      cursor:pointer;
+    }
+    .flocs-createOrderBtn {
+      border-radius:999px;
+      border:1px solid rgba(34,197,94,.85);
+      background:rgba(34,197,94,.16);
+      color:#ecfdf5;
+      padding:.35rem .9rem;
+      font-size:.7rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      cursor:pointer;
+    }
   </style>
 </head>
 <body>
@@ -862,6 +886,12 @@
           <div>
             <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
             <button id="flocs-armBtn" class="flocs-armBtn" type="button" hidden>Arm lock</button>
+            <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>
+              Convert draft to order
+            </button>
+            <button id="flocs-createOrderBtn" class="flocs-createOrderBtn" type="button" hidden>
+              Create order now
+            </button>
           </div>
         </div>
 
