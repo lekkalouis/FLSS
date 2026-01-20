@@ -114,7 +114,9 @@
     lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
-    filters: { flavour: "", size: "" }
+    filters: { flavour: "", size: "" },
+    priceOverrides: {},
+    priceOverrideEnabled: {}
   };
 
   // ===== HELPERS =====
@@ -186,6 +188,24 @@
     return null;
   }
 
+  function priceOverrideForKey(key) {
+    if (!key) return null;
+    const enabled = state.priceOverrideEnabled[key];
+    const raw = state.priceOverrides[key];
+    if (!enabled) return null;
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric)) return numeric;
+    return null;
+  }
+
+  function resolveLinePrice(product) {
+    if (!product) return null;
+    const key = productKey(product);
+    const override = priceOverrideForKey(key);
+    if (override != null) return override;
+    return priceForCustomer(product);
+  }
+
   function setShellReady(ready) {
     if (!shell) return;
     if (ready && state.lockArmed) shell.classList.add("flocs-ready");
@@ -255,7 +275,7 @@
         variantId: p.variantId,
         quantity: qty,
         weightKg: p.weightKg || 0,
-        price: priceForCustomer(p) // optional
+        price: resolveLinePrice(p) // optional
       });
     }
     return out.sort((a, b) =>
@@ -328,6 +348,10 @@
         const key = productKey(p);
         const value = state.items[key] || "";
         const price = priceForCustomer(p);
+        const overrideEnabled = !!state.priceOverrideEnabled[key];
+        const overrideValue =
+          state.priceOverrides[key] != null ? state.priceOverrides[key] : "";
+        const overridePrice = priceOverrideForKey(key);
         return `
         <tr>
           <td><code>${p.sku}</code></td>
@@ -335,6 +359,26 @@
           <td>${p.flavour || "—"}</td>
           <td>${p.size || "—"}</td>
           <td>${price != null ? money(price) : "—"}</td>
+          <td>
+            <div class="flocs-overrideWrap">
+              <button class="flocs-overrideBtn ${overrideEnabled ? "is-active" : ""}" type="button" data-action="toggle-override" data-key="${key}">
+                ${overrideEnabled ? "Custom" : "Override"}
+              </button>
+              <input class="flocs-overrideInput"
+                     type="number"
+                     min="0"
+                     step="0.01"
+                     inputmode="decimal"
+                     placeholder="R0.00"
+                     data-action="override-input"
+                     data-key="${key}"
+                     value="${overrideValue}"
+                     ${overrideEnabled ? "" : "disabled"} />
+            </div>
+            <div class="flocs-overrideHint">
+              ${overridePrice != null ? `Using ${money(overridePrice)}` : "Auto price"}
+            </div>
+          </td>
           <td>
             <div class="flocs-qtyWrap">
               <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
@@ -478,7 +522,7 @@ ${state.customer.email || ""}${
             state.shippingQuote.ratePerKg || 0
           )}/kg, quoteno ${state.shippingQuote.quoteno}): ${money(
             state.shippingQuote.total
-          )}`
+          )} (base ${money(state.shippingQuote.baseTotal || 0)} + 5% margin)`
         : delivery === "ship"
         ? "Shipping will be added once SWE quote is calculated"
         : "R0.00 (pickup/deliver)";
@@ -498,9 +542,15 @@ ${state.customer.email || ""}${
           .join("")
       : "";
 
+    const overrideCount = Object.keys(state.priceOverrideEnabled || {}).filter(
+      (key) => priceOverrideForKey(key) != null
+    ).length;
     const pricingNote = state.priceTier
       ? `Pricing tier: ${state.priceTier}`
       : "Pricing tier: default";
+    const overrideNote = overrideCount
+      ? ` · ${overrideCount} price override${overrideCount === 1 ? "" : "s"}`
+      : "";
 
     invoice.innerHTML = `
       <div class="flocs-invoiceHeader">
@@ -557,7 +607,7 @@ ${state.customer.email || ""}${
       </div>
 
       <div class="flocs-invoiceNote">
-        ${pricingNote}. Final pricing and tax are still controlled in Shopify. FLOCS only seeds the draft order.
+        ${pricingNote}${overrideNote}. Final pricing and tax are still controlled in Shopify. FLOCS only seeds the draft order.
       </div>
     `;
   }
@@ -818,12 +868,18 @@ ${state.customer.email || ""}${
         return;
       }
 
-      const total =
+      const baseTotal =
         Number(picked.total ?? picked.subtotal ?? picked.charge ?? 0) || 0;
+      const marginRate = 1.05;
+      const total = baseTotal * marginRate;
+      const marginAmount = total - baseTotal;
       const ratePerKg = grossWeightKg ? total / grossWeightKg : 0;
       state.shippingQuote = {
         service: picked.service,
         total,
+        baseTotal,
+        marginRate,
+        marginAmount,
         quoteno,
         ratePerKg,
         grossWeightKg,
@@ -833,7 +889,8 @@ ${state.customer.email || ""}${
       };
 
       shippingSummary.textContent =
-        `Quote: ${picked.service} – ${money(total)} (${money(ratePerKg)}/kg · ${grossWeightKg.toFixed(2)}kg gross incl ${boxCount} boxes)` +
+        `Quote: ${picked.service} – ${money(total)} (base ${money(baseTotal)} + 5% margin)` +
+        ` · ${money(ratePerKg)}/kg · ${grossWeightKg.toFixed(2)}kg gross incl ${boxCount} boxes` +
         ` (quoteno ${quoteno})`;
 
       validate();
@@ -1426,6 +1483,8 @@ ${state.customer.email || ""}${
     state.customerTags = [];
     state.priceTier = null;
     state.filters = { flavour: "", size: "" };
+    state.priceOverrides = {};
+    state.priceOverrideEnabled = {};
 
     if (customerSearch) customerSearch.value = "";
     if (poInput) poInput.value = "";
@@ -1602,12 +1661,24 @@ ${state.customer.email || ""}${
         if (!(t instanceof HTMLInputElement)) return;
         const key = t.dataset.key;
         if (!key) return;
-        const v = Number(t.value || 0);
-        if (!v || v < 0) {
-          delete state.items[key];
+        if (t.dataset.action === "override-input") {
+          const raw = t.value;
+          if (raw === "") {
+            delete state.priceOverrides[key];
+          } else {
+            const num = Number(raw);
+            if (Number.isFinite(num)) {
+              state.priceOverrides[key] = num;
+            }
+          }
         } else {
-          state.items[key] = Math.floor(v);
-          t.value = String(Math.floor(v));
+          const v = Number(t.value || 0);
+          if (!v || v < 0) {
+            delete state.items[key];
+          } else {
+            state.items[key] = Math.floor(v);
+            t.value = String(Math.floor(v));
+          }
         }
         renderInvoice();
         validate();
@@ -1620,6 +1691,16 @@ ${state.customer.email || ""}${
         const key = btn.dataset.key;
         if (!key) return;
         const current = Number(state.items[key] || 0);
+        if (action === "toggle-override") {
+          state.priceOverrideEnabled[key] = !state.priceOverrideEnabled[key];
+          if (!state.priceOverrideEnabled[key]) {
+            delete state.priceOverrides[key];
+          }
+          renderProductsTable();
+          renderInvoice();
+          validate();
+          return;
+        }
         if (action === "inc") {
           state.items[key] = current + 1;
         } else if (action === "dec") {
@@ -1633,7 +1714,7 @@ ${state.customer.email || ""}${
           return;
         }
         const input = productsBody.querySelector(
-          `input[data-key="${CSS.escape(key)}"]`
+          `.flocs-qtyInput[data-key="${CSS.escape(key)}"]`
         );
         if (input) {
           input.value = state.items[key] ? String(state.items[key]) : "";

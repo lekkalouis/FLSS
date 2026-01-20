@@ -271,6 +271,154 @@
   box-shadow:0 24px 60px rgba(15,23,42,.1);
 }
 
+.dispatchStatusPanel {
+  display:flex;
+  flex-direction:column;
+  gap:.6rem;
+  padding:.85rem 1rem;
+  border-radius:var(--radius-lg);
+  border:1px solid var(--panel-strong);
+  background:linear-gradient(120deg, rgba(255,255,255,.96), rgba(224,231,255,.45));
+  box-shadow:0 18px 40px rgba(15,23,42,.08);
+}
+.dispatchStatusHeader {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+}
+.dispatchStatusHeader h3{
+  font-size:.9rem;
+  margin:0;
+  color:#0f172a;
+}
+.dispatchStatusLabel{
+  font-size:.72rem;
+  padding:.25rem .6rem;
+  border-radius:999px;
+  border:1px solid rgba(251,191,36,.5);
+  background:rgba(251,191,36,.18);
+  color:#92400e;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.dispatchProgressBar{
+  position:relative;
+  height:18px;
+  border-radius:999px;
+  overflow:hidden;
+  background:linear-gradient(90deg, rgba(254,240,138,.7), rgba(251,191,36,.2));
+  border:1px solid rgba(250,204,21,.65);
+}
+.dispatchProgressBar.is-pulse{
+  animation:dispatchPulse .6s ease;
+}
+.dispatchProgressFill{
+  position:absolute;
+  inset:0;
+  width:0%;
+  background:linear-gradient(90deg, #f97316, #facc15, #22d3ee);
+  box-shadow:0 0 14px rgba(251,191,36,.7);
+  transition:width .5s ease;
+}
+.dispatchProgressSun{
+  position:absolute;
+  top:50%;
+  right:12px;
+  transform:translateY(-50%);
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(254,240,138,.95), rgba(251,191,36,.95), rgba(249,115,22,.9));
+  box-shadow:0 0 20px rgba(251,191,36,.85);
+  pointer-events:none;
+}
+.dispatchProgressSteps{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));
+  gap:.35rem .6rem;
+  font-size:.7rem;
+  color:#334155;
+}
+.dispatchProgressStep{
+  display:flex;
+  align-items:center;
+  gap:.35rem;
+  padding:.25rem .4rem;
+  border-radius:.5rem;
+  border:1px solid var(--panel-strong);
+  background:#fff;
+}
+.dispatchProgressDot{
+  width:.55rem;
+  height:.55rem;
+  border-radius:50%;
+  background:#cbd5f5;
+}
+.dispatchProgressStep.is-active{
+  border-color:rgba(56,189,248,.8);
+  background:rgba(56,189,248,.12);
+  color:#0c4a6e;
+}
+.dispatchProgressStep.is-active .dispatchProgressDot{
+  background:#38bdf8;
+  box-shadow:0 0 10px rgba(56,189,248,.8);
+}
+.dispatchProgressStep.is-complete{
+  border-color:rgba(34,197,94,.7);
+  background:rgba(34,197,94,.12);
+  color:#065f46;
+}
+.dispatchProgressStep.is-complete .dispatchProgressDot{
+  background:#22c55e;
+  box-shadow:0 0 10px rgba(34,197,94,.65);
+}
+@keyframes dispatchPulse{
+  0%{ transform:scaleX(1); }
+  50%{ transform:scaleX(1.02); }
+  100%{ transform:scaleX(1); }
+}
+
+.dispatchLogPanel{
+  border:1px solid var(--panel-strong);
+  border-radius:var(--radius-lg);
+  background:#fff;
+  padding:.75rem 1rem;
+  box-shadow:0 14px 32px rgba(15,23,42,.08);
+}
+.dispatchLogHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:.8rem;
+  font-weight:700;
+  color:#0f172a;
+  margin-bottom:.4rem;
+}
+.dispatchLog{
+  max-height:180px;
+  overflow:auto;
+  font-size:.72rem;
+  color:#1f2937;
+  line-height:1.4;
+}
+.dispatchLogEntry{
+  padding:.35rem .25rem;
+  border-bottom:1px dashed rgba(226,232,240,.9);
+  display:flex;
+  gap:.5rem;
+  align-items:flex-start;
+}
+.dispatchLogEntry:last-child{
+  border-bottom:none;
+}
+.dispatchLogEntry span{
+  font-family:var(--mono);
+  color:#64748b;
+  min-width:75px;
+}
+
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
@@ -373,6 +521,19 @@
   .dispatchBookBtn:disabled{
     opacity:.5;
     cursor:not-allowed;
+  }
+  .dispatchNoteBtn{
+    border:1px solid rgba(34,197,94,.55);
+    background:rgba(34,197,94,.16);
+    color:#065f46;
+    font-size:.7rem;
+    font-weight:700;
+    padding:.35rem .55rem;
+    border-radius:.5rem;
+    cursor:pointer;
+  }
+  .dispatchNoteBtn:hover{
+    background:rgba(34,197,94,.26);
   }
 
 .dispatchColBody {
@@ -536,6 +697,7 @@
         <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false">Dispatch Board</button>
         <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false">Documentation</button>
         <a class="flNavBtn" href="/flocs">Order capture (FLOCS)</a>
+        <a class="flNavBtn" href="/stock.html">Stock take</a>
       </div>
       <div class="flNavStatus">
         <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -638,6 +800,24 @@
 
     <div class="flView" id="viewOps" hidden>
       <div id="dispatchBoardContainer">
+        <div class="dispatchStatusPanel" aria-live="polite">
+          <div class="dispatchStatusHeader">
+            <h3>Booking progress</h3>
+            <span id="dispatchProgressLabel" class="dispatchStatusLabel">Idle</span>
+          </div>
+          <div class="dispatchProgressBar" id="dispatchProgressBar">
+            <div id="dispatchProgressFill" class="dispatchProgressFill"></div>
+            <div class="dispatchProgressSun" aria-hidden="true"></div>
+          </div>
+          <div class="dispatchProgressSteps" id="dispatchProgressSteps"></div>
+        </div>
+        <div class="dispatchLogPanel">
+          <div class="dispatchLogHeader">
+            <span>Dispatch log</span>
+            <span class="dispatchStamp">Latest activity</span>
+          </div>
+          <div id="dispatchLog" class="dispatchLog" aria-live="polite"></div>
+        </div>
         <div class="dispatchBoardPanel">
           <div class="sectionTitle" style="margin-top:.4rem">
             <span>Dispatch Whiteboard</span>
