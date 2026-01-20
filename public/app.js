@@ -60,6 +60,7 @@
   const emergencyStopBtn = $("emergencyStop");
 
   const btnBookNow = $("btnBookNow");
+  const modeToggle = $("modeToggle");
 
   const MAX_ORDER_AGE_HOURS = 180;
 
@@ -74,6 +75,7 @@
   let serviceOverride = "RFX";
   let addressBook = [];
   let bookedOrders = new Set();
+  let isAutoMode = true;
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
@@ -121,9 +123,24 @@
   function money(v) {
     return v == null || isNaN(v) ? "-" : `R${Number(v).toFixed(2)}`;
   }
-function isAutoBookOrder(details) {
-  return hasParcelCountTag(details);
-}
+  function loadModePreference() {
+    try {
+      const stored = localStorage.getItem("fl_mode_v1");
+      if (stored === "manual") isAutoMode = false;
+    } catch {}
+  }
+
+  function saveModePreference() {
+    try {
+      localStorage.setItem("fl_mode_v1", isAutoMode ? "auto" : "manual");
+    } catch {}
+  }
+
+  function updateModeToggle() {
+    if (!modeToggle) return;
+    modeToggle.textContent = isAutoMode ? "MODE: AUTO" : "MODE: MANUAL";
+    modeToggle.setAttribute("aria-pressed", isAutoMode ? "true" : "false");
+  }
 
   function loadBookedOrders() {
     try {
@@ -230,6 +247,8 @@ function cancelAutoBookTimer() {
 
 function scheduleIdleAutoBook() {
   cancelAutoBookTimer();
+
+  if (!isAutoMode) return;
 
   // Only for untagged orders
   if (!activeOrderNo || !orderDetails) return;
@@ -366,7 +385,9 @@ function scheduleIdleAutoBook() {
   }
 
   function shouldShowBookNow(details) {
-    return !!activeOrderNo && !!details && !hasParcelCountTag(details) && !isBooked(activeOrderNo);
+    if (!activeOrderNo || !details || isBooked(activeOrderNo)) return false;
+    if (!isAutoMode) return true;
+    return !hasParcelCountTag(details);
   }
 
   function updateBookNowButton() {
@@ -389,6 +410,7 @@ function scheduleIdleAutoBook() {
       details && typeof details.manualParcelCount === "number" && details.manualParcelCount > 0
         ? details.manualParcelCount
         : null;
+    if (!isAutoMode) return manual || null;
     return fromTag || manual || null;
   }
 
@@ -407,20 +429,32 @@ function scheduleIdleAutoBook() {
     if (uiParcelCount) uiParcelCount.textContent = String(idxs.length);
     if (uiExpectedCount) uiExpectedCount.textContent = expected ? String(expected) : "--";
 
-    const parcelSource = hasParcelCountTag(orderDetails)
-      ? `Tag parcel_count_${orderDetails.parcelCountFromTag}`
-      : orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
-      ? `Manual ${orderDetails.manualParcelCount}`
-      : idxs.length
-      ? "Scanned"
-      : "--";
+    let parcelSource = "--";
+    if (!isAutoMode) {
+      parcelSource =
+        orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
+          ? `Manual ${orderDetails.manualParcelCount}`
+          : idxs.length
+          ? "Scanned"
+          : "--";
+    } else {
+      parcelSource = hasParcelCountTag(orderDetails)
+        ? `Tag parcel_count_${orderDetails.parcelCountFromTag}`
+        : orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
+        ? `Manual ${orderDetails.manualParcelCount}`
+        : idxs.length
+        ? "Scanned"
+        : "--";
+    }
     if (uiParcelSource) uiParcelSource.textContent = parcelSource;
 
-    const sessionMode = hasParcelCountTag(orderDetails)
-      ? "Tag auto-book"
-      : activeOrderNo
-      ? "Manual / idle auto-book"
-      : "Waiting";
+    const sessionMode = !activeOrderNo
+      ? "Waiting"
+      : isAutoMode
+      ? hasParcelCountTag(orderDetails)
+        ? "Tag auto-book"
+        : "Manual / idle auto-book"
+      : "Manual booking";
     if (uiSessionMode) uiSessionMode.textContent = sessionMode;
 
     const tagInfo =
@@ -463,12 +497,15 @@ Email: ${orderDetails.email || ""}`.trim();
         parcelsForOrder.size === expected ? "ok" : "info"
       );
     } else if (activeOrderNo) {
-      statusExplain(hasParcelCountTag(orderDetails) ? "Scan parcels until complete." : "Scan parcels, then BOOK NOW.", "info");
+      const tagDriven = isAutoMode && hasParcelCountTag(orderDetails);
+      statusExplain(tagDriven ? "Scan parcels until complete." : "Scan parcels, then BOOK NOW.", "info");
     }
 
     if (uiAutoBook) {
       if (!activeOrderNo) {
         uiAutoBook.textContent = "Idle";
+      } else if (!isAutoMode) {
+        uiAutoBook.textContent = "Manual mode";
       } else if (hasParcelCountTag(orderDetails)) {
         uiAutoBook.textContent = "Immediate on first scan";
       } else if (autoBookEndsAt) {
@@ -1041,7 +1078,7 @@ async function handleScan(code) {
   const expected = getExpectedParcelCount(orderDetails);
 
   // TAGGED: auto-book immediately on first scan
-  if (hasParcelCountTag(orderDetails) && expected) {
+  if (isAutoMode && hasParcelCountTag(orderDetails) && expected) {
     cancelAutoBookTimer();
 
     parcelsForOrder = new Set(Array.from({ length: expected }, (_, i) => i + 1));
@@ -1223,6 +1260,7 @@ async function handleScan(code) {
       const city = o.shipping_city || "";
       const postal = o.shipping_postal || "";
       const created = o.created_at ? new Date(o.created_at).toLocaleTimeString() : "";
+      const orderNo = String(o.name || "").replace("#", "").trim();
       const lines = (o.line_items || [])
         .slice()
         .sort((a, b) => {
@@ -1256,12 +1294,19 @@ async function handleScan(code) {
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
 
+      const bookBtn = orderNo
+        ? `<button class="dispatchBookBtn" type="button" data-order-no="${orderNo}">Book Now</button>`
+        : `<button class="dispatchBookBtn" type="button" disabled>Book Now</button>`;
+
       return `
         <div class="dispatchCard">
           <div class="dispatchCardTitle"><span>${title}</span></div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
          
           <div class="dispatchCardLines">${lines}</div>
+          <div class="dispatchCardActions">
+            ${bookBtn}
+          </div>
         </div>`;
     };
 
@@ -1333,29 +1378,39 @@ async function handleScan(code) {
     }
   });
 
-btnBookNow?.addEventListener("click", async () => {
-  cancelAutoBookTimer();
+  btnBookNow?.addEventListener("click", async () => {
+    cancelAutoBookTimer();
 
-  if (!activeOrderNo || !orderDetails) {
-    statusExplain("Scan an order first.", "warn");
-    return;
-  }
-  if (isBooked(activeOrderNo)) {
-    statusExplain(`Order ${activeOrderNo} already booked — blocked.`, "warn");
-    return;
-  }
-  if (hasParcelCountTag(orderDetails)) {
-    statusExplain("This order has a parcel_count tag — it auto-books on first scan.", "warn");
-    return;
-  }
+    if (!activeOrderNo || !orderDetails) {
+      statusExplain("Scan an order first.", "warn");
+      return;
+    }
+    if (isBooked(activeOrderNo)) {
+      statusExplain(`Order ${activeOrderNo} already booked — blocked.`, "warn");
+      return;
+    }
 
-  // Use scanned count as default to avoid prompt if you want:
-  if (!getExpectedParcelCount(orderDetails) && parcelsForOrder.size > 0) {
-    orderDetails.manualParcelCount = parcelsForOrder.size;
-  }
+    if (!isAutoMode) {
+      if (parcelsForOrder.size <= 0) {
+        statusExplain("Scan parcels first.", "warn");
+        return;
+      }
+      await doBookingNow({ manual: true, parcelCount: parcelsForOrder.size });
+      return;
+    }
 
-  await doBookingNow();
-});
+    if (hasParcelCountTag(orderDetails)) {
+      statusExplain("This order has a parcel_count tag — it auto-books on first scan.", "warn");
+      return;
+    }
+
+    // Use scanned count as default to avoid prompt if you want:
+    if (!getExpectedParcelCount(orderDetails) && parcelsForOrder.size > 0) {
+      orderDetails.manualParcelCount = parcelsForOrder.size;
+    }
+
+    await doBookingNow();
+  });
 
 
   emergencyStopBtn?.addEventListener("click", () => {
@@ -1374,7 +1429,41 @@ btnBookNow?.addEventListener("click", async () => {
   navOps?.addEventListener("click", () => switchMainView("ops"));
   navDocs?.addEventListener("click", () => switchMainView("docs"));
 
+  modeToggle?.addEventListener("click", () => {
+    isAutoMode = !isAutoMode;
+    cancelAutoBookTimer();
+    saveModePreference();
+    updateModeToggle();
+    renderSessionUI();
+    statusExplain(isAutoMode ? "Auto mode enabled." : "Manual mode enabled.", "info");
+  });
+
+  dispatchBoard?.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".dispatchBookBtn");
+    if (!btn) return;
+    const orderNo = btn.dataset.orderNo;
+    if (!orderNo) return;
+
+    if (isBooked(orderNo)) {
+      statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
+      return;
+    }
+
+    const count = promptManualParcelCount(orderNo);
+    if (!count) {
+      statusExplain("Parcel count required (cancelled).", "warn");
+      return;
+    }
+
+    await startOrder(orderNo);
+    orderDetails.manualParcelCount = count;
+    renderSessionUI();
+    await doBookingNow({ manual: true, parcelCount: count });
+  });
+
   loadBookedOrders();
+  loadModePreference();
+  updateModeToggle();
   renderSessionUI();
   renderCountdown();
   initAddressSearch();
