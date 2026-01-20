@@ -115,6 +115,7 @@ function normalizeCustomer(customer, deliveryMethod) {
     name: fullName,
     email: customer.email || "",
     phone: customer.phone || "",
+    tags: customer.tags || "",
     addresses: Array.isArray(customer.addresses) ? customer.addresses : [],
     default_address: customer.default_address || null,
     delivery_method: deliveryMethod || null
@@ -290,7 +291,7 @@ app.get("/shopify/customers/search", async (req, res) => {
     const url =
       `${base}/customers/search.json?limit=${limit}` +
       `&query=${encodeURIComponent(q)}` +
-      `&fields=id,first_name,last_name,email,phone,addresses,default_address`;
+      `&fields=id,first_name,last_name,email,phone,addresses,default_address,tags`;
 
     const resp = await shopifyFetch(url, { method: "GET" });
     if (!resp.ok) {

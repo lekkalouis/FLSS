@@ -316,6 +316,21 @@
       font-family:var(--mono);
       font-size:.78rem;
     }
+    .flocs-filterRow {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.5rem;
+      margin-top:.4rem;
+      align-items:center;
+    }
+    .flocs-filterRow .flocs-select {
+      min-width:170px;
+      flex:1;
+    }
+    .flocs-filterHint {
+      font-size:.7rem;
+      color:var(--muted);
+    }
     .flocs-qtyInput {
       width:4.2rem;
       border-radius:.45rem;
@@ -331,6 +346,26 @@
     .flocs-qtyInput:focus {
       border-color:var(--accent);
       box-shadow:0 0 0 1px rgba(56,189,248,.45);
+    }
+    .flocs-qtyWrap {
+      display:flex;
+      align-items:center;
+      gap:.25rem;
+      justify-content:flex-end;
+    }
+    .flocs-qtyBtn {
+      width:1.8rem;
+      height:1.8rem;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.5);
+      background:rgba(15,23,42,.9);
+      color:var(--text);
+      cursor:pointer;
+      font-weight:700;
+    }
+    .flocs-qtyBtn:hover {
+      border-color:var(--accent);
+      color:var(--accent);
     }
     .flocs-productResults {
       margin-top:.45rem;
@@ -552,6 +587,10 @@
       opacity:1;
       pointer-events:auto;
     }
+    .flocs-shell.flocs-ready ~ .flocs-confirmOverlay {
+      opacity:1;
+      pointer-events:auto;
+    }
 
     .flocs-confirmBtn {
       min-width:220px;
@@ -699,18 +738,30 @@
 
         <!-- Product grid -->
         <div class="flocs-formSection">
-          <div class="flocs-labelRow">
-            <span>Items</span>
-            <span class="flocs-hint" id="flocs-productStatus">Search by SKU or product title</span>
-          </div>
+        <div class="flocs-labelRow">
+          <span>Items</span>
+          <span class="flocs-hint" id="flocs-productStatus">Search by SKU or product title</span>
+        </div>
           <input id="flocs-productSearch" class="flocs-input" type="text"
                  placeholder="Search Shopify products (SKU/title)..." autocomplete="off" />
           <div id="flocs-productResults" class="flocs-productResults" hidden></div>
+          <div class="flocs-filterRow">
+            <select id="flocs-filterFlavour" class="flocs-select">
+              <option value="">All flavours</option>
+            </select>
+            <select id="flocs-filterSize" class="flocs-select">
+              <option value="">All sizes</option>
+            </select>
+            <span class="flocs-filterHint">Filter the quick order list by flavour & size.</span>
+          </div>
           <table class="flocs-productsTable">
             <thead>
               <tr>
                 <th>SKU</th>
                 <th>Description</th>
+                <th>Flavour</th>
+                <th>Size</th>
+                <th>Price</th>
                 <th style="width:10%">Qty</th>
               </tr>
             </thead>
