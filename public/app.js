@@ -1107,6 +1107,23 @@ async function handleScan(code) {
     const lanes = cols.map(() => []);
     list.forEach((o, idx) => lanes[idx % lanes.length].push(o));
 
+    const lineItemAbbreviations = {
+      "original multi purpose spice": "",
+      "hot and spicy multi purpose spice": "H",
+      "worcestershire sauce sprinkle": "WS",
+      "red wine and garlic sprinkle": "RG",
+      "chutney sprinkle": "CS",
+      "savoury herb mix": "SH",
+      "salt & vinegar seasoning": "SV",
+      "butter (popcorn sprinkle)": "BUT",
+      "sour cream & chives (popcorn sprinkle)": "SCC",
+      "chutney (popcorn sprinkle)": "CHUT",
+      "parmesan (popcorn sprinkle)": "PAR",
+      "cheese and onion (popcorn sprinkle)": "CHO",
+      "salt & vinegar (popcorn sprinkle)": "SV",
+      "curry mix": "Curry"
+    };
+
     const cardHTML = (o) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
       const city = o.shipping_city || "";
@@ -1118,8 +1135,13 @@ async function handleScan(code) {
           const baseTitle = li.title || "";
           const variantTitle = (li.variant_title || "").trim();
           const hasVariant = variantTitle && variantTitle.toLowerCase() !== "default title";
-          const fullTitle = hasVariant ? `${variantTitle} ${baseTitle}` : baseTitle;
-          return `• ${li.quantity} × ${fullTitle}`;
+          const abbrevKey = baseTitle.trim().toLowerCase();
+          const abbreviation = lineItemAbbreviations[abbrevKey];
+          const sizeLabel = hasVariant ? variantTitle : "";
+          const shortLabel = abbreviation === ""
+            ? (sizeLabel || baseTitle)
+            : [sizeLabel, abbreviation || baseTitle].filter(Boolean).join(" ");
+          return `• ${li.quantity} × ${shortLabel}`;
         })
         .join("<br>");
       const addr1 = o.shipping_address1 || "";
