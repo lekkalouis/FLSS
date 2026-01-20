@@ -648,7 +648,12 @@
                  placeholder="Type to search Shopify customers…" autocomplete="off" />
           <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
           <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
-          <div class="flocs-subSection">
+          <div class="flocs-inlineActions" style="margin-top:.5rem">
+            <button id="flocs-customerCreateToggle" class="flocs-miniBtn" type="button">
+              Add new customer
+            </button>
+          </div>
+          <div class="flocs-subSection" id="flocs-customerCreatePanel" hidden>
             <div class="flocs-labelRow">
               <span>Create new customer</span>
               <span class="flocs-hint" id="flocs-customerCreateStatus">Add a customer if search returns nothing.</span>
