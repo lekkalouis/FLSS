@@ -129,7 +129,12 @@
         price: p.price // optional
       });
     }
-    return out;
+    return out.sort((a, b) =>
+      String(a.sku || "").localeCompare(String(b.sku || ""), undefined, {
+        numeric: true,
+        sensitivity: "base"
+      })
+    );
   }
 
   function computeTotals(items) {
