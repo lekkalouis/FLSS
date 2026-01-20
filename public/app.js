@@ -1126,6 +1126,10 @@ async function handleScan(code) {
       "flippen lekka curry mix": "Curry",
       "original multi purpose basting sauce": "Basting"
     };
+    const lineItemOrder = Object.keys(lineItemAbbreviations);
+    const lineItemOrderIndex = new Map(
+      lineItemOrder.map((key, index) => [key, index])
+    );
 
     const cardHTML = (o) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
@@ -1134,12 +1138,19 @@ async function handleScan(code) {
       const created = o.created_at ? new Date(o.created_at).toLocaleTimeString() : "";
       const lines = (o.line_items || [])
         .slice()
-        .sort((a, b) =>
-          String(a.sku || "").localeCompare(String(b.sku || ""), undefined, {
+        .sort((a, b) => {
+          const aKey = String(a.title || "").trim().toLowerCase();
+          const bKey = String(b.title || "").trim().toLowerCase();
+          const aIndex =
+            lineItemOrderIndex.get(aKey) ?? Number.POSITIVE_INFINITY;
+          const bIndex =
+            lineItemOrderIndex.get(bKey) ?? Number.POSITIVE_INFINITY;
+          if (aIndex !== bIndex) return aIndex - bIndex;
+          return String(a.sku || "").localeCompare(String(b.sku || ""), undefined, {
             numeric: true,
             sensitivity: "base"
-          })
-        )
+          });
+        })
         .slice(0, 6)
         .map((li) => {
           const baseTitle = li.title || "";
