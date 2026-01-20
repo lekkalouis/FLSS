@@ -6,15 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
-      --bg:#020617;
-      --panel:#0f172a;
-      --panel-soft:#020617;
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --panel-soft:#f1f5f9;
+      --panel-strong:#e2e8f0;
       --accent:#38bdf8;
-      --accent-soft:rgba(56,189,248,.12);
+      --accent-soft:rgba(56,189,248,.18);
       --accent-strong:rgba(34,197,94,.9);
-      --danger:#f97373;
-      --text:#e5e7eb;
-      --muted:#94a3b8;
+      --danger:#ef4444;
+      --text:#0f172a;
+      --muted:#5b6b7f;
       --radius-lg:.85rem;
       --radius-md:.6rem;
       --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
@@ -25,8 +26,8 @@
     body {
       margin:0;
       min-height:100vh;
-      background:radial-gradient(circle at 0 0,rgba(248,250,252,.08),transparent 60%),
-                 radial-gradient(circle at 100% 0,rgba(56,189,248,.10),transparent 55%),
+      background:radial-gradient(circle at 10% 10%, rgba(56,189,248,.15) 0%, rgba(245,247,251,0) 55%),
+                 radial-gradient(circle at 90% 15%, rgba(236,72,153,.08) 0%, rgba(245,247,251,0) 55%),
                  var(--bg);
       color:var(--text);
       font-family:var(--sans);
@@ -70,7 +71,8 @@
       border-radius:999px;
       padding:.25rem .75rem;
       font-size:.75rem;
-      border:1px solid rgba(148,163,184,.4);
+      border:1px solid var(--panel-strong);
+      color:var(--text);
     }
     .flocs-headerActions {
       display:flex;
@@ -85,8 +87,8 @@
       gap:.4rem;
       padding:.3rem .75rem;
       border-radius:999px;
-      border:1px solid rgba(148,163,184,.5);
-      background:rgba(15,23,42,.85);
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
       color:var(--text);
       font-size:.75rem;
       text-decoration:none;
@@ -94,7 +96,7 @@
     }
     .flocs-linkBtn:hover {
       border-color:rgba(56,189,248,.7);
-      color:#e0f2fe;
+      color:#0c4a6e;
     }
     .flocs-dot {
       width:.45rem; height:.45rem;
@@ -112,10 +114,10 @@
     }
 
     .flocs-panel {
-      background:linear-gradient(to bottom right,rgba(15,23,42,.98),rgba(15,23,42,.92));
+      background:linear-gradient(to bottom right,rgba(255,255,255,.98),rgba(241,245,249,.9));
       border-radius:var(--radius-lg);
-      border:1px solid rgba(148,163,184,.4);
-      box-shadow:0 18px 60px rgba(0,0,0,.65);
+      border:1px solid var(--panel-strong);
+      box-shadow:0 18px 40px rgba(15,23,42,.1);
       padding:1rem;
       position:relative;
     }
@@ -128,13 +130,13 @@
       flex:.95;
       min-width:0;
       background:radial-gradient(circle at 0 0,rgba(56,189,248,.15),transparent 60%),
-                 linear-gradient(to bottom right,rgba(15,23,42,.98),rgba(15,23,42,.94));
+                 linear-gradient(to bottom right,rgba(255,255,255,.98),rgba(241,245,249,.92));
     }
 
     .flocs-formSection {
       margin-bottom:.9rem;
       padding-bottom:.75rem;
-      border-bottom:1px dashed rgba(148,163,184,.3);
+      border-bottom:1px dashed rgba(148,163,184,.45);
     }
     .flocs-formSection:last-of-type {
       border-bottom:none;
@@ -165,8 +167,8 @@
     .flocs-select {
       width:100%;
       border-radius:.55rem;
-      border:1px solid rgba(148,163,184,.4);
-      background:var(--panel-soft);
+      border:1px solid var(--panel-strong);
+      background:#fff;
       color:var(--text);
       padding:.45rem .6rem;
       font-size:.85rem;
@@ -193,21 +195,21 @@
       max-height:190px;
       overflow:auto;
       border-radius:.6rem;
-      border:1px solid rgba(148,163,184,.4);
-      background:rgba(15,23,42,.96);
+      border:1px solid var(--panel-strong);
+      background:#fff;
     }
     .flocs-subSection {
       margin-top:.6rem;
       padding:.6rem;
       border-radius:.6rem;
-      border:1px dashed rgba(148,163,184,.35);
-      background:rgba(15,23,42,.65);
+      border:1px dashed rgba(148,163,184,.55);
+      background:rgba(248,250,252,.9);
     }
     .flocs-customerItem {
       padding:.4rem .55rem;
       font-size:.8rem;
       cursor:pointer;
-      border-bottom:1px solid rgba(30,41,59,.9);
+      border-bottom:1px solid rgba(226,232,240,.9);
     }
     .flocs-customerItem:hover {
       background:rgba(56,189,248,.14);
@@ -303,8 +305,8 @@
       padding:.45rem .55rem;
       border-radius:.45rem;
       font-size:.75rem;
-      border:1px dashed rgba(148,163,184,.4);
-      background:rgba(15,23,42,.9);
+      border:1px dashed rgba(148,163,184,.55);
+      background:rgba(248,250,252,.9);
       white-space:pre-line;
     }
 
@@ -314,16 +316,16 @@
       font-size:.78rem;
       border-radius:.6rem;
       overflow:hidden;
-      border:1px solid rgba(148,163,184,.4);
-      background:rgba(15,23,42,.9);
+      border:1px solid var(--panel-strong);
+      background:#fff;
     }
     .flocs-productsTable thead {
-      background:rgba(15,23,42,1);
+      background:var(--panel-soft);
     }
     .flocs-productsTable th,
     .flocs-productsTable td {
       padding:.3rem .45rem;
-      border-bottom:1px solid rgba(30,41,59,1);
+      border-bottom:1px solid rgba(226,232,240,.9);
     }
     .flocs-productsTable th {
       text-align:left;
@@ -358,8 +360,8 @@
     .flocs-qtyInput {
       width:4.2rem;
       border-radius:.45rem;
-      border:1px solid rgba(148,163,184,.4);
-      background:rgba(15,23,42,1);
+      border:1px solid var(--panel-strong);
+      background:#fff;
       color:var(--text);
       padding:.2rem .35rem;
       font-size:.78rem;
@@ -381,8 +383,8 @@
       width:1.8rem;
       height:1.8rem;
       border-radius:999px;
-      border:1px solid rgba(148,163,184,.5);
-      background:rgba(15,23,42,.9);
+      border:1px solid var(--panel-strong);
+      background:#fff;
       color:var(--text);
       cursor:pointer;
       font-weight:700;
@@ -396,8 +398,8 @@
       max-height:180px;
       overflow:auto;
       border-radius:.6rem;
-      border:1px solid rgba(148,163,184,.4);
-      background:rgba(15,23,42,.96);
+      border:1px solid var(--panel-strong);
+      background:#fff;
     }
     .flocs-productItem {
       display:flex;
@@ -405,7 +407,7 @@
       justify-content:space-between;
       gap:.5rem;
       padding:.4rem .55rem;
-      border-bottom:1px solid rgba(30,41,59,.9);
+      border-bottom:1px solid rgba(226,232,240,.9);
       font-size:.78rem;
     }
     .flocs-productItem:last-child {
@@ -439,7 +441,7 @@
       letter-spacing:.05em;
       text-transform:uppercase;
       background:var(--accent-soft);
-      color:var(--accent);
+      color:#0c4a6e;
     }
     .flocs-btn span.icon {
       font-size:1rem;
@@ -456,7 +458,7 @@
 
     .flocs-badgeShipping {
       font-size:.75rem;
-      color:var(--muted);
+      color:var(--text);
     }
 
     .flocs-errors {
@@ -484,9 +486,52 @@
       padding:.18rem .45rem;
       border-radius:999px;
       font-size:.7rem;
-      background:rgba(15,23,42,.8);
-      border:1px solid rgba(148,163,184,.5);
+      background:var(--panel-soft);
+      border:1px solid var(--panel-strong);
+      color:var(--text);
+    }
+
+    .flocs-overrideWrap {
+      display:flex;
+      align-items:center;
+      gap:.35rem;
+    }
+    .flocs-overrideBtn {
+      border-radius:999px;
+      border:1px solid var(--panel-strong);
+      background:#fff;
+      color:var(--text);
+      font-size:.65rem;
+      padding:.2rem .5rem;
+      cursor:pointer;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+    .flocs-overrideBtn.is-active {
+      border-color:rgba(56,189,248,.8);
+      background:var(--accent-soft);
+      color:#0c4a6e;
+      box-shadow:0 0 0 2px rgba(56,189,248,.2);
+    }
+    .flocs-overrideInput {
+      width:5.5rem;
+      border-radius:.45rem;
+      border:1px solid var(--panel-strong);
+      background:#fff;
+      color:var(--text);
+      padding:.2rem .35rem;
+      font-size:.75rem;
+      text-align:right;
+      outline:none;
+    }
+    .flocs-overrideInput:disabled {
+      opacity:.55;
+      background:#f8fafc;
+    }
+    .flocs-overrideHint {
+      font-size:.65rem;
       color:var(--muted);
+      margin-top:.2rem;
     }
     .flocs-invoice {
       background:#f9fafb;
@@ -677,7 +722,7 @@
       border-radius:999px;
       border:1px solid rgba(14,165,233,.85);
       background:rgba(14,165,233,.18);
-      color:#e0f2fe;
+      color:#0c4a6e;
       padding:.35rem .9rem;
       font-size:.7rem;
       font-weight:600;
@@ -689,7 +734,7 @@
       border-radius:999px;
       border:1px solid rgba(34,197,94,.85);
       background:rgba(34,197,94,.16);
-      color:#ecfdf5;
+      color:#065f46;
       padding:.35rem .9rem;
       font-size:.7rem;
       font-weight:600;
@@ -710,6 +755,10 @@
         <a class="flocs-linkBtn" href="/">
           <span>⟵</span>
           <span>Scan station</span>
+        </a>
+        <a class="flocs-linkBtn" href="/stock.html">
+          <span>📦</span>
+          <span>Stock take</span>
         </a>
         <div class="flocs-badge">
           <span class="flocs-dot"></span>
@@ -859,6 +908,7 @@
                 <th>Flavour</th>
                 <th>Size</th>
                 <th>Price</th>
+                <th>Override</th>
                 <th style="width:10%">Qty</th>
               </tr>
             </thead>

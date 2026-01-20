@@ -50,6 +50,11 @@
 
   const dispatchBoard = $("dispatchBoardGrid");
   const dispatchStamp = $("dispatchStamp");
+  const dispatchProgressBar = $("dispatchProgressBar");
+  const dispatchProgressFill = $("dispatchProgressFill");
+  const dispatchProgressSteps = $("dispatchProgressSteps");
+  const dispatchProgressLabel = $("dispatchProgressLabel");
+  const dispatchLog = $("dispatchLog");
 
   const navScan = $("navScan");
   const navOps = $("navOps");
@@ -77,6 +82,15 @@
   let addressBook = [];
   let bookedOrders = new Set();
   let isAutoMode = true;
+  const dispatchOrderCache = new Map();
+  const DISPATCH_STEPS = [
+    "Start",
+    "Quote",
+    "Service",
+    "Book",
+    "Print",
+    "Complete"
+  ];
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
@@ -124,6 +138,76 @@
     debugLog.textContent += `\n${new Date().toLocaleTimeString()} ${msg}`;
     debugLog.scrollTop = debugLog.scrollHeight;
   };
+
+  let dispatchAudioCtx = null;
+
+  function playDispatchTone(freq = 740, duration = 0.12) {
+    try {
+      if (!dispatchAudioCtx) {
+        dispatchAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = dispatchAudioCtx;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.value = 0.15;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.stop(ctx.currentTime + duration);
+    } catch (e) {
+      appendDebug("Audio tone blocked: " + String(e));
+    }
+  }
+
+  function initDispatchProgress() {
+    if (!dispatchProgressSteps) return;
+    dispatchProgressSteps.innerHTML = DISPATCH_STEPS.map(
+      (step) => `
+        <div class="dispatchProgressStep">
+          <span class="dispatchProgressDot"></span>
+          <span>${step}</span>
+        </div>
+      `
+    ).join("");
+  }
+
+  function setDispatchProgress(stepIndex, label = "In progress", options = {}) {
+    if (dispatchProgressLabel) dispatchProgressLabel.textContent = label;
+    if (dispatchProgressFill) {
+      const pct = Math.max(0, Math.min(1, stepIndex / (DISPATCH_STEPS.length - 1)));
+      dispatchProgressFill.style.width = `${pct * 100}%`;
+    }
+    if (dispatchProgressSteps) {
+      const nodes = dispatchProgressSteps.querySelectorAll(".dispatchProgressStep");
+      nodes.forEach((node, idx) => {
+        node.classList.toggle("is-active", idx === stepIndex);
+        node.classList.toggle("is-complete", idx < stepIndex);
+      });
+    }
+    if (dispatchProgressBar) {
+      dispatchProgressBar.classList.remove("is-pulse");
+      void dispatchProgressBar.offsetWidth;
+      dispatchProgressBar.classList.add("is-pulse");
+    }
+    if (!options.silent) {
+      playDispatchTone(700 + stepIndex * 40, 0.12);
+    }
+  }
+
+  function logDispatchEvent(message) {
+    if (!dispatchLog) return;
+    const entry = document.createElement("div");
+    entry.className = "dispatchLogEntry";
+    const ts = document.createElement("span");
+    ts.textContent = new Date().toLocaleTimeString();
+    const msg = document.createElement("div");
+    msg.textContent = message;
+    entry.append(ts, msg);
+    dispatchLog.prepend(entry);
+  }
 
   function renderCountdown() {
     if (uiCountdown) uiCountdown.textContent = "--";
@@ -851,6 +935,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
     if (isBooked(activeOrderNo)) {
       statusExplain(`Order ${activeOrderNo} already booked — blocked.`, "warn");
+      logDispatchEvent(`Booking blocked: order ${activeOrderNo} already booked.`);
       return;
     }
 
@@ -889,6 +974,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
     armedForBooking = true;
     appendDebug("Booking order " + activeOrderNo + " parcels=" + parcelIndexes.join(", "));
+    setDispatchProgress(0, `Booking ${activeOrderNo}`);
+    logDispatchEvent(`Booking started for order ${activeOrderNo}.`);
 
     const missing = [];
     ["name", "address1", "city", "province", "postal"].forEach((k) => {
@@ -900,6 +987,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
     if (missing.length) {
       statusExplain("Quote failed", "err");
+      setDispatchProgress(0, "Missing data");
+      logDispatchEvent(`Booking halted: missing ${missing.join(", ")}.`);
       if (bookingSummary) {
         bookingSummary.textContent = `Cannot request quote — missing: ${missing.join(", ")}\n\nShip To:\n${JSON.stringify(orderDetails, null, 2)}`;
       }
@@ -907,9 +996,13 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       return;
     }
 
+    setDispatchProgress(1, "Requesting quote");
+    logDispatchEvent("Requesting SWE quote.");
     const quoteRes = await ppCall({ method: "requestQuote", classVal: "Quote", params: payload });
     if (!quoteRes || quoteRes.status !== 200) {
       statusExplain("Quote failed", "err");
+      setDispatchProgress(1, "Quote failed");
+      logDispatchEvent(`Quote failed (HTTP ${quoteRes?.status || "?"}).`);
       if (bookingSummary) {
         bookingSummary.textContent = `Quote error (HTTP ${quoteRes?.status}): ${quoteRes?.statusText}\n\n${JSON.stringify(quoteRes?.data, null, 2)}`;
       }
@@ -921,6 +1014,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     const { quoteno, rates } = extractQuoteFromV28(quoteRes.data || {});
     if (!quoteno) {
       statusExplain("Quote failed", "err");
+      setDispatchProgress(1, "Quote failed");
+      logDispatchEvent("Quote failed: no quote number returned.");
       if (bookingSummary) bookingSummary.textContent = `No quote number.\n${JSON.stringify(quoteRes.data, null, 2)}`;
       armedForBooking = false;
       return;
@@ -929,6 +1024,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     const pickedService = pickService(rates);
     const chosenRate = rates?.find((r) => r.service === pickedService) || rates?.[0] || null;
     const quoteCost = chosenRate ? Number(chosenRate.total ?? chosenRate.subtotal ?? chosenRate.charge ?? 0) : null;
+    logDispatchEvent(`Quote ${quoteno} received for ${pickedService}.`);
 
     if (quoteBox && rates?.length) {
       const fmt = (v) => (isNaN(Number(v)) ? "-" : `R${Number(v).toFixed(2)}`);
@@ -938,12 +1034,16 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       quoteBox.textContent = `Selected: ${pickedService} • Est: ${fmt(quoteCost)}${quoteCost > CONFIG.COST_ALERT_THRESHOLD ? "  ⚠ high" : ""}\nOptions:\n${lines}`;
     }
 
+    setDispatchProgress(2, "Confirming service");
+    logDispatchEvent(`Updating service to ${pickedService}.`);
     await ppCall({
       method: "updateService",
       classVal: "Quote",
       params: { quoteno, service: pickedService, reference: String(activeOrderNo) }
     });
 
+    setDispatchProgress(3, "Booking collection");
+    logDispatchEvent("Booking collection & requesting labels.");
     const collRes = await ppCall({
       method: "quoteToCollection",
       classVal: "Collection",
@@ -952,6 +1052,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
     if (!collRes || collRes.status !== 200) {
       statusExplain("Booking failed", "err");
+      setDispatchProgress(3, "Booking failed");
+      logDispatchEvent(`Booking failed (HTTP ${collRes?.status || "?"}).`);
       if (bookingSummary) bookingSummary.textContent = `Booking error: HTTP ${collRes?.status} ${collRes?.statusText}\n${JSON.stringify(collRes?.data, null, 2)}`;
       armedForBooking = false;
       return;
@@ -969,6 +1071,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
     if (labelsBase64) {
       usedPdf = true;
+      setDispatchProgress(4, "Printing labels");
+      logDispatchEvent("Printing labels via PrintNode.");
 
       try {
         await fetch("/printnode/print", {
@@ -978,9 +1082,12 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
         });
       } catch (e) {
         appendDebug("PrintNode label error: " + String(e));
+        logDispatchEvent("PrintNode label error.");
       }
 
       if (waybillBase64) {
+        setDispatchProgress(4, "Printing waybill");
+        logDispatchEvent("Printing waybill via PrintNode.");
         try {
           await fetch("/printnode/print", {
             method: "POST",
@@ -989,6 +1096,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
           });
         } catch (e) {
           appendDebug("PrintNode waybill error: " + String(e));
+          logDispatchEvent("PrintNode waybill error.");
         }
       }
 
@@ -1004,6 +1112,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       }
       if (printMount) printMount.innerHTML = "";
     } else {
+      setDispatchProgress(4, "Printing labels");
+      logDispatchEvent("Printing labels locally.");
       const labels = parcelIndexes.map((idx) => renderLabelHTML(waybillNo, pickedService, quoteCost, orderDetails, idx, expected));
       mountLabelToPreviewAndPrint(labels[0], labels.join("\n"));
 
@@ -1015,6 +1125,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     }
 
     statusExplain("Booked", "ok");
+    setDispatchProgress(5, "Booked");
+    logDispatchEvent(`Booking complete. Waybill ${waybillNo}.`);
     triggerBookedFlash();
     if (statusChip) statusChip.textContent = "Booked";
     if (bookingSummary) {
@@ -1229,6 +1341,7 @@ async function handleScan(code) {
 
     const now = Date.now();
     const maxAgeMs = MAX_ORDER_AGE_HOURS * 60 * 60 * 1000;
+    dispatchOrderCache.clear();
 
     const filtered = (orders || []).filter((o) => {
       const fs = (o.fulfillment_status || "").toLowerCase();
@@ -1294,7 +1407,7 @@ async function handleScan(code) {
       lineItemOrder.map((key, index) => [key, index])
     );
 
-    const cardHTML = (o) => {
+    const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
       const city = o.shipping_city || "";
       const postal = o.shipping_postal || "";
@@ -1333,7 +1446,15 @@ async function handleScan(code) {
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
 
-      const bookBtn = orderNo
+      if (orderNo) {
+        dispatchOrderCache.set(orderNo, o);
+      }
+
+      const actionBtn = laneId === "delivery"
+        ? orderNo
+          ? `<button class="dispatchNoteBtn" type="button" data-action="print-note" data-order-no="${orderNo}">Print delivery note</button>`
+          : `<button class="dispatchNoteBtn" type="button" disabled>Print delivery note</button>`
+        : orderNo
         ? `<button class="dispatchBookBtn" type="button" data-order-no="${orderNo}">Book Now</button>`
         : `<button class="dispatchBookBtn" type="button" disabled>Book Now</button>`;
 
@@ -1344,14 +1465,16 @@ async function handleScan(code) {
          
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
-            ${bookBtn}
+            ${actionBtn}
           </div>
         </div>`;
     };
 
     dispatchBoard.innerHTML = cols
       .map((col) => {
-        const cards = lanes[col.id].map(cardHTML).join("") || `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
+        const cards = lanes[col.id]
+          .map((order) => cardHTML(order, col.id))
+          .join("") || `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
         return `
           <div class="dispatchCol">
             <div class="dispatchColHeader">${col.label}</div>
@@ -1359,6 +1482,57 @@ async function handleScan(code) {
           </div>`;
       })
       .join("");
+  }
+
+  function printDeliveryNote(order) {
+    if (!order) return false;
+    const orderNo = String(order.name || "").replace("#", "").trim();
+    const title = order.customer_name || order.name || `Order ${order.id}`;
+    const addressLines = [
+      order.shipping_address1,
+      order.shipping_address2,
+      [order.shipping_city, order.shipping_postal].filter(Boolean).join(" ")
+    ]
+      .filter(Boolean)
+      .join("<br>");
+    const lineItems = (order.line_items || [])
+      .map((li) => `<tr><td>${li.title || ""}</td><td>${li.sku || ""}</td><td>${li.quantity}</td></tr>`)
+      .join("");
+    const doc = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Delivery Note ${orderNo}</title>
+        <style>
+          body{ font-family:Arial, sans-serif; padding:24px; color:#0f172a; }
+          h1{ font-size:18px; margin-bottom:8px; }
+          .meta{ font-size:12px; color:#475569; margin-bottom:16px; }
+          table{ width:100%; border-collapse:collapse; font-size:12px; }
+          th,td{ border:1px solid #cbd5f5; padding:6px; text-align:left; }
+          th{ background:#e2e8f0; }
+          .addr{ margin-top:12px; font-size:12px; }
+        </style>
+      </head>
+      <body>
+        <h1>Delivery Note • Order ${orderNo}</h1>
+        <div class="meta">${title}</div>
+        <div class="addr"><strong>Deliver to:</strong><br>${addressLines || "No address on file"}</div>
+        <table>
+          <thead><tr><th>Item</th><th>SKU</th><th>Qty</th></tr></thead>
+          <tbody>${lineItems || "<tr><td colspan='3'>No line items.</td></tr>"}</tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    const win = window.open("", "_blank", "width=820,height=900");
+    if (!win) return false;
+    win.document.open();
+    win.document.write(doc);
+    win.document.close();
+    win.focus();
+    win.print();
+    return true;
   }
 
   async function refreshDispatchData() {
@@ -1478,6 +1652,27 @@ async function handleScan(code) {
   });
 
   dispatchBoard?.addEventListener("click", async (e) => {
+    const noteBtn = e.target.closest(".dispatchNoteBtn");
+    if (noteBtn) {
+      const orderNo = noteBtn.dataset.orderNo;
+      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+      if (!orderNo || !order) {
+        statusExplain("Delivery note unavailable.", "warn");
+        logDispatchEvent("Delivery note failed: order not found.");
+        return;
+      }
+      setDispatchProgress(4, `Printing note ${orderNo}`);
+      logDispatchEvent(`Printing delivery note for order ${orderNo}.`);
+      const ok = printDeliveryNote(order);
+      if (!ok) {
+        statusExplain("Pop-up blocked for delivery note.", "warn");
+        logDispatchEvent("Delivery note blocked by popup settings.");
+        return;
+      }
+      statusExplain(`Delivery note printed for ${orderNo}.`, "ok");
+      return;
+    }
+
     const btn = e.target.closest(".dispatchBookBtn");
     if (!btn) return;
     const orderNo = btn.dataset.orderNo;
@@ -1505,6 +1700,8 @@ async function handleScan(code) {
   updateModeToggle();
   renderSessionUI();
   renderCountdown();
+  initDispatchProgress();
+  setDispatchProgress(0, "Idle", { silent: true });
   initAddressSearch();
   refreshDispatchData();
   setInterval(refreshDispatchData, 30000);
