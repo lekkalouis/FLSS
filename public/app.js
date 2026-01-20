@@ -43,7 +43,7 @@
   const placeCodeInput = $("placeCode");
   const serviceSelect = $("serviceOverride");
 
-  const dispatchBoard = $("dispatchBoard");
+  const dispatchBoard = $("dispatchBoardGrid");
   const dispatchStamp = $("dispatchStamp");
 
   const navScan = $("navScan");
