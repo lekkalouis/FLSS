@@ -72,6 +72,30 @@
       font-size:.75rem;
       border:1px solid rgba(148,163,184,.4);
     }
+    .flocs-headerActions {
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .flocs-linkBtn {
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      padding:.3rem .75rem;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.5);
+      background:rgba(15,23,42,.85);
+      color:var(--text);
+      font-size:.75rem;
+      text-decoration:none;
+      transition:all .2s ease;
+    }
+    .flocs-linkBtn:hover {
+      border-color:rgba(56,189,248,.7);
+      color:#e0f2fe;
+    }
     .flocs-dot {
       width:.45rem; height:.45rem;
       border-radius:999px;
@@ -620,6 +644,35 @@
       box-shadow:0 0 0 2px rgba(148,163,184,.7),
                  0 18px 45px rgba(15,23,42,.9);
     }
+    .flocs-confirmActions {
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+    }
+    .flocs-disarmBtn {
+      border-radius:999px;
+      border:1px solid rgba(248,113,113,.8);
+      background:rgba(248,113,113,.15);
+      color:#fecaca;
+      padding:.55rem 1rem;
+      font-size:.8rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      cursor:pointer;
+    }
+    .flocs-armBtn {
+      border-radius:999px;
+      border:1px solid rgba(56,189,248,.7);
+      background:rgba(56,189,248,.16);
+      color:#e0f2fe;
+      padding:.35rem .9rem;
+      font-size:.7rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      cursor:pointer;
+    }
   </style>
 </head>
 <body>
@@ -629,9 +682,15 @@
         <div class="flocs-title">Flippen Lekka Order Capturing System</div>
         <div class="flocs-sub">FLOCS · fast operator-friendly order entry into Shopify draft orders</div>
       </div>
-      <div class="flocs-badge">
-        <span class="flocs-dot"></span>
-        <span>Backend: Scan Station Node/Express & SWE v28</span>
+      <div class="flocs-headerActions">
+        <a class="flocs-linkBtn" href="/">
+          <span>⟵</span>
+          <span>Scan station</span>
+        </a>
+        <div class="flocs-badge">
+          <span class="flocs-dot"></span>
+          <span>Backend: Scan Station Node/Express & SWE v28</span>
+        </div>
       </div>
     </header>
 
@@ -747,6 +806,15 @@
           <span>Items</span>
           <span class="flocs-hint" id="flocs-productStatus">Search by SKU or product title</span>
         </div>
+          <div class="flocs-row" style="margin-bottom:.5rem">
+            <select id="flocs-collectionSelect" class="flocs-select">
+              <option value="">Load a collection…</option>
+              <option value="most-popular-products">Most popular products (public)</option>
+            </select>
+            <button id="flocs-collectionLoadBtn" class="flocs-btn" type="button">
+              <span class="icon">⭐</span><span>Load collection</span>
+            </button>
+          </div>
           <input id="flocs-productSearch" class="flocs-input" type="text"
                  placeholder="Search Shopify products (SKU/title)..." autocomplete="off" />
           <div id="flocs-productResults" class="flocs-productResults" hidden></div>
@@ -788,10 +856,13 @@
       <section class="flocs-panel preview">
         <div class="flocs-previewHeader">
           <div>
-            <div class="flocs-previewTitle">Invoice-style preview</div>
-            <div class="flocs-hint">Live view of what the customer’s document will roughly look like</div>
+          <div class="flocs-previewTitle">Invoice-style preview</div>
+          <div class="flocs-hint">Live view of what the customer’s document will roughly look like</div>
+        </div>
+          <div>
+            <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
+            <button id="flocs-armBtn" class="flocs-armBtn" type="button" hidden>Arm lock</button>
           </div>
-          <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
         </div>
 
         <div class="flocs-invoice" id="flocs-invoice">
@@ -806,10 +877,13 @@
 
   <!-- Ready/confirm overlay -->
   <div id="flocs-confirmOverlay" class="flocs-confirmOverlay">
-    <button id="flocs-confirmBtn" class="flocs-confirmBtn" type="button">
-      <span class="icon">✅</span>
-      <span>Lock order & create Shopify draft</span>
-    </button>
+    <div class="flocs-confirmActions">
+      <button id="flocs-confirmBtn" class="flocs-confirmBtn" type="button">
+        <span class="icon">✅</span>
+        <span>Lock order & create Shopify draft</span>
+      </button>
+      <button id="flocs-disarmBtn" class="flocs-disarmBtn" type="button">Disarm</button>
+    </div>
   </div>
 
   <script src="/flocs.js"></script>

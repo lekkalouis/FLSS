@@ -80,13 +80,17 @@
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
+  const collectionSelect = document.getElementById("flocs-collectionSelect");
+  const collectionLoadBtn = document.getElementById("flocs-collectionLoadBtn");
 
   const invoice          = document.getElementById("flocs-invoice");
   const previewTag       = document.getElementById("flocs-previewTag");
+  const armBtn           = document.getElementById("flocs-armBtn");
 
   const toast            = document.getElementById("flocs-toast");
   const confirmOverlay   = document.getElementById("flocs-confirmOverlay");
   const confirmBtn       = document.getElementById("flocs-confirmBtn");
+  const disarmBtn        = document.getElementById("flocs-disarmBtn");
 
   // ===== STATE =====
   const state = {
@@ -99,6 +103,7 @@
     shippingQuote: null,     // { service, total, quoteno, raw }
     errors: [],
     isSubmitting: false,
+    lockArmed: true,
     priceTier: null,
     customerTags: [],
     filters: { flavour: "", size: "" }
@@ -175,7 +180,7 @@
 
   function setShellReady(ready) {
     if (!shell) return;
-    if (ready) shell.classList.add("flocs-ready");
+    if (ready && state.lockArmed) shell.classList.add("flocs-ready");
     else shell.classList.remove("flocs-ready");
   }
 
@@ -267,6 +272,22 @@
     }
     if (!kg) return CONFIG.BOX_DIM.massKg;
     return kg;
+  }
+
+  function computeBoxCount(totalWeightKg) {
+    const base = Number(totalWeightKg || 0);
+    const boxes = Math.ceil(base * 0.051 + 0.5);
+    return Math.max(boxes, 0);
+  }
+
+  function computeBoxWeightKg(totalWeightKg) {
+    const boxes = computeBoxCount(totalWeightKg);
+    return boxes * 0.5;
+  }
+
+  function computeGrossWeightKg(totalWeightKg) {
+    const boxWeight = computeBoxWeightKg(totalWeightKg);
+    return totalWeightKg + boxWeight;
   }
 
   // ===== UI: products table rendering =====
@@ -435,7 +456,9 @@ ${state.customer.email || ""}${
 
     const shippingLine =
       delivery === "ship" && state.shippingQuote
-        ? `Shipping (${state.shippingQuote.service || "Courier"}): ${money(
+        ? `Shipping (${state.shippingQuote.service || "Courier"} @ ${money(
+            state.shippingQuote.ratePerKg || 0
+          )}/kg, quoteno ${state.shippingQuote.quoteno}): ${money(
             state.shippingQuote.total
           )}`
         : delivery === "ship"
@@ -556,14 +579,20 @@ ${state.customer.email || ""}${
         previewTag.textContent = "Add item quantities…";
       } else if (currentDelivery() === "ship" && !state.shippingQuote) {
         previewTag.textContent = "Awaiting SWE shipping quote…";
-      } else if (ready) {
+      } else if (ready && state.lockArmed) {
         previewTag.textContent = "Ready to lock in (green)";
+      } else if (ready) {
+        previewTag.textContent = "Ready (lock disarmed)";
       } else {
         previewTag.textContent = "Incomplete order";
       }
     }
 
-    confirmBtn.disabled = !ready;
+    if (armBtn) {
+      armBtn.hidden = !(ready && !state.lockArmed);
+    }
+
+    confirmBtn.disabled = !ready || !state.lockArmed;
   }
 
   // ===== SWE quote helpers (reusing your v28 flow) =====
@@ -718,6 +747,9 @@ ${state.customer.email || ""}${
     };
 
     const totalWeightKg = computeTotalWeightKg(items);
+    const boxCount = computeBoxCount(totalWeightKg);
+    const boxWeightKg = computeBoxWeightKg(totalWeightKg);
+    const grossWeightKg = computeGrossWeightKg(totalWeightKg);
     const contents = [
       {
         item: 1,
@@ -725,7 +757,7 @@ ${state.customer.email || ""}${
         dim1: CONFIG.BOX_DIM.dim1,
         dim2: CONFIG.BOX_DIM.dim2,
         dim3: CONFIG.BOX_DIM.dim3,
-        actmass: totalWeightKg
+        actmass: grossWeightKg
       }
     ];
 
@@ -768,15 +800,21 @@ ${state.customer.email || ""}${
 
       const total =
         Number(picked.total ?? picked.subtotal ?? picked.charge ?? 0) || 0;
+      const ratePerKg = grossWeightKg ? total / grossWeightKg : 0;
       state.shippingQuote = {
         service: picked.service,
         total,
         quoteno,
+        ratePerKg,
+        grossWeightKg,
+        boxCount,
+        boxWeightKg,
         raw: { rates }
       };
 
       shippingSummary.textContent =
-        `Quote: ${picked.service} – ${money(total)} (quoteno ${quoteno})`;
+        `Quote: ${picked.service} – ${money(total)} (${money(ratePerKg)}/kg · ${grossWeightKg.toFixed(2)}kg gross incl ${boxCount} boxes)` +
+        ` (quoteno ${quoteno})`;
 
       validate();
       renderInvoice();
@@ -909,6 +947,59 @@ ${state.customer.email || ""}${
           e?.message || e
         )}</div>`;
       productStatus.textContent = "Error searching products.";
+    }
+  }
+
+  async function loadCollectionProducts() {
+    if (!collectionSelect || !collectionLoadBtn) return;
+    const handle = (collectionSelect.value || "").trim();
+    if (!handle) {
+      showToast("Select a collection to load.", "err");
+      return;
+    }
+
+    collectionLoadBtn.disabled = true;
+    productStatus.textContent = "Loading collection products…";
+
+    try {
+      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/collection?handle=${encodeURIComponent(
+        handle
+      )}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const list = Array.isArray(data.products) ? data.products : [];
+      if (!list.length) {
+        showToast("No products found in that collection.", "err");
+        productStatus.textContent = "No collection products found.";
+        return;
+      }
+
+      let added = 0;
+      list.forEach((p) => {
+        const key = productKey(p);
+        if (!key) return;
+        const exists = state.products.some((sp) => productKey(sp) === key);
+        if (!exists) {
+          state.products.push(p);
+          added += 1;
+        }
+      });
+
+      updateFiltersFromProducts();
+      renderProductsTable();
+      renderInvoice();
+      validate();
+      showToast(
+        `Loaded ${list.length} collection products (${added} new).`,
+        "ok"
+      );
+      productStatus.textContent = "Collection products loaded.";
+    } catch (e) {
+      console.error("Collection load error:", e);
+      productStatus.textContent = "Error loading collection products.";
+      showToast("Collection load failed.", "err");
+    } finally {
+      collectionLoadBtn.disabled = false;
     }
   }
 
@@ -1113,6 +1204,10 @@ ${state.customer.email || ""}${
       delivery === "ship" && state.shippingQuote
         ? state.shippingQuote.service
         : null;
+    const shippingQuoteNo =
+      delivery === "ship" && state.shippingQuote
+        ? state.shippingQuote.quoteno
+        : null;
 
     const billingAddress =
       state.customer?.default_address || null;
@@ -1125,6 +1220,7 @@ ${state.customer.email || ""}${
       shippingMethod: delivery,
       shippingPrice,
       shippingService,
+      shippingQuoteNo,
       billingAddress,
       shippingAddress,
       lineItems: items.map((li) => ({
@@ -1200,6 +1296,7 @@ ${state.customer.email || ""}${
     state.shippingQuote = null;
     state.errors = [];
     state.isSubmitting = false;
+    state.lockArmed = true;
     state.customerTags = [];
     state.priceTier = null;
     state.filters = { flavour: "", size: "" };
@@ -1380,6 +1477,12 @@ ${state.customer.email || ""}${
       );
     }
 
+    if (collectionLoadBtn) {
+      collectionLoadBtn.addEventListener("click", () => {
+        loadCollectionProducts();
+      });
+    }
+
     if (productResults) {
       productResults.addEventListener("click", (e) => {
         const row = e.target.closest(".flocs-productItem");
@@ -1417,6 +1520,20 @@ ${state.customer.email || ""}${
     if (confirmBtn) {
       confirmBtn.addEventListener("click", () => {
         createDraftOrder();
+      });
+    }
+
+    if (armBtn) {
+      armBtn.addEventListener("click", () => {
+        state.lockArmed = true;
+        validate();
+      });
+    }
+
+    if (disarmBtn) {
+      disarmBtn.addEventListener("click", () => {
+        state.lockArmed = false;
+        validate();
       });
     }
   }
