@@ -77,6 +77,7 @@
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
   const actionFlash = $("actionFlash");
+  const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
   const btnBookNow = $("btnBookNow");
@@ -208,6 +209,61 @@
     } catch (e) {
       appendDebug("Audio tone blocked: " + String(e));
     }
+  }
+
+  function playFeedbackTone(type = "success") {
+    try {
+      if (!dispatchAudioCtx) {
+        dispatchAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = dispatchAudioCtx;
+      const now = ctx.currentTime;
+      const tones =
+        type === "failure"
+          ? [
+              { freq: 220, start: 0, duration: 0.18 },
+              { freq: 180, start: 0.2, duration: 0.24 }
+            ]
+          : [
+              { freq: 880, start: 0, duration: 0.12 },
+              { freq: 660, start: 0.16, duration: 0.16 }
+            ];
+
+      tones.forEach((tone) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = tone.freq;
+        gain.gain.value = 0.18;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const startAt = now + tone.start;
+        osc.start(startAt);
+        gain.gain.exponentialRampToValueAtTime(0.001, startAt + tone.duration);
+        osc.stop(startAt + tone.duration);
+      });
+    } catch (e) {
+      appendDebug("Feedback tone blocked: " + String(e));
+    }
+  }
+
+  function triggerScreenFlash(type = "success") {
+    if (!screenFlash) return;
+    screenFlash.classList.remove("screenFlash--success", "screenFlash--failure");
+    void screenFlash.offsetWidth;
+    screenFlash.classList.add(
+      type === "failure" ? "screenFlash--failure" : "screenFlash--success"
+    );
+  }
+
+  function confirmScanFeedback(type) {
+    playFeedbackTone(type);
+    triggerScreenFlash(type);
+  }
+
+  function confirmBookingFeedback(type) {
+    playFeedbackTone(type);
+    triggerScreenFlash(type);
   }
 
   const dispatchProgressTargets = [
@@ -1316,6 +1372,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     if (isBooked(activeOrderNo)) {
       statusExplain(`Order ${activeOrderNo} already booked — blocked.`, "warn");
       logDispatchEvent(`Booking blocked: order ${activeOrderNo} already booked.`);
+      confirmBookingFeedback("failure");
       return;
     }
 
@@ -1327,6 +1384,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     if (manual) {
       if (!overrideCount || overrideCount < 1) {
         statusExplain("Scan parcels first.", "warn");
+        confirmBookingFeedback("failure");
         return;
       }
       expected = overrideCount;
@@ -1337,6 +1395,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
         const n = promptManualParcelCount(activeOrderNo);
         if (!n) {
           statusExplain("Parcel count required (cancelled).", "warn");
+          confirmBookingFeedback("failure");
           return;
         }
         orderDetails.manualParcelCount = n;
@@ -1346,6 +1405,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
       if (parcelsForOrder.size !== expected) {
         statusExplain(`Cannot book — scanned ${parcelsForOrder.size}/${expected}.`, "warn");
+        confirmBookingFeedback("failure");
         return;
       }
     }
@@ -1373,6 +1433,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
         bookingSummary.textContent = `Cannot request quote — missing: ${missing.join(", ")}\n\nShip To:\n${JSON.stringify(orderDetails, null, 2)}`;
       }
       armedForBooking = false;
+      confirmBookingFeedback("failure");
       return;
     }
 
@@ -1388,6 +1449,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       }
       if (quoteBox) quoteBox.textContent = "No quote — check place code / proxy / token.";
       armedForBooking = false;
+      confirmBookingFeedback("failure");
       return;
     }
 
@@ -1398,6 +1460,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       logDispatchEvent("Quote failed: no quote number returned.");
       if (bookingSummary) bookingSummary.textContent = `No quote number.\n${JSON.stringify(quoteRes.data, null, 2)}`;
       armedForBooking = false;
+      confirmBookingFeedback("failure");
       return;
     }
 
@@ -1436,6 +1499,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       logDispatchEvent(`Booking failed (HTTP ${collRes?.status || "?"}).`);
       if (bookingSummary) bookingSummary.textContent = `Booking error: HTTP ${collRes?.status} ${collRes?.statusText}\n${JSON.stringify(collRes?.data, null, 2)}`;
       armedForBooking = false;
+      confirmBookingFeedback("failure");
       return;
     }
 
@@ -1508,6 +1572,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     await stepDispatchProgress(5, "Booked");
     logDispatchEvent(`Booking complete. Waybill ${waybillNo}.`);
     triggerBookedFlash();
+    confirmBookingFeedback("success");
     if (statusChip) statusChip.textContent = "Booked";
     if (bookingSummary) {
       bookingSummary.textContent = `WAYBILL: ${waybillNo}
@@ -1587,24 +1652,27 @@ async function startOrder(orderNo) {
   updateBookNowButton();
 }
 
-async function handleScan(code) {
-  const parsed = parseScan(code);
-  if (!parsed) {
-    appendDebug("Bad scan: " + code);
-    statusExplain("Bad scan", "warn");
-    return;
-  }
+  async function handleScan(code) {
+    const parsed = parseScan(code);
+    if (!parsed) {
+      appendDebug("Bad scan: " + code);
+      statusExplain("Bad scan", "warn");
+      confirmScanFeedback("failure");
+      return;
+    }
 
-  if (isBooked(parsed.orderNo)) {
-    statusExplain(`Order ${parsed.orderNo} already booked — blocked.`, "warn");
-    return;
-  }
+    if (isBooked(parsed.orderNo)) {
+      statusExplain(`Order ${parsed.orderNo} already booked — blocked.`, "warn");
+      confirmScanFeedback("failure");
+      return;
+    }
 
   if (!activeOrderNo) {
     await startOrder(parsed.orderNo);
 } else if (parsed.orderNo !== activeOrderNo) {
   cancelAutoBookTimer(); // ADD THIS
   statusExplain(`Different order scanned (${parsed.orderNo}). Press CLEAR to reset.`, "warn");
+  confirmScanFeedback("failure");
   return;
 }
 
@@ -1613,6 +1681,8 @@ async function handleScan(code) {
   lastScanAt = Date.now();
   lastScanCode = code;
   armedForBooking = false;
+
+  confirmScanFeedback("success");
 
   const expected = getExpectedParcelCount(orderDetails);
 
