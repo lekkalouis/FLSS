@@ -3,7 +3,8 @@
 
   const CONFIG = {
     COST_ALERT_THRESHOLD: 250.0,
-     BOOKING_IDLE_MS: 6000,
+    BOOKING_IDLE_MS: 6000,
+    TRUCK_ALERT_THRESHOLD: 25,
     BOX_DIM: { dim1: 40, dim2: 40, dim3: 30, massKg: 5 },
     ORIGIN: {
       origpers: "Flippen Lekka Holdings (Pty) Ltd",
@@ -48,6 +49,9 @@
   const addrResults = $("addrResults");
   const placeCodeInput = $("placeCode");
   const serviceSelect = $("serviceOverride");
+  const truckBookBtn = $("truckBookBtn");
+  const truckStatus = $("truckStatus");
+  const truckParcelCount = $("truckParcelCount");
 
   const dispatchBoard = $("dispatchBoardGrid");
   const dispatchStamp = $("dispatchStamp");
@@ -91,6 +95,13 @@
   const dispatchOrderCache = new Map();
   const dispatchPackingState = new Map();
   let dispatchOrdersLatest = [];
+  const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
+  const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
+  let dailyParcelCount = 0;
+  let truckBooked = false;
+  let truckBookedAt = null;
+  let truckBookedBy = null;
+  let truckBookingInFlight = false;
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -472,6 +483,119 @@
 
   function isBooked(orderNo) {
     return bookedOrders.has(String(orderNo));
+  }
+
+  function todayKey() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function loadDailyParcelCount() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(DAILY_PARCEL_KEY) || "{}");
+      if (stored.date !== todayKey()) {
+        dailyParcelCount = 0;
+      } else {
+        dailyParcelCount = Number(stored.count || 0);
+      }
+    } catch {
+      dailyParcelCount = 0;
+    }
+    saveDailyParcelCount();
+  }
+
+  function saveDailyParcelCount() {
+    try {
+      localStorage.setItem(
+        DAILY_PARCEL_KEY,
+        JSON.stringify({ date: todayKey(), count: dailyParcelCount })
+      );
+    } catch {}
+  }
+
+  function loadTruckBooking() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(TRUCK_BOOKING_KEY) || "{}");
+      if (stored.date === todayKey()) {
+        truckBooked = Boolean(stored.booked);
+        truckBookedAt = stored.bookedAt || null;
+        truckBookedBy = stored.bookedBy || null;
+      } else {
+        truckBooked = false;
+        truckBookedAt = null;
+        truckBookedBy = null;
+      }
+    } catch {
+      truckBooked = false;
+      truckBookedAt = null;
+      truckBookedBy = null;
+    }
+    saveTruckBooking();
+  }
+
+  function saveTruckBooking() {
+    try {
+      localStorage.setItem(
+        TRUCK_BOOKING_KEY,
+        JSON.stringify({
+          date: todayKey(),
+          booked: truckBooked,
+          bookedAt: truckBookedAt,
+          bookedBy: truckBookedBy
+        })
+      );
+    } catch {}
+  }
+
+  function renderTruckPanel() {
+    if (truckParcelCount) truckParcelCount.textContent = String(dailyParcelCount);
+    if (!truckStatus || !truckBookBtn) return;
+    truckStatus.textContent = truckBooked ? "Booked" : "Not booked";
+    truckStatus.classList.toggle("is-booked", truckBooked);
+    truckBookBtn.classList.toggle("is-booked", truckBooked);
+    truckBookBtn.classList.toggle("is-unbooked", !truckBooked);
+    truckBookBtn.setAttribute("aria-pressed", truckBooked ? "true" : "false");
+  }
+
+  function updateTruckBookingState({ booked, bookedBy }) {
+    truckBooked = booked;
+    truckBookedBy = bookedBy || null;
+    truckBookedAt = booked ? new Date().toISOString() : null;
+    saveTruckBooking();
+    renderTruckPanel();
+  }
+
+  async function requestTruckBooking(reason) {
+    if (truckBookingInFlight || truckBooked) return;
+    try {
+      truckBookingInFlight = true;
+      statusExplain("Requesting truck collection…", "info");
+      const resp = await fetch("/alerts/book-truck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parcelCount: dailyParcelCount, reason })
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || `HTTP ${resp.status}`);
+      }
+      updateTruckBookingState({ booked: true, bookedBy: reason });
+      statusExplain("Truck collection booked.", "ok");
+      logDispatchEvent(`Truck collection booked (${reason}).`);
+    } catch (err) {
+      statusExplain("Truck booking email failed.", "err");
+      appendDebug("Truck booking email error: " + String(err));
+    } finally {
+      truckBookingInFlight = false;
+    }
+  }
+
+  function updateDailyParcelCount(delta) {
+    dailyParcelCount = Math.max(0, dailyParcelCount + delta);
+    saveDailyParcelCount();
+    renderTruckPanel();
+    if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
+      requestTruckBooking("auto");
+    }
   }
 
   function base64PdfToUrl(base64) {
@@ -1361,6 +1485,7 @@ ${JSON.stringify(cr, null, 2)}`;
     await fulfillOnShopify(orderDetails, waybillNo);
 
     markBooked(activeOrderNo);
+    updateDailyParcelCount(expected);
     resetSession();
   }
 
@@ -1961,6 +2086,21 @@ async function handleScan(code) {
     statusExplain(isAutoMode ? "Auto mode enabled." : "Manual mode enabled.", "info");
   });
 
+  truckBookBtn?.addEventListener("click", async () => {
+    if (!dailyParcelCount) {
+      statusExplain("No parcels counted for today yet.", "warn");
+      return;
+    }
+    if (truckBooked) {
+      const confirmReset = window.confirm("Mark truck collection as not booked?");
+      if (!confirmReset) return;
+      updateTruckBookingState({ booked: false, bookedBy: "manual" });
+      statusExplain("Truck marked as not booked.", "warn");
+      return;
+    }
+    await requestTruckBooking("manual");
+  });
+
   dispatchBoard?.addEventListener("click", async (e) => {
     const action = e.target.closest("[data-action]");
     if (action) {
@@ -2136,9 +2276,15 @@ async function handleScan(code) {
   loadBookedOrders();
   loadPackingState();
   loadModePreference();
+  loadDailyParcelCount();
+  loadTruckBooking();
   updateModeToggle();
   renderSessionUI();
   renderCountdown();
+  renderTruckPanel();
+  if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
+    requestTruckBooking("auto");
+  }
   initDispatchProgress();
   setDispatchProgress(0, "Idle", { silent: true });
   initAddressSearch();
