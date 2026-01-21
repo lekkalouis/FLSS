@@ -45,6 +45,7 @@
   const debugLog = $("debugLog");
   const quoteBox = $("quoteBox");
   const printMount = $("printMount");
+  const serverStatusBar = $("serverStatusBar");
   const addrSearch = $("addrSearch");
   const addrResults = $("addrResults");
   const placeCodeInput = $("placeCode");
@@ -52,6 +53,9 @@
   const truckBookBtn = $("truckBookBtn");
   const truckStatus = $("truckStatus");
   const truckParcelCount = $("truckParcelCount");
+  const multiShipToggle = $("multiShipToggle");
+  const uiBundleOrders = $("uiBundleOrders");
+  const uiMultiShip = $("uiMultiShip");
 
   const dispatchBoard = $("dispatchBoardGrid");
   const dispatchStamp = $("dispatchStamp");
@@ -87,7 +91,7 @@
 
   let activeOrderNo = null;
   let orderDetails = null;
-  let parcelsForOrder = new Set();
+  let parcelsByOrder = new Map();
   let armedForBooking = false;
   let lastScanAt = null;
   let lastScanCode = null;
@@ -97,6 +101,8 @@
   let addressBook = [];
   let bookedOrders = new Set();
   let isAutoMode = true;
+  let linkedOrders = new Map();
+  let multiShipEnabled = false;
   const dispatchOrderCache = new Map();
   const dispatchPackingState = new Map();
   let dispatchOrdersLatest = [];
@@ -188,6 +194,107 @@
     debugLog.scrollTop = debugLog.scrollHeight;
   };
 
+  const SERVICE_LABELS = {
+    server: "Server",
+    shopify: "Shopify",
+    parcelPerfect: "ParcelPerfect",
+    printNode: "PrintNode",
+    email: "Email"
+  };
+
+  function getParcelSet(orderNo) {
+    if (!orderNo) return new Set();
+    if (!parcelsByOrder.has(orderNo)) parcelsByOrder.set(orderNo, new Set());
+    return parcelsByOrder.get(orderNo);
+  }
+
+  function getActiveParcelSet() {
+    return getParcelSet(activeOrderNo);
+  }
+
+  function getBundleOrderNos() {
+    if (!activeOrderNo) return [];
+    return [activeOrderNo, ...linkedOrders.keys()];
+  }
+
+  function getBundleOrders() {
+    if (!activeOrderNo || !orderDetails) return [];
+    const bundle = [{ orderNo: activeOrderNo, details: orderDetails }];
+    linkedOrders.forEach((details, orderNo) => {
+      bundle.push({ orderNo, details });
+    });
+    return bundle;
+  }
+
+  function getTotalScannedCount() {
+    return getBundleOrderNos().reduce((sum, orderNo) => sum + getParcelSet(orderNo).size, 0);
+  }
+
+  function getTotalExpectedCount() {
+    const bundle = getBundleOrders();
+    if (!bundle.length) return null;
+    let total = 0;
+    for (const { details } of bundle) {
+      const expected = getExpectedParcelCount(details);
+      if (!expected) return null;
+      total += expected;
+    }
+    return total;
+  }
+
+  function normalizeAddressField(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+  }
+
+  function addressSignature(details) {
+    if (!details) return "";
+    return [
+      normalizeAddressField(details.address1),
+      normalizeAddressField(details.address2),
+      normalizeAddressField(details.city),
+      normalizeAddressField(details.province),
+      normalizeAddressField(details.postal)
+    ]
+      .filter(Boolean)
+      .join("|");
+  }
+
+  function renderServerStatusBar(data) {
+    if (!serverStatusBar) return;
+    if (!data || !data.services) {
+      serverStatusBar.innerHTML = `<span class="statusBarLabel">Connections</span><span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Status unavailable</span>`;
+      return;
+    }
+
+    const pills = Object.entries(data.services).map(([key, service]) => {
+      const label = SERVICE_LABELS[key] || key;
+      const cls = service.ok ? "statusPill--ok" : "statusPill--err";
+      const detail = service.detail ? ` — ${service.detail}` : "";
+      return `<span class="statusPill ${cls}" title="${label}${detail}"><span class="statusPillDot"></span>${label}</span>`;
+    });
+
+    const stamp = data.checkedAt ? new Date(data.checkedAt).toLocaleTimeString() : "";
+    serverStatusBar.innerHTML = `<span class="statusBarLabel">Connections</span>${pills.join("")}${
+      stamp ? `<span class="statusBarLabel">Updated ${stamp}</span>` : ""
+    }`;
+  }
+
+  async function refreshServerStatus() {
+    if (!serverStatusBar) return;
+    try {
+      const res = await fetch("/statusz");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Status error");
+      renderServerStatusBar(data);
+    } catch (err) {
+      appendDebug("Status refresh failed: " + String(err));
+      renderServerStatusBar(null);
+    }
+  }
+
   let dispatchAudioCtx = null;
 
   function playDispatchTone(freq = 740, duration = 0.12) {
@@ -224,6 +331,11 @@
               { freq: 220, start: 0, duration: 0.18 },
               { freq: 180, start: 0.2, duration: 0.24 }
             ]
+          : type === "warn"
+          ? [
+              { freq: 520, start: 0, duration: 0.16 },
+              { freq: 420, start: 0.2, duration: 0.18 }
+            ]
           : [
               { freq: 880, start: 0, duration: 0.12 },
               { freq: 660, start: 0.16, duration: 0.16 }
@@ -249,10 +361,14 @@
 
   function triggerScreenFlash(type = "success") {
     if (!screenFlash) return;
-    screenFlash.classList.remove("screenFlash--success", "screenFlash--failure");
+    screenFlash.classList.remove("screenFlash--success", "screenFlash--failure", "screenFlash--warn");
     void screenFlash.offsetWidth;
     screenFlash.classList.add(
-      type === "failure" ? "screenFlash--failure" : "screenFlash--success"
+      type === "failure"
+        ? "screenFlash--failure"
+        : type === "warn"
+        ? "screenFlash--warn"
+        : "screenFlash--success"
     );
   }
 
@@ -556,6 +672,14 @@
     modeToggle.setAttribute("aria-pressed", isAutoMode ? "true" : "false");
   }
 
+  function updateMultiShipToggle() {
+    if (!multiShipToggle) return;
+    multiShipToggle.textContent = `Multi-shipment override: ${multiShipEnabled ? "On" : "Off"}`;
+    multiShipToggle.classList.toggle("is-active", multiShipEnabled);
+    multiShipToggle.setAttribute("aria-pressed", multiShipEnabled ? "true" : "false");
+    if (uiMultiShip) uiMultiShip.textContent = multiShipEnabled ? "On" : "Off";
+  }
+
   function loadBookedOrders() {
     try {
       const raw = localStorage.getItem("fl_booked_orders_v1");
@@ -776,6 +900,7 @@ function scheduleIdleAutoBook() {
   cancelAutoBookTimer();
 
   if (!isAutoMode) return;
+  if (multiShipEnabled && linkedOrders.size > 0) return;
 
   // Only for untagged orders
   if (!activeOrderNo || !orderDetails) return;
@@ -783,7 +908,7 @@ function scheduleIdleAutoBook() {
   if (hasParcelCountTag(orderDetails)) return;
 
   // Need at least 1 scan
-  if (parcelsForOrder.size <= 0) return;
+  if (getTotalScannedCount() <= 0) return;
 
   autoBookEndsAt = Date.now() + CONFIG.BOOKING_IDLE_MS;
   autoBookTicker = setInterval(renderSessionUI, 250);
@@ -801,15 +926,15 @@ function scheduleIdleAutoBook() {
     if (isBooked(activeOrderNo)) return;
     if (armedForBooking) return;
     if (hasParcelCountTag(orderDetails)) return;
-    if (parcelsForOrder.size <= 0) return;
+    if (getTotalScannedCount() <= 0) return;
 
     // Use scanned count as the parcel count (avoid prompt)
-    orderDetails.manualParcelCount = parcelsForOrder.size;
+    orderDetails.manualParcelCount = getActiveParcelSet().size;
 
     renderSessionUI();
     updateBookNowButton();
 
-    statusExplain(`No tag. Auto-booking ${parcelsForOrder.size} parcels...`, "ok");
+    statusExplain(`No tag. Auto-booking ${getTotalScannedCount()} parcels...`, "ok");
     await doBookingNow(); // will pass scanned==expected because expected becomes manualParcelCount
   }, CONFIG.BOOKING_IDLE_MS);
 }
@@ -912,7 +1037,8 @@ function scheduleIdleAutoBook() {
   }
 
   function shouldShowBookNow(details) {
-    if (!activeOrderNo || !details || isBooked(activeOrderNo)) return false;
+    if (!activeOrderNo || !details) return false;
+    if (getBundleOrderNos().some((orderNo) => isBooked(orderNo))) return false;
     if (!isAutoMode) return true;
     return !hasParcelCountTag(details);
   }
@@ -924,7 +1050,7 @@ function scheduleIdleAutoBook() {
     btnBookNow.disabled = !show;
 
     if (!show) return;
-    const scanned = parcelsForOrder.size;
+    const scanned = getTotalScannedCount();
     btnBookNow.textContent = scanned > 0 ? `BOOK NOW (${scanned} scanned)` : "BOOK NOW";
   }
 
@@ -944,17 +1070,36 @@ function scheduleIdleAutoBook() {
   function getParcelIndexesForCurrentOrder(details) {
     const expected = getExpectedParcelCount(details);
     if (expected) return Array.from({ length: expected }, (_, i) => i + 1);
-    if (parcelsForOrder.size > 0) return Array.from(parcelsForOrder).sort((a, b) => a - b);
+    const activeSet = getActiveParcelSet();
+    if (activeSet.size > 0) return Array.from(activeSet).sort((a, b) => a - b);
     return [];
   }
 
   function renderSessionUI() {
-    if (uiOrderNo) uiOrderNo.textContent = activeOrderNo || "--";
+    const bundleOrderNos = getBundleOrderNos();
+    const bundleOrders = getBundleOrders();
+    const totalExpected = getTotalExpectedCount();
+    const totalScanned = getTotalScannedCount();
+    if (uiOrderNo) {
+      if (!activeOrderNo) {
+        uiOrderNo.textContent = "--";
+      } else if (linkedOrders.size) {
+        uiOrderNo.textContent = `${activeOrderNo} (+${linkedOrders.size})`;
+      } else {
+        uiOrderNo.textContent = activeOrderNo;
+      }
+    }
+    if (uiBundleOrders) {
+      uiBundleOrders.textContent = bundleOrderNos.length ? bundleOrderNos.join(", ") : "--";
+    }
+    if (uiMultiShip) {
+      uiMultiShip.textContent = multiShipEnabled ? "On" : "Off";
+    }
 
     const expected = getExpectedParcelCount(orderDetails || {});
     const idxs = getParcelIndexesForCurrentOrder(orderDetails || {});
-    if (uiParcelCount) uiParcelCount.textContent = String(idxs.length);
-    if (uiExpectedCount) uiExpectedCount.textContent = expected ? String(expected) : "--";
+    if (uiParcelCount) uiParcelCount.textContent = String(totalScanned);
+    if (uiExpectedCount) uiExpectedCount.textContent = totalExpected ? String(totalExpected) : "--";
 
     let parcelSource = "--";
     if (!isAutoMode) {
@@ -973,10 +1118,13 @@ function scheduleIdleAutoBook() {
         ? "Scanned"
         : "--";
     }
+    if (linkedOrders.size) parcelSource = "Bundled orders";
     if (uiParcelSource) uiParcelSource.textContent = parcelSource;
 
     const sessionMode = !activeOrderNo
       ? "Waiting"
+      : linkedOrders.size
+      ? "Bundled multi-order shipment"
       : isAutoMode
       ? hasParcelCountTag(orderDetails)
         ? "Tag auto-book"
@@ -995,16 +1143,26 @@ function scheduleIdleAutoBook() {
         : "";
 
     if (parcelList) {
+      const activeSet = getActiveParcelSet();
       const missing =
         expected && expected > 0
-          ? Array.from({ length: expected }, (_, i) => i + 1).filter((i) => !parcelsForOrder.has(i))
+          ? Array.from({ length: expected }, (_, i) => i + 1).filter((i) => !activeSet.has(i))
           : [];
-      const scannedLine = idxs.length ? `Scanned: ${idxs.length}${expected ? ` / ${expected}` : ""}` : "Scanned: 0";
+      const scannedLine = totalScanned ? `Scanned total: ${totalScanned}${totalExpected ? ` / ${totalExpected}` : ""}` : "Scanned total: 0";
       const missingLine =
-        expected && missing.length ? `Missing: ${missing.length} (${missing.join(", ")})` : expected ? "Missing: 0" : "Missing: --";
+        expected && missing.length ? `Missing (active): ${missing.length} (${missing.join(", ")})` : expected ? "Missing (active): 0" : "Missing (active): --";
       const lastScanLine = lastScanAt ? `Last scan: ${new Date(lastScanAt).toLocaleTimeString()} (${lastScanCode || "n/a"})` : "Last scan: --";
-      const listLine = idxs.length ? `Scanned IDs: ${idxs.join(", ")}` : "Scanned IDs: --";
-      parcelList.textContent = `${scannedLine}\n${missingLine}\n${lastScanLine}\n${listLine}${tagInfo}${manualInfo}`;
+      const listLine = idxs.length ? `Active scanned IDs: ${idxs.join(", ")}` : "Active scanned IDs: --";
+      const bundleLine = bundleOrders.length
+        ? `Bundled: ${bundleOrders
+            .map(({ orderNo, details }) => {
+              const expectedCount = getExpectedParcelCount(details);
+              const scanned = getParcelSet(orderNo).size;
+              return `${orderNo} ${scanned}/${expectedCount || "--"}`;
+            })
+            .join(" | ")}`
+        : "Bundled: --";
+      parcelList.textContent = `${scannedLine}\n${missingLine}\n${lastScanLine}\n${listLine}\n${bundleLine}${tagInfo}${manualInfo}`;
     }
 
     if (parcelNumbers) {
@@ -1013,7 +1171,7 @@ function scheduleIdleAutoBook() {
       } else if (expected && expected > 0) {
         const tiles = Array.from({ length: expected }, (_, i) => {
           const num = i + 1;
-          const isScanned = parcelsForOrder.has(num);
+          const isScanned = getActiveParcelSet().has(num);
           return `<div class="parcelNumber ${isScanned ? "is-scanned" : ""}">${num}</div>`;
         }).join("");
         parcelNumbers.innerHTML = tiles || `<div class="parcelNumbersEmpty">Waiting for scans.</div>`;
@@ -1037,13 +1195,15 @@ ${orderDetails.address1}
 ${orderDetails.address2 ? orderDetails.address2 + "\n" : ""}${orderDetails.city}
 ${orderDetails.province} ${orderDetails.postal}
 Tel: ${orderDetails.phone || ""}
-Email: ${orderDetails.email || ""}`.trim();
+Email: ${orderDetails.email || ""}${
+  linkedOrders.size ? `\nBundled orders: ${getBundleOrderNos().join(", ")}` : ""
+}`.trim();
     }
 
-    if (expected && parcelsForOrder.size) {
+    if (totalExpected && totalScanned) {
       statusExplain(
-        `Scanning ${parcelsForOrder.size}/${expected} parcels`,
-        parcelsForOrder.size === expected ? "ok" : "info"
+        `Scanning ${totalScanned}/${totalExpected} parcels`,
+        totalScanned === totalExpected ? "ok" : "info"
       );
     } else if (activeOrderNo) {
       const tagDriven = isAutoMode && hasParcelCountTag(orderDetails);
@@ -1055,6 +1215,8 @@ Email: ${orderDetails.email || ""}`.trim();
         uiAutoBook.textContent = "Idle";
       } else if (!isAutoMode) {
         uiAutoBook.textContent = "Manual mode";
+      } else if (multiShipEnabled && linkedOrders.size) {
+        uiAutoBook.textContent = "Multi-order: auto-book paused";
       } else if (hasParcelCountTag(orderDetails)) {
         uiAutoBook.textContent = "Immediate on first scan";
       } else if (autoBookEndsAt) {
@@ -1299,7 +1461,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       notifydestpers: 1,
       destpercell: destDetails.phone || "0000000000",
       destperemail: destDetails.email,
-      reference: `Order ${activeOrderNo}`
+      reference: buildShipmentReference()
     };
 
     const contents = Array.from({ length: parcelCount }, (_, i) => ({
@@ -1312,6 +1474,12 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     }));
 
     return { details, contents };
+  }
+
+  function buildShipmentReference() {
+    const orders = getBundleOrderNos();
+    if (!orders.length) return `Order ${activeOrderNo || ""}`.trim();
+    return `Order ${orders.join(" + ")}`;
   }
 
   async function fulfillOnShopify(details, waybillNo) {
@@ -1367,19 +1535,21 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
   }
 
   async function doBookingNow(opts = {}) {
-    if (!activeOrderNo || !orderDetails || armedForBooking) return;
+    const bundleOrders = getBundleOrders();
+    if (!bundleOrders.length || armedForBooking) return;
 
-    if (isBooked(activeOrderNo)) {
-      statusExplain(`Order ${activeOrderNo} already booked — blocked.`, "warn");
-      logDispatchEvent(`Booking blocked: order ${activeOrderNo} already booked.`);
+    const bundledOrderNos = bundleOrders.map((order) => order.orderNo);
+    if (bundledOrderNos.some((orderNo) => isBooked(orderNo))) {
+      statusExplain("One or more bundled orders already booked — blocked.", "warn");
+      logDispatchEvent(`Booking blocked: bundled order already booked (${bundledOrderNos.join(", ")}).`);
       confirmBookingFeedback("failure");
       return;
     }
 
     const manual = !!opts.manual;
     const overrideCount = Number(opts.parcelCount || 0);
-
-    let expected = getExpectedParcelCount(orderDetails);
+    const totalScanned = getTotalScannedCount();
+    let totalExpected = 0;
 
     if (manual) {
       if (!overrideCount || overrideCount < 1) {
@@ -1387,42 +1557,52 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
         confirmBookingFeedback("failure");
         return;
       }
-      expected = overrideCount;
-      orderDetails.manualParcelCount = expected;
+      bundleOrders.forEach(({ orderNo, details }) => {
+        const scanned = getParcelSet(orderNo).size;
+        if (!getExpectedParcelCount(details) && scanned > 0) {
+          details.manualParcelCount = scanned;
+        }
+      });
+      totalExpected = getTotalExpectedCount() || totalScanned;
       renderSessionUI();
     } else {
-      if (!expected) {
-        const n = promptManualParcelCount(activeOrderNo);
-        if (!n) {
-          statusExplain("Parcel count required (cancelled).", "warn");
+      for (const { orderNo, details } of bundleOrders) {
+        let expected = getExpectedParcelCount(details);
+        if (!expected) {
+          const n = promptManualParcelCount(orderNo);
+          if (!n) {
+            statusExplain("Parcel count required (cancelled).", "warn");
+            confirmBookingFeedback("failure");
+            return;
+          }
+          details.manualParcelCount = n;
+          expected = n;
+          renderSessionUI();
+        }
+
+        const scanned = getParcelSet(orderNo).size;
+        if (scanned !== expected) {
+          statusExplain(`Cannot book — ${orderNo} scanned ${scanned}/${expected}.`, "warn");
           confirmBookingFeedback("failure");
           return;
         }
-        orderDetails.manualParcelCount = n;
-        expected = n;
-        renderSessionUI();
-      }
-
-      if (parcelsForOrder.size !== expected) {
-        statusExplain(`Cannot book — scanned ${parcelsForOrder.size}/${expected}.`, "warn");
-        confirmBookingFeedback("failure");
-        return;
+        totalExpected += expected;
       }
     }
 
-    const parcelIndexes = Array.from({ length: expected }, (_, i) => i + 1);
+    const parcelIndexes = Array.from({ length: totalExpected }, (_, i) => i + 1);
 
     armedForBooking = true;
-    appendDebug("Booking order " + activeOrderNo + " parcels=" + parcelIndexes.join(", "));
-    await stepDispatchProgress(0, `Booking ${activeOrderNo}`);
-    logDispatchEvent(`Booking started for order ${activeOrderNo}.`);
+    appendDebug("Booking orders " + bundledOrderNos.join(", ") + " parcels=" + parcelIndexes.join(", "));
+    await stepDispatchProgress(0, `Booking ${bundledOrderNos.join(", ")}`);
+    logDispatchEvent(`Booking started for orders ${bundledOrderNos.join(", ")}.`);
 
     const missing = [];
     ["name", "address1", "city", "province", "postal"].forEach((k) => {
       if (!orderDetails[k]) missing.push(k);
     });
 
-    const payload = buildParcelPerfectPayload(orderDetails, expected);
+    const payload = buildParcelPerfectPayload(orderDetails, totalExpected);
     if (!payload.details.destplace) missing.push("destplace (place code)");
 
     if (missing.length) {
@@ -1482,7 +1662,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     await ppCall({
       method: "updateService",
       classVal: "Quote",
-      params: { quoteno, service: pickedService, reference: String(activeOrderNo) }
+      params: { quoteno, service: pickedService, reference: buildShipmentReference() }
     });
 
     await stepDispatchProgress(3, "Booking collection");
@@ -1550,7 +1730,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
             <div style="font-weight:600;margin-bottom:0.25rem;">Labels sent to PrintNode</div>
             <div style="font-size:0.8rem;color:#64748b;">
               Waybill: <strong>${waybillNo}</strong><br>
-              Service: ${pickedService} • Parcels: ${expected}
+              Service: ${pickedService} • Parcels: ${totalExpected}
             </div>
           </div>`;
       }
@@ -1558,7 +1738,9 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     } else {
       await stepDispatchProgress(4, "Printing labels");
       logDispatchEvent("Printing labels locally.");
-      const labels = parcelIndexes.map((idx) => renderLabelHTML(waybillNo, pickedService, quoteCost, orderDetails, idx, expected));
+      const labels = parcelIndexes.map((idx) =>
+        renderLabelHTML(waybillNo, pickedService, quoteCost, orderDetails, idx, totalExpected)
+      );
       mountLabelToPreviewAndPrint(labels[0], labels.join("\n"));
 
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -1576,8 +1758,9 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     if (statusChip) statusChip.textContent = "Booked";
     if (bookingSummary) {
       bookingSummary.textContent = `WAYBILL: ${waybillNo}
+Orders: ${bundledOrderNos.join(", ")}
 Service: ${pickedService}
-Parcels: ${expected}
+Parcels: ${totalExpected}
 Estimated Cost: ${money(quoteCost)}
 
 ${usedPdf ? "Label + waybill generated by ParcelPerfect (PDF)." : "Using local HTML label layout."}
@@ -1586,17 +1769,21 @@ Raw:
 ${JSON.stringify(cr, null, 2)}`;
     }
 
-    const fulfillOk = await fulfillOnShopify(orderDetails, waybillNo);
-    if (fulfillOk) {
+    let fulfillFailures = 0;
+    for (const { orderNo, details } of bundleOrders) {
+      const fulfillOk = await fulfillOnShopify(details, waybillNo);
+      if (!fulfillOk) fulfillFailures += 1;
+      markBooked(orderNo);
+    }
+    if (!fulfillFailures) {
       await stepDispatchProgress(6, `Notified • ${waybillNo}`);
       logDispatchEvent(`Customer notified with tracking ${waybillNo}.`);
     } else {
       setDispatchProgress(6, "Notify failed");
-      logDispatchEvent(`Customer notification failed for ${waybillNo}.`);
+      logDispatchEvent(`Customer notification failed for ${fulfillFailures} orders on ${waybillNo}.`);
     }
 
-    markBooked(activeOrderNo);
-    updateDailyParcelCount(expected);
+    updateDailyParcelCount(totalExpected);
     resetSession();
   }
 
@@ -1605,7 +1792,8 @@ function resetSession() {
 
   activeOrderNo = null;
   orderDetails = null;
-  parcelsForOrder = new Set();
+  parcelsByOrder = new Map();
+  linkedOrders = new Map();
   armedForBooking = false;
   lastScanAt = null;
   lastScanCode = null;
@@ -1631,7 +1819,9 @@ async function startOrder(orderNo) {
   cancelAutoBookTimer();
 
   activeOrderNo = orderNo;
-  parcelsForOrder = new Set();
+  parcelsByOrder = new Map();
+  parcelsByOrder.set(orderNo, new Set());
+  linkedOrders = new Map();
   armedForBooking = false;
   lastScanAt = null;
   lastScanCode = null;
@@ -1667,42 +1857,67 @@ async function startOrder(orderNo) {
       return;
     }
 
-  if (!activeOrderNo) {
-    await startOrder(parsed.orderNo);
-} else if (parsed.orderNo !== activeOrderNo) {
-  cancelAutoBookTimer(); // ADD THIS
-  statusExplain(`Different order scanned (${parsed.orderNo}). Press CLEAR to reset.`, "warn");
-  confirmScanFeedback("failure");
-  return;
-}
+    const crossOrderScan = activeOrderNo && parsed.orderNo !== activeOrderNo;
 
+    if (!activeOrderNo) {
+      await startOrder(parsed.orderNo);
+    } else if (parsed.orderNo !== activeOrderNo && !linkedOrders.has(parsed.orderNo)) {
+      cancelAutoBookTimer();
+      if (!multiShipEnabled) {
+        statusExplain(
+          `Different order scanned (${parsed.orderNo}). Enable multi-shipment to bundle.`,
+          "warn"
+        );
+        confirmScanFeedback("warn");
+        return;
+      }
 
-  parcelsForOrder.add(parsed.parcelSeq);
-  lastScanAt = Date.now();
-  lastScanCode = code;
-  armedForBooking = false;
+      const candidate = await fetchShopifyOrder(parsed.orderNo);
+      if (!candidate) {
+        statusExplain(`Order ${parsed.orderNo} not found.`, "warn");
+        confirmScanFeedback("warn");
+        return;
+      }
 
-  confirmScanFeedback("success");
+      const baseSignature = addressSignature(orderDetails);
+      const candidateSignature = addressSignature(candidate);
+      if (!baseSignature || baseSignature !== candidateSignature) {
+        statusExplain(`Different order ${parsed.orderNo} has a different address.`, "warn");
+        confirmScanFeedback("warn");
+        return;
+      }
 
-  const expected = getExpectedParcelCount(orderDetails);
+      linkedOrders.set(parsed.orderNo, candidate);
+      statusExplain(`Bundling order ${parsed.orderNo} (same address).`, "ok");
+    }
 
-  // TAGGED: auto-book immediately on first scan
-  if (isAutoMode && hasParcelCountTag(orderDetails) && expected) {
-    cancelAutoBookTimer();
+    const parcelSet = getParcelSet(parsed.orderNo);
+    parcelSet.add(parsed.parcelSeq);
+    lastScanAt = Date.now();
+    lastScanCode = code;
+    armedForBooking = false;
 
-    parcelsForOrder = new Set(Array.from({ length: expected }, (_, i) => i + 1));
+    confirmScanFeedback(crossOrderScan ? "warn" : "success");
+
+    const expected = getExpectedParcelCount(orderDetails);
+
+    // TAGGED: auto-book immediately on first scan (single order only)
+    if (isAutoMode && hasParcelCountTag(orderDetails) && expected && !multiShipEnabled && !linkedOrders.size) {
+      cancelAutoBookTimer();
+
+      parcelsByOrder.set(activeOrderNo, new Set(Array.from({ length: expected }, (_, i) => i + 1)));
+      renderSessionUI();
+      updateBookNowButton();
+
+      statusExplain(`Tag detected (parcel_count_${expected}). Auto-booking...`, "ok");
+      await doBookingNow();
+      return;
+    }
+
+    // UNTAGGED: schedule auto-book 6s after last scan
     renderSessionUI();
     updateBookNowButton();
-
-    statusExplain(`Tag detected (parcel_count_${expected}). Auto-booking...`, "ok");
-    await doBookingNow();
-    return;
-  }
-
-  // UNTAGGED: schedule auto-book 6s after last scan
-  renderSessionUI();
-  updateBookNowButton();
-  scheduleIdleAutoBook();
+    scheduleIdleAutoBook();
 }
 
 
@@ -2240,11 +2455,11 @@ async function startOrder(orderNo) {
     }
 
     if (!isAutoMode) {
-      if (parcelsForOrder.size <= 0) {
+      if (getTotalScannedCount() <= 0) {
         statusExplain("Scan parcels first.", "warn");
         return;
       }
-      await doBookingNow({ manual: true, parcelCount: parcelsForOrder.size });
+      await doBookingNow({ manual: true, parcelCount: getTotalScannedCount() });
       return;
     }
 
@@ -2254,8 +2469,8 @@ async function startOrder(orderNo) {
     }
 
     // Use scanned count as default to avoid prompt if you want:
-    if (!getExpectedParcelCount(orderDetails) && parcelsForOrder.size > 0) {
-      orderDetails.manualParcelCount = parcelsForOrder.size;
+    if (!getExpectedParcelCount(orderDetails) && getActiveParcelSet().size > 0) {
+      orderDetails.manualParcelCount = getActiveParcelSet().size;
     }
 
     await doBookingNow();
@@ -2285,6 +2500,25 @@ async function startOrder(orderNo) {
     updateModeToggle();
     renderSessionUI();
     statusExplain(isAutoMode ? "Auto mode enabled." : "Manual mode enabled.", "info");
+  });
+
+  multiShipToggle?.addEventListener("click", () => {
+    multiShipEnabled = !multiShipEnabled;
+    cancelAutoBookTimer();
+    if (!multiShipEnabled && linkedOrders.size) {
+      const activeSet = new Set(getActiveParcelSet());
+      linkedOrders = new Map();
+      parcelsByOrder = new Map();
+      if (activeOrderNo) parcelsByOrder.set(activeOrderNo, activeSet);
+    }
+    updateMultiShipToggle();
+    renderSessionUI();
+    statusExplain(
+      multiShipEnabled
+        ? "Multi-shipment override enabled. Only same-address orders will bundle."
+        : "Multi-shipment override disabled.",
+      "info"
+    );
   });
 
   truckBookBtn?.addEventListener("click", async () => {
@@ -2484,6 +2718,7 @@ async function startOrder(orderNo) {
   loadDailyParcelCount();
   loadTruckBooking();
   updateModeToggle();
+  updateMultiShipToggle();
   renderSessionUI();
   renderCountdown();
   renderTruckPanel();
@@ -2495,6 +2730,8 @@ async function startOrder(orderNo) {
   initAddressSearch();
   refreshDispatchData();
   setInterval(refreshDispatchData, 30000);
+  refreshServerStatus();
+  setInterval(refreshServerStatus, 20000);
   switchMainView("scan");
 
   if (location.protocol === "file:") {

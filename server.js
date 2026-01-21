@@ -172,6 +172,10 @@ function requireCustomerEmailConfigured(res) {
   return true;
 }
 
+function buildServiceStatus(ok, detail) {
+  return { ok: Boolean(ok), detail };
+}
+
 let smtpTransport = null;
 function getSmtpTransport() {
   if (smtpTransport) return smtpTransport;
@@ -1454,6 +1458,45 @@ Flippen Lekka Scan Station`;
 
 // ===== Health check =====
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
+app.get("/statusz", async (_req, res) => {
+  const services = {
+    server: buildServiceStatus(true, "Online")
+  };
+
+  const ppTokenRequired = String(PP_REQUIRE_TOKEN).toLowerCase() !== "false";
+  const ppConfigured = Boolean(PP_BASE_URL) && (!ppTokenRequired || Boolean(PP_TOKEN));
+  services.parcelPerfect = buildServiceStatus(
+    ppConfigured,
+    ppConfigured ? "Configured" : "Missing PP_BASE_URL or PP_TOKEN"
+  );
+
+  const printNodeConfigured = Boolean(PRINTNODE_API_KEY && PRINTNODE_PRINTER_ID);
+  services.printNode = buildServiceStatus(
+    printNodeConfigured,
+    printNodeConfigured ? "Configured" : "Missing PRINTNODE settings"
+  );
+
+  const emailConfigured = Boolean(SMTP_HOST && SMTP_FROM);
+  services.email = buildServiceStatus(
+    emailConfigured,
+    emailConfigured ? "Configured" : "Missing SMTP settings"
+  );
+
+  const shopifyConfigured = Boolean(SHOPIFY_STORE && SHOPIFY_CLIENT_ID && SHOPIFY_CLIENT_SECRET);
+  if (!shopifyConfigured) {
+    services.shopify = buildServiceStatus(false, "Missing Shopify settings");
+  } else {
+    try {
+      await getShopifyAdminToken();
+      services.shopify = buildServiceStatus(true, "Authenticated");
+    } catch (err) {
+      services.shopify = buildServiceStatus(false, "Auth failed");
+    }
+  }
+
+  const ok = Object.values(services).every((service) => service.ok);
+  res.json({ ok, checkedAt: new Date().toISOString(), services });
+});
 
 // Serve static frontend from /public
 app.use(express.static(path.join(__dirname, "public")));
