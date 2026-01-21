@@ -6,14 +6,14 @@
 <title>Flippen Lekka Scan Station — v5 (cleaned + 100×150 print lock)</title>
 <style>
   :root{
-    --bg:#f5f7fb;
+    --bg:#f8fafc;
     --panel:#ffffff;
-    --panel-muted:#f1f5f9;
+    --panel-muted:#f8fafc;
     --panel-strong:#e2e8f0;
     --text:#0f172a;
-    --text-muted:#5b6b7f;
-    --accent:#38bdf8;
-    --accent-soft:rgba(56,189,248,.18);
+    --text-muted:#64748b;
+    --accent:#2563eb;
+    --accent-soft:rgba(37,99,235,.12);
     --radius-lg:.75rem;
     --radius-md:.5rem;
     --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
@@ -22,9 +22,7 @@
   }
   *{box-sizing:border-box}
   body{
-    background:radial-gradient(circle at 10% 10%, rgba(56,189,248,.15) 0%, rgba(245,247,251,0) 55%),
-               radial-gradient(circle at 90% 20%, rgba(236,72,153,.08) 0%, rgba(245,247,251,0) 55%),
-               var(--bg);
+    background:var(--bg);
     color:var(--text);
     font-family:var(--sans);
     min-height:100dvh;
@@ -34,23 +32,22 @@
     min-height:100dvh;
     display:flex;
     flex-direction:column;
-    gap:1.5rem;
-    padding:1.75rem;
+    gap:1rem;
+    padding:1rem 1.5rem 1.5rem;
   }
   @media (max-width:800px){
-    .flApp{ padding:1.25rem; gap:1.25rem; }
+    .flApp{ padding:1rem; gap:1rem; }
   }
   .flNav{
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:1.25rem;
-    padding:.85rem 1.25rem;
-    border-radius:var(--radius-lg);
-    background:rgba(255,255,255,.9);
+    padding:.85rem 1.5rem;
+    border-radius:var(--radius-md);
+    background:#fff;
     border:1px solid var(--panel-strong);
-    box-shadow:0 18px 40px rgba(15,23,42,.08);
-    backdrop-filter:blur(14px) saturate(140%);
+    box-shadow:0 6px 20px rgba(15,23,42,.08);
   }
   .flNavTitle{
     font-weight:700;
@@ -70,8 +67,8 @@
     color:var(--text);
     font-weight:600;
     font-size:.85rem;
-    padding:.5rem .9rem;
-    border-radius:.7rem;
+    padding:.45rem .85rem;
+    border-radius:.5rem;
     cursor:pointer;
     transition:all .2s ease;
     text-decoration:none;
@@ -79,14 +76,14 @@
     align-items:center;
   }
   .flNavBtn:hover{
-    border-color:rgba(56,189,248,.65);
-    color:var(--text);
+    border-color:rgba(37,99,235,.5);
+    color:#1d4ed8;
   }
   .flNavBtn--active{
-    background:var(--accent-soft);
-    border-color:rgba(56,189,248,.8);
-    color:#0c4a6e;
-    box-shadow:0 6px 18px rgba(56,189,248,.18);
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+    box-shadow:0 6px 18px rgba(37,99,235,.22);
   }
   .flNavStatus{
     display:flex;
@@ -122,25 +119,32 @@
   }
   .flView{
     width:100%;
+    flex:1;
+  }
+  .flView--active{
+    display:flex;
+    flex-direction:column;
   }
   .flView[hidden]{ display:none; }
   .flView .shell{ margin:0 auto; }
   .shell{
     width:100%;
-    max-width:1180px;
-    background:rgba(255,255,255,.95);
-    box-shadow:0 30px 80px rgba(15,23,42,.12), 0 0 120px rgba(56,189,248,.08) inset;
-    backdrop-filter:blur(18px) saturate(140%);
+    max-width:none;
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-lg);
+    box-shadow:0 18px 48px rgba(15,23,42,.08);
     display:grid;
     grid-template-columns:1fr 1fr;
     overflow:hidden;
+    min-height:calc(100dvh - 160px);
   }
   @media (max-width:1000px){ .shell{ grid-template-columns:1fr; } }
 
   /* LEFT */
   .leftPane{
-    background:linear-gradient(to bottom right, rgba(255,255,255,.95), rgba(241,245,249,.7));
-    padding:1.25rem;
+    background:#fff;
+    padding:1.5rem;
     border-right:1px solid var(--panel-strong);
   }
   @media (max-width:1000px){ .leftPane{ border-right:0; border-bottom:1px solid rgba(148,163,184,.15);} }
@@ -192,10 +196,10 @@
 
   /* RIGHT */
   .rightPane{
-    padding:1.25rem;
+    padding:1.5rem;
     display:flex;
     flex-direction:column;
-    background:radial-gradient(circle at 50% 0%, rgba(56,189,248,.12) 0%, rgba(255,255,255,0) 70%), linear-gradient(to bottom right, rgba(255,255,255,.9), rgba(241,245,249,.6));
+    background:#f8fafc;
   }
   .sectionTitle{ font-size:.82rem; color:var(--text); font-weight:700; display:flex; justify-content:space-between; gap:.5rem 1rem; margin-bottom:.6rem; }
 
@@ -207,7 +211,7 @@
     display:flex;
     flex-direction:column;
     gap:.85rem;
-    box-shadow:0 14px 30px rgba(15,23,42,.08);
+    box-shadow:0 10px 28px rgba(15,23,42,.08);
     margin-bottom:1rem;
   }
   .truckHeader{
@@ -252,11 +256,11 @@
     letter-spacing:.02em;
     padding:1rem 1.5rem;
     border-radius:1rem;
-    border:2px solid rgba(239,68,68,.65);
-    background:linear-gradient(135deg, rgba(248,113,113,.9), rgba(239,68,68,.9));
+    border:2px solid rgba(37,99,235,.6);
+    background:linear-gradient(135deg, rgba(37,99,235,.95), rgba(30,64,175,.95));
     color:#fff;
     cursor:pointer;
-    box-shadow:0 18px 35px rgba(239,68,68,.28);
+    box-shadow:0 18px 35px rgba(37,99,235,.24);
     transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
   }
   .truckBookBtn:hover{
@@ -336,16 +340,17 @@
   .podTitle{  font-size: 12px; font-weight:700; }
 
 /* === DISPATCH BOARD VIEW === */
-#dispatchBoardContainer {
+  #dispatchBoardContainer {
   width:100%;
   display:flex;
   flex-direction:column;
   gap:.85rem;
-  padding:1.25rem;
+  padding:1.25rem 1.5rem;
   border-radius:var(--radius-lg);
-  background:rgba(255,255,255,.92);
+  background:#fff;
   border:1px solid var(--panel-strong);
-  box-shadow:0 24px 60px rgba(15,23,42,.1);
+  box-shadow:0 18px 48px rgba(15,23,42,.08);
+  min-height:calc(100dvh - 160px);
 }
 
 .dispatchStatusPanel {
@@ -519,9 +524,9 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
   padding: .35rem;
-  min-height: 62vh;
+  min-height: 65vh;
   overflow-y: auto;
-  background: radial-gradient(circle at 30% 20%, rgba(56,189,248,0.1), transparent 60%);
+  background:#f8fafc;
 }
 @media (max-width:1100px){
   #dispatchBoardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -932,7 +937,7 @@
 .dispatchCol {
   display: flex;
   flex-direction: column;
-  background: rgba(241,245,249,0.9);
+  background: #f8fafc;
   border-radius: 12px;
   padding: 0.85rem;
   border: 1px solid var(--panel-strong);
@@ -960,13 +965,14 @@
 
   /* Documentation */
   .docsShell{
-    max-width:980px;
+    max-width:1200px;
+    width:100%;
     margin:0 auto;
     background:rgba(255,255,255,.96);
     border:1px solid var(--panel-strong);
     border-radius:var(--radius-lg);
-    box-shadow:0 30px 80px rgba(15,23,42,.12);
-    padding:1.5rem;
+    box-shadow:0 18px 48px rgba(15,23,42,.1);
+    padding:1.75rem 2rem;
   }
   .docsShell h2{
     font-size:1rem;
