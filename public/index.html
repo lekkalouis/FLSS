@@ -497,6 +497,13 @@
     overflow:hidden;
     word-break:break-word;
   }
+  .dispatchLineItem{
+    display:inline;
+  }
+  .dispatchLineItem.is-complete{
+    text-decoration:line-through;
+    color:#94a3b8;
+  }
 
   .dispatchCardActions{
     display:flex;
@@ -678,6 +685,19 @@
   }
   .dispatchParcelAddBtn:hover{
     background:rgba(16,185,129,.2);
+  }
+  .dispatchParcelBoxBtn{
+    border-radius:.45rem;
+    border:1px solid rgba(124,58,237,.35);
+    background:rgba(124,58,237,.12);
+    color:#5b21b6;
+    font-size:.65rem;
+    font-weight:700;
+    padding:.3rem .45rem;
+    cursor:pointer;
+  }
+  .dispatchParcelBoxBtn:hover{
+    background:rgba(124,58,237,.2);
   }
   .dispatchParcelList{
     display:flex;

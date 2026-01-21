@@ -244,6 +244,7 @@
       const quantity = Number(item.quantity) || 0;
       return {
         key: makePackingKey(item, index),
+        index,
         title: item.title || "Item",
         variant: item.variant_title || "",
         sku: item.sku || "",
@@ -276,6 +277,44 @@
     return state.items.find((item) => item.key === itemKey) || null;
   }
 
+  function loadPackingState() {
+    try {
+      const raw = localStorage.getItem("fl_packing_state_v1");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      Object.entries(parsed).forEach(([orderNo, state]) => {
+        if (!state || typeof state !== "object") return;
+        const items = Array.isArray(state.items) ? state.items : [];
+        const parcels = Array.isArray(state.parcels) ? state.parcels : [];
+        dispatchPackingState.set(orderNo, {
+          orderNo,
+          active: Boolean(state.active),
+          startTime: state.startTime || null,
+          endTime: state.endTime || null,
+          parcels,
+          items
+        });
+      });
+    } catch {}
+  }
+
+  function savePackingState() {
+    try {
+      const payload = {};
+      dispatchPackingState.forEach((state, orderNo) => {
+        payload[orderNo] = {
+          active: Boolean(state.active),
+          startTime: state.startTime || null,
+          endTime: state.endTime || null,
+          parcels: Array.isArray(state.parcels) ? state.parcels : [],
+          items: Array.isArray(state.items) ? state.items : []
+        };
+      });
+      localStorage.setItem("fl_packing_state_v1", JSON.stringify(payload));
+    } catch {}
+  }
+
   function isPackingComplete(state) {
     if (!state) return false;
     return state.items.every((item) => item.packed >= item.quantity);
@@ -289,6 +328,7 @@
     logDispatchEvent(
       `Packing finished for order ${state.orderNo}${duration ? ` (${duration})` : ""}.`
     );
+    savePackingState();
   }
 
   function renderCountdown() {
@@ -1499,7 +1539,7 @@ async function handleScan(code) {
       const packingState = getPackingState(o);
       if (orderNo) activeOrders.add(orderNo);
       const lines = (o.line_items || [])
-        .slice()
+        .map((item, index) => ({ ...item, __index: index }))
         .sort((a, b) => {
           const aKey = String(a.title || "").trim().toLowerCase();
           const bKey = String(b.title || "").trim().toLowerCase();
@@ -1524,7 +1564,11 @@ async function handleScan(code) {
           const shortLabel = abbreviation === ""
             ? (sizeLabel || baseTitle)
             : [sizeLabel, abbreviation || baseTitle].filter(Boolean).join(" ");
-          return `• ${li.quantity} × ${shortLabel}`;
+          const itemKey = makePackingKey(li, li.__index);
+          const packedItem = getPackingItem(packingState, itemKey);
+          const isComplete =
+            packedItem && packedItem.quantity > 0 && packedItem.packed >= packedItem.quantity;
+          return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""}">• ${li.quantity} × ${shortLabel}</span>`;
         })
         .join("<br>");
       const addr1 = o.shipping_address1 || "";
@@ -1580,7 +1624,8 @@ async function handleScan(code) {
             <div class="dispatchPackingFooter">
               <div class="dispatchParcelScan">
                 <input class="dispatchParcelInput" type="text" placeholder="Scan parcel sticker" data-order-no="${orderNo}" />
-                <button class="dispatchParcelAddBtn" type="button" data-action="add-parcel" data-order-no="${orderNo}">Add</button>
+                <button class="dispatchParcelAddBtn" type="button" data-action="add-parcel" data-order-no="${orderNo}">Add parcel</button>
+                <button class="dispatchParcelBoxBtn" type="button" data-action="add-box" data-order-no="${orderNo}">Add box</button>
               </div>
               <div class="dispatchParcelList">
                 ${
@@ -1637,9 +1682,14 @@ async function handleScan(code) {
       })
       .join("");
 
+    let pruned = false;
     dispatchPackingState.forEach((_, key) => {
-      if (!activeOrders.has(key)) dispatchPackingState.delete(key);
+      if (!activeOrders.has(key)) {
+        dispatchPackingState.delete(key);
+        pruned = true;
+      }
     });
+    if (pruned) savePackingState();
   }
 
   function printDeliveryNote(order) {
@@ -1826,6 +1876,7 @@ async function handleScan(code) {
           logDispatchEvent(`Packing started for order ${orderNo}.`);
         }
         state.active = true;
+        savePackingState();
         renderDispatchBoard(dispatchOrdersLatest);
         return;
       }
@@ -1840,6 +1891,8 @@ async function handleScan(code) {
         item.packed = item.quantity;
         if (isPackingComplete(state)) {
           finalizePacking(state);
+        } else {
+          savePackingState();
         }
         renderDispatchBoard(dispatchOrdersLatest);
         return;
@@ -1859,8 +1912,11 @@ async function handleScan(code) {
         const qty = Math.max(0, Math.min(remaining, requested));
         if (!qty) return;
         item.packed += qty;
+        if (input) input.value = "";
         if (isPackingComplete(state)) {
           finalizePacking(state);
+        } else {
+          savePackingState();
         }
         renderDispatchBoard(dispatchOrdersLatest);
         return;
@@ -1875,7 +1931,24 @@ async function handleScan(code) {
         const code = input?.value?.trim();
         if (!code) return;
         state.parcels.push(code);
+        if (input) input.value = "";
         logDispatchEvent(`Parcel sticker scanned for order ${orderNo}: ${code}.`);
+        savePackingState();
+        renderDispatchBoard(dispatchOrdersLatest);
+        return;
+      }
+      if (actionType === "add-box") {
+        if (!orderNo) return;
+        const state = dispatchPackingState.get(orderNo);
+        if (!state) return;
+        if (!state.startTime) state.startTime = new Date().toISOString();
+        const boxCount = state.parcels.filter((code) =>
+          String(code).toUpperCase().startsWith("BOX")
+        ).length;
+        const label = `BOX ${boxCount + 1}`;
+        state.parcels.push(label);
+        logDispatchEvent(`Box added for order ${orderNo}: ${label}.`);
+        savePackingState();
         renderDispatchBoard(dispatchOrdersLatest);
         return;
       }
@@ -1944,11 +2017,14 @@ async function handleScan(code) {
     const code = input.value.trim();
     if (!code) return;
     state.parcels.push(code);
+    input.value = "";
     logDispatchEvent(`Parcel sticker scanned for order ${orderNo}: ${code}.`);
+    savePackingState();
     renderDispatchBoard(dispatchOrdersLatest);
   });
 
   loadBookedOrders();
+  loadPackingState();
   loadModePreference();
   updateModeToggle();
   renderSessionUI();
