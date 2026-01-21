@@ -108,7 +108,8 @@
     "Service",
     "Book",
     "Print",
-    "Complete"
+    "Booked",
+    "Notify"
   ];
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
@@ -1223,7 +1224,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
   async function fulfillOnShopify(details, waybillNo) {
     try {
-      if (!details?.raw?.id) return;
+      if (!details?.raw?.id) return false;
 
       const orderId = details.raw.id;
       const lineItems = (details.raw.line_items || []).map((li) => ({ id: li.id, quantity: li.quantity }));
@@ -1242,9 +1243,11 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
       const text = await resp.text();
       appendDebug("Shopify fulfill => " + resp.status + " " + text.slice(0, 300));
+      return resp.ok;
     } catch (e) {
       appendDebug("Shopify fulfill exception: " + String(e));
     }
+    return false;
   }
 
   function promptManualParcelCount(orderNo) {
@@ -1482,7 +1485,14 @@ Raw:
 ${JSON.stringify(cr, null, 2)}`;
     }
 
-    await fulfillOnShopify(orderDetails, waybillNo);
+    const fulfillOk = await fulfillOnShopify(orderDetails, waybillNo);
+    if (fulfillOk) {
+      await stepDispatchProgress(6, `Notified • ${waybillNo}`);
+      logDispatchEvent(`Customer notified with tracking ${waybillNo}.`);
+    } else {
+      setDispatchProgress(6, "Notify failed");
+      logDispatchEvent(`Customer notification failed for ${waybillNo}.`);
+    }
 
     markBooked(activeOrderNo);
     updateDailyParcelCount(expected);
