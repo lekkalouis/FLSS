@@ -60,6 +60,10 @@
   const dispatchProgressSteps = $("dispatchProgressSteps");
   const dispatchProgressLabel = $("dispatchProgressLabel");
   const dispatchLog = $("dispatchLog");
+  const dispatchOrderModal = $("dispatchOrderModal");
+  const dispatchOrderModalBody = $("dispatchOrderModalBody");
+  const dispatchOrderModalTitle = $("dispatchOrderModalTitle");
+  const dispatchOrderModalMeta = $("dispatchOrderModalMeta");
   const scanProgressBar = $("scanProgressBar");
   const scanProgressFill = $("scanProgressFill");
   const scanProgressSteps = $("scanProgressSteps");
@@ -95,6 +99,7 @@
   const dispatchOrderCache = new Map();
   const dispatchPackingState = new Map();
   let dispatchOrdersLatest = [];
+  let dispatchModalOrderNo = null;
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
   let dailyParcelCount = 0;
@@ -111,6 +116,29 @@
     "Booked",
     "Notify"
   ];
+  const lineItemAbbreviations = {
+    "original multi-purpose spice": "",
+    "original multi-purpose spice - tub": "",
+    "hot & spicy multi-purpose spice": "H",
+    "worcester sauce spice": "WS",
+    "worcester sauce spice - tub": "WS",
+    "red wine & garlic sprinkle": "RG",
+    "chutney sprinkle": "CS",
+    "savoury herb mix": "SH",
+    "salt & vinegar seasoning": "SV",
+    "butter popcorn sprinkle": "BUT",
+    "sour cream & chives popcorn sprinkle": "SCC",
+    "chutney popcorn sprinkle": "CHUT",
+    "parmesan popcorn sprinkle": "PAR",
+    "cheese and onion popcorn sprinkle": "CHO",
+    "salt & vinegar popcorn sprinkle": "SV",
+    "flippen lekka curry mix": "Curry",
+    "original multi purpose basting sauce": "Basting"
+  };
+  const lineItemOrder = Object.keys(lineItemAbbreviations);
+  const lineItemOrderIndex = new Map(
+    lineItemOrder.map((key, index) => [key, index])
+  );
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
@@ -336,7 +364,8 @@
     if (!Array.isArray(boxes)) return [];
     return boxes.map((box, index) => ({
       label: String(box?.label || `BOX ${index + 1}`),
-      items: box?.items && typeof box.items === "object" ? { ...box.items } : {}
+      items: box?.items && typeof box.items === "object" ? { ...box.items } : {},
+      parcelCode: String(box?.parcelCode || "").trim()
     }));
   }
 
@@ -351,7 +380,7 @@
         : null;
     if (activeIndex == null) {
       if (!state.boxes.length) {
-        state.boxes.push({ label: "BOX 1", items: {} });
+        state.boxes.push({ label: "BOX 1", items: {}, parcelCode: "" });
       }
       state.activeBoxIndex = 0;
     }
@@ -372,6 +401,13 @@
     const box = ensureActiveBox(state);
     if (!box) return;
     box.items[itemKey] = (Number(box.items[itemKey]) || 0) + qty;
+  }
+
+  function getPackingParcelCount(state) {
+    if (!state) return 0;
+    const boxes = Array.isArray(state.boxes) ? state.boxes : [];
+    if (boxes.length) return boxes.length;
+    return Array.isArray(state.parcels) ? state.parcels.length : 0;
   }
 
   function loadPackingState() {
@@ -1688,6 +1724,242 @@ async function handleScan(code) {
     }
   }
 
+  function laneFromOrder(order) {
+    const tags = String(order?.tags || "").toLowerCase();
+    const shippingTitles = (order?.shipping_lines || [])
+      .map((line) => String(line.title || "").toLowerCase())
+      .join(" ");
+    const combined = `${tags} ${shippingTitles}`.trim();
+    if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
+    if (/(local delivery|same\s*day)/.test(combined)) return "delivery";
+    return "shipping";
+  }
+
+  function renderDispatchLineItems(order, packingState) {
+    return (order.line_items || [])
+      .map((item, index) => ({ ...item, __index: index }))
+      .sort((a, b) => {
+        const aKey = String(a.title || "").trim().toLowerCase();
+        const bKey = String(b.title || "").trim().toLowerCase();
+        const aIndex = lineItemOrderIndex.get(aKey) ?? Number.POSITIVE_INFINITY;
+        const bIndex = lineItemOrderIndex.get(bKey) ?? Number.POSITIVE_INFINITY;
+        if (aIndex !== bIndex) return aIndex - bIndex;
+        return String(a.sku || "").localeCompare(String(b.sku || ""), undefined, {
+          numeric: true,
+          sensitivity: "base"
+        });
+      })
+      .map((li) => {
+        const baseTitle = li.title || "";
+        const variantTitle = (li.variant_title || "").trim();
+        const hasVariant = variantTitle && variantTitle.toLowerCase() !== "default title";
+        const abbrevKey = baseTitle.trim().toLowerCase();
+        const abbreviation = lineItemAbbreviations[abbrevKey];
+        const sizeLabel = hasVariant ? variantTitle : "";
+        const shortLabel =
+          abbreviation === ""
+            ? sizeLabel || baseTitle
+            : [sizeLabel, abbreviation || baseTitle].filter(Boolean).join(" ");
+        const itemKey = makePackingKey(li, li.__index);
+        const packedItem = getPackingItem(packingState, itemKey);
+        const packedCount = packedItem ? Number(packedItem.packed) || 0 : 0;
+        const totalCount = packedItem ? Number(packedItem.quantity) || 0 : Number(li.quantity) || 0;
+        const remaining = Math.max(0, totalCount - packedCount);
+        const isComplete = packedCount > 0 && remaining === 0;
+        const isPartial = packedCount > 0 && remaining > 0;
+        const remainderTag = isPartial
+          ? ` <span class="dispatchLineRemainder">(${remaining})</span>`
+          : "";
+        return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}">• ${li.quantity} × ${shortLabel}${remainderTag}</span>`;
+      })
+      .join("<br>");
+  }
+
+  function renderDispatchActions(order, laneId, orderNo, packingState) {
+    const packBtnLabel = packingState?.active ? "Continue packing" : "Start packing";
+    const packBtnDisabled = !orderNo || !(packingState?.items?.length > 0);
+    const actionBtn =
+      laneId === "delivery"
+        ? orderNo
+          ? `<button class="dispatchNoteBtn" type="button" data-action="print-note" data-order-no="${orderNo}">Print delivery note</button>`
+          : `<button class="dispatchNoteBtn" type="button" disabled>Print delivery note</button>`
+        : laneId === "pickup"
+        ? orderNo
+          ? `<button class="dispatchNotifyBtn" type="button" data-action="notify-ready" data-order-no="${orderNo}">Notify customer</button>`
+          : `<button class="dispatchNotifyBtn" type="button" disabled>Notify customer</button>`
+        : orderNo
+        ? `<button class="dispatchBookBtn" type="button" data-action="book-now" data-order-no="${orderNo}">Book Now</button>`
+        : `<button class="dispatchBookBtn" type="button" disabled>Book Now</button>`;
+
+    return `
+      <button class="dispatchPackBtn" type="button" data-action="start-packing" data-order-no="${orderNo}" ${packBtnDisabled ? "disabled" : ""}>
+        ${packBtnLabel}
+      </button>
+      ${actionBtn}
+    `;
+  }
+
+  function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
+    if (!packingState) return "";
+    const isActive = packingState.active || options.forceOpen;
+    const boxes = Array.isArray(packingState.boxes) ? packingState.boxes : [];
+    const parcelCount = getPackingParcelCount(packingState);
+    return `
+      <div class="dispatchPackingPanel ${isActive ? "is-active" : ""}" data-order-no="${orderNo}">
+        <div class="dispatchPackingHeader">
+          <div class="dispatchPackingTitle">Packing</div>
+          <div class="dispatchPackingTimes">
+            <span>Start: ${formatDispatchTime(packingState.startTime)}</span>
+            <span>Finish: ${formatDispatchTime(packingState.endTime)}</span>
+          </div>
+        </div>
+        <div class="dispatchPackingList">
+          ${
+            packingState.items.length
+              ? packingState.items
+                  .map((item) => {
+                    const remaining = Math.max(0, item.quantity - item.packed);
+                    const isComplete = remaining === 0;
+                    const variantLabel =
+                      item.variant && item.variant.toLowerCase() !== "default title"
+                        ? item.variant
+                        : "";
+                    const itemLabel = [item.title, variantLabel].filter(Boolean).join(" · ");
+                    return `
+                      <div class="dispatchPackingRow ${isComplete ? "is-complete" : ""}" data-item-key="${item.key}">
+                        <div class="dispatchPackingInfo">
+                          <div class="dispatchPackingItem">${itemLabel}</div>
+                          <div class="dispatchPackingMeta">Packed ${item.packed} / ${item.quantity} · Remaining ${remaining}</div>
+                        </div>
+                        <div class="dispatchPackingActions">
+                          <input class="dispatchPackingQty" type="number" min="1" max="${remaining}" placeholder="Qty" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}/>
+                          <button class="dispatchPackQtyBtn" type="button" data-action="pack-qty" data-order-no="${orderNo}" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}>Pack qty</button>
+                          <button class="dispatchPackAllBtn" type="button" data-action="pack-all" data-order-no="${orderNo}" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}>Pack all</button>
+                        </div>
+                      </div>
+                    `;
+                  })
+                  .join("")
+              : `<div class="dispatchPackingEmpty">No line items available.</div>`
+          }
+        </div>
+        <div class="dispatchPackingFooter">
+          <div class="dispatchParcelScan">
+            <button class="dispatchParcelBoxBtn" type="button" data-action="add-box" data-order-no="${orderNo}">Add box</button>
+          </div>
+          <div class="dispatchBoxList">
+            ${
+              boxes.length
+                ? boxes
+                    .map(
+                      (box, index) => `
+                        <div class="dispatchBoxRow">
+                          <span class="dispatchBoxLabel">${box.label}</span>
+                          <input class="dispatchBoxParcelInput" type="text" placeholder="Parcel no (optional)" data-order-no="${orderNo}" data-box-index="${index}" value="${box.parcelCode || ""}" />
+                        </div>
+                      `
+                    )
+                    .join("")
+                : `<span class="dispatchBoxEmpty">No boxes added yet.</span>`
+            }
+          </div>
+          <div class="dispatchPackingControls">
+            <span class="dispatchPackingCount">Boxes packed: ${parcelCount}</span>
+            <button class="dispatchFinishPackingBtn" type="button" data-action="finish-packing" data-order-no="${orderNo}" ${packingState.endTime ? "disabled" : ""}>
+              ${packingState.endTime ? "Packing finished" : "Finish packing"}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function openDispatchOrderModal(orderNo) {
+    if (!dispatchOrderModal || !dispatchOrderModalBody || !dispatchOrderModalTitle) return;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return;
+    const packingState = getPackingState(order);
+    const laneId = laneFromOrder(order);
+    const title = order.customer_name || order.name || `Order ${order.id}`;
+    const city = order.shipping_city || "";
+    const created = order.created_at ? new Date(order.created_at).toLocaleTimeString() : "";
+    const lines = renderDispatchLineItems(order, packingState);
+    dispatchOrderModalTitle.textContent = title;
+    if (dispatchOrderModalMeta) {
+      dispatchOrderModalMeta.textContent = `#${(order.name || "").replace("#", "")} · ${city} · ${created}`;
+    }
+    dispatchOrderModalBody.innerHTML = `
+      <div class="dispatchCardLines">${lines || "No line items listed."}</div>
+      <div class="dispatchCardActions">
+        ${renderDispatchActions(order, laneId, orderNo, packingState)}
+      </div>
+      ${renderDispatchPackingPanel(packingState, orderNo, { forceOpen: true })}
+    `;
+    dispatchOrderModal.classList.add("is-open");
+    dispatchOrderModal.setAttribute("aria-hidden", "false");
+    dispatchModalOrderNo = orderNo;
+  }
+
+  function closeDispatchOrderModal() {
+    if (!dispatchOrderModal || !dispatchOrderModalBody) return;
+    dispatchOrderModal.classList.remove("is-open");
+    dispatchOrderModal.setAttribute("aria-hidden", "true");
+    dispatchOrderModalBody.innerHTML = "";
+    dispatchModalOrderNo = null;
+  }
+
+  async function notifyPickupReady(orderNo) {
+    if (!orderNo) return;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return;
+    const packingState = dispatchPackingState.get(orderNo) || getPackingState(order);
+    const parcelCount = getPackingParcelCount(packingState);
+    const weightKg = Number(order.total_weight_kg || 0);
+    if (!order.email) {
+      statusExplain("Customer email missing.", "warn");
+      logDispatchEvent(`Notify failed for order ${orderNo}: missing email.`);
+      return;
+    }
+    try {
+      setDispatchProgress(6, `Notifying ${orderNo}`);
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/notify-collection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderNo,
+          orderId: order.id,
+          email: order.email,
+          customerName: order.customer_name || "",
+          parcelCount,
+          weightKg
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        statusExplain("Notify failed.", "warn");
+        logDispatchEvent(`Notify failed for order ${orderNo}: ${text}`);
+        return;
+      }
+      statusExplain(`Customer notified for ${orderNo}.`, "ok");
+      logDispatchEvent(`Customer notified for order ${orderNo}.`);
+    } catch (err) {
+      statusExplain("Notify failed.", "warn");
+      logDispatchEvent(`Notify failed for order ${orderNo}: ${String(err)}`);
+    }
+  }
+
+  function refreshDispatchViews(orderNo) {
+    renderDispatchBoard(dispatchOrdersLatest);
+    const modalOrder = orderNo || dispatchModalOrderNo;
+    if (dispatchOrderModal?.classList.contains("is-open")) {
+      if (!modalOrder || !dispatchOrderCache.get(modalOrder)) {
+        closeDispatchOrderModal();
+        return;
+      }
+      openDispatchOrderModal(modalOrder);
+    }
+  }
+
   function renderDispatchBoard(orders) {
     if (!dispatchBoard) return;
 
@@ -1720,45 +1992,10 @@ async function handleScan(code) {
     ];
     const lanes = Object.fromEntries(cols.map((col) => [col.id, []]));
 
-    const laneFromOrder = (order) => {
-      const tags = String(order.tags || "").toLowerCase();
-      const shippingTitles = (order.shipping_lines || [])
-        .map((line) => String(line.title || "").toLowerCase())
-        .join(" ");
-      const combined = `${tags} ${shippingTitles}`.trim();
-      if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-      if (/(local delivery|same\s*day)/.test(combined)) return "delivery";
-      return "shipping";
-    };
-
     list.forEach((o) => {
       const laneId = laneFromOrder(o);
       (lanes[laneId] || lanes.shipping).push(o);
     });
-
-    const lineItemAbbreviations = {
-      "original multi-purpose spice": "",
-      "original multi-purpose spice - tub": "",
-      "hot & spicy multi-purpose spice": "H",
-      "worcester sauce spice": "WS",
-      "worcester sauce spice - tub": "WS",
-      "red wine & garlic sprinkle": "RG",
-      "chutney sprinkle": "CS",
-      "savoury herb mix": "SH",
-      "salt & vinegar seasoning": "SV",
-      "butter popcorn sprinkle": "BUT",
-      "sour cream & chives popcorn sprinkle": "SCC",
-      "chutney popcorn sprinkle": "CHUT",
-      "parmesan popcorn sprinkle": "PAR",
-      "cheese and onion popcorn sprinkle": "CHO",
-      "salt & vinegar popcorn sprinkle": "SV",
-      "flippen lekka curry mix": "Curry",
-      "original multi purpose basting sauce": "Basting"
-    };
-    const lineItemOrder = Object.keys(lineItemAbbreviations);
-    const lineItemOrderIndex = new Map(
-      lineItemOrder.map((key, index) => [key, index])
-    );
 
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
@@ -1768,45 +2005,7 @@ async function handleScan(code) {
       const orderNo = String(o.name || "").replace("#", "").trim();
       const packingState = getPackingState(o);
       if (orderNo) activeOrders.add(orderNo);
-      const lines = (o.line_items || [])
-        .map((item, index) => ({ ...item, __index: index }))
-        .sort((a, b) => {
-          const aKey = String(a.title || "").trim().toLowerCase();
-          const bKey = String(b.title || "").trim().toLowerCase();
-          const aIndex =
-            lineItemOrderIndex.get(aKey) ?? Number.POSITIVE_INFINITY;
-          const bIndex =
-            lineItemOrderIndex.get(bKey) ?? Number.POSITIVE_INFINITY;
-          if (aIndex !== bIndex) return aIndex - bIndex;
-          return String(a.sku || "").localeCompare(String(b.sku || ""), undefined, {
-            numeric: true,
-            sensitivity: "base"
-          });
-        })
-        .slice(0, 6)
-        .map((li) => {
-          const baseTitle = li.title || "";
-          const variantTitle = (li.variant_title || "").trim();
-          const hasVariant = variantTitle && variantTitle.toLowerCase() !== "default title";
-          const abbrevKey = baseTitle.trim().toLowerCase();
-          const abbreviation = lineItemAbbreviations[abbrevKey];
-          const sizeLabel = hasVariant ? variantTitle : "";
-          const shortLabel = abbreviation === ""
-            ? (sizeLabel || baseTitle)
-            : [sizeLabel, abbreviation || baseTitle].filter(Boolean).join(" ");
-          const itemKey = makePackingKey(li, li.__index);
-          const packedItem = getPackingItem(packingState, itemKey);
-          const packedCount = packedItem ? Number(packedItem.packed) || 0 : 0;
-          const totalCount = packedItem ? Number(packedItem.quantity) || 0 : Number(li.quantity) || 0;
-          const remaining = Math.max(0, totalCount - packedCount);
-          const isComplete = packedCount > 0 && remaining === 0;
-          const isPartial = packedCount > 0 && remaining > 0;
-          const remainderTag = isPartial
-            ? ` <span class="dispatchLineRemainder">(${remaining})</span>`
-            : "";
-          return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}">• ${li.quantity} × ${shortLabel}${remainderTag}</span>`;
-        })
-        .join("<br>");
+      const lines = renderDispatchLineItems(o, packingState);
       const addr1 = o.shipping_address1 || "";
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
@@ -1815,93 +2014,15 @@ async function handleScan(code) {
         dispatchOrderCache.set(orderNo, o);
       }
 
-      const packBtnLabel = packingState?.active ? "Continue packing" : "Start packing";
-      const packBtnDisabled = !orderNo || !(packingState?.items?.length > 0);
-      const packingPanel = packingState
-        ? `
-          <div class="dispatchPackingPanel ${packingState.active ? "is-active" : ""}" data-order-no="${orderNo}">
-            <div class="dispatchPackingHeader">
-              <div class="dispatchPackingTitle">Packing</div>
-              <div class="dispatchPackingTimes">
-                <span>Start: ${formatDispatchTime(packingState.startTime)}</span>
-                <span>Finish: ${formatDispatchTime(packingState.endTime)}</span>
-              </div>
-            </div>
-            <div class="dispatchPackingList">
-              ${
-                packingState.items.length
-                  ? packingState.items
-                      .map((item) => {
-                        const remaining = Math.max(0, item.quantity - item.packed);
-                        const isComplete = remaining === 0;
-                        const variantLabel =
-                          item.variant && item.variant.toLowerCase() !== "default title"
-                            ? item.variant
-                            : "";
-                        const itemLabel = [item.title, variantLabel].filter(Boolean).join(" · ");
-                        return `
-                          <div class="dispatchPackingRow ${isComplete ? "is-complete" : ""}" data-item-key="${item.key}">
-                            <div class="dispatchPackingInfo">
-                              <div class="dispatchPackingItem">${itemLabel}</div>
-                              <div class="dispatchPackingMeta">Packed ${item.packed} / ${item.quantity} · Remaining ${remaining}</div>
-                            </div>
-                            <div class="dispatchPackingActions">
-                              <input class="dispatchPackingQty" type="number" min="1" max="${remaining}" placeholder="Qty" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}/>
-                              <button class="dispatchPackQtyBtn" type="button" data-action="pack-qty" data-order-no="${orderNo}" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}>Pack qty</button>
-                              <button class="dispatchPackAllBtn" type="button" data-action="pack-all" data-order-no="${orderNo}" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}>Pack all</button>
-                            </div>
-                          </div>
-                        `;
-                      })
-                      .join("")
-                  : `<div class="dispatchPackingEmpty">No line items available.</div>`
-              }
-            </div>
-            <div class="dispatchPackingFooter">
-              <div class="dispatchParcelScan">
-                <input class="dispatchParcelInput" type="text" placeholder="Scan parcel sticker" data-order-no="${orderNo}" />
-                <button class="dispatchParcelAddBtn" type="button" data-action="add-parcel" data-order-no="${orderNo}">Add parcel</button>
-                <button class="dispatchParcelBoxBtn" type="button" data-action="add-box" data-order-no="${orderNo}">Add box</button>
-              </div>
-              <div class="dispatchParcelList">
-                ${
-                  packingState.parcels.length
-                    ? packingState.parcels.map((code) => `<span>${code}</span>`).join("")
-                    : `<span class="dispatchParcelEmpty">No parcels scanned yet.</span>`
-                }
-              </div>
-              <div class="dispatchPackingControls">
-                <span class="dispatchPackingCount">Parcels scanned: ${packingState.parcels.length}</span>
-                <button class="dispatchFinishPackingBtn" type="button" data-action="finish-packing" data-order-no="${orderNo}" ${packingState.endTime ? "disabled" : ""}>
-                  ${packingState.endTime ? "Packing finished" : "Finish packing"}
-                </button>
-              </div>
-            </div>
-          </div>
-        `
-        : "";
-
-      const actionBtn = laneId === "delivery"
-        ? orderNo
-          ? `<button class="dispatchNoteBtn" type="button" data-action="print-note" data-order-no="${orderNo}">Print delivery note</button>`
-          : `<button class="dispatchNoteBtn" type="button" disabled>Print delivery note</button>`
-        : orderNo
-        ? `<button class="dispatchBookBtn" type="button" data-order-no="${orderNo}">Book Now</button>`
-        : `<button class="dispatchBookBtn" type="button" disabled>Book Now</button>`;
-
       return `
-        <div class="dispatchCard">
+        <div class="dispatchCard" data-order-no="${orderNo}">
           <div class="dispatchCardTitle"><span>${title}</span></div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
          
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
-            <button class="dispatchPackBtn" type="button" data-action="start-packing" data-order-no="${orderNo}" ${packBtnDisabled ? "disabled" : ""}>
-              ${packBtnLabel}
-            </button>
-            ${actionBtn}
+            ${renderDispatchActions(o, laneId, orderNo, packingState)}
           </div>
-          ${packingPanel}
         </div>`;
     };
 
@@ -2111,126 +2232,108 @@ async function handleScan(code) {
     await requestTruckBooking("manual");
   });
 
-  dispatchBoard?.addEventListener("click", async (e) => {
-    const action = e.target.closest("[data-action]");
-    if (action) {
-      const actionType = action.dataset.action;
-      const orderNo = action.dataset.orderNo;
-      if (actionType === "start-packing") {
-        if (!orderNo) return;
-        const order = dispatchOrderCache.get(orderNo);
-        if (!order) return;
-        const state = getPackingState(order);
-        if (!state) return;
-        if (!state.startTime) {
-          state.startTime = new Date().toISOString();
-          logDispatchEvent(`Packing started for order ${orderNo}.`);
-        }
-        state.active = true;
-        savePackingState();
-        renderDispatchBoard(dispatchOrdersLatest);
-        return;
-      }
-      if (actionType === "pack-all") {
-        if (!orderNo) return;
-        const state = dispatchPackingState.get(orderNo);
-        if (!state) return;
-        if (!state.startTime) state.startTime = new Date().toISOString();
-        const itemKey = action.dataset.itemKey;
-        const item = getPackingItem(state, itemKey);
-        if (!item) return;
-        const remaining = Math.max(0, item.quantity - item.packed);
-        if (remaining > 0) {
-          allocatePackedToBox(state, item.key, remaining);
-          item.packed = item.quantity;
-        }
-        if (isPackingComplete(state)) {
-          finalizePacking(state);
-        } else {
-          savePackingState();
-        }
-        renderDispatchBoard(dispatchOrdersLatest);
-        return;
-      }
-      if (actionType === "pack-qty") {
-        if (!orderNo) return;
-        const state = dispatchPackingState.get(orderNo);
-        if (!state) return;
-        if (!state.startTime) state.startTime = new Date().toISOString();
-        const itemKey = action.dataset.itemKey;
-        const item = getPackingItem(state, itemKey);
-        if (!item) return;
-        const row = action.closest(".dispatchPackingRow");
-        const input = row?.querySelector(".dispatchPackingQty");
-        const remaining = Math.max(0, item.quantity - item.packed);
-        const requested = input ? Number(input.value) : 0;
-        const qty = Math.max(0, Math.min(remaining, requested));
-        if (!qty) return;
-        allocatePackedToBox(state, item.key, qty);
-        item.packed += qty;
-        if (input) input.value = "";
-        if (isPackingComplete(state)) {
-          finalizePacking(state);
-        } else {
-          savePackingState();
-        }
-        renderDispatchBoard(dispatchOrdersLatest);
-        return;
-      }
-      if (actionType === "add-parcel") {
-        if (!orderNo) return;
-        const state = dispatchPackingState.get(orderNo);
-        if (!state) return;
-        if (!state.startTime) state.startTime = new Date().toISOString();
-        const card = action.closest(".dispatchCard");
-        const input = card?.querySelector(".dispatchParcelInput");
-        const code = input?.value?.trim();
-        if (!code) return;
-        state.parcels.push(code);
-        if (input) input.value = "";
-        logDispatchEvent(`Parcel sticker scanned for order ${orderNo}: ${code}.`);
-        savePackingState();
-        renderDispatchBoard(dispatchOrdersLatest);
-        return;
-      }
-      if (actionType === "add-box") {
-        if (!orderNo) return;
-        const state = dispatchPackingState.get(orderNo);
-        if (!state) return;
-        if (!state.startTime) state.startTime = new Date().toISOString();
-        if (!Array.isArray(state.boxes)) state.boxes = [];
-        const label = `BOX ${state.boxes.length + 1}`;
-        const box = { label, items: {} };
-        if (!state.boxes.length) {
-          box.items = snapshotPackedItems(state);
-        }
-        state.boxes.push(box);
-        state.activeBoxIndex = state.boxes.length - 1;
-        state.parcels.push(label);
-        logDispatchEvent(`Box added for order ${orderNo}: ${label}.`);
-        savePackingState();
-        renderDispatchBoard(dispatchOrdersLatest);
-        return;
-      }
-      if (actionType === "finish-packing") {
-        if (!orderNo) return;
-        const state = dispatchPackingState.get(orderNo);
-        if (!state) return;
-        if (!state.startTime) state.startTime = new Date().toISOString();
-        finalizePacking(state);
-        renderDispatchBoard(dispatchOrdersLatest);
-        return;
-      }
+  async function handleDispatchAction(action) {
+    const actionType = action.dataset.action;
+    const orderNo = action.dataset.orderNo;
+    if (!actionType) return false;
+    if (actionType === "close-modal") {
+      closeDispatchOrderModal();
+      return true;
     }
-
-    const noteBtn = e.target.closest(".dispatchNoteBtn");
-    if (noteBtn) {
-      const orderNo = noteBtn.dataset.orderNo;
+    if (actionType === "start-packing") {
+      if (!orderNo) return true;
+      const order = dispatchOrderCache.get(orderNo);
+      if (!order) return true;
+      const state = getPackingState(order);
+      if (!state) return true;
+      if (!state.startTime) {
+        state.startTime = new Date().toISOString();
+        logDispatchEvent(`Packing started for order ${orderNo}.`);
+      }
+      state.active = true;
+      savePackingState();
+      refreshDispatchViews(orderNo);
+      return true;
+    }
+    if (actionType === "pack-all") {
+      if (!orderNo) return true;
+      const state = dispatchPackingState.get(orderNo);
+      if (!state) return true;
+      if (!state.startTime) state.startTime = new Date().toISOString();
+      const itemKey = action.dataset.itemKey;
+      const item = getPackingItem(state, itemKey);
+      if (!item) return true;
+      const remaining = Math.max(0, item.quantity - item.packed);
+      if (remaining > 0) {
+        allocatePackedToBox(state, item.key, remaining);
+        item.packed = item.quantity;
+      }
+      if (isPackingComplete(state)) {
+        finalizePacking(state);
+      } else {
+        savePackingState();
+      }
+      refreshDispatchViews(orderNo);
+      return true;
+    }
+    if (actionType === "pack-qty") {
+      if (!orderNo) return true;
+      const state = dispatchPackingState.get(orderNo);
+      if (!state) return true;
+      if (!state.startTime) state.startTime = new Date().toISOString();
+      const itemKey = action.dataset.itemKey;
+      const item = getPackingItem(state, itemKey);
+      if (!item) return true;
+      const row = action.closest(".dispatchPackingRow");
+      const input = row?.querySelector(".dispatchPackingQty");
+      const remaining = Math.max(0, item.quantity - item.packed);
+      const requested = input ? Number(input.value) : 0;
+      const qty = Math.max(0, Math.min(remaining, requested));
+      if (!qty) return true;
+      allocatePackedToBox(state, item.key, qty);
+      item.packed += qty;
+      if (input) input.value = "";
+      if (isPackingComplete(state)) {
+        finalizePacking(state);
+      } else {
+        savePackingState();
+      }
+      refreshDispatchViews(orderNo);
+      return true;
+    }
+    if (actionType === "add-box") {
+      if (!orderNo) return true;
+      const state = dispatchPackingState.get(orderNo);
+      if (!state) return true;
+      if (!state.startTime) state.startTime = new Date().toISOString();
+      if (!Array.isArray(state.boxes)) state.boxes = [];
+      const label = `BOX ${state.boxes.length + 1}`;
+      const box = { label, items: {}, parcelCode: "" };
+      if (!state.boxes.length) {
+        box.items = snapshotPackedItems(state);
+      }
+      state.boxes.push(box);
+      state.activeBoxIndex = state.boxes.length - 1;
+      logDispatchEvent(`Box added for order ${orderNo}: ${label}.`);
+      savePackingState();
+      refreshDispatchViews(orderNo);
+      return true;
+    }
+    if (actionType === "finish-packing") {
+      if (!orderNo) return true;
+      const state = dispatchPackingState.get(orderNo);
+      if (!state) return true;
+      if (!state.startTime) state.startTime = new Date().toISOString();
+      finalizePacking(state);
+      refreshDispatchViews(orderNo);
+      return true;
+    }
+    if (actionType === "print-note") {
       const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
       if (!orderNo || !order) {
         statusExplain("Delivery note unavailable.", "warn");
         logDispatchEvent("Delivery note failed: order not found.");
-        return;
+        return true;
       }
       setDispatchProgress(4, `Printing note ${orderNo}`);
       logDispatchEvent(`Printing delivery note for order ${orderNo}.`);
@@ -2238,49 +2341,71 @@ async function handleScan(code) {
       if (!ok) {
         statusExplain("Pop-up blocked for delivery note.", "warn");
         logDispatchEvent("Delivery note blocked by popup settings.");
-        return;
+        return true;
       }
       statusExplain(`Delivery note printed for ${orderNo}.`, "ok");
-      return;
+      return true;
     }
-
-    const btn = e.target.closest(".dispatchBookBtn");
-    if (!btn) return;
-    const orderNo = btn.dataset.orderNo;
-    if (!orderNo) return;
-
-    if (isBooked(orderNo)) {
-      statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
-      return;
+    if (actionType === "book-now") {
+      if (!orderNo) return true;
+      if (isBooked(orderNo)) {
+        statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
+        return true;
+      }
+      const count = promptManualParcelCount(orderNo);
+      if (!count) {
+        statusExplain("Parcel count required (cancelled).", "warn");
+        return true;
+      }
+      await startOrder(orderNo);
+      orderDetails.manualParcelCount = count;
+      renderSessionUI();
+      await doBookingNow({ manual: true, parcelCount: count });
+      return true;
     }
-
-    const count = promptManualParcelCount(orderNo);
-    if (!count) {
-      statusExplain("Parcel count required (cancelled).", "warn");
-      return;
+    if (actionType === "notify-ready") {
+      await notifyPickupReady(orderNo);
+      return true;
     }
+    return false;
+  }
 
-    await startOrder(orderNo);
-    orderDetails.manualParcelCount = count;
-    renderSessionUI();
-    await doBookingNow({ manual: true, parcelCount: count });
+  dispatchBoard?.addEventListener("click", async (e) => {
+    const action = e.target.closest("[data-action]");
+    if (action) {
+      const handled = await handleDispatchAction(action);
+      if (handled) return;
+    }
+    const card = e.target.closest(".dispatchCard");
+    if (card && !e.target.closest("button") && !e.target.closest("input")) {
+      const orderNo = card.dataset.orderNo;
+      if (orderNo) openDispatchOrderModal(orderNo);
+    }
   });
 
-  dispatchBoard?.addEventListener("keydown", (e) => {
-    const input = e.target.closest(".dispatchParcelInput");
-    if (!input || e.key !== "Enter") return;
+  dispatchOrderModal?.addEventListener("click", async (e) => {
+    const action = e.target.closest("[data-action]");
+    if (action) {
+      await handleDispatchAction(action);
+    }
+  });
+
+  dispatchOrderModal?.addEventListener("change", (e) => {
+    const input = e.target.closest(".dispatchBoxParcelInput");
+    if (!input) return;
     const orderNo = input.dataset.orderNo;
-    if (!orderNo) return;
+    const boxIndex = Number(input.dataset.boxIndex);
+    if (!orderNo || !Number.isInteger(boxIndex)) return;
     const state = dispatchPackingState.get(orderNo);
-    if (!state) return;
-    if (!state.startTime) state.startTime = new Date().toISOString();
-    const code = input.value.trim();
-    if (!code) return;
-    state.parcels.push(code);
-    input.value = "";
-    logDispatchEvent(`Parcel sticker scanned for order ${orderNo}: ${code}.`);
+    if (!state || !Array.isArray(state.boxes) || !state.boxes[boxIndex]) return;
+    state.boxes[boxIndex].parcelCode = input.value.trim();
     savePackingState();
-    renderDispatchBoard(dispatchOrdersLatest);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeDispatchOrderModal();
+    }
   });
 
   loadBookedOrders();
