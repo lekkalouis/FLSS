@@ -22,7 +22,8 @@
       notes: "Louis 0730451885 / Michael 0783556277"
     },
     PP_ENDPOINT: "/pp",
-    SHOPIFY: { PROXY_BASE: "/shopify" }
+    SHOPIFY: { PROXY_BASE: "/shopify" },
+    PROGRESS_STEP_DELAY_MS: 450
   };
 
   const $ = (id) => document.getElementById(id);
@@ -55,6 +56,11 @@
   const dispatchProgressSteps = $("dispatchProgressSteps");
   const dispatchProgressLabel = $("dispatchProgressLabel");
   const dispatchLog = $("dispatchLog");
+  const scanProgressBar = $("scanProgressBar");
+  const scanProgressFill = $("scanProgressFill");
+  const scanProgressSteps = $("scanProgressSteps");
+  const scanProgressLabel = $("scanProgressLabel");
+  const scanDispatchLog = $("scanDispatchLog");
 
   const navScan = $("navScan");
   const navOps = $("navOps");
@@ -164,43 +170,71 @@
     }
   }
 
+  const dispatchProgressTargets = [
+    {
+      label: dispatchProgressLabel,
+      fill: dispatchProgressFill,
+      steps: dispatchProgressSteps,
+      bar: dispatchProgressBar
+    },
+    {
+      label: scanProgressLabel,
+      fill: scanProgressFill,
+      steps: scanProgressSteps,
+      bar: scanProgressBar
+    }
+  ];
+
   function initDispatchProgress() {
-    if (!dispatchProgressSteps) return;
-    dispatchProgressSteps.innerHTML = DISPATCH_STEPS.map(
-      (step) => `
-        <div class="dispatchProgressStep">
-          <span class="dispatchProgressDot"></span>
-          <span>${step}</span>
-        </div>
-      `
-    ).join("");
+    dispatchProgressTargets.forEach((target) => {
+      if (!target.steps) return;
+      target.steps.innerHTML = DISPATCH_STEPS.map(
+        (step) => `
+          <div class="dispatchProgressStep">
+            <span class="dispatchProgressDot"></span>
+            <span>${step}</span>
+          </div>
+        `
+      ).join("");
+    });
   }
 
   function setDispatchProgress(stepIndex, label = "In progress", options = {}) {
-    if (dispatchProgressLabel) dispatchProgressLabel.textContent = label;
-    if (dispatchProgressFill) {
-      const pct = Math.max(0, Math.min(1, stepIndex / (DISPATCH_STEPS.length - 1)));
-      dispatchProgressFill.style.width = `${pct * 100}%`;
-    }
-    if (dispatchProgressSteps) {
-      const nodes = dispatchProgressSteps.querySelectorAll(".dispatchProgressStep");
-      nodes.forEach((node, idx) => {
-        node.classList.toggle("is-active", idx === stepIndex);
-        node.classList.toggle("is-complete", idx < stepIndex);
-      });
-    }
-    if (dispatchProgressBar) {
-      dispatchProgressBar.classList.remove("is-pulse");
-      void dispatchProgressBar.offsetWidth;
-      dispatchProgressBar.classList.add("is-pulse");
-    }
+    dispatchProgressTargets.forEach((target) => {
+      if (target.label) target.label.textContent = label;
+      if (target.fill) {
+        const pct = Math.max(0, Math.min(1, stepIndex / (DISPATCH_STEPS.length - 1)));
+        target.fill.style.width = `${pct * 100}%`;
+      }
+      if (target.steps) {
+        const nodes = target.steps.querySelectorAll(".dispatchProgressStep");
+        nodes.forEach((node, idx) => {
+          node.classList.toggle("is-active", idx === stepIndex);
+          node.classList.toggle("is-complete", idx < stepIndex);
+        });
+      }
+      if (target.bar) {
+        target.bar.classList.remove("is-pulse");
+        void target.bar.offsetWidth;
+        target.bar.classList.add("is-pulse");
+      }
+    });
     if (!options.silent) {
       playDispatchTone(700 + stepIndex * 40, 0.12);
     }
   }
 
-  function logDispatchEvent(message) {
-    if (!dispatchLog) return;
+  function progressDelay() {
+    return new Promise((resolve) => setTimeout(resolve, CONFIG.PROGRESS_STEP_DELAY_MS));
+  }
+
+  async function stepDispatchProgress(stepIndex, label, options = {}) {
+    setDispatchProgress(stepIndex, label, options);
+    await progressDelay();
+  }
+
+  function appendDispatchLogEntry(logEl, message) {
+    if (!logEl) return;
     const entry = document.createElement("div");
     entry.className = "dispatchLogEntry";
     const ts = document.createElement("span");
@@ -208,7 +242,12 @@
     const msg = document.createElement("div");
     msg.textContent = message;
     entry.append(ts, msg);
-    dispatchLog.prepend(entry);
+    logEl.prepend(entry);
+  }
+
+  function logDispatchEvent(message) {
+    appendDispatchLogEntry(dispatchLog, message);
+    appendDispatchLogEntry(scanDispatchLog, message);
   }
 
   function formatDispatchTime(value) {
@@ -266,7 +305,11 @@
       startTime: existing?.startTime ?? null,
       endTime: existing?.endTime ?? null,
       parcels: existing?.parcels ?? [],
-      items
+      items,
+      boxes: normalizePackingBoxes(existing?.boxes),
+      activeBoxIndex: Number.isInteger(existing?.activeBoxIndex)
+        ? existing.activeBoxIndex
+        : null
     };
     dispatchPackingState.set(orderNo, state);
     return state;
@@ -275,6 +318,48 @@
   function getPackingItem(state, itemKey) {
     if (!state) return null;
     return state.items.find((item) => item.key === itemKey) || null;
+  }
+
+  function normalizePackingBoxes(boxes) {
+    if (!Array.isArray(boxes)) return [];
+    return boxes.map((box, index) => ({
+      label: String(box?.label || `BOX ${index + 1}`),
+      items: box?.items && typeof box.items === "object" ? { ...box.items } : {}
+    }));
+  }
+
+  function ensureActiveBox(state) {
+    if (!state) return null;
+    if (!Array.isArray(state.boxes)) state.boxes = [];
+    const activeIndex =
+      Number.isInteger(state.activeBoxIndex) &&
+      state.activeBoxIndex >= 0 &&
+      state.activeBoxIndex < state.boxes.length
+        ? state.activeBoxIndex
+        : null;
+    if (activeIndex == null) {
+      if (!state.boxes.length) {
+        state.boxes.push({ label: "BOX 1", items: {} });
+      }
+      state.activeBoxIndex = 0;
+    }
+    return state.boxes[state.activeBoxIndex];
+  }
+
+  function snapshotPackedItems(state) {
+    if (!state) return {};
+    return state.items.reduce((acc, item) => {
+      const packed = Number(item.packed) || 0;
+      if (packed > 0) acc[item.key] = packed;
+      return acc;
+    }, {});
+  }
+
+  function allocatePackedToBox(state, itemKey, qty) {
+    if (!state || !itemKey || !qty) return;
+    const box = ensureActiveBox(state);
+    if (!box) return;
+    box.items[itemKey] = (Number(box.items[itemKey]) || 0) + qty;
   }
 
   function loadPackingState() {
@@ -287,13 +372,19 @@
         if (!state || typeof state !== "object") return;
         const items = Array.isArray(state.items) ? state.items : [];
         const parcels = Array.isArray(state.parcels) ? state.parcels : [];
+        const boxes = normalizePackingBoxes(state.boxes);
+        const activeBoxIndex = Number.isInteger(state.activeBoxIndex)
+          ? state.activeBoxIndex
+          : null;
         dispatchPackingState.set(orderNo, {
           orderNo,
           active: Boolean(state.active),
           startTime: state.startTime || null,
           endTime: state.endTime || null,
           parcels,
-          items
+          items,
+          boxes,
+          activeBoxIndex
         });
       });
     } catch {}
@@ -308,7 +399,11 @@
           startTime: state.startTime || null,
           endTime: state.endTime || null,
           parcels: Array.isArray(state.parcels) ? state.parcels : [],
-          items: Array.isArray(state.items) ? state.items : []
+          items: Array.isArray(state.items) ? state.items : [],
+          boxes: normalizePackingBoxes(state.boxes),
+          activeBoxIndex: Number.isInteger(state.activeBoxIndex)
+            ? state.activeBoxIndex
+            : null
         };
       });
       localStorage.setItem("fl_packing_state_v1", JSON.stringify(payload));
@@ -1096,7 +1191,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
     armedForBooking = true;
     appendDebug("Booking order " + activeOrderNo + " parcels=" + parcelIndexes.join(", "));
-    setDispatchProgress(0, `Booking ${activeOrderNo}`);
+    await stepDispatchProgress(0, `Booking ${activeOrderNo}`);
     logDispatchEvent(`Booking started for order ${activeOrderNo}.`);
 
     const missing = [];
@@ -1118,7 +1213,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       return;
     }
 
-    setDispatchProgress(1, "Requesting quote");
+    await stepDispatchProgress(1, "Requesting quote");
     logDispatchEvent("Requesting SWE quote.");
     const quoteRes = await ppCall({ method: "requestQuote", classVal: "Quote", params: payload });
     if (!quoteRes || quoteRes.status !== 200) {
@@ -1156,7 +1251,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       quoteBox.textContent = `Selected: ${pickedService} • Est: ${fmt(quoteCost)}${quoteCost > CONFIG.COST_ALERT_THRESHOLD ? "  ⚠ high" : ""}\nOptions:\n${lines}`;
     }
 
-    setDispatchProgress(2, "Confirming service");
+    await stepDispatchProgress(2, "Confirming service");
     logDispatchEvent(`Updating service to ${pickedService}.`);
     await ppCall({
       method: "updateService",
@@ -1164,7 +1259,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       params: { quoteno, service: pickedService, reference: String(activeOrderNo) }
     });
 
-    setDispatchProgress(3, "Booking collection");
+    await stepDispatchProgress(3, "Booking collection");
     logDispatchEvent("Booking collection & requesting labels.");
     const collRes = await ppCall({
       method: "quoteToCollection",
@@ -1193,7 +1288,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
     if (labelsBase64) {
       usedPdf = true;
-      setDispatchProgress(4, "Printing labels");
+      await stepDispatchProgress(4, "Printing labels");
       logDispatchEvent("Printing labels via PrintNode.");
 
       try {
@@ -1208,7 +1303,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       }
 
       if (waybillBase64) {
-        setDispatchProgress(4, "Printing waybill");
+        await stepDispatchProgress(4, "Printing waybill");
         logDispatchEvent("Printing waybill via PrintNode.");
         try {
           await fetch("/printnode/print", {
@@ -1234,7 +1329,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       }
       if (printMount) printMount.innerHTML = "";
     } else {
-      setDispatchProgress(4, "Printing labels");
+      await stepDispatchProgress(4, "Printing labels");
       logDispatchEvent("Printing labels locally.");
       const labels = parcelIndexes.map((idx) => renderLabelHTML(waybillNo, pickedService, quoteCost, orderDetails, idx, expected));
       mountLabelToPreviewAndPrint(labels[0], labels.join("\n"));
@@ -1247,7 +1342,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     }
 
     statusExplain("Booked", "ok");
-    setDispatchProgress(5, "Booked");
+    await stepDispatchProgress(5, "Booked");
     logDispatchEvent(`Booking complete. Waybill ${waybillNo}.`);
     triggerBookedFlash();
     if (statusChip) statusChip.textContent = "Booked";
@@ -1566,9 +1661,15 @@ async function handleScan(code) {
             : [sizeLabel, abbreviation || baseTitle].filter(Boolean).join(" ");
           const itemKey = makePackingKey(li, li.__index);
           const packedItem = getPackingItem(packingState, itemKey);
-          const isComplete =
-            packedItem && packedItem.quantity > 0 && packedItem.packed >= packedItem.quantity;
-          return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""}">• ${li.quantity} × ${shortLabel}</span>`;
+          const packedCount = packedItem ? Number(packedItem.packed) || 0 : 0;
+          const totalCount = packedItem ? Number(packedItem.quantity) || 0 : Number(li.quantity) || 0;
+          const remaining = Math.max(0, totalCount - packedCount);
+          const isComplete = packedCount > 0 && remaining === 0;
+          const isPartial = packedCount > 0 && remaining > 0;
+          const remainderTag = isPartial
+            ? ` <span class="dispatchLineRemainder">(${remaining})</span>`
+            : "";
+          return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}">• ${li.quantity} × ${shortLabel}${remainderTag}</span>`;
         })
         .join("<br>");
       const addr1 = o.shipping_address1 || "";
@@ -1888,7 +1989,11 @@ async function handleScan(code) {
         const itemKey = action.dataset.itemKey;
         const item = getPackingItem(state, itemKey);
         if (!item) return;
-        item.packed = item.quantity;
+        const remaining = Math.max(0, item.quantity - item.packed);
+        if (remaining > 0) {
+          allocatePackedToBox(state, item.key, remaining);
+          item.packed = item.quantity;
+        }
         if (isPackingComplete(state)) {
           finalizePacking(state);
         } else {
@@ -1911,6 +2016,7 @@ async function handleScan(code) {
         const requested = input ? Number(input.value) : 0;
         const qty = Math.max(0, Math.min(remaining, requested));
         if (!qty) return;
+        allocatePackedToBox(state, item.key, qty);
         item.packed += qty;
         if (input) input.value = "";
         if (isPackingComplete(state)) {
@@ -1942,10 +2048,14 @@ async function handleScan(code) {
         const state = dispatchPackingState.get(orderNo);
         if (!state) return;
         if (!state.startTime) state.startTime = new Date().toISOString();
-        const boxCount = state.parcels.filter((code) =>
-          String(code).toUpperCase().startsWith("BOX")
-        ).length;
-        const label = `BOX ${boxCount + 1}`;
+        if (!Array.isArray(state.boxes)) state.boxes = [];
+        const label = `BOX ${state.boxes.length + 1}`;
+        const box = { label, items: {} };
+        if (!state.boxes.length) {
+          box.items = snapshotPackedItems(state);
+        }
+        state.boxes.push(box);
+        state.activeBoxIndex = state.boxes.length - 1;
         state.parcels.push(label);
         logDispatchEvent(`Box added for order ${orderNo}: ${label}.`);
         savePackingState();

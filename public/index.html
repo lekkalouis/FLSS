@@ -281,6 +281,10 @@
   background:linear-gradient(120deg, rgba(255,255,255,.96), rgba(224,231,255,.45));
   box-shadow:0 18px 40px rgba(15,23,42,.08);
 }
+.dispatchStatusPanel--compact{
+  padding:.65rem .8rem;
+  gap:.5rem;
+}
 .dispatchStatusHeader {
   display:flex;
   align-items:center;
@@ -341,6 +345,10 @@
   font-size:.7rem;
   color:#334155;
 }
+.dispatchStatusPanel--compact .dispatchProgressSteps{
+  grid-template-columns:repeat(auto-fit, minmax(90px, 1fr));
+  font-size:.62rem;
+}
 .dispatchProgressStep{
   display:flex;
   align-items:center;
@@ -387,6 +395,9 @@
   padding:.75rem 1rem;
   box-shadow:0 14px 32px rgba(15,23,42,.08);
 }
+.dispatchLogPanel--compact{
+  padding:.65rem .8rem;
+}
 .dispatchLogHeader{
   display:flex;
   align-items:center;
@@ -402,6 +413,9 @@
   font-size:.72rem;
   color:#1f2937;
   line-height:1.4;
+}
+.dispatchLogPanel--compact .dispatchLog{
+  max-height:140px;
 }
 .dispatchLogEntry{
   padding:.35rem .25rem;
@@ -503,6 +517,14 @@
   .dispatchLineItem.is-complete{
     text-decoration:line-through;
     color:#94a3b8;
+  }
+  .dispatchLineItem.is-partial{
+    text-decoration:line-through;
+    color:#94a3b8;
+  }
+  .dispatchLineRemainder{
+    font-weight:800;
+    color:#0f172a;
   }
 
   .dispatchCardActions{
@@ -924,7 +946,7 @@
   <!-- LEFT -->
   <section class="leftPane">
     <div class="headerRow">
-      <div class="line1">Flippen Lekka Scan Station <span class="badge" aria-live="polite">v0.3</span></div>
+      <div class="line1">Flippen Lekka Scan Station <span class="badge" aria-live="polite">v1.0</span></div>
       <div class="sessionInfo" aria-live="polite">
         <div>Order: <span id="uiOrderNo">--</span></div>
         <div>Session mode: <span id="uiSessionMode">Waiting</span></div>
@@ -998,6 +1020,24 @@
     <div class="sectionTitle" style="margin-top:.8rem">
     <button id="modeToggle" type="button">MODE: AUTO</button>
 
+    </div>
+    <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
+      <div class="dispatchStatusHeader">
+        <h3>Booking progress</h3>
+        <span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span>
+      </div>
+      <div class="dispatchProgressBar" id="scanProgressBar">
+        <div id="scanProgressFill" class="dispatchProgressFill"></div>
+        <div class="dispatchProgressSun" aria-hidden="true"></div>
+      </div>
+      <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
+    </div>
+    <div class="dispatchLogPanel dispatchLogPanel--compact">
+      <div class="dispatchLogHeader">
+        <span>Dispatch log</span>
+        <span class="dispatchStamp">Latest activity</span>
+      </div>
+      <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
     </div>
     <div class="parcelNumbersPanel" aria-live="polite">
       <div class="parcelNumbersHeader">
