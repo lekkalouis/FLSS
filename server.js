@@ -1173,9 +1173,10 @@ app.post("/shopify/fulfill", async (req, res) => {
     const fulfillment_order_id = fo.id;
 
     const fulfillUrl = `${base}/fulfillments.json`;
+    const trackingNote = trackingNumber ? ` Tracking: ${trackingNumber}` : "";
     const fulfillmentPayload = {
       fulfillment: {
-        message: "Shipped via Scan Station",
+        message: `Shipped via Scan Station.${trackingNote}`,
         notify_customer: true,
         tracking_info: {
           number: trackingNumber || "",

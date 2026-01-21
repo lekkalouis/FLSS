@@ -416,14 +416,15 @@
   pointer-events:none;
 }
 .dispatchProgressSteps{
-  display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));
+  display:flex;
+  flex-wrap:nowrap;
   gap:.35rem .6rem;
   font-size:.7rem;
   color:#334155;
+  overflow-x:auto;
+  scrollbar-width:thin;
 }
 .dispatchStatusPanel--compact .dispatchProgressSteps{
-  grid-template-columns:repeat(auto-fit, minmax(90px, 1fr));
   font-size:.62rem;
 }
 .dispatchProgressStep{
@@ -434,6 +435,8 @@
   border-radius:.5rem;
   border:1px solid var(--panel-strong);
   background:#fff;
+  flex:0 0 auto;
+  white-space:nowrap;
 }
 .dispatchProgressDot{
   width:.55rem;
