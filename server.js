@@ -161,6 +161,17 @@ function requireTruckEmailConfigured(res) {
   return true;
 }
 
+function requireCustomerEmailConfigured(res) {
+  if (!SMTP_HOST || !SMTP_FROM) {
+    res.status(501).json({
+      error: "EMAIL_NOT_CONFIGURED",
+      message: "Set SMTP_HOST and SMTP_FROM in .env to send customer emails."
+    });
+    return false;
+  }
+  return true;
+}
+
 let smtpTransport = null;
 function getSmtpTransport() {
   if (smtpTransport) return smtpTransport;
@@ -1070,6 +1081,13 @@ app.get("/shopify/orders/open", async (req, res) => {
         }
       }
 
+      const totalGrams = (o.line_items || []).reduce((sum, li) => {
+        const grams = Number(li.grams || 0);
+        const qty = Number(li.quantity || 1);
+        return sum + grams * qty;
+      }, 0);
+      const totalWeightKg = totalGrams / 1000;
+
 const companyName =
   (shipping.company && shipping.company.trim()) ||
   (customer?.default_address?.company && customer.default_address.company.trim());
@@ -1084,9 +1102,11 @@ const customer_name =
         id: o.id,
         name: o.name,
         customer_name,
+        email: o.email || customer.email || "",
         created_at: o.processed_at || o.created_at,
         fulfillment_status: o.fulfillment_status,
         tags: o.tags || "",
+        total_weight_kg: totalWeightKg,
         shipping_lines: (o.shipping_lines || []).map((line) => ({
           title: line.title || "",
           code: line.code || "",
@@ -1212,6 +1232,54 @@ app.post("/shopify/fulfill", async (req, res) => {
     return res.json({ ok: true, fulfillment: data });
   } catch (err) {
     console.error("Shopify fulfill error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+// ===== 2c.1) Notify customer for collection ready =====
+app.post("/shopify/notify-collection", async (req, res) => {
+  try {
+    if (!requireCustomerEmailConfigured(res)) return;
+    const {
+      orderNo,
+      email,
+      customerName,
+      parcelCount = 0,
+      weightKg = 0
+    } = req.body || {};
+
+    if (!email) {
+      return badRequest(res, "Missing customer email address");
+    }
+
+    const safeOrderNo = orderNo ? `#${String(orderNo).replace("#", "")}` : "your order";
+    const safeName = customerName || "there";
+    const weightLabel = Number(weightKg || 0).toFixed(2);
+    const parcelsLabel = Number(parcelCount || 0);
+    const subject = `Order ${safeOrderNo} ready for collection`;
+    const text = `Hi ${safeName},
+
+Your order ${safeOrderNo} is ready for collection by your courier.
+
+Order weight: ${weightLabel} kg
+Parcels packed: ${parcelsLabel}
+
+Thank you.`;
+
+    const transport = getSmtpTransport();
+    await transport.sendMail({
+      from: SMTP_FROM,
+      to: email,
+      subject,
+      text
+    });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Notify collection error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)
