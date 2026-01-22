@@ -138,6 +138,60 @@
     color:var(--text-muted);
     border:1px solid var(--panel-strong);
   }
+  .statusPill--auto{
+    background:rgba(37,99,235,.12);
+    border-color:rgba(37,99,235,.4);
+    color:#1d4ed8;
+  }
+  .statusPill--manual{
+    background:rgba(245,158,11,.15);
+    border-color:rgba(245,158,11,.45);
+    color:#92400e;
+  }
+  .sideBySide{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    gap:16px;
+  }
+  .processColumn{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .columnHeader{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    padding:12px 14px;
+    border-radius:12px;
+    border:1px solid var(--panel-strong);
+    background:var(--panel-muted);
+  }
+  .columnHeader h3{
+    margin:0 0 4px;
+    font-size:.95rem;
+  }
+  .columnHeader p{
+    margin:0;
+    font-size:.8rem;
+    color:var(--text-muted);
+  }
+  .stepsListManual .stepItem{
+    background:rgba(245,158,11,.08);
+  }
+  .stepsListManual .stepItemDone{
+    background:rgba(245,158,11,.18);
+    border-color:rgba(245,158,11,.45);
+  }
+  .stepsListManual .checkMark{
+    border-color:rgba(245,158,11,.4);
+  }
+  .stepsListManual .stepItemDone .checkMark{
+    background:var(--warn);
+    border-color:var(--warn);
+    box-shadow:0 8px 16px rgba(245,158,11,.2);
+  }
   .stepsList{
     list-style:none;
     padding:0;
@@ -343,10 +397,31 @@
     <main class="simMain">
       <section class="panel">
         <div class="panelHeader">
-          <h2>Automation checklist</h2>
+          <h2>Process actions</h2>
           <span class="statusPill" id="orderStatus">Order 1 of 24</span>
         </div>
-        <ol class="stepsList" id="stepsList"></ol>
+        <div class="sideBySide">
+          <div class="processColumn">
+            <div class="columnHeader">
+              <div>
+                <h3>Automated flow</h3>
+                <p>System-driven actions completed instantly once triggered.</p>
+              </div>
+              <span class="statusPill statusPill--auto">Auto</span>
+            </div>
+            <ol class="stepsList" id="stepsList"></ol>
+          </div>
+          <div class="processColumn">
+            <div class="columnHeader">
+              <div>
+                <h3>Manual flow</h3>
+                <p>Actions that would have required operator time.</p>
+              </div>
+              <span class="statusPill statusPill--manual">Manual</span>
+            </div>
+            <ol class="stepsList stepsListManual" id="manualStepsList"></ol>
+          </div>
+        </div>
         <div class="panel" style="margin-top:16px;">
           <div class="panelHeader">
             <h2>Output summary</h2>
@@ -354,12 +429,16 @@
           </div>
           <div class="metricsGrid">
             <div class="metricCard">
-              <div class="metricLabel">Total actions</div>
+              <div class="metricLabel">Auto actions</div>
               <div class="metricValue" id="totalActions">0</div>
             </div>
             <div class="metricCard">
-              <div class="metricLabel">Completed</div>
-              <div class="metricValue" id="completedActions">0</div>
+              <div class="metricLabel">Manual actions</div>
+              <div class="metricValue" id="manualActionsTotal">0</div>
+            </div>
+            <div class="metricCard">
+              <div class="metricLabel">Efficiency gain</div>
+              <div class="metricValue" id="efficiencyGain">0×</div>
             </div>
             <div class="metricCard">
               <div class="metricLabel">Actions / minute</div>
@@ -368,6 +447,10 @@
             <div class="metricCard">
               <div class="metricLabel">Avg per day</div>
               <div class="metricValue" id="actionsPerDay">0</div>
+            </div>
+            <div class="metricCard">
+              <div class="metricLabel">Manual minutes saved</div>
+              <div class="metricValue" id="manualMinutesSaved">0</div>
             </div>
           </div>
           <div class="progressWrap">

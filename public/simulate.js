@@ -14,6 +14,21 @@
     { id: "notifyShip", label: "Notify customer", detail: "Shipment update sent", visual: "Customer updated" }
   ];
 
+  const manualSteps = [
+    { id: "manual-order", label: "Review incoming order", detail: "Operator checks order details" },
+    { id: "manual-invoice", label: "Manually create invoice", detail: "Generate invoice and email" },
+    { id: "manual-notify", label: "Customer confirmation", detail: "Send order confirmation" },
+    { id: "manual-stickers", label: "Prepare parcel stickers", detail: "Print & attach stickers" },
+    { id: "manual-packing", label: "Prepare packing slip", detail: "Print & insert packing slip" },
+    { id: "manual-scan", label: "Scan parcels", detail: "Hand-scan each parcel" },
+    { id: "manual-ship", label: "Book shipment", detail: "Book courier shipment" },
+    { id: "manual-writeback", label: "Update Shopify", detail: "Enter tracking details" },
+    { id: "manual-labels", label: "Print shipping labels", detail: "Manual label printing" },
+    { id: "manual-notify-ship", label: "Send shipment update", detail: "Notify customer shipment" }
+  ];
+
+  const MANUAL_MINUTES_PER_ACTION = 2.5;
+
   const visuals = [
     { id: "Order received", icon: "🧾", desc: "Order event hits the system" },
     { id: "Invoice printed", icon: "🖨️", desc: "Invoice and documents" },
@@ -29,13 +44,17 @@
 
   const $ = (id) => document.getElementById(id);
   const stepsList = $("stepsList");
+  const manualStepsList = $("manualStepsList");
   const visualTimeline = $("visualTimeline");
   const orderStatus = $("orderStatus");
   const visualStatus = $("visualStatus");
   const totalActionsEl = $("totalActions");
+  const manualActionsTotalEl = $("manualActionsTotal");
+  const efficiencyGainEl = $("efficiencyGain");
   const completedActionsEl = $("completedActions");
   const actionsPerMinuteEl = $("actionsPerMinute");
   const actionsPerDayEl = $("actionsPerDay");
+  const manualMinutesSavedEl = $("manualMinutesSaved");
   const progressFill = $("progressFill");
   const runtimeStatus = $("runtimeStatus");
   const estimateNote = $("estimateNote");
@@ -114,6 +133,14 @@
     });
   };
 
+  const renderManualSteps = () => {
+    if (!manualStepsList) return;
+    manualStepsList.innerHTML = "";
+    manualSteps.forEach((step) => {
+      manualStepsList.append(createStepItem(step));
+    });
+  };
+
   const renderVisuals = () => {
     visualTimeline.innerHTML = "";
     visuals.forEach((node) => {
@@ -132,7 +159,11 @@
     state.orderTotal = orderTotal;
 
     const totalActions = orderTotal * steps.length;
+    const manualActions = orderTotal * manualSteps.length;
     totalActionsEl.textContent = totalActions.toLocaleString();
+    if (manualActionsTotalEl) {
+      manualActionsTotalEl.textContent = manualActions.toLocaleString();
+    }
     actionsPerDayEl.textContent = dayTotal
       ? Math.round(totalActions / dayTotal).toLocaleString()
       : "0";
@@ -142,11 +173,35 @@
 
     const estimatedMs = totalActions * finalDelay;
     const estSec = Math.round(estimatedMs / 1000);
-    estimateNote.textContent = `Estimated runtime: ${estSec}s @ ${finalDelay.toFixed(0)}ms per action.`;
+    const manualMinutes = manualActions * MANUAL_MINUTES_PER_ACTION;
+    if (manualMinutesSavedEl) {
+      manualMinutesSavedEl.textContent = `${Math.round(manualMinutes).toLocaleString()} min`;
+    }
+    if (efficiencyGainEl) {
+      const autoMinutes = totalActions * (finalDelay / 1000 / 60);
+      const gain = autoMinutes > 0 ? (manualMinutes / autoMinutes).toFixed(1) : "0";
+      efficiencyGainEl.textContent = `${gain}×`;
+    }
+    estimateNote.textContent = `Estimated runtime: ${estSec}s @ ${finalDelay.toFixed(0)}ms per action. Manual effort ≈ ${Math.round(manualMinutes)} min.`;
   };
 
   const setStepState = (index, stateName) => {
     const items = stepsList.querySelectorAll(".stepItem");
+    items.forEach((item, i) => {
+      item.classList.toggle("stepItemActive", i === index && stateName === "active");
+      if (stateName === "reset") {
+        item.classList.remove("stepItemDone", "stepItemActive");
+      }
+    });
+    if (stateName === "done") {
+      items[index]?.classList.add("stepItemDone");
+      items[index]?.classList.remove("stepItemActive");
+    }
+  };
+
+  const setManualStepState = (index, stateName) => {
+    if (!manualStepsList) return;
+    const items = manualStepsList.querySelectorAll(".stepItem");
     items.forEach((item, i) => {
       item.classList.toggle("stepItemActive", i === index && stateName === "active");
       if (stateName === "reset") {
@@ -195,6 +250,11 @@
     stepsList.querySelectorAll(".stepItem").forEach((item) => {
       item.classList.remove("stepItemDone", "stepItemActive");
     });
+    if (manualStepsList) {
+      manualStepsList.querySelectorAll(".stepItem").forEach((item) => {
+        item.classList.remove("stepItemDone", "stepItemActive");
+      });
+    }
     orderLog.innerHTML = "";
     renderVisuals();
   };
@@ -234,16 +294,23 @@
       stepsList.querySelectorAll(".stepItem").forEach((item) => {
         item.classList.remove("stepItemDone", "stepItemActive");
       });
+      if (manualStepsList) {
+        manualStepsList.querySelectorAll(".stepItem").forEach((item) => {
+          item.classList.remove("stepItemDone", "stepItemActive");
+        });
+      }
 
       for (let stepIndex = 0; stepIndex < steps.length; stepIndex += 1) {
         if (!state.running) break;
         const step = steps[stepIndex];
         setStepState(stepIndex, "active");
+        setManualStepState(stepIndex, "active");
         updateVisual(step.visual);
         await waitWithPause(state.stepDelay);
         if (!state.running) break;
 
         setStepState(stepIndex, "done");
+        setManualStepState(stepIndex, "done");
         state.completed += 1;
         completedActionsEl.textContent = state.completed.toLocaleString();
         setProgress(state.completed, totalActions);
@@ -292,6 +359,7 @@
   });
 
   renderSteps();
+  renderManualSteps();
   renderVisuals();
   updateMetrics();
   resetSimulation();
