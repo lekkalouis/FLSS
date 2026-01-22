@@ -38,16 +38,73 @@
   @media (max-width:800px){
     .flApp{ padding:1rem; gap:1rem; }
   }
-  .flNav{
+  .flLayout{
+    display:flex;
+    align-items:stretch;
+    gap:1rem;
+    flex:1;
+    min-height:calc(100dvh - 2rem);
+  }
+  @media (max-width:900px){
+    .flLayout{ flex-direction:column; }
+  }
+  .flSide{
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    box-shadow:0 10px 28px rgba(15,23,42,.08);
+    border-radius:var(--radius-md);
+    padding:.85rem .75rem;
+    display:flex;
+    flex-direction:column;
+    gap:1rem;
+    min-width:220px;
+    max-width:260px;
+  }
+  .flSideHeader{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    gap:1.25rem;
-    padding:.85rem 1.5rem;
-    border-radius:var(--radius-md);
-    background:#fff;
+    gap:.75rem;
+  }
+  .flHamburger{
+    width:36px;
+    height:36px;
+    border-radius:.5rem;
     border:1px solid var(--panel-strong);
-    box-shadow:0 6px 20px rgba(15,23,42,.08);
+    background:#fff;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:border-color .2s ease, box-shadow .2s ease;
+  }
+  .flHamburger:hover{
+    border-color:rgba(37,99,235,.5);
+    box-shadow:0 6px 16px rgba(37,99,235,.18);
+  }
+  .flHamburgerLines{
+    position:relative;
+    width:16px;
+    height:12px;
+  }
+  .flHamburgerLines::before,
+  .flHamburgerLines::after,
+  .flHamburgerLines span{
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    height:2px;
+    border-radius:999px;
+    background:var(--text);
+  }
+  .flHamburgerLines::before{ top:0; }
+  .flHamburgerLines span{ top:5px; }
+  .flHamburgerLines::after{ bottom:0; }
+  .flNav{
+    display:flex;
+    flex-direction:column;
+    gap:1rem;
   }
   .flNavTitle{
     font-weight:700;
@@ -57,9 +114,8 @@
   }
   .flNavGroup{
     display:flex;
-    align-items:center;
+    flex-direction:column;
     gap:.65rem;
-    flex-wrap:wrap;
   }
   .flNavBtn{
     border:1px solid var(--panel-strong);
@@ -74,6 +130,9 @@
     text-decoration:none;
     display:inline-flex;
     align-items:center;
+    width:100%;
+    justify-content:flex-start;
+    gap:.5rem;
   }
   .flNavBtn:hover{
     border-color:rgba(37,99,235,.5);
@@ -90,6 +149,47 @@
     align-items:center;
     gap:.6rem;
     flex-wrap:wrap;
+  }
+  .flMain{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:1rem;
+  }
+  body.flNavCollapsed .flSide{
+    min-width:64px;
+    max-width:64px;
+    padding:.85rem .5rem;
+  }
+  body.flNavCollapsed .flNavTitle,
+  body.flNavCollapsed .flNavBtnText,
+  body.flNavCollapsed .flNavStatus{
+    display:none;
+  }
+  body.flNavCollapsed .flNavBtn{
+    justify-content:center;
+    padding:.5rem;
+  }
+  body.flNavCollapsed .flNavGroup{
+    align-items:center;
+  }
+  @media (max-width:900px){
+    body.flNavCollapsed .flSide{
+      max-width:none;
+      min-width:0;
+    }
+    body.flNavCollapsed .flNavTitle,
+    body.flNavCollapsed .flNavBtnText,
+    body.flNavCollapsed .flNavStatus{
+      display:flex;
+    }
+    body.flNavCollapsed .flNavBtn{
+      justify-content:flex-start;
+      padding:.45rem .85rem;
+    }
+    body.flNavCollapsed .flNavGroup{
+      align-items:stretch;
+    }
   }
   .actionFlash{
     font-size:.72rem;
@@ -1286,32 +1386,41 @@
 </head>
  <body>
   <div class="flApp">
-    <nav class="flNav" aria-label="Primary">
-      <div class="flNavTitle">Flippen Lekka Operations</div>
-      <div class="flNavGroup" role="tablist" aria-label="Primary views">
-        <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true">Dashboard</button>
-        <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false">Scan Station</button>
-        <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false">Dispatch Board</button>
-        <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false">Documentation</button>
-        <a class="flNavBtn" href="/flocs">Order capture (FLOCS)</a>
-        <a class="flNavBtn" href="/stock.html">Stock take</a>
-      </div>
-      <div class="flNavStatus">
-        <span id="statusChip" class="statusChip">Ready to scan orders…</span>
-        <span id="actionFlash" class="actionFlash">Ready to scan orders…</span>
-      </div>
-    </nav>
-    <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite">
-      <span class="statusBarLabel">Connections</span>
-      <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
-    </div>
+    <div class="flLayout">
+      <aside class="flSide">
+        <div class="flSideHeader">
+          <div class="flNavTitle">Flippen Lekka Operations</div>
+          <button id="navToggle" class="flHamburger" type="button" aria-label="Toggle navigation" aria-expanded="true">
+            <span class="flHamburgerLines"><span></span></span>
+          </button>
+        </div>
+        <nav class="flNav" aria-label="Primary">
+          <div class="flNavGroup" role="tablist" aria-label="Primary views">
+            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true"><span class="flNavBtnText">Dashboard</span></button>
+            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false"><span class="flNavBtnText">Scan Station</span></button>
+            <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false"><span class="flNavBtnText">Dispatch Board</span></button>
+            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false"><span class="flNavBtnText">Documentation</span></button>
+            <a class="flNavBtn" href="/flocs"><span class="flNavBtnText">Order capture (FLOCS)</span></a>
+            <a class="flNavBtn" href="/stock.html"><span class="flNavBtnText">Stock take</span></a>
+          </div>
+          <div class="flNavStatus">
+            <span id="statusChip" class="statusChip">Ready to scan orders…</span>
+            <span id="actionFlash" class="actionFlash">Ready to scan orders…</span>
+          </div>
+        </nav>
+      </aside>
+      <main class="flMain">
+        <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite">
+          <span class="statusBarLabel">Connections</span>
+          <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
+        </div>
 
-    <div class="flView flView--active" id="viewDashboard">
-      <div class="dashboardShell">
-        <div class="dashboardHeader">
-          <div>
-            <h1>Operations Dashboard</h1>
-            <p>Launch an app module below. Add new modules in <strong>public/app.js</strong> when you build more tools.</p>
+        <div class="flView flView--active" id="viewDashboard">
+        <div class="dashboardShell">
+          <div class="dashboardHeader">
+            <div>
+              <h1>Operations Dashboard</h1>
+              <p>Launch an app module below. Add new modules in <strong>public/app.js</strong> when you build more tools.</p>
           </div>
           <span class="pill">Modular launcher</span>
         </div>
@@ -1319,7 +1428,7 @@
       </div>
     </div>
 
-    <div class="flView" id="viewScan" hidden>
+        <div class="flView" id="viewScan" hidden>
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
       <div class="scanTopBar">
         <div class="scanBox scanBox--centered">
@@ -1441,7 +1550,7 @@
 </div>
     </div>
 
-    <div class="flView" id="viewOps" hidden>
+        <div class="flView" id="viewOps" hidden>
       <div id="dispatchBoardContainer">
         <div class="dispatchStatusPanel" aria-live="polite">
           <div class="dispatchStatusHeader">
@@ -1486,7 +1595,7 @@
       </div>
     </div>
 
-    <div class="flView" id="viewDocs" hidden>
+        <div class="flView" id="viewDocs" hidden>
       <div class="docsShell">
         <div class="pill">Operator Guide</div>
         <h2>Scan Station Overview</h2>
@@ -1545,6 +1654,8 @@
           </div>
         </div>
       </div>
+    </div>
+      </main>
     </div>
   </div>
 
