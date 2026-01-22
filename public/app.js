@@ -78,6 +78,7 @@
   const navScan = $("navScan");
   const navOps = $("navOps");
   const navDocs = $("navDocs");
+  const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
@@ -2570,6 +2571,25 @@ async function startOrder(orderNo) {
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
+  }
+
+  const NAV_COLLAPSE_KEY = "fl_nav_collapsed";
+
+  function setNavCollapsed(collapsed) {
+    document.body.classList.toggle("flNavCollapsed", collapsed);
+    navToggle?.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+
+  if (navToggle) {
+    const stored = localStorage.getItem(NAV_COLLAPSE_KEY);
+    if (stored === "true") {
+      setNavCollapsed(true);
+    }
+    navToggle.addEventListener("click", () => {
+      const next = !document.body.classList.contains("flNavCollapsed");
+      setNavCollapsed(next);
+      localStorage.setItem(NAV_COLLAPSE_KEY, String(next));
+    });
   }
 
   scanInput?.addEventListener("keydown", async (e) => {
