@@ -2,50 +2,194 @@
   "use strict";
 
   const steps = [
-    { id: "order", label: "Order arrives in Shopify", detail: "Order event detected", visual: "Order received" },
-    { id: "invoice", label: "Send invoice", detail: "Invoice emailed automatically", visual: "Invoice printed" },
-    { id: "notify", label: "Notify customer", detail: "Order confirmation sent", visual: "Customer notified" },
-    { id: "stickers", label: "Print parcel stickers", detail: "Parcel stickers queued", visual: "Parcel stickers" },
-    { id: "packing", label: "Print packing slip", detail: "Packing slip printed", visual: "Packing slip" },
-    { id: "scan", label: "Scan parcels", detail: "Scanner updates parcel count", visual: "Parcels scanned" },
-    { id: "ship", label: "Create shipment", detail: "Courier shipment created", visual: "Shipment created" },
-    { id: "shopify", label: "Write back to Shopify", detail: "Tracking synced", visual: "Shopify synced" },
-    { id: "labels", label: "Print courier labels", detail: "Labels printed", visual: "Labels printed" },
-    { id: "notifyShip", label: "Notify customer", detail: "Shipment update sent", visual: "Customer updated" }
-  ];
-
-  const manualSteps = [
-    { id: "manual-order", label: "Review incoming order", detail: "Operator checks order details" },
-    { id: "manual-invoice", label: "Manually create invoice", detail: "Generate invoice and email" },
-    { id: "manual-notify", label: "Customer confirmation", detail: "Send order confirmation" },
-    { id: "manual-stickers", label: "Prepare parcel stickers", detail: "Print & attach stickers" },
-    { id: "manual-packing", label: "Prepare packing slip", detail: "Print & insert packing slip" },
-    { id: "manual-scan", label: "Scan parcels", detail: "Hand-scan each parcel" },
-    { id: "manual-ship", label: "Book shipment", detail: "Book courier shipment" },
-    { id: "manual-writeback", label: "Update Shopify", detail: "Enter tracking details" },
-    { id: "manual-labels", label: "Print shipping labels", detail: "Manual label printing" },
-    { id: "manual-notify-ship", label: "Send shipment update", detail: "Notify customer shipment" }
+    {
+      id: "order",
+      icon: "🧾",
+      label: "Order arrives in Shopify",
+      detail: "Order event detected & validated",
+      systems: ["Shopify", "Automation Engine"],
+      knowledge: ["Order validation", "Shopify admin"],
+      autoActions: [
+        "Listen for new order event",
+        "Validate order data",
+        "Classify fulfillment path",
+        "Create internal job ticket"
+      ],
+      manualActions: [
+        "Open order dashboard",
+        "Verify customer details",
+        "Check inventory availability",
+        "Create job ticket"
+      ]
+    },
+    {
+      id: "invoice",
+      icon: "🖨️",
+      label: "Send invoice",
+      detail: "Invoice generated & delivered",
+      systems: ["Accounting", "Email Service"],
+      knowledge: ["Invoicing", "Customer billing"],
+      autoActions: [
+        "Generate invoice PDF",
+        "Sync invoice to accounting",
+        "Queue invoice email"
+      ],
+      manualActions: [
+        "Create invoice in accounting",
+        "Export invoice PDF",
+        "Email invoice to customer"
+      ]
+    },
+    {
+      id: "notify",
+      icon: "📧",
+      label: "Notify customer",
+      detail: "Confirmation sent with ETA",
+      systems: ["Email Service", "CRM"],
+      knowledge: ["Customer communication"],
+      autoActions: [
+        "Compose confirmation template",
+        "Personalize with order data",
+        "Send confirmation email"
+      ],
+      manualActions: [
+        "Draft confirmation email",
+        "Copy order details",
+        "Send confirmation to customer"
+      ]
+    },
+    {
+      id: "stickers",
+      icon: "🏷️",
+      label: "Print parcel stickers",
+      detail: "Stickers queued & printed",
+      systems: ["Print Service", "Warehouse"],
+      knowledge: ["Packing standards"],
+      autoActions: [
+        "Generate parcel identifiers",
+        "Create sticker print jobs",
+        "Route jobs to printer"
+      ],
+      manualActions: [
+        "Create parcel identifiers",
+        "Print stickers",
+        "Match stickers to parcels"
+      ]
+    },
+    {
+      id: "packing",
+      icon: "📄",
+      label: "Print packing slip",
+      detail: "Packing slip attached to order",
+      systems: ["Print Service", "Warehouse"],
+      knowledge: ["Pick/pack workflow"],
+      autoActions: [
+        "Generate packing slip",
+        "Print packing slip",
+        "Attach slip to workflow"
+      ],
+      manualActions: [
+        "Generate packing slip",
+        "Print packing slip",
+        "Attach slip to order"
+      ]
+    },
+    {
+      id: "scan",
+      icon: "📦",
+      label: "Scan parcels",
+      detail: "Parcel scans recorded",
+      systems: ["Scanner", "Warehouse"],
+      knowledge: ["Scanning workflow"],
+      autoActions: [
+        "Wait for scan input",
+        "Validate parcel count",
+        "Sync scan confirmation"
+      ],
+      manualActions: [
+        "Scan each parcel",
+        "Confirm parcel count",
+        "Record scan confirmation"
+      ]
+    },
+    {
+      id: "ship",
+      icon: "🚚",
+      label: "Create shipment",
+      detail: "Courier shipment created",
+      systems: ["Courier API", "Shipping Desk"],
+      knowledge: ["Carrier booking"],
+      autoActions: [
+        "Select shipping service",
+        "Create courier booking",
+        "Receive tracking number"
+      ],
+      manualActions: [
+        "Choose courier service",
+        "Book shipment",
+        "Copy tracking number"
+      ]
+    },
+    {
+      id: "shopify",
+      icon: "🔄",
+      label: "Write back to Shopify",
+      detail: "Tracking synced to order",
+      systems: ["Shopify", "Automation Engine"],
+      knowledge: ["Order fulfillment"],
+      autoActions: [
+        "Update fulfillment status",
+        "Attach tracking details",
+        "Confirm sync status"
+      ],
+      manualActions: [
+        "Open order in Shopify",
+        "Paste tracking details",
+        "Mark order fulfilled"
+      ]
+    },
+    {
+      id: "labels",
+      icon: "🧷",
+      label: "Print courier labels",
+      detail: "Shipping labels printed",
+      systems: ["Print Service", "Courier Portal"],
+      knowledge: ["Label printing"],
+      autoActions: [
+        "Generate shipping labels",
+        "Queue print job",
+        "Confirm label output"
+      ],
+      manualActions: [
+        "Download courier labels",
+        "Print labels",
+        "Verify label quality"
+      ]
+    },
+    {
+      id: "notifyShip",
+      icon: "✅",
+      label: "Notify customer",
+      detail: "Shipment update sent",
+      systems: ["Email Service", "CRM"],
+      knowledge: ["Customer updates"],
+      autoActions: [
+        "Compose shipment notification",
+        "Insert tracking link",
+        "Send shipment update"
+      ],
+      manualActions: [
+        "Draft shipment update",
+        "Insert tracking link",
+        "Email customer"
+      ]
+    }
   ];
 
   const MANUAL_MINUTES_PER_ACTION = 2.5;
 
-  const visuals = [
-    { id: "Order received", icon: "🧾", desc: "Order event hits the system" },
-    { id: "Invoice printed", icon: "🖨️", desc: "Invoice and documents" },
-    { id: "Customer notified", icon: "📧", desc: "Confirmation sent" },
-    { id: "Parcel stickers", icon: "🏷️", desc: "Parcel stickers generated" },
-    { id: "Packing slip", icon: "📄", desc: "Packing slip printed" },
-    { id: "Parcels scanned", icon: "📦", desc: "Parcel scans in station" },
-    { id: "Shipment created", icon: "🚚", desc: "Courier job booked" },
-    { id: "Shopify synced", icon: "🔄", desc: "Tracking pushed" },
-    { id: "Labels printed", icon: "🧷", desc: "Shipping labels printed" },
-    { id: "Customer updated", icon: "✅", desc: "Customer notified" }
-  ];
-
   const $ = (id) => document.getElementById(id);
   const stepsList = $("stepsList");
-  const manualStepsList = $("manualStepsList");
-  const visualTimeline = $("visualTimeline");
   const orderStatus = $("orderStatus");
   const visualStatus = $("visualStatus");
   const totalActionsEl = $("totalActions");
@@ -55,15 +199,20 @@
   const actionsPerMinuteEl = $("actionsPerMinute");
   const actionsPerDayEl = $("actionsPerDay");
   const manualMinutesSavedEl = $("manualMinutesSaved");
+  const systemsCountEl = $("systemsCount");
+  const knowledgeCountEl = $("knowledgeCount");
   const progressFill = $("progressFill");
   const runtimeStatus = $("runtimeStatus");
   const estimateNote = $("estimateNote");
   const orderLog = $("orderLog");
+  const systemsChips = $("systemsChips");
+  const knowledgeChips = $("knowledgeChips");
 
   const orderCountInput = $("orderCount");
   const dayCountInput = $("dayCount");
   const stepDelayInput = $("stepDelay");
   const speedFactorSelect = $("speedFactor");
+  const errorRateInput = $("errorRate");
   const startBtn = $("startBtn");
   const pauseBtn = $("pauseBtn");
   const resetBtn = $("resetBtn");
@@ -78,73 +227,125 @@
     timerStart: null
   };
 
-  const createStepItem = (step) => {
+  const createActionItem = (label, type, stepIndex, actionIndex) => {
+    const li = document.createElement("li");
+    li.className = "actionItem";
+    li.dataset.stepIndex = String(stepIndex);
+    li.dataset.actionIndex = String(actionIndex);
+    li.dataset.type = type;
+
+    const dot = document.createElement("span");
+    dot.className = "actionDot";
+    const text = document.createElement("span");
+    text.textContent = label;
+    li.append(dot, text);
+    return li;
+  };
+
+  const createStepItem = (step, stepIndex) => {
     const li = document.createElement("li");
     li.className = "stepItem";
     li.dataset.step = step.id;
 
-    const info = document.createElement("div");
+    const card = document.createElement("div");
+    card.className = "stepCard";
+
+    const icon = document.createElement("div");
+    icon.className = "stepIcon";
+    icon.textContent = step.icon;
+
+    const detailWrap = document.createElement("div");
+    detailWrap.className = "stepDetailGrid";
+
+    const heading = document.createElement("div");
     const label = document.createElement("div");
     label.className = "stepLabel";
     label.textContent = step.label;
     const meta = document.createElement("div");
     meta.className = "stepMeta";
     meta.textContent = step.detail;
-    info.append(label, meta);
+    heading.append(label, meta);
 
-    const check = document.createElement("span");
-    check.className = "checkMark";
-    check.textContent = "✓";
+    const columns = document.createElement("div");
+    columns.className = "stepColumns";
 
-    li.append(info, check);
+    const autoColumn = document.createElement("div");
+    autoColumn.className = "stepColumn";
+    const autoTitle = document.createElement("h4");
+    autoTitle.textContent = "Automated actions";
+    const autoList = document.createElement("ul");
+    autoList.className = "actionList";
+    step.autoActions.forEach((action, actionIndex) => {
+      autoList.append(createActionItem(action, "auto", stepIndex, actionIndex));
+    });
+    autoColumn.append(autoTitle, autoList);
+
+    const manualColumn = document.createElement("div");
+    manualColumn.className = "stepColumn";
+    const manualTitle = document.createElement("h4");
+    manualTitle.textContent = "Manual actions";
+    const manualList = document.createElement("ul");
+    manualList.className = "actionList";
+    step.manualActions.forEach((action, actionIndex) => {
+      manualList.append(createActionItem(action, "manual", stepIndex, actionIndex));
+    });
+    manualColumn.append(manualTitle, manualList);
+
+    columns.append(autoColumn, manualColumn);
+
+    const metaRow = document.createElement("div");
+    metaRow.className = "metaRow";
+    step.systems.forEach((system) => {
+      const chip = document.createElement("span");
+      chip.className = "metaChip";
+      chip.textContent = system;
+      metaRow.append(chip);
+    });
+    step.knowledge.forEach((topic) => {
+      const chip = document.createElement("span");
+      chip.className = "metaChip metaChip--warn";
+      chip.textContent = topic;
+      metaRow.append(chip);
+    });
+
+    const statusWrap = document.createElement("div");
+    statusWrap.className = "metaRow";
+    const statusChip = document.createElement("span");
+    statusChip.className = "metaChip metaChip--ok";
+    statusChip.dataset.statusChip = step.id;
+    statusChip.textContent = "Queued";
+    statusWrap.append(statusChip);
+
+    detailWrap.append(heading, columns, metaRow, statusWrap);
+    card.append(icon, detailWrap);
+    li.append(card);
     return li;
-  };
-
-  const createVisualNode = (node) => {
-    const wrap = document.createElement("div");
-    wrap.className = "visualNode";
-    wrap.dataset.visual = node.id;
-
-    const icon = document.createElement("div");
-    icon.className = "visualIcon";
-    icon.textContent = node.icon;
-
-    const textWrap = document.createElement("div");
-    const title = document.createElement("div");
-    title.className = "visualTitle";
-    title.textContent = node.id;
-    const desc = document.createElement("div");
-    desc.className = "visualSub";
-    desc.textContent = node.desc;
-    textWrap.append(title, desc);
-
-    const status = document.createElement("div");
-    status.className = "visualStatus";
-    status.textContent = "Queued";
-
-    wrap.append(icon, textWrap, status);
-    return wrap;
   };
 
   const renderSteps = () => {
     stepsList.innerHTML = "";
-    steps.forEach((step) => {
-      stepsList.append(createStepItem(step));
+    steps.forEach((step, index) => {
+      stepsList.append(createStepItem(step, index));
     });
   };
 
-  const renderManualSteps = () => {
-    if (!manualStepsList) return;
-    manualStepsList.innerHTML = "";
-    manualSteps.forEach((step) => {
-      manualStepsList.append(createStepItem(step));
+  const renderChips = () => {
+    if (!systemsChips || !knowledgeChips) return;
+    systemsChips.innerHTML = "";
+    knowledgeChips.innerHTML = "";
+    const systems = [...new Set(steps.flatMap((step) => step.systems))];
+    const knowledge = [...new Set(steps.flatMap((step) => step.knowledge))];
+    systems.forEach((system) => {
+      const chip = document.createElement("span");
+      chip.className = "metaChip";
+      chip.textContent = system;
+      systemsChips.append(chip);
     });
-  };
-
-  const renderVisuals = () => {
-    visualTimeline.innerHTML = "";
-    visuals.forEach((node) => {
-      visualTimeline.append(createVisualNode(node));
+    knowledge.forEach((topic) => {
+      const chip = document.createElement("span");
+      chip.className = "metaChip metaChip--warn";
+      chip.textContent = topic;
+      knowledgeChips.append(chip);
     });
   };
 
@@ -158,11 +359,19 @@
     state.stepDelay = finalDelay;
     state.orderTotal = orderTotal;
 
-    const totalActions = orderTotal * steps.length;
-    const manualActions = orderTotal * manualSteps.length;
+    const totalActions = orderTotal * steps.reduce((sum, step) => sum + step.autoActions.length, 0);
+    const manualActions = orderTotal * steps.reduce((sum, step) => sum + step.manualActions.length, 0);
+    const systemsCount = new Set(steps.flatMap((step) => step.systems)).size;
+    const knowledgeCount = new Set(steps.flatMap((step) => step.knowledge)).size;
     totalActionsEl.textContent = totalActions.toLocaleString();
     if (manualActionsTotalEl) {
       manualActionsTotalEl.textContent = manualActions.toLocaleString();
+    }
+    if (systemsCountEl) {
+      systemsCountEl.textContent = systemsCount.toLocaleString();
+    }
+    if (knowledgeCountEl) {
+      knowledgeCountEl.textContent = knowledgeCount.toLocaleString();
     }
     actionsPerDayEl.textContent = dayTotal
       ? Math.round(totalActions / dayTotal).toLocaleString()
@@ -197,39 +406,20 @@
       items[index]?.classList.add("stepItemDone");
       items[index]?.classList.remove("stepItemActive");
     }
-  };
-
-  const setManualStepState = (index, stateName) => {
-    if (!manualStepsList) return;
-    const items = manualStepsList.querySelectorAll(".stepItem");
-    items.forEach((item, i) => {
-      item.classList.toggle("stepItemActive", i === index && stateName === "active");
-      if (stateName === "reset") {
-        item.classList.remove("stepItemDone", "stepItemActive");
-      }
-    });
-    if (stateName === "done") {
-      items[index]?.classList.add("stepItemDone");
-      items[index]?.classList.remove("stepItemActive");
+    const statusChip = stepsList.querySelector(`[data-status-chip="${steps[index]?.id}"]`);
+    if (statusChip) {
+      if (stateName === "active") statusChip.textContent = "In progress";
+      if (stateName === "done") statusChip.textContent = "Complete";
+      if (stateName === "reset") statusChip.textContent = "Queued";
     }
   };
 
-  const updateVisual = (label) => {
-    const nodes = visualTimeline.querySelectorAll(".visualNode");
-    const activeIndex = visuals.findIndex((node) => node.id === label);
-    nodes.forEach((node, index) => {
-      const isActive = index === activeIndex;
-      node.classList.toggle("visualNodeActive", isActive);
-      const status = node.querySelector(".visualStatus");
-      if (!status) return;
-      if (index < activeIndex) {
-        status.textContent = "Complete";
-      } else if (isActive) {
-        status.textContent = "In progress";
-      } else {
-        status.textContent = "Queued";
-      }
-    });
+  const setActionState = (stepIndex, actionIndex, type, stateName) => {
+    const selector = `.actionItem[data-step-index="${stepIndex}"][data-action-index="${actionIndex}"][data-type="${type}"]`;
+    const item = stepsList.querySelector(selector);
+    if (!item) return;
+    item.classList.toggle("actionItem--done", stateName === "done");
+    item.classList.toggle("actionItem--error", stateName === "error");
   };
 
   const setProgress = (value, total) => {
@@ -250,13 +440,12 @@
     stepsList.querySelectorAll(".stepItem").forEach((item) => {
       item.classList.remove("stepItemDone", "stepItemActive");
     });
-    if (manualStepsList) {
-      manualStepsList.querySelectorAll(".stepItem").forEach((item) => {
-        item.classList.remove("stepItemDone", "stepItemActive");
-      });
-    }
+    stepsList.querySelectorAll(".actionItem").forEach((item) => {
+      item.classList.remove("actionItem--done", "actionItem--error");
+    });
+    steps.forEach((step, index) => setStepState(index, "reset"));
     orderLog.innerHTML = "";
-    renderVisuals();
+    renderChips();
   };
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -283,7 +472,7 @@
     state.timerStart = Date.now();
     runtimeStatus.textContent = "Running";
 
-    const totalActions = state.orderTotal * steps.length;
+    const totalActions = state.orderTotal * steps.reduce((sum, step) => sum + step.autoActions.length, 0);
     orderStatus.textContent = `Order 1 of ${state.orderTotal}`;
 
     for (let orderIndex = 1; orderIndex <= state.orderTotal; orderIndex += 1) {
@@ -294,32 +483,53 @@
       stepsList.querySelectorAll(".stepItem").forEach((item) => {
         item.classList.remove("stepItemDone", "stepItemActive");
       });
-      if (manualStepsList) {
-        manualStepsList.querySelectorAll(".stepItem").forEach((item) => {
-          item.classList.remove("stepItemDone", "stepItemActive");
-        });
-      }
+      stepsList.querySelectorAll(".actionItem").forEach((item) => {
+        item.classList.remove("actionItem--done", "actionItem--error");
+      });
+
+      let orderErrors = 0;
+      const errorRate = Math.max(0, Math.min(25, Number(errorRateInput.value || 0))) / 100;
 
       for (let stepIndex = 0; stepIndex < steps.length; stepIndex += 1) {
         if (!state.running) break;
         const step = steps[stepIndex];
         setStepState(stepIndex, "active");
-        setManualStepState(stepIndex, "active");
-        updateVisual(step.visual);
-        await waitWithPause(state.stepDelay);
-        if (!state.running) break;
+
+        for (let actionIndex = 0; actionIndex < step.autoActions.length; actionIndex += 1) {
+          if (!state.running) break;
+          const errorHit = Math.random() < errorRate;
+          setActionState(stepIndex, actionIndex, "auto", errorHit ? "error" : "done");
+          state.completed += 1;
+          if (errorHit) orderErrors += 1;
+          completedActionsEl.textContent = state.completed.toLocaleString();
+          setProgress(state.completed, totalActions);
+          const logItem = document.createElement("li");
+          const timestamp = new Date().toLocaleTimeString();
+          logItem.textContent = `Order ${orderIndex} • Auto: ${step.autoActions[actionIndex]} — ${errorHit ? "Error" : "OK"} (${timestamp})`;
+          orderLog.prepend(logItem);
+          await waitWithPause(state.stepDelay);
+        }
+
+        for (let actionIndex = 0; actionIndex < step.manualActions.length; actionIndex += 1) {
+          if (!state.running) break;
+          const errorHit = Math.random() < errorRate;
+          setActionState(stepIndex, actionIndex, "manual", errorHit ? "error" : "done");
+          if (errorHit) orderErrors += 1;
+          const logItem = document.createElement("li");
+          const timestamp = new Date().toLocaleTimeString();
+          logItem.textContent = `Order ${orderIndex} • Manual: ${step.manualActions[actionIndex]} — ${errorHit ? "Error" : "OK"} (${timestamp})`;
+          orderLog.prepend(logItem);
+          await waitWithPause(state.stepDelay * 0.6);
+        }
 
         setStepState(stepIndex, "done");
-        setManualStepState(stepIndex, "done");
-        state.completed += 1;
-        completedActionsEl.textContent = state.completed.toLocaleString();
-        setProgress(state.completed, totalActions);
       }
 
-      const logItem = document.createElement("li");
+      const integrityChip = document.createElement("li");
+      const integrityStatus = orderErrors ? "Review required" : "Pass";
       const timestamp = new Date().toLocaleTimeString();
-      logItem.textContent = `Order ${orderIndex} completed at ${timestamp}`;
-      orderLog.prepend(logItem);
+      integrityChip.textContent = `Order ${orderIndex} • Data integrity: ${integrityStatus} (${orderErrors} issues) • ${timestamp}`;
+      orderLog.prepend(integrityChip);
     }
 
     if (state.running) {
@@ -352,15 +562,14 @@
     resetSimulation();
   });
 
-  [orderCountInput, dayCountInput, stepDelayInput, speedFactorSelect].forEach((input) => {
+  [orderCountInput, dayCountInput, stepDelayInput, speedFactorSelect, errorRateInput].forEach((input) => {
     input.addEventListener("change", () => {
       updateMetrics();
     });
   });
 
   renderSteps();
-  renderManualSteps();
-  renderVisuals();
+  renderChips();
   updateMetrics();
   resetSimulation();
 })();

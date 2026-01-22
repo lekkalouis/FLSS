@@ -227,6 +227,93 @@
     font-size:.78rem;
     color:var(--text-muted);
   }
+  .stepCard{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:12px;
+    align-items:flex-start;
+  }
+  .stepIcon{
+    width:42px;
+    height:42px;
+    border-radius:12px;
+    border:1px solid var(--panel-strong);
+    background:#fff;
+    display:grid;
+    place-items:center;
+    font-size:1.1rem;
+  }
+  .stepDetailGrid{
+    display:grid;
+    gap:10px;
+  }
+  .stepColumns{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;
+  }
+  .stepColumn{
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    border-radius:10px;
+    padding:10px;
+  }
+  .stepColumn h4{
+    margin:0 0 6px;
+    font-size:.8rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--text-muted);
+  }
+  .actionList{
+    list-style:none;
+    padding:0;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    font-size:.85rem;
+  }
+  .actionItem{
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .actionDot{
+    width:8px;
+    height:8px;
+    border-radius:999px;
+    background:var(--panel-strong);
+  }
+  .actionItem--done .actionDot{
+    background:var(--success);
+  }
+  .actionItem--error .actionDot{
+    background:#ef4444;
+  }
+  .metaRow{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    font-size:.75rem;
+    color:var(--text-muted);
+  }
+  .metaChip{
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid var(--panel-strong);
+    background:#fff;
+  }
+  .metaChip--warn{
+    border-color:rgba(245,158,11,.45);
+    background:rgba(245,158,11,.1);
+    color:#92400e;
+  }
+  .metaChip--ok{
+    border-color:rgba(22,163,74,.45);
+    background:rgba(22,163,74,.1);
+    color:#166534;
+  }
   .checkMark{
     width:26px;
     height:26px;
@@ -384,6 +471,10 @@
           </select>
         </div>
         <div class="controlGroup">
+          <label for="errorRate">Error rate</label>
+          <input id="errorRate" type="number" min="0" max="25" value="3" />
+        </div>
+        <div class="controlGroup">
           <label>&nbsp;</label>
           <div class="controlActions">
             <button class="btn btnPrimary" id="startBtn">Start</button>
@@ -400,28 +491,7 @@
           <h2>Process actions</h2>
           <span class="statusPill" id="orderStatus">Order 1 of 24</span>
         </div>
-        <div class="sideBySide">
-          <div class="processColumn">
-            <div class="columnHeader">
-              <div>
-                <h3>Automated flow</h3>
-                <p>System-driven actions completed instantly once triggered.</p>
-              </div>
-              <span class="statusPill statusPill--auto">Auto</span>
-            </div>
-            <ol class="stepsList" id="stepsList"></ol>
-          </div>
-          <div class="processColumn">
-            <div class="columnHeader">
-              <div>
-                <h3>Manual flow</h3>
-                <p>Actions that would have required operator time.</p>
-              </div>
-              <span class="statusPill statusPill--manual">Manual</span>
-            </div>
-            <ol class="stepsList stepsListManual" id="manualStepsList"></ol>
-          </div>
-        </div>
+        <ol class="stepsList" id="stepsList"></ol>
         <div class="panel" style="margin-top:16px;">
           <div class="panelHeader">
             <h2>Output summary</h2>
@@ -441,6 +511,10 @@
               <div class="metricValue" id="efficiencyGain">0×</div>
             </div>
             <div class="metricCard">
+              <div class="metricLabel">Systems touched</div>
+              <div class="metricValue" id="systemsCount">0</div>
+            </div>
+            <div class="metricCard">
               <div class="metricLabel">Actions / minute</div>
               <div class="metricValue" id="actionsPerMinute">0</div>
             </div>
@@ -451,6 +525,10 @@
             <div class="metricCard">
               <div class="metricLabel">Manual minutes saved</div>
               <div class="metricValue" id="manualMinutesSaved">0</div>
+            </div>
+            <div class="metricCard">
+              <div class="metricLabel">Knowledge domains</div>
+              <div class="metricValue" id="knowledgeCount">0</div>
             </div>
           </div>
           <div class="progressWrap">
@@ -464,13 +542,17 @@
 
       <section class="panel visualPanel">
         <div class="panelHeader">
-          <h2>Process visualization</h2>
+          <h2>Audit trail & integrity</h2>
           <span class="statusPill" id="visualStatus">Waiting for orders</span>
         </div>
-        <div class="visualTimeline" id="visualTimeline"></div>
         <div>
-          <h3 style="margin:0 0 8px; font-size:1rem;">Completed orders</h3>
+          <h3 style="margin:0 0 8px; font-size:1rem;">Order audit trail</h3>
           <ul class="logList" id="orderLog"></ul>
+        </div>
+        <div>
+          <h3 style="margin:0 0 8px; font-size:1rem;">Systems & knowledge required</h3>
+          <div class="metaRow" id="systemsChips"></div>
+          <div class="metaRow" id="knowledgeChips" style="margin-top:8px;"></div>
         </div>
       </section>
     </main>
