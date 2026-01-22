@@ -6,14 +6,16 @@
 <title>Flippen Lekka Scan Station — v5 (cleaned + 100×150 print lock)</title>
 <style>
   :root{
-    --bg:#f8fafc;
-    --panel:#ffffff;
-    --panel-muted:#f8fafc;
-    --panel-strong:#e2e8f0;
-    --text:#0f172a;
-    --text-muted:#64748b;
-    --accent:#2563eb;
-    --accent-soft:rgba(37,99,235,.12);
+    --bg:#070b1a;
+    --panel:#0f172a;
+    --panel-muted:#111827;
+    --panel-strong:#1e293b;
+    --text:#e2e8f0;
+    --text-muted:#94a3b8;
+    --accent:#38bdf8;
+    --accent-soft:rgba(56,189,248,.16);
+    --accent-strong:#7dd3fc;
+    --glow:0 0 18px rgba(56,189,248,.35);
     --radius-lg:.75rem;
     --radius-md:.5rem;
     --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
@@ -27,6 +29,31 @@
     font-family:var(--sans);
     min-height:100dvh;
     margin:0;
+    position:relative;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:-10% -5%;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(56,189,248,.12), transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(129,140,248,.12), transparent 40%),
+      radial-gradient(circle at 70% 85%, rgba(16,185,129,.1), transparent 42%),
+      linear-gradient(135deg, rgba(8,12,24,.95), rgba(12,17,32,.98));
+    z-index:-2;
+  }
+  body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(148,163,184,.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,.08) 1px, transparent 1px);
+    background-size:48px 48px;
+    opacity:.18;
+    z-index:-1;
+    pointer-events:none;
   }
   .flApp{
     min-height:100dvh;
@@ -1179,6 +1206,247 @@
     font-size:.9rem;
     padding:1.5rem 0;
     text-align:center;
+  }
+
+  /* === Futuristic theme overrides === */
+  .flNav,
+  .statusBar,
+  .shell,
+  .leftPane,
+  .rightPane,
+  .scanBox,
+  .addrBox,
+  .card,
+  .truckPanel,
+  .dispatchStatusPanel,
+  .dispatchLogPanel,
+  .dispatchBoardPanel,
+  .docsShell,
+  .docsCard,
+  .parcelNumbersPanel{
+    background:rgba(15,23,42,.85);
+    border-color:rgba(148,163,184,.2);
+    box-shadow:0 20px 40px rgba(2,6,23,.45);
+  }
+  .rightPane{
+    background:linear-gradient(180deg, rgba(15,23,42,.95), rgba(15,23,42,.7));
+  }
+  .flNav{
+    backdrop-filter:blur(10px);
+    background:rgba(15,23,42,.8);
+  }
+  .flNavTitle{
+    color:var(--accent-strong);
+  }
+  .flNavBtn{
+    background:rgba(15,23,42,.6);
+    border-color:rgba(56,189,248,.25);
+    color:var(--text);
+  }
+  .flNavBtn:hover{
+    border-color:rgba(56,189,248,.55);
+    color:var(--accent-strong);
+    box-shadow:var(--glow);
+  }
+  .flNavBtn--active{
+    background:linear-gradient(135deg, rgba(56,189,248,.9), rgba(59,130,246,.9));
+    color:#0b1220;
+    border-color:rgba(125,211,252,.7);
+  }
+  .statusBar{
+    background:rgba(15,23,42,.8);
+    color:var(--text-muted);
+  }
+  .statusPill{
+    background:rgba(15,23,42,.7);
+    border-color:rgba(148,163,184,.25);
+    color:var(--text);
+  }
+  .statusPillDot{
+    background:rgba(148,163,184,.8);
+  }
+  .statusPill--ok{
+    background:rgba(16,185,129,.16);
+    color:#bbf7d0;
+    border-color:rgba(16,185,129,.4);
+  }
+  .statusPill--err{
+    background:rgba(248,113,113,.18);
+    color:#fecaca;
+    border-color:rgba(248,113,113,.4);
+  }
+  .statusPill--warn{
+    background:rgba(251,191,36,.16);
+    color:#fde68a;
+    border-color:rgba(251,191,36,.4);
+  }
+  .actionFlash{
+    background:rgba(15,23,42,.7);
+    border-color:rgba(148,163,184,.25);
+    color:var(--text-muted);
+  }
+  .badge{
+    color:#0b1220;
+    background:linear-gradient(135deg, rgba(56,189,248,.9), rgba(125,211,252,.9));
+    border-color:rgba(125,211,252,.75);
+  }
+  #scanInput,
+  #addrSearch,
+  #placeCode,
+  #serviceOverride{
+    background:rgba(2,6,23,.6);
+    border-color:rgba(148,163,184,.3);
+    color:var(--text);
+  }
+  #scanInput:focus,
+  #addrSearch:focus,
+  #placeCode:focus,
+  #serviceOverride:focus{
+    border-color:var(--accent);
+    box-shadow:var(--glow);
+  }
+  .btn{
+    background:rgba(56,189,248,.12);
+    border-color:rgba(56,189,248,.5);
+    color:var(--accent-strong);
+  }
+  .btnPrimary{
+    background:linear-gradient(135deg, rgba(56,189,248,.9), rgba(59,130,246,.9));
+    border-color:rgba(125,211,252,.7);
+    color:#0b1220;
+    box-shadow:var(--glow);
+  }
+  .btnToggle{
+    background:rgba(251,191,36,.12);
+    border-color:rgba(251,191,36,.5);
+    color:#fbbf24;
+  }
+  .btnToggle.is-active{
+    background:linear-gradient(135deg, rgba(16,185,129,.9), rgba(34,197,94,.85));
+    border-color:rgba(74,222,128,.7);
+    color:#021a12;
+  }
+  .truckPanel{
+    background:linear-gradient(180deg, rgba(15,23,42,.95), rgba(15,23,42,.8));
+  }
+  .truckStatus{
+    background:rgba(248,113,113,.12);
+    color:#fecaca;
+    border-color:rgba(248,113,113,.45);
+  }
+  .truckStatus.is-booked{
+    background:rgba(16,185,129,.16);
+    color:#bbf7d0;
+    border-color:rgba(16,185,129,.4);
+  }
+  .truckBookBtn{
+    border-color:rgba(56,189,248,.6);
+    box-shadow:0 20px 40px rgba(56,189,248,.3);
+  }
+  .dispatchStatusPanel,
+  .dispatchLogPanel{
+    background:rgba(15,23,42,.82);
+  }
+  .dispatchProgressBar{
+    background:rgba(30,41,59,.75);
+    border-color:rgba(56,189,248,.25);
+  }
+  .dispatchProgressFill{
+    background:linear-gradient(90deg, #38bdf8, #818cf8, #22d3ee);
+  }
+  .dispatchProgressSun{
+    box-shadow:0 0 24px rgba(56,189,248,.6);
+    background:radial-gradient(circle, rgba(125,211,252,.95), rgba(56,189,248,.95), rgba(59,130,246,.85));
+  }
+  .dispatchProgressStep{
+    background:rgba(2,6,23,.6);
+    border-color:rgba(148,163,184,.25);
+    color:var(--text);
+  }
+  .dispatchProgressStep.is-active{
+    background:rgba(56,189,248,.18);
+    color:var(--accent-strong);
+  }
+  .dispatchProgressStep.is-complete{
+    background:rgba(16,185,129,.18);
+    color:#bbf7d0;
+  }
+  .dispatchLog{
+    color:var(--text);
+  }
+  .dispatchLogEntry{
+    border-bottom-color:rgba(148,163,184,.25);
+  }
+  .dispatchCol{
+    background:rgba(2,6,23,.5);
+    border-color:rgba(148,163,184,.2);
+  }
+  .dispatchColHeader{
+    color:var(--accent-strong);
+  }
+  .dispatchCard{
+    background:rgba(15,23,42,.9);
+    border-color:rgba(148,163,184,.25);
+    box-shadow:0 10px 26px rgba(2,6,23,.45);
+  }
+  .dispatchCard:hover{
+    box-shadow:0 16px 32px rgba(56,189,248,.25);
+  }
+  .dispatchCardLines{
+    color:var(--text-muted);
+  }
+  .dispatchLineRemainder{
+    color:var(--accent-strong);
+  }
+  .dispatchPackBtn,
+  .dispatchParcelBoxBtn,
+  .dispatchFinishPackingBtn{
+    background:rgba(56,189,248,.12);
+    border-color:rgba(56,189,248,.4);
+    color:var(--accent-strong);
+  }
+  .dispatchOrderModal__content{
+    background:rgba(15,23,42,.96);
+    border-color:rgba(148,163,184,.3);
+  }
+  .dispatchOrderModal__close{
+    background:rgba(148,163,184,.2);
+    color:var(--text);
+  }
+  .dispatchOrderModal__close:hover{
+    background:rgba(148,163,184,.35);
+  }
+  .docsShell,
+  .docsCard{
+    background:rgba(15,23,42,.9);
+  }
+  .docsCode{
+    background:rgba(2,6,23,.6);
+    border-color:rgba(148,163,184,.3);
+    color:var(--accent-strong);
+  }
+  .pill{
+    background:rgba(56,189,248,.15);
+    border-color:rgba(56,189,248,.45);
+    color:var(--accent-strong);
+  }
+  .parcelNumbersPanel{
+    background:rgba(15,23,42,.85);
+  }
+  .parcelNumber{
+    background:rgba(2,6,23,.6);
+    border-color:rgba(148,163,184,.3);
+    color:var(--text-muted);
+  }
+  .parcelNumber.is-scanned{
+    background:rgba(16,185,129,.18);
+    border-color:rgba(16,185,129,.6);
+    color:#bbf7d0;
+  }
+  .summaryCard{
+    background:rgba(2,6,23,.6);
+    border-color:rgba(148,163,184,.25);
+    color:var(--accent-strong);
   }
 
 </style>
