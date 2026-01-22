@@ -152,6 +152,107 @@
   }
   .flView[hidden]{ display:none; }
   .flView .shell{ margin:0 auto; }
+  .dashboardShell{
+    width:100%;
+    max-width:1200px;
+    margin:0 auto;
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-lg);
+    padding:1.75rem 2rem;
+    box-shadow:0 18px 48px rgba(15,23,42,.08);
+    display:flex;
+    flex-direction:column;
+    gap:1.5rem;
+  }
+  .dashboardHeader{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:1rem;
+    flex-wrap:wrap;
+  }
+  .dashboardHeader h1{
+    font-size:1.3rem;
+    margin:0 0 .35rem;
+  }
+  .dashboardHeader p{
+    margin:0;
+    color:var(--text-muted);
+    font-size:.9rem;
+  }
+  .moduleGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));
+    gap:1rem;
+  }
+  .moduleCard{
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-lg);
+    padding:1rem;
+    background:var(--panel);
+    display:flex;
+    flex-direction:column;
+    gap:.75rem;
+    box-shadow:0 10px 24px rgba(15,23,42,.06);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .moduleCard:hover{
+    transform:translateY(-2px);
+    border-color:rgba(37,99,235,.4);
+    box-shadow:0 16px 30px rgba(15,23,42,.12);
+  }
+  .moduleCardHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+  }
+  .moduleCardTitle{
+    font-weight:700;
+    font-size:.95rem;
+    margin:0;
+  }
+  .moduleCardTag{
+    font-size:.65rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    background:var(--accent-soft);
+    color:#0c4a6e;
+    border-radius:999px;
+    padding:.2rem .55rem;
+  }
+  .moduleCardDesc{
+    font-size:.82rem;
+    color:var(--text-muted);
+    margin:0;
+    line-height:1.4;
+  }
+  .moduleCardActions{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+  }
+  .moduleMeta{
+    font-family:var(--mono);
+    font-size:.72rem;
+    color:var(--text-muted);
+  }
+  .moduleOpenBtn{
+    border:1px solid rgba(37,99,235,.45);
+    background:rgba(37,99,235,.08);
+    color:#1d4ed8;
+    font-weight:700;
+    font-size:.8rem;
+    padding:.4rem .8rem;
+    border-radius:.6rem;
+    cursor:pointer;
+  }
+  .moduleOpenBtn:hover{
+    background:rgba(37,99,235,.16);
+  }
   .statusBar{
     display:flex;
     align-items:center;
@@ -1188,7 +1289,8 @@
     <nav class="flNav" aria-label="Primary">
       <div class="flNavTitle">Flippen Lekka Operations</div>
       <div class="flNavGroup" role="tablist" aria-label="Primary views">
-        <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true">Scan Station</button>
+        <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true">Dashboard</button>
+        <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false">Scan Station</button>
         <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false">Dispatch Board</button>
         <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false">Documentation</button>
         <a class="flNavBtn" href="/flocs">Order capture (FLOCS)</a>
@@ -1204,7 +1306,20 @@
       <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
     </div>
 
-    <div class="flView flView--active" id="viewScan">
+    <div class="flView flView--active" id="viewDashboard">
+      <div class="dashboardShell">
+        <div class="dashboardHeader">
+          <div>
+            <h1>Operations Dashboard</h1>
+            <p>Launch an app module below. Add new modules in <strong>public/app.js</strong> when you build more tools.</p>
+          </div>
+          <span class="pill">Modular launcher</span>
+        </div>
+        <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="flView" id="viewScan" hidden>
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
       <div class="scanTopBar">
         <div class="scanBox scanBox--centered">
