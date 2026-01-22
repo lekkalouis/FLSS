@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Flippen Lekka Automation Simulator</title>
+<style>
+  :root{
+    --bg:#f8fafc;
+    --panel:#ffffff;
+    --panel-muted:#f1f5f9;
+    --panel-strong:#e2e8f0;
+    --text:#0f172a;
+    --text-muted:#64748b;
+    --accent:#2563eb;
+    --accent-strong:#1d4ed8;
+    --success:#16a34a;
+    --warn:#f59e0b;
+    --radius:16px;
+    --shadow:0 12px 30px rgba(15,23,42,.08);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  .simApp{
+    min-height:100dvh;
+    padding:32px clamp(20px,4vw,48px);
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+  }
+  .simHeader{
+    background:var(--panel);
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius);
+    padding:24px;
+    box-shadow:var(--shadow);
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+  }
+  .simTitle h1{
+    margin:0 0 6px;
+    font-size:clamp(22px,3vw,30px);
+  }
+  .simTitle p{
+    margin:0;
+    color:var(--text-muted);
+  }
+  .simControls{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:12px;
+    align-items:end;
+    flex:1;
+    min-width:min(520px,100%);
+  }
+  .controlGroup{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .controlGroup label{
+    font-size:.78rem;
+    color:var(--text-muted);
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+  .controlGroup input,
+  .controlGroup select{
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid var(--panel-strong);
+    background:#fff;
+    font-size:.95rem;
+  }
+  .controlActions{
+    display:flex;
+    gap:10px;
+  }
+  .btn{
+    border:none;
+    padding:10px 16px;
+    border-radius:10px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .2s ease;
+  }
+  .btnPrimary{
+    background:var(--accent);
+    color:#fff;
+    box-shadow:0 8px 18px rgba(37,99,235,.25);
+  }
+  .btnPrimary:hover{ background:var(--accent-strong); }
+  .btnGhost{
+    background:var(--panel-muted);
+    color:var(--text);
+  }
+  .btnGhost:hover{ background:#e2e8f0; }
+  .simMain{
+    display:grid;
+    grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);
+    gap:24px;
+  }
+  @media (max-width:960px){
+    .simMain{ grid-template-columns:1fr; }
+  }
+  .panel{
+    background:var(--panel);
+    border-radius:var(--radius);
+    border:1px solid var(--panel-strong);
+    padding:20px;
+    box-shadow:var(--shadow);
+  }
+  .panelHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:16px;
+  }
+  .panelHeader h2{
+    margin:0;
+    font-size:1.1rem;
+  }
+  .statusPill{
+    background:var(--panel-muted);
+    border-radius:999px;
+    padding:6px 12px;
+    font-size:.8rem;
+    color:var(--text-muted);
+    border:1px solid var(--panel-strong);
+  }
+  .stepsList{
+    list-style:none;
+    padding:0;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .stepItem{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:12px 14px;
+    border-radius:12px;
+    border:1px solid var(--panel-strong);
+    background:var(--panel-muted);
+    transition:all .25s ease;
+  }
+  .stepItemActive{
+    border-color:rgba(37,99,235,.5);
+    background:rgba(37,99,235,.08);
+    transform:translateX(4px);
+  }
+  .stepItemDone{
+    background:rgba(22,163,74,.12);
+    border-color:rgba(22,163,74,.45);
+  }
+  .stepLabel{
+    font-weight:600;
+  }
+  .stepMeta{
+    font-size:.78rem;
+    color:var(--text-muted);
+  }
+  .checkMark{
+    width:26px;
+    height:26px;
+    border-radius:50%;
+    border:2px solid var(--panel-strong);
+    display:grid;
+    place-items:center;
+    font-size:.85rem;
+    color:transparent;
+    transition:all .2s ease;
+    background:#fff;
+  }
+  .stepItemDone .checkMark{
+    border-color:var(--success);
+    background:var(--success);
+    color:#fff;
+    box-shadow:0 8px 16px rgba(22,163,74,.25);
+  }
+  .metricsGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:12px;
+  }
+  .metricCard{
+    background:var(--panel-muted);
+    border-radius:12px;
+    padding:12px 14px;
+    border:1px solid var(--panel-strong);
+  }
+  .metricLabel{
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--text-muted);
+    margin-bottom:6px;
+  }
+  .metricValue{
+    font-size:1.1rem;
+    font-weight:700;
+  }
+  .progressWrap{
+    margin-top:16px;
+  }
+  .progressBar{
+    height:10px;
+    background:var(--panel-muted);
+    border-radius:999px;
+    overflow:hidden;
+    border:1px solid var(--panel-strong);
+  }
+  .progressFill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,var(--accent),#38bdf8);
+    transition:width .2s ease;
+  }
+  .visualPanel{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .visualTimeline{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .visualNode{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px;
+    border-radius:12px;
+    border:1px solid var(--panel-strong);
+    background:var(--panel-muted);
+    position:relative;
+    transition:all .25s ease;
+  }
+  .visualNodeActive{
+    border-color:rgba(37,99,235,.6);
+    background:rgba(37,99,235,.1);
+    box-shadow:0 0 0 2px rgba(37,99,235,.1);
+  }
+  .visualIcon{
+    width:38px;
+    height:38px;
+    border-radius:10px;
+    display:grid;
+    place-items:center;
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    font-size:1.1rem;
+  }
+  .visualTitle{
+    font-weight:600;
+  }
+  .visualSub{
+    font-size:.78rem;
+    color:var(--text-muted);
+  }
+  .visualStatus{
+    margin-left:auto;
+    font-size:.75rem;
+    padding:4px 8px;
+    border-radius:999px;
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    color:var(--text-muted);
+  }
+  .visualNodeActive .visualStatus{
+    background:rgba(37,99,235,.12);
+    border-color:rgba(37,99,235,.4);
+    color:#1d4ed8;
+  }
+  .logList{
+    margin:0;
+    padding-left:18px;
+    color:var(--text-muted);
+    font-size:.85rem;
+  }
+  .logList li{ margin-bottom:6px; }
+  .warningNote{
+    font-size:.8rem;
+    color:var(--text-muted);
+  }
+</style>
+</head>
+<body>
+  <div class="simApp">
+    <header class="simHeader">
+      <div class="simTitle">
+        <h1>Automation Process Simulator</h1>
+        <p>Visualize how many automated actions run per order and how quickly the flow completes.</p>
+      </div>
+      <div class="simControls">
+        <div class="controlGroup">
+          <label for="orderCount">Orders</label>
+          <input id="orderCount" type="number" min="1" max="250" value="24" />
+        </div>
+        <div class="controlGroup">
+          <label for="dayCount">Days simulated</label>
+          <input id="dayCount" type="number" min="1" max="30" value="3" />
+        </div>
+        <div class="controlGroup">
+          <label for="stepDelay">Step delay (ms)</label>
+          <input id="stepDelay" type="number" min="120" max="2000" value="450" />
+        </div>
+        <div class="controlGroup">
+          <label for="speedFactor">Speed factor</label>
+          <select id="speedFactor">
+            <option value="0.75">0.75×</option>
+            <option value="1" selected>1×</option>
+            <option value="1.5">1.5×</option>
+            <option value="2">2×</option>
+            <option value="3">3×</option>
+          </select>
+        </div>
+        <div class="controlGroup">
+          <label>&nbsp;</label>
+          <div class="controlActions">
+            <button class="btn btnPrimary" id="startBtn">Start</button>
+            <button class="btn btnGhost" id="pauseBtn">Pause</button>
+            <button class="btn btnGhost" id="resetBtn">Reset</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="simMain">
+      <section class="panel">
+        <div class="panelHeader">
+          <h2>Automation checklist</h2>
+          <span class="statusPill" id="orderStatus">Order 1 of 24</span>
+        </div>
+        <ol class="stepsList" id="stepsList"></ol>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panelHeader">
+            <h2>Output summary</h2>
+            <span class="statusPill" id="runtimeStatus">Idle</span>
+          </div>
+          <div class="metricsGrid">
+            <div class="metricCard">
+              <div class="metricLabel">Total actions</div>
+              <div class="metricValue" id="totalActions">0</div>
+            </div>
+            <div class="metricCard">
+              <div class="metricLabel">Completed</div>
+              <div class="metricValue" id="completedActions">0</div>
+            </div>
+            <div class="metricCard">
+              <div class="metricLabel">Actions / minute</div>
+              <div class="metricValue" id="actionsPerMinute">0</div>
+            </div>
+            <div class="metricCard">
+              <div class="metricLabel">Avg per day</div>
+              <div class="metricValue" id="actionsPerDay">0</div>
+            </div>
+          </div>
+          <div class="progressWrap">
+            <div class="progressBar">
+              <div class="progressFill" id="progressFill"></div>
+            </div>
+            <p class="warningNote" id="estimateNote"></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel visualPanel">
+        <div class="panelHeader">
+          <h2>Process visualization</h2>
+          <span class="statusPill" id="visualStatus">Waiting for orders</span>
+        </div>
+        <div class="visualTimeline" id="visualTimeline"></div>
+        <div>
+          <h3 style="margin:0 0 8px; font-size:1rem;">Completed orders</h3>
+          <ul class="logList" id="orderLog"></ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+<script src="/simulate.js"></script>
+</body>
+</html>

@@ -1501,6 +1501,9 @@ app.get("/statusz", async (_req, res) => {
 // Serve static frontend from /public
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/flocs", (req, res) => res.sendFile(path.join(__dirname, "public", "flocs.html")));
+app.get("/simulate", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "simulate.html"))
+);
 
 // SPA fallback
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
