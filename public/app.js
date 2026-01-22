@@ -74,9 +74,11 @@
   const scanProgressLabel = $("scanProgressLabel");
   const scanDispatchLog = $("scanDispatchLog");
 
+  const navDashboard = $("navDashboard");
   const navScan = $("navScan");
   const navOps = $("navOps");
   const navDocs = $("navDocs");
+  const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
@@ -86,8 +88,60 @@
 
   const btnBookNow = $("btnBookNow");
   const modeToggle = $("modeToggle");
+  const moduleGrid = $("moduleGrid");
 
   const MAX_ORDER_AGE_HOURS = 180;
+
+  const MODULES = [
+    {
+      id: "scan",
+      title: "Scan Station",
+      description: "Scan parcels and auto-book shipments with live booking progress.",
+      type: "view",
+      target: "scan",
+      tag: "Core"
+    },
+    {
+      id: "dispatch",
+      title: "Dispatch Board",
+      description: "Review open orders, track packing, and prioritize dispatch.",
+      type: "view",
+      target: "ops",
+      tag: "Core"
+    },
+    {
+      id: "docs",
+      title: "Documentation",
+      description: "Operator guide, quick start, and endpoint reference.",
+      type: "view",
+      target: "docs",
+      tag: "Guide"
+    },
+    {
+      id: "flocs",
+      title: "Order Capture (FLOCS)",
+      description: "Create and manage incoming orders from the capture module.",
+      type: "link",
+      target: "/flocs",
+      tag: "Module"
+    },
+    {
+      id: "stock",
+      title: "Stock Take",
+      description: "Run inventory counts and stock adjustments.",
+      type: "link",
+      target: "/stock.html",
+      tag: "Module"
+    },
+    {
+      id: "simulate",
+      title: "Simulator",
+      description: "Test scan/booking flows without live orders.",
+      type: "link",
+      target: "/simulate.html",
+      tag: "Sandbox"
+    }
+  ];
 
   let activeOrderNo = null;
   let orderDetails = null;
@@ -2399,31 +2453,116 @@ async function startOrder(orderNo) {
     }
   }
 
+  function renderModuleDashboard() {
+    if (!moduleGrid) return;
+    moduleGrid.innerHTML = "";
+
+    MODULES.forEach((module) => {
+      const card = document.createElement("article");
+      card.className = "moduleCard";
+      card.dataset.moduleId = module.id;
+
+      const header = document.createElement("div");
+      header.className = "moduleCardHeader";
+
+      const title = document.createElement("h3");
+      title.className = "moduleCardTitle";
+      title.textContent = module.title;
+
+      const tag = document.createElement("span");
+      tag.className = "moduleCardTag";
+      tag.textContent = module.tag || "Module";
+
+      header.appendChild(title);
+      header.appendChild(tag);
+
+      const desc = document.createElement("p");
+      desc.className = "moduleCardDesc";
+      desc.textContent = module.description || "";
+
+      const actions = document.createElement("div");
+      actions.className = "moduleCardActions";
+
+      const meta = document.createElement("span");
+      meta.className = "moduleMeta";
+      meta.textContent = module.type === "view" ? "Internal module" : module.target;
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "moduleOpenBtn";
+      button.textContent = "Open module";
+      button.dataset.moduleId = module.id;
+
+      actions.appendChild(meta);
+      actions.appendChild(button);
+
+      card.appendChild(header);
+      card.appendChild(desc);
+      card.appendChild(actions);
+
+      moduleGrid.appendChild(card);
+    });
+  }
+
+  function openModuleById(moduleId) {
+    const module = MODULES.find((entry) => entry.id === moduleId);
+    if (!module) return;
+
+    if (module.type === "view") {
+      switchMainView(module.target);
+      return;
+    }
+
+    if (module.type === "link" && module.target) {
+      window.location.href = module.target;
+    }
+  }
+
+  moduleGrid?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-module-id]");
+    if (!button) return;
+    const moduleId = button.dataset.moduleId;
+    if (!moduleId) return;
+    openModuleById(moduleId);
+  });
+
   function switchMainView(view) {
+    const showDashboard = view === "dashboard";
     const showScan = view === "scan";
+    const showOps = view === "ops";
     const showDocs = view === "docs";
 
+    if (viewDashboard) {
+      viewDashboard.hidden = !showDashboard;
+      viewDashboard.classList.toggle("flView--active", showDashboard);
+    }
     if (viewScan) {
       viewScan.hidden = !showScan;
       viewScan.classList.toggle("flView--active", showScan);
     }
     if (viewOps) {
-      viewOps.hidden = showScan || showDocs;
-      viewOps.classList.toggle("flView--active", !showScan && !showDocs);
+      viewOps.hidden = !showOps;
+      viewOps.classList.toggle("flView--active", showOps);
     }
     if (viewDocs) {
       viewDocs.hidden = !showDocs;
       viewDocs.classList.toggle("flView--active", showDocs);
     }
 
+    navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
-    navOps?.classList.toggle("flNavBtn--active", !showScan && !showDocs);
+    navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
+    navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
-    navOps?.setAttribute("aria-selected", !showScan && !showDocs ? "true" : "false");
+    navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
 
-    if (showScan) {
+    if (showDashboard) {
+      statusExplain("Dashboard ready — choose a module to launch.", "info");
+    } else if (showScan) {
       statusExplain("Ready to scan orders…", "info");
       scanInput?.focus();
     } else if (showDocs) {
@@ -2492,6 +2631,7 @@ async function startOrder(orderNo) {
   navScan?.addEventListener("click", () => switchMainView("scan"));
   navOps?.addEventListener("click", () => switchMainView("ops"));
   navDocs?.addEventListener("click", () => switchMainView("docs"));
+  navDashboard?.addEventListener("click", () => switchMainView("dashboard"));
 
   modeToggle?.addEventListener("click", () => {
     isAutoMode = !isAutoMode;
@@ -2732,7 +2872,8 @@ async function startOrder(orderNo) {
   setInterval(refreshDispatchData, 30000);
   refreshServerStatus();
   setInterval(refreshServerStatus, 20000);
-  switchMainView("scan");
+  renderModuleDashboard();
+  switchMainView("dashboard");
 
   if (location.protocol === "file:") {
     alert("Open via http://localhost/... (not file://). Run a local server.");
