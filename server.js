@@ -1145,6 +1145,158 @@ app.get("/shopify/orders/open", async (req, res) => {
   }
 });
 
+// ===== 2b-1) Shopify: list recent shipped orders for tracking lane =====
+app.get("/shopify/shipments/recent", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+
+    const url =
+      `${base}/orders.json?status=any` +
+      `&fulfillment_status=fulfilled` +
+      `&limit=50&order=updated_at+desc`;
+
+    const resp = await shopifyFetch(url, { method: "GET" });
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body
+      });
+    }
+
+    const data = await resp.json();
+    const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
+    const shipments = [];
+
+    ordersRaw.forEach((o) => {
+      if (o.cancelled_at) return;
+      const shipping = o.shipping_address || {};
+      const customer = o.customer || {};
+      const fulfillments = Array.isArray(o.fulfillments) ? o.fulfillments : [];
+
+      const companyName =
+        (shipping.company && shipping.company.trim()) ||
+        (customer?.default_address?.company && customer.default_address.company.trim());
+
+      const customer_name =
+        companyName ||
+        shipping.name ||
+        `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
+        (o.name ? o.name.replace(/^#/, "") : "");
+
+      fulfillments.forEach((fulfillment) => {
+        const shipmentStatus = String(
+          fulfillment.shipment_status || fulfillment.status || ""
+        ).toLowerCase();
+        if (shipmentStatus === "delivered") return;
+
+        const trackingNumbers = Array.isArray(fulfillment.tracking_numbers)
+          ? fulfillment.tracking_numbers.filter(Boolean)
+          : [];
+        if (!trackingNumbers.length && fulfillment.tracking_number) {
+          trackingNumbers.push(fulfillment.tracking_number);
+        }
+
+        const trackingInfo = Array.isArray(fulfillment.tracking_info)
+          ? fulfillment.tracking_info
+          : [];
+        const trackingUrl =
+          trackingInfo.find((info) => info.url)?.url ||
+          fulfillment.tracking_url ||
+          "";
+        const trackingCompany =
+          trackingInfo.find((info) => info.company)?.company ||
+          fulfillment.tracking_company ||
+          "";
+
+        const shippedAt =
+          fulfillment.created_at || fulfillment.updated_at || o.processed_at || o.created_at;
+
+        if (trackingNumbers.length) {
+          trackingNumbers.forEach((trackingNumber) => {
+            shipments.push({
+              order_id: o.id,
+              order_name: o.name,
+              customer_name,
+              tracking_number: trackingNumber,
+              tracking_url: trackingUrl,
+              tracking_company: trackingCompany,
+              fulfillment_id: fulfillment.id,
+              shipment_status: shipmentStatus || "shipped",
+              shipped_at: shippedAt
+            });
+          });
+        } else {
+          shipments.push({
+            order_id: o.id,
+            order_name: o.name,
+            customer_name,
+            tracking_number: "",
+            tracking_url: trackingUrl,
+            tracking_company: trackingCompany,
+            fulfillment_id: fulfillment.id,
+            shipment_status: shipmentStatus || "shipped",
+            shipped_at: shippedAt
+          });
+        }
+      });
+    });
+
+    shipments.sort(
+      (a, b) => new Date(b.shipped_at || 0).getTime() - new Date(a.shipped_at || 0).getTime()
+    );
+
+    return res.json({ shipments });
+  } catch (err) {
+    console.error("Shopify shipments error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+// ===== 2b-2) Shopify: fulfillment tracking events =====
+app.get("/shopify/fulfillment-events", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { orderId, fulfillmentId } = req.query || {};
+    if (!orderId || !fulfillmentId) {
+      return res.status(400).json({ error: "MISSING_IDS" });
+    }
+
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+    const url = `${base}/orders/${orderId}/fulfillments/${fulfillmentId}/events.json`;
+    const resp = await shopifyFetch(url, { method: "GET" });
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body
+      });
+    }
+
+    const data = await resp.json();
+    const events = Array.isArray(data.fulfillment_events) ? data.fulfillment_events : [];
+    return res.json({ events });
+  } catch (err) {
+    console.error("Shopify fulfillment-events error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
 // ===== 2c) Shopify: fulfill (keeps your existing endpoint + payload) =====
 app.post("/shopify/fulfill", async (req, res) => {
   try {

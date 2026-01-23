@@ -68,6 +68,10 @@
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
   const dispatchOrderModalTitle = $("dispatchOrderModalTitle");
   const dispatchOrderModalMeta = $("dispatchOrderModalMeta");
+  const dispatchShipmentModal = $("dispatchShipmentModal");
+  const dispatchShipmentModalBody = $("dispatchShipmentModalBody");
+  const dispatchShipmentModalTitle = $("dispatchShipmentModalTitle");
+  const dispatchShipmentModalMeta = $("dispatchShipmentModalMeta");
   const scanProgressBar = $("scanProgressBar");
   const scanProgressFill = $("scanProgressFill");
   const scanProgressSteps = $("scanProgressSteps");
@@ -159,9 +163,12 @@
   let linkedOrders = new Map();
   let multiShipEnabled = false;
   const dispatchOrderCache = new Map();
+  const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
   let dispatchOrdersLatest = [];
+  let dispatchShipmentsLatest = [];
   let dispatchModalOrderNo = null;
+  let dispatchModalShipmentId = null;
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
   let dailyParcelCount = 0;
@@ -2116,8 +2123,6 @@ async function startOrder(orderNo) {
   }
 
   function renderDispatchActions(order, laneId, orderNo, packingState) {
-    const packBtnLabel = packingState?.active ? "Continue packing" : "Start packing";
-    const packBtnDisabled = !orderNo || !(packingState?.items?.length > 0);
     const actionBtn =
       laneId === "delivery"
         ? orderNo
@@ -2131,12 +2136,7 @@ async function startOrder(orderNo) {
         ? `<button class="dispatchBookBtn" type="button" data-action="book-now" data-order-no="${orderNo}">Book Now</button>`
         : `<button class="dispatchBookBtn" type="button" disabled>Book Now</button>`;
 
-    return `
-      <button class="dispatchPackBtn" type="button" data-action="start-packing" data-order-no="${orderNo}" ${packBtnDisabled ? "disabled" : ""}>
-        ${packBtnLabel}
-      </button>
-      ${actionBtn}
-    `;
+    return `${actionBtn}`;
   }
 
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
@@ -2248,6 +2248,91 @@ async function startOrder(orderNo) {
     dispatchModalOrderNo = null;
   }
 
+  async function fetchShipmentEvents(shipment) {
+    if (!shipment?.order_id || !shipment?.fulfillment_id) return [];
+    try {
+      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-events?orderId=${shipment.order_id}&fulfillmentId=${shipment.fulfillment_id}`;
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data.events) ? data.events : [];
+    } catch (err) {
+      appendDebug("Shipment events fetch failed: " + String(err));
+      return [];
+    }
+  }
+
+  async function openDispatchShipmentModal(shipmentKeyId) {
+    if (
+      !dispatchShipmentModal ||
+      !dispatchShipmentModalBody ||
+      !dispatchShipmentModalTitle
+    )
+      return;
+    const shipment = dispatchShipmentCache.get(shipmentKeyId);
+    if (!shipment) return;
+    const title = shipment.customer_name || shipment.order_name || "Shipment";
+    dispatchShipmentModalTitle.textContent = title;
+    if (dispatchShipmentModalMeta) {
+      const orderNo = String(shipment.order_name || "").replace("#", "");
+      dispatchShipmentModalMeta.textContent = `#${orderNo} · ${
+        shipment.tracking_company || "Carrier"
+      }`;
+    }
+    dispatchShipmentModalBody.innerHTML = `
+      <div class="dispatchShipmentInfo">
+        <div><strong>Tracking #:</strong> ${shipment.tracking_number || "—"}</div>
+        <div><strong>Status:</strong> ${formatShipmentStatus(shipment.shipment_status)}</div>
+        <div><strong>Tracking URL:</strong> ${
+          shipment.tracking_url
+            ? `<a href="${shipment.tracking_url}" target="_blank" rel="noreferrer">Open tracking</a>`
+            : "—"
+        }</div>
+      </div>
+      <div class="dispatchShipmentEvents">
+        <div class="dispatchShipmentEventsTitle">Tracking events</div>
+        <div class="dispatchShipmentEventsBody">Loading tracking events…</div>
+      </div>
+    `;
+
+    dispatchShipmentModal.classList.add("is-open");
+    dispatchShipmentModal.setAttribute("aria-hidden", "false");
+    dispatchModalShipmentId = shipmentKeyId;
+
+    const events = await fetchShipmentEvents(shipment);
+    const eventsBody = dispatchShipmentModalBody.querySelector(".dispatchShipmentEventsBody");
+    if (!eventsBody) return;
+    if (!events.length) {
+      eventsBody.innerHTML = `<div class="dispatchShipmentEventEmpty">No tracking events available.</div>`;
+      return;
+    }
+    eventsBody.innerHTML = events
+      .map((event) => {
+        const status = formatShipmentStatus(event.status || "");
+        const when = event.happened_at || event.created_at;
+        const time = when ? new Date(when).toLocaleString() : "";
+        const location = [event.city, event.province, event.country]
+          .filter(Boolean)
+          .join(", ");
+        return `
+          <div class="dispatchShipmentEvent">
+            <div class="dispatchShipmentEventTitle">${status}</div>
+            <div class="dispatchShipmentEventMeta">${[time, location].filter(Boolean).join(" · ")}</div>
+            <div class="dispatchShipmentEventMessage">${event.message || "Update received."}</div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function closeDispatchShipmentModal() {
+    if (!dispatchShipmentModal || !dispatchShipmentModalBody) return;
+    dispatchShipmentModal.classList.remove("is-open");
+    dispatchShipmentModal.setAttribute("aria-hidden", "true");
+    dispatchShipmentModalBody.innerHTML = "";
+    dispatchModalShipmentId = null;
+  }
+
   async function notifyPickupReady(orderNo) {
     if (!orderNo) return;
     const order = dispatchOrderCache.get(orderNo);
@@ -2298,6 +2383,57 @@ async function startOrder(orderNo) {
       }
       openDispatchOrderModal(modalOrder);
     }
+    const modalShipment = dispatchModalShipmentId;
+    if (dispatchShipmentModal?.classList.contains("is-open")) {
+      if (!modalShipment || !dispatchShipmentCache.get(modalShipment)) {
+        closeDispatchShipmentModal();
+        return;
+      }
+      openDispatchShipmentModal(modalShipment);
+    }
+  }
+
+  function formatShipmentStatus(status) {
+    if (!status) return "Shipped";
+    return String(status)
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (m) => m.toUpperCase());
+  }
+
+  function shipmentKey(shipment) {
+    const base = `${shipment.order_id || "order"}-${shipment.fulfillment_id || "fulfillment"}`;
+    const tracking = shipment.tracking_number ? `-${shipment.tracking_number}` : "";
+    return `${base}${tracking}`;
+  }
+
+  function renderShipmentList(shipments) {
+    const rows = shipments
+      .map((shipment) => {
+        const key = shipmentKey(shipment);
+        dispatchShipmentCache.set(key, shipment);
+        const name = shipment.customer_name || shipment.order_name || "Unknown";
+        const tracking = shipment.tracking_number || "—";
+        const status = formatShipmentStatus(shipment.shipment_status);
+        return `
+          <div class="dispatchShipmentRow" data-shipment-key="${key}">
+            <div class="dispatchShipmentCell dispatchShipmentCell--name">${name}</div>
+            <div class="dispatchShipmentCell dispatchShipmentCell--tracking">${tracking}</div>
+            <div class="dispatchShipmentCell dispatchShipmentCell--status">${status}</div>
+          </div>
+        `;
+      })
+      .join("");
+
+    return `
+      <div class="dispatchShipmentTable">
+        <div class="dispatchShipmentRow dispatchShipmentRow--header">
+          <div class="dispatchShipmentCell dispatchShipmentCell--name">Customer</div>
+          <div class="dispatchShipmentCell dispatchShipmentCell--tracking">Tracking #</div>
+          <div class="dispatchShipmentCell dispatchShipmentCell--status">Latest event</div>
+        </div>
+        ${rows || `<div class="dispatchShipmentEmpty">No recent shipments awaiting delivery.</div>`}
+      </div>
+    `;
   }
 
   function renderDispatchBoard(orders) {
@@ -2306,6 +2442,7 @@ async function startOrder(orderNo) {
     const now = Date.now();
     const maxAgeMs = MAX_ORDER_AGE_HOURS * 60 * 60 * 1000;
     dispatchOrderCache.clear();
+    dispatchShipmentCache.clear();
     const activeOrders = new Set();
 
     const filtered = (orders || []).filter((o) => {
@@ -2326,16 +2463,26 @@ async function startOrder(orderNo) {
     }
 
     const cols = [
-      { id: "delivery", label: "Delivery" },
-      { id: "shipping", label: "Shipping" },
-      { id: "pickup", label: "Pickup" }
+      { id: "delivery", label: "Delivery", type: "cards" },
+      { id: "shippingA", label: "Shipping", type: "cards" },
+      { id: "shippingB", label: "Shipping", type: "cards" },
+      { id: "pickup", label: "Pickup / Collection", type: "cards" },
+      { id: "shipments", label: "Recently shipped", type: "shipments" }
     ];
-    const lanes = Object.fromEntries(cols.map((col) => [col.id, []]));
+    const lanes = {
+      delivery: [],
+      shipping: [],
+      pickup: []
+    };
 
     list.forEach((o) => {
       const laneId = laneFromOrder(o);
       (lanes[laneId] || lanes.shipping).push(o);
     });
+
+    const shippingSplitIndex = Math.ceil(lanes.shipping.length / 2);
+    const shippingA = lanes.shipping.slice(0, shippingSplitIndex);
+    const shippingB = lanes.shipping.slice(shippingSplitIndex);
 
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
@@ -2368,9 +2515,24 @@ async function startOrder(orderNo) {
 
     dispatchBoard.innerHTML = cols
       .map((col) => {
-        const cards = lanes[col.id]
-          .map((order) => cardHTML(order, col.id))
-          .join("") || `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
+        if (col.type === "shipments") {
+          const shipments = Array.isArray(dispatchShipmentsLatest) ? dispatchShipmentsLatest : [];
+          const listHTML = renderShipmentList(shipments);
+          return `
+            <div class="dispatchCol dispatchCol--shipments">
+              <div class="dispatchColHeader">${col.label}</div>
+              <div class="dispatchColBody dispatchColBody--shipments">${listHTML}</div>
+            </div>`;
+        }
+        const laneOrders =
+          col.id === "shippingA"
+            ? shippingA
+            : col.id === "shippingB"
+            ? shippingB
+            : lanes[col.id] || [];
+        const cards =
+          laneOrders.map((order) => cardHTML(order, col.id)).join("") ||
+          `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
         return `
           <div class="dispatchCol">
             <div class="dispatchColHeader">${col.label}</div>
@@ -2442,9 +2604,14 @@ async function startOrder(orderNo) {
 
   async function refreshDispatchData() {
     try {
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`);
-      const data = await res.json();
+      const [ordersRes, shipmentsRes] = await Promise.all([
+        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`),
+        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/shipments/recent`)
+      ]);
+      const data = ordersRes.ok ? await ordersRes.json() : { orders: [] };
+      const shipmentsData = shipmentsRes.ok ? await shipmentsRes.json() : { shipments: [] };
       dispatchOrdersLatest = data.orders || [];
+      dispatchShipmentsLatest = shipmentsData.shipments || [];
       renderDispatchBoard(dispatchOrdersLatest);
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
     } catch (e) {
@@ -2840,6 +3007,14 @@ async function startOrder(orderNo) {
       const handled = await handleDispatchAction(action);
       if (handled) return;
     }
+    const shipmentRow = e.target.closest(".dispatchShipmentRow");
+    if (shipmentRow && !shipmentRow.classList.contains("dispatchShipmentRow--header")) {
+      const shipmentKeyId = shipmentRow.dataset.shipmentKey;
+      if (shipmentKeyId) {
+        await openDispatchShipmentModal(shipmentKeyId);
+        return;
+      }
+    }
     const card = e.target.closest(".dispatchCard");
     if (card && !e.target.closest("button") && !e.target.closest("input")) {
       const orderNo = card.dataset.orderNo;
@@ -2851,6 +3026,13 @@ async function startOrder(orderNo) {
     const action = e.target.closest("[data-action]");
     if (action) {
       await handleDispatchAction(action);
+    }
+  });
+
+  dispatchShipmentModal?.addEventListener("click", (e) => {
+    const action = e.target.closest("[data-action]");
+    if (action?.dataset?.action === "close-modal") {
+      closeDispatchShipmentModal();
     }
   });
 
@@ -2869,6 +3051,7 @@ async function startOrder(orderNo) {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeDispatchOrderModal();
+      closeDispatchShipmentModal();
     }
   });
 
