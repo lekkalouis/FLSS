@@ -1050,7 +1050,7 @@ app.get("/shopify/orders/open", async (req, res) => {
     const base = `/admin/api/${SHOPIFY_API_VERSION}`;
 
     const url =
-      `${base}/orders.json?status=any` +
+      `${base}/orders.json?status=open` +
       `&fulfillment_status=unfulfilled,in_progress` +
       `&limit=50&order=created_at+desc`;
 
@@ -1069,73 +1069,227 @@ app.get("/shopify/orders/open", async (req, res) => {
     const data = await resp.json();
     const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
 
-    const orders = ordersRaw.map((o) => {
-      const shipping = o.shipping_address || {};
-      const customer = o.customer || {};
+    const orders = ordersRaw
+      .filter((o) => !o.cancelled_at)
+      .map((o) => {
+        const shipping = o.shipping_address || {};
+        const customer = o.customer || {};
 
-      let parcelCountFromTag = null;
-      if (typeof o.tags === "string" && o.tags.trim()) {
-        const parts = o.tags.split(",").map((t) => t.trim().toLowerCase());
-        for (const t of parts) {
-          const m = t.match(/^parcel_count_(\d+)$/);
-          if (m) {
-            parcelCountFromTag = parseInt(m[1], 10);
-            break;
+        let parcelCountFromTag = null;
+        if (typeof o.tags === "string" && o.tags.trim()) {
+          const parts = o.tags.split(",").map((t) => t.trim().toLowerCase());
+          for (const t of parts) {
+            const m = t.match(/^parcel_count_(\d+)$/);
+            if (m) {
+              parcelCountFromTag = parseInt(m[1], 10);
+              break;
+            }
           }
         }
-      }
 
-      const totalGrams = (o.line_items || []).reduce((sum, li) => {
-        const grams = Number(li.grams || 0);
-        const qty = Number(li.quantity || 1);
-        return sum + grams * qty;
-      }, 0);
-      const totalWeightKg = totalGrams / 1000;
+        const totalGrams = (o.line_items || []).reduce((sum, li) => {
+          const grams = Number(li.grams || 0);
+          const qty = Number(li.quantity || 1);
+          return sum + grams * qty;
+        }, 0);
+        const totalWeightKg = totalGrams / 1000;
 
-const companyName =
-  (shipping.company && shipping.company.trim()) ||
-  (customer?.default_address?.company && customer.default_address.company.trim());
+        const companyName =
+          (shipping.company && shipping.company.trim()) ||
+          (customer?.default_address?.company && customer.default_address.company.trim());
 
-const customer_name =
-  companyName ||
-  shipping.name ||
-  `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
-  (o.name ? o.name.replace(/^#/, "") : "");
+        const customer_name =
+          companyName ||
+          shipping.name ||
+          `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
+          (o.name ? o.name.replace(/^#/, "") : "");
 
-      return {
-        id: o.id,
-        name: o.name,
-        customer_name,
-        email: o.email || customer.email || "",
-        created_at: o.processed_at || o.created_at,
-        fulfillment_status: o.fulfillment_status,
-        tags: o.tags || "",
-        total_weight_kg: totalWeightKg,
-        shipping_lines: (o.shipping_lines || []).map((line) => ({
-          title: line.title || "",
-          code: line.code || "",
-          price: line.price || ""
-        })),
-        shipping_city: shipping.city || "",
-        shipping_postal: shipping.zip || "",
-        shipping_address1: shipping.address1 || "",
-        shipping_address2: shipping.address2 || "",
-        shipping_province: shipping.province || "",
-        shipping_country: shipping.country || "",
-        shipping_phone: shipping.phone || "",
-        shipping_name: shipping.name || customer_name,
-        parcel_count: parcelCountFromTag,
-        line_items: (o.line_items || []).map((li) => ({
-          title: li.title,
-          variant_title: li.variant_title,
-          quantity: li.quantity
-        }))
-      };
-    });
+        return {
+          id: o.id,
+          name: o.name,
+          customer_name,
+          email: o.email || customer.email || "",
+          created_at: o.processed_at || o.created_at,
+          fulfillment_status: o.fulfillment_status,
+          tags: o.tags || "",
+          total_weight_kg: totalWeightKg,
+          shipping_lines: (o.shipping_lines || []).map((line) => ({
+            title: line.title || "",
+            code: line.code || "",
+            price: line.price || ""
+          })),
+          shipping_city: shipping.city || "",
+          shipping_postal: shipping.zip || "",
+          shipping_address1: shipping.address1 || "",
+          shipping_address2: shipping.address2 || "",
+          shipping_province: shipping.province || "",
+          shipping_country: shipping.country || "",
+          shipping_phone: shipping.phone || "",
+          shipping_name: shipping.name || customer_name,
+          parcel_count: parcelCountFromTag,
+          line_items: (o.line_items || []).map((li) => ({
+            title: li.title,
+            variant_title: li.variant_title,
+            quantity: li.quantity
+          }))
+        };
+      });
 
     return res.json({ orders });
   } catch (err) {
     console.error("Shopify open-orders error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+// ===== 2b-1) Shopify: list recent shipped orders for tracking lane =====
+app.get("/shopify/shipments/recent", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+
+    const url =
+      `${base}/orders.json?status=any` +
+      `&fulfillment_status=fulfilled` +
+      `&limit=50&order=updated_at+desc`;
+
+    const resp = await shopifyFetch(url, { method: "GET" });
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body
+      });
+    }
+
+    const data = await resp.json();
+    const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
+    const shipments = [];
+
+    ordersRaw.forEach((o) => {
+      if (o.cancelled_at) return;
+      const shipping = o.shipping_address || {};
+      const customer = o.customer || {};
+      const fulfillments = Array.isArray(o.fulfillments) ? o.fulfillments : [];
+
+      const companyName =
+        (shipping.company && shipping.company.trim()) ||
+        (customer?.default_address?.company && customer.default_address.company.trim());
+
+      const customer_name =
+        companyName ||
+        shipping.name ||
+        `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
+        (o.name ? o.name.replace(/^#/, "") : "");
+
+      fulfillments.forEach((fulfillment) => {
+        const shipmentStatus = String(
+          fulfillment.shipment_status || fulfillment.status || ""
+        ).toLowerCase();
+        if (shipmentStatus === "delivered") return;
+
+        const trackingNumbers = Array.isArray(fulfillment.tracking_numbers)
+          ? fulfillment.tracking_numbers.filter(Boolean)
+          : [];
+        if (!trackingNumbers.length && fulfillment.tracking_number) {
+          trackingNumbers.push(fulfillment.tracking_number);
+        }
+
+        const trackingInfo = Array.isArray(fulfillment.tracking_info)
+          ? fulfillment.tracking_info
+          : [];
+        const trackingUrl =
+          trackingInfo.find((info) => info.url)?.url ||
+          fulfillment.tracking_url ||
+          "";
+        const trackingCompany =
+          trackingInfo.find((info) => info.company)?.company ||
+          fulfillment.tracking_company ||
+          "";
+
+        const shippedAt =
+          fulfillment.created_at || fulfillment.updated_at || o.processed_at || o.created_at;
+
+        if (trackingNumbers.length) {
+          trackingNumbers.forEach((trackingNumber) => {
+            shipments.push({
+              order_id: o.id,
+              order_name: o.name,
+              customer_name,
+              tracking_number: trackingNumber,
+              tracking_url: trackingUrl,
+              tracking_company: trackingCompany,
+              fulfillment_id: fulfillment.id,
+              shipment_status: shipmentStatus || "shipped",
+              shipped_at: shippedAt
+            });
+          });
+        } else {
+          shipments.push({
+            order_id: o.id,
+            order_name: o.name,
+            customer_name,
+            tracking_number: "",
+            tracking_url: trackingUrl,
+            tracking_company: trackingCompany,
+            fulfillment_id: fulfillment.id,
+            shipment_status: shipmentStatus || "shipped",
+            shipped_at: shippedAt
+          });
+        }
+      });
+    });
+
+    shipments.sort(
+      (a, b) => new Date(b.shipped_at || 0).getTime() - new Date(a.shipped_at || 0).getTime()
+    );
+
+    return res.json({ shipments });
+  } catch (err) {
+    console.error("Shopify shipments error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+// ===== 2b-2) Shopify: fulfillment tracking events =====
+app.get("/shopify/fulfillment-events", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { orderId, fulfillmentId } = req.query || {};
+    if (!orderId || !fulfillmentId) {
+      return res.status(400).json({ error: "MISSING_IDS" });
+    }
+
+    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+    const url = `${base}/orders/${orderId}/fulfillments/${fulfillmentId}/events.json`;
+    const resp = await shopifyFetch(url, { method: "GET" });
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body
+      });
+    }
+
+    const data = await resp.json();
+    const events = Array.isArray(data.fulfillment_events) ? data.fulfillment_events : [];
+    return res.json({ events });
+  } catch (err) {
+    console.error("Shopify fulfillment-events error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)

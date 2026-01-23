@@ -825,12 +825,15 @@
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1rem;
   padding: .35rem;
   min-height: 65vh;
   overflow-y: auto;
   background:#f8fafc;
+}
+@media (max-width:1400px){
+  #dispatchBoardGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width:1100px){
   #dispatchBoardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -920,24 +923,6 @@
     margin-top:.5rem;
   }
 
-  .dispatchPackBtn{
-    border:1px solid rgba(59,130,246,.4);
-    background:rgba(59,130,246,.12);
-    color:#1d4ed8;
-    font-size:.7rem;
-    font-weight:700;
-    padding:.35rem .55rem;
-    border-radius:.5rem;
-    cursor:pointer;
-  }
-  .dispatchPackBtn:hover{
-    background:rgba(59,130,246,.2);
-  }
-  .dispatchPackBtn:disabled{
-    opacity:.5;
-    cursor:not-allowed;
-  }
-
   .dispatchBookBtn{
     border:1px solid rgba(56,189,248,.45);
     background:rgba(56,189,248,.12);
@@ -985,6 +970,99 @@
   .dispatchNotifyBtn:disabled{
     opacity:.5;
     cursor:not-allowed;
+  }
+
+  .dispatchCol--shipments .dispatchColBody{
+    padding:0;
+  }
+
+  .dispatchShipmentTable{
+    background:#ffffff;
+    border:1px solid var(--panel-strong);
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 2px 6px rgba(15,23,42,0.08);
+  }
+
+  .dispatchShipmentRow{
+    display:grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap:.5rem;
+    padding:.55rem .6rem;
+    border-bottom:1px solid #e2e8f0;
+    font-size:.72rem;
+    color:#0f172a;
+    cursor:pointer;
+  }
+
+  .dispatchShipmentRow--header{
+    background:#f1f5f9;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.6px;
+    cursor:default;
+  }
+
+  .dispatchShipmentRow:last-child{
+    border-bottom:none;
+  }
+
+  .dispatchShipmentCell--tracking{
+    font-family:var(--mono);
+    color:#0f172a;
+  }
+
+  .dispatchShipmentCell--status{
+    color:#475569;
+  }
+
+  .dispatchShipmentEmpty{
+    padding:.75rem;
+    font-size:.75rem;
+    color:#94a3b8;
+  }
+
+  .dispatchShipmentInfo{
+    display:grid;
+    gap:.35rem;
+    font-size:.85rem;
+    color:#0f172a;
+    margin-bottom:1rem;
+  }
+
+  .dispatchShipmentEventsTitle{
+    font-weight:700;
+    margin-bottom:.5rem;
+  }
+
+  .dispatchShipmentEvent{
+    border:1px solid #e2e8f0;
+    border-radius:.6rem;
+    padding:.6rem;
+    margin-bottom:.5rem;
+    background:#f8fafc;
+  }
+
+  .dispatchShipmentEventTitle{
+    font-weight:700;
+    color:#0f172a;
+    margin-bottom:.2rem;
+  }
+
+  .dispatchShipmentEventMeta{
+    font-size:.72rem;
+    color:#64748b;
+    margin-bottom:.2rem;
+  }
+
+  .dispatchShipmentEventMessage{
+    font-size:.78rem;
+    color:#334155;
+  }
+
+  .dispatchShipmentEventEmpty{
+    font-size:.78rem;
+    color:#94a3b8;
   }
 
   .dispatchPackingPanel{
@@ -1228,6 +1306,68 @@
     cursor:pointer;
   }
   .dispatchOrderModal__close:hover{
+    background:rgba(148,163,184,.35);
+  }
+  .dispatchShipmentModal{
+    position:fixed;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:60;
+  }
+  .dispatchShipmentModal.is-open{
+    display:flex;
+  }
+  .dispatchShipmentModal__backdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(15,23,42,.55);
+  }
+  .dispatchShipmentModal__content{
+    position:relative;
+    background:#ffffff;
+    border-radius:16px;
+    border:1px solid rgba(148,163,184,.6);
+    width:min(820px, 92vw);
+    max-height:90vh;
+    overflow:hidden;
+    box-shadow:0 18px 40px rgba(15,23,42,.25);
+    display:flex;
+    flex-direction:column;
+  }
+  .dispatchShipmentModal__header{
+    padding:1rem 1.2rem 0;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:1rem;
+  }
+  .dispatchShipmentModal__title{
+    font-size:1rem;
+    font-weight:700;
+    color:#0f172a;
+  }
+  .dispatchShipmentModal__meta{
+    font-size:.75rem;
+    color:#64748b;
+    margin-top:.2rem;
+  }
+  .dispatchShipmentModal__body{
+    padding:0 1.2rem 1.2rem;
+    overflow-y:auto;
+  }
+  .dispatchShipmentModal__close{
+    border:none;
+    background:rgba(148,163,184,.2);
+    color:#0f172a;
+    font-weight:700;
+    border-radius:999px;
+    width:32px;
+    height:32px;
+    cursor:pointer;
+  }
+  .dispatchShipmentModal__close:hover{
     background:rgba(148,163,184,.35);
   }
 
@@ -1591,6 +1731,19 @@
             <button class="dispatchOrderModal__close" type="button" data-action="close-modal" aria-label="Close order details">✕</button>
           </div>
           <div class="dispatchOrderModal__body" id="dispatchOrderModalBody"></div>
+        </div>
+      </div>
+      <div class="dispatchShipmentModal" id="dispatchShipmentModal" aria-hidden="true">
+        <div class="dispatchShipmentModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
+        <div class="dispatchShipmentModal__content" role="dialog" aria-modal="true" aria-labelledby="dispatchShipmentModalTitle">
+          <div class="dispatchShipmentModal__header">
+            <div>
+              <div class="dispatchShipmentModal__title" id="dispatchShipmentModalTitle">Shipment</div>
+              <div class="dispatchShipmentModal__meta" id="dispatchShipmentModalMeta"></div>
+            </div>
+            <button class="dispatchShipmentModal__close" type="button" data-action="close-modal" aria-label="Close shipment details">✕</button>
+          </div>
+          <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
         </div>
       </div>
     </div>
