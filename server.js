@@ -1050,7 +1050,7 @@ app.get("/shopify/orders/open", async (req, res) => {
     const base = `/admin/api/${SHOPIFY_API_VERSION}`;
 
     const url =
-      `${base}/orders.json?status=any` +
+      `${base}/orders.json?status=open` +
       `&fulfillment_status=unfulfilled,in_progress` +
       `&limit=50&order=created_at+desc`;
 
@@ -1069,69 +1069,71 @@ app.get("/shopify/orders/open", async (req, res) => {
     const data = await resp.json();
     const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
 
-    const orders = ordersRaw.map((o) => {
-      const shipping = o.shipping_address || {};
-      const customer = o.customer || {};
+    const orders = ordersRaw
+      .filter((o) => !o.cancelled_at)
+      .map((o) => {
+        const shipping = o.shipping_address || {};
+        const customer = o.customer || {};
 
-      let parcelCountFromTag = null;
-      if (typeof o.tags === "string" && o.tags.trim()) {
-        const parts = o.tags.split(",").map((t) => t.trim().toLowerCase());
-        for (const t of parts) {
-          const m = t.match(/^parcel_count_(\d+)$/);
-          if (m) {
-            parcelCountFromTag = parseInt(m[1], 10);
-            break;
+        let parcelCountFromTag = null;
+        if (typeof o.tags === "string" && o.tags.trim()) {
+          const parts = o.tags.split(",").map((t) => t.trim().toLowerCase());
+          for (const t of parts) {
+            const m = t.match(/^parcel_count_(\d+)$/);
+            if (m) {
+              parcelCountFromTag = parseInt(m[1], 10);
+              break;
+            }
           }
         }
-      }
 
-      const totalGrams = (o.line_items || []).reduce((sum, li) => {
-        const grams = Number(li.grams || 0);
-        const qty = Number(li.quantity || 1);
-        return sum + grams * qty;
-      }, 0);
-      const totalWeightKg = totalGrams / 1000;
+        const totalGrams = (o.line_items || []).reduce((sum, li) => {
+          const grams = Number(li.grams || 0);
+          const qty = Number(li.quantity || 1);
+          return sum + grams * qty;
+        }, 0);
+        const totalWeightKg = totalGrams / 1000;
 
-const companyName =
-  (shipping.company && shipping.company.trim()) ||
-  (customer?.default_address?.company && customer.default_address.company.trim());
+        const companyName =
+          (shipping.company && shipping.company.trim()) ||
+          (customer?.default_address?.company && customer.default_address.company.trim());
 
-const customer_name =
-  companyName ||
-  shipping.name ||
-  `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
-  (o.name ? o.name.replace(/^#/, "") : "");
+        const customer_name =
+          companyName ||
+          shipping.name ||
+          `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
+          (o.name ? o.name.replace(/^#/, "") : "");
 
-      return {
-        id: o.id,
-        name: o.name,
-        customer_name,
-        email: o.email || customer.email || "",
-        created_at: o.processed_at || o.created_at,
-        fulfillment_status: o.fulfillment_status,
-        tags: o.tags || "",
-        total_weight_kg: totalWeightKg,
-        shipping_lines: (o.shipping_lines || []).map((line) => ({
-          title: line.title || "",
-          code: line.code || "",
-          price: line.price || ""
-        })),
-        shipping_city: shipping.city || "",
-        shipping_postal: shipping.zip || "",
-        shipping_address1: shipping.address1 || "",
-        shipping_address2: shipping.address2 || "",
-        shipping_province: shipping.province || "",
-        shipping_country: shipping.country || "",
-        shipping_phone: shipping.phone || "",
-        shipping_name: shipping.name || customer_name,
-        parcel_count: parcelCountFromTag,
-        line_items: (o.line_items || []).map((li) => ({
-          title: li.title,
-          variant_title: li.variant_title,
-          quantity: li.quantity
-        }))
-      };
-    });
+        return {
+          id: o.id,
+          name: o.name,
+          customer_name,
+          email: o.email || customer.email || "",
+          created_at: o.processed_at || o.created_at,
+          fulfillment_status: o.fulfillment_status,
+          tags: o.tags || "",
+          total_weight_kg: totalWeightKg,
+          shipping_lines: (o.shipping_lines || []).map((line) => ({
+            title: line.title || "",
+            code: line.code || "",
+            price: line.price || ""
+          })),
+          shipping_city: shipping.city || "",
+          shipping_postal: shipping.zip || "",
+          shipping_address1: shipping.address1 || "",
+          shipping_address2: shipping.address2 || "",
+          shipping_province: shipping.province || "",
+          shipping_country: shipping.country || "",
+          shipping_phone: shipping.phone || "",
+          shipping_name: shipping.name || customer_name,
+          parcel_count: parcelCountFromTag,
+          line_items: (o.line_items || []).map((li) => ({
+            title: li.title,
+            variant_title: li.variant_title,
+            quantity: li.quantity
+          }))
+        };
+      });
 
     return res.json({ orders });
   } catch (err) {
