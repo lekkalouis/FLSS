@@ -1,5 +1,6 @@
 // server.js – Flippen Lekka Scan Station backend (UPDATED for Shopify Dev Dashboard OAuth)
 // - /pp                 : secure proxy to ParcelPerfect (SWE v28)
+// - /shopify/orders/open-with-quotes : Shopify orders + ParcelPerfect quotes
 // - /shopify/orders/... : Shopify Admin proxy using client_credentials (24h token cache)
 // - /printnode/print     : PrintNode proxy
 //
@@ -176,6 +177,32 @@ function buildServiceStatus(ok, detail) {
   return { ok: Boolean(ok), detail };
 }
 
+const PP_ORIGIN = {
+  origpers: process.env.PP_ORIG_PERS || "Flippen Lekka Holdings (Pty) Ltd",
+  origperadd1: process.env.PP_ORIG_ADD1 || "7 Papawer Street",
+  origperadd2: process.env.PP_ORIG_ADD2 || "Blomtuin, Bellville",
+  origperadd3: process.env.PP_ORIG_ADD3 || "Cape Town, Western Cape",
+  origperadd4: process.env.PP_ORIG_ADD4 || "ZA",
+  origperpcode: process.env.PP_ORIG_PCODE || "7530",
+  origtown: process.env.PP_ORIG_TOWN || "Cape Town",
+  origplace: Number(process.env.PP_ORIG_PLACE || PP_PLACE_ID || 4663),
+  origpercontact: process.env.PP_ORIG_CONTACT || "Louis",
+  origperphone: process.env.PP_ORIG_PHONE || "0730451885",
+  origpercell: process.env.PP_ORIG_CELL || "0730451885",
+  notifyorigpers: 1,
+  origperemail: process.env.PP_ORIG_EMAIL || "admin@flippenlekkaspices.co.za",
+  notes: process.env.PP_ORIG_NOTES || "Louis 0730451885 / Michael 0783556277"
+};
+
+const PP_BOX_DIM = {
+  dim1: Number(process.env.PP_BOX_DIM1 || 40),
+  dim2: Number(process.env.PP_BOX_DIM2 || 40),
+  dim3: Number(process.env.PP_BOX_DIM3 || 30),
+  massKg: Number(process.env.PP_BOX_MASS_KG || 5)
+};
+
+const PP_MARGIN_RATE = Number(process.env.PP_QUOTE_MARGIN_RATE || 1.05);
+
 let smtpTransport = null;
 function getSmtpTransport() {
   if (smtpTransport) return smtpTransport;
@@ -279,6 +306,276 @@ function normalizeParcelPerfectClass(value) {
   if (lower === "waybill") return "Waybill";
   if (lower === "auth") return "Auth";
   return raw;
+}
+
+function parseParcelCountFromTags(tags) {
+  if (typeof tags !== "string" || !tags.trim()) return null;
+  const parts = tags.split(",").map((t) => t.trim().toLowerCase());
+  for (const t of parts) {
+    const match = t.match(/^parcel_count_(\d+)$/);
+    if (match) {
+      const count = parseInt(match[1], 10);
+      if (Number.isFinite(count) && count > 0) return count;
+    }
+  }
+  return null;
+}
+
+function extractQuoteFromV28(shape) {
+  const obj = shape || {};
+  if (obj.quoteno) return { quoteno: obj.quoteno, rates: obj.rates || [] };
+  const res = Array.isArray(obj.results) && obj.results[0] ? obj.results[0] : null;
+  const quoteno = (res && res.quoteno) || null;
+  const rates = res && Array.isArray(res.rates) ? res.rates : [];
+  return { quoteno, rates };
+}
+
+function pickService(rates) {
+  if (!Array.isArray(rates) || !rates.length) return null;
+  const preferred = ["RFX", "ECO", "RDF"];
+  const svcList = rates.map((r) => String(r.service || "").toUpperCase());
+  for (const svc of preferred) {
+    const idx = svcList.indexOf(svc);
+    if (idx !== -1) return rates[idx];
+  }
+  return rates[0];
+}
+
+function normalizePlaceResults(results) {
+  if (!Array.isArray(results)) return [];
+  return results.map((p) => {
+    const name = (p.name || p.town || p.place || p.pcode || "").toString();
+    const town = (p.town || p.name || "").toString();
+    const place = p.place ?? p.pcode ?? p.placecode ?? null;
+    const ring = p.ring ?? "0";
+    return { ...p, name, town, place, ring };
+  });
+}
+
+function pickBestPlaceMatch(list, suburb, city) {
+  if (!list.length) return null;
+  const targetTown = (city || "").toLowerCase();
+  const targetSuburb = (suburb || "").toLowerCase();
+  const matchRingZero = (p) => String(p.ring) === "0";
+  return (
+    (targetSuburb &&
+      list.find((p) => {
+        const n = (p.name || "").toLowerCase();
+        const t = (p.town || "").toLowerCase();
+        return (n.includes(targetSuburb) || t.includes(targetSuburb)) && matchRingZero(p);
+      })) ||
+    (targetTown &&
+      list.find((p) => (p.town || "").trim().toLowerCase() === targetTown && matchRingZero(p))) ||
+    list.find((p) => matchRingZero(p)) ||
+    list[0]
+  );
+}
+
+function isValidParcelPerfectConfig() {
+  if (!PP_BASE_URL || !PP_BASE_URL.startsWith("http")) return false;
+  const mustUseToken = String(PP_REQUIRE_TOKEN) === "true";
+  return !mustUseToken || Boolean(PP_TOKEN);
+}
+
+async function fetchParcelPerfectPlace(query) {
+  if (!query) return null;
+  if (!isValidParcelPerfectConfig()) return null;
+  const isPostcode = /^[0-9]{3,10}$/.test(query);
+  const method = isPostcode ? "getPlacesByPostcode" : "getPlacesByName";
+  const paramsObj = isPostcode ? { postcode: query } : { name: query };
+
+  const form = new URLSearchParams();
+  form.set("method", method);
+  form.set("class", "Quote");
+  form.set("params", JSON.stringify(paramsObj));
+
+  const mustUseToken = String(PP_REQUIRE_TOKEN) === "true";
+  if (mustUseToken && PP_TOKEN) form.set("token_id", PP_TOKEN);
+
+  const upstream = await fetch(PP_BASE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form.toString()
+  });
+
+  if (!upstream.ok) return null;
+  const text = await upstream.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (data.errorcode && Number(data.errorcode) !== 0) return null;
+  return normalizePlaceResults(data.results);
+}
+
+async function resolvePlaceCodeFromAddress(address) {
+  const postcode = (address?.zip || "").trim();
+  const suburb = (address?.address2 || "").trim();
+  const city = (address?.city || "").trim();
+  const queries = [];
+  if (postcode) queries.push(postcode);
+  if (suburb) queries.push(suburb);
+  if (city && city.toLowerCase() !== suburb.toLowerCase()) {
+    queries.push(city);
+    if (suburb) queries.push(`${suburb} ${city}`);
+  }
+
+  for (const q of queries) {
+    try {
+      const results = await fetchParcelPerfectPlace(q);
+      if (!results || !results.length) continue;
+      const best = pickBestPlaceMatch(results, suburb, city);
+      if (best?.place != null) return Number(best.place) || best.place;
+    } catch (err) {
+      console.warn("PP place lookup failed:", err);
+    }
+  }
+
+  return null;
+}
+
+function buildParcelPerfectQuotePayload(order, parcelCount, destplace, totalWeightKg) {
+  const shipping = order.shipping_address || {};
+  const customer = order.customer || {};
+  const name =
+    (shipping.name || "").trim() ||
+    `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
+    "Customer";
+
+  let perParcelMass = PP_BOX_DIM.massKg;
+  if (totalWeightKg > 0 && parcelCount > 0) {
+    perParcelMass = Number((totalWeightKg / parcelCount).toFixed(2));
+    if (!perParcelMass || perParcelMass <= 0) perParcelMass = PP_BOX_DIM.massKg;
+  }
+
+  const details = {
+    ...PP_ORIGIN,
+    destpers: name,
+    destperadd1: shipping.address1 || "",
+    destperadd2: shipping.address2 || "",
+    destperadd3: shipping.city || "",
+    destperadd4: shipping.province || "",
+    destperpcode: shipping.zip || "",
+    desttown: shipping.city || "",
+    destplace,
+    destpercontact: name,
+    destperphone: shipping.phone || customer.phone || "",
+    notifydestpers: 1,
+    destpercell: shipping.phone || customer.phone || "0000000000",
+    destperemail: order.email || customer.email || ""
+  };
+
+  const contents = Array.from({ length: parcelCount }, (_, i) => ({
+    item: i + 1,
+    pieces: 1,
+    dim1: PP_BOX_DIM.dim1,
+    dim2: PP_BOX_DIM.dim2,
+    dim3: PP_BOX_DIM.dim3,
+    actmass: perParcelMass
+  }));
+
+  return { details, contents };
+}
+
+async function requestParcelPerfectQuote(payload) {
+  const form = new URLSearchParams();
+  form.set("method", "requestQuote");
+  form.set("class", "Quote");
+  form.set("params", JSON.stringify(payload));
+
+  const mustUseToken = String(PP_REQUIRE_TOKEN) === "true";
+  if (mustUseToken && PP_TOKEN) form.set("token_id", PP_TOKEN);
+
+  const upstream = await fetch(PP_BASE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form.toString()
+  });
+
+  const text = await upstream.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { raw: text };
+  }
+
+  return { ok: upstream.ok, status: upstream.status, statusText: upstream.statusText, data };
+}
+
+function normalizeShopifyOrderSummary(order) {
+  const shipping = order.shipping_address || {};
+  const customer = order.customer || {};
+
+  const companyName =
+    (shipping.company && shipping.company.trim()) ||
+    (customer?.default_address?.company && customer.default_address.company.trim());
+
+  const customerName =
+    companyName ||
+    shipping.name ||
+    `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
+    (order.name ? order.name.replace(/^#/, "") : "");
+
+  const totalGrams = (order.line_items || []).reduce((sum, li) => {
+    const grams = Number(li.grams || 0);
+    const qty = Number(li.quantity || 1);
+    return sum + grams * qty;
+  }, 0);
+  const totalWeightKg = totalGrams / 1000;
+
+  return {
+    id: order.id,
+    name: order.name,
+    customer_name: customerName,
+    email: order.email || customer.email || "",
+    created_at: order.processed_at || order.created_at,
+    fulfillment_status: order.fulfillment_status,
+    tags: order.tags || "",
+    total_weight_kg: totalWeightKg,
+    shipping_lines: (order.shipping_lines || []).map((line) => ({
+      title: line.title || "",
+      code: line.code || "",
+      price: line.price || ""
+    })),
+    shipping_city: shipping.city || "",
+    shipping_postal: shipping.zip || "",
+    shipping_address1: shipping.address1 || "",
+    shipping_address2: shipping.address2 || "",
+    shipping_province: shipping.province || "",
+    shipping_country: shipping.country || "",
+    shipping_phone: shipping.phone || "",
+    shipping_name: shipping.name || customerName,
+    parcel_count: parseParcelCountFromTags(order.tags),
+    line_items: (order.line_items || []).map((li) => ({
+      title: li.title,
+      variant_title: li.variant_title,
+      quantity: li.quantity
+    }))
+  };
+}
+
+async function fetchShopifyOpenOrders(limit) {
+  const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+  const url =
+    `${base}/orders.json?status=any` +
+    `&fulfillment_status=unfulfilled,in_progress` +
+    `&limit=${limit}&order=created_at+desc`;
+
+  const resp = await shopifyFetch(url, { method: "GET" });
+  if (!resp.ok) {
+    const body = await resp.text();
+    const error = new Error("SHOPIFY_UPSTREAM");
+    error.status = resp.status;
+    error.statusText = resp.statusText;
+    error.body = body;
+    throw error;
+  }
+
+  const data = await resp.json();
+  return Array.isArray(data.orders) ? data.orders : [];
 }
 
 app.post("/pp", async (req, res) => {
@@ -1047,99 +1344,129 @@ app.get("/shopify/orders/open", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
-    const base = `/admin/api/${SHOPIFY_API_VERSION}`;
-
-    const url =
-      `${base}/orders.json?status=any` +
-      `&fulfillment_status=unfulfilled,in_progress` +
-      `&limit=50&order=created_at+desc`;
-
-    const resp = await shopifyFetch(url, { method: "GET" });
-
-    if (!resp.ok) {
-      const body = await resp.text();
-      return res.status(resp.status).json({
-        error: "SHOPIFY_UPSTREAM",
-        status: resp.status,
-        statusText: resp.statusText,
-        body
-      });
-    }
-
-    const data = await resp.json();
-    const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
-
-    const orders = ordersRaw.map((o) => {
-      const shipping = o.shipping_address || {};
-      const customer = o.customer || {};
-
-      let parcelCountFromTag = null;
-      if (typeof o.tags === "string" && o.tags.trim()) {
-        const parts = o.tags.split(",").map((t) => t.trim().toLowerCase());
-        for (const t of parts) {
-          const m = t.match(/^parcel_count_(\d+)$/);
-          if (m) {
-            parcelCountFromTag = parseInt(m[1], 10);
-            break;
-          }
-        }
-      }
-
-      const totalGrams = (o.line_items || []).reduce((sum, li) => {
-        const grams = Number(li.grams || 0);
-        const qty = Number(li.quantity || 1);
-        return sum + grams * qty;
-      }, 0);
-      const totalWeightKg = totalGrams / 1000;
-
-const companyName =
-  (shipping.company && shipping.company.trim()) ||
-  (customer?.default_address?.company && customer.default_address.company.trim());
-
-const customer_name =
-  companyName ||
-  shipping.name ||
-  `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
-  (o.name ? o.name.replace(/^#/, "") : "");
-
-      return {
-        id: o.id,
-        name: o.name,
-        customer_name,
-        email: o.email || customer.email || "",
-        created_at: o.processed_at || o.created_at,
-        fulfillment_status: o.fulfillment_status,
-        tags: o.tags || "",
-        total_weight_kg: totalWeightKg,
-        shipping_lines: (o.shipping_lines || []).map((line) => ({
-          title: line.title || "",
-          code: line.code || "",
-          price: line.price || ""
-        })),
-        shipping_city: shipping.city || "",
-        shipping_postal: shipping.zip || "",
-        shipping_address1: shipping.address1 || "",
-        shipping_address2: shipping.address2 || "",
-        shipping_province: shipping.province || "",
-        shipping_country: shipping.country || "",
-        shipping_phone: shipping.phone || "",
-        shipping_name: shipping.name || customer_name,
-        parcel_count: parcelCountFromTag,
-        line_items: (o.line_items || []).map((li) => ({
-          title: li.title,
-          variant_title: li.variant_title,
-          quantity: li.quantity
-        }))
-      };
-    });
+    const limit = Math.min(Math.max(Number(req.query.limit || 50), 1), 100);
+    const ordersRaw = await fetchShopifyOpenOrders(limit);
+    const orders = ordersRaw.map((order) => normalizeShopifyOrderSummary(order));
 
     return res.json({ orders });
   } catch (err) {
     console.error("Shopify open-orders error:", err);
-    return res.status(502).json({
-      error: "UPSTREAM_ERROR",
-      message: String(err?.message || err)
+    if (err?.status) {
+      return res.status(err.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: err.status,
+        statusText: err.statusText,
+        body: err.body
+      });
+    }
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+// ===== 2b.1) Shopify: open orders with ParcelPerfect quotes =====
+app.get("/shopify/orders/open-with-quotes", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+    if (!isValidParcelPerfectConfig()) {
+      return res.status(501).json({
+        error: "PARCELPERFECT_NOT_CONFIGURED",
+        message: "Set PP_BASE_URL and PP_TOKEN (if required) to request quotes."
+      });
+    }
+
+    const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 50);
+    const defaultParcelCount = Math.min(
+      Math.max(Number(req.query.defaultParcelCount || 1), 1),
+      50
+    );
+
+    const ordersRaw = await fetchShopifyOpenOrders(limit);
+
+    const orders = [];
+    let quoted = 0;
+    let failed = 0;
+
+    for (const order of ordersRaw) {
+      const summary = normalizeShopifyOrderSummary(order);
+      const shipping = order.shipping_address || {};
+      const totalWeightKg = summary.total_weight_kg || 0;
+      const parcelCount = summary.parcel_count || defaultParcelCount;
+
+      let quote = null;
+      let quoteError = null;
+
+      try {
+        const destplace = await resolvePlaceCodeFromAddress(shipping);
+        if (!destplace) {
+          quoteError = "Missing destination place code.";
+        } else {
+          const payload = buildParcelPerfectQuotePayload(
+            order,
+            parcelCount,
+            destplace,
+            totalWeightKg
+          );
+          const quoteResp = await requestParcelPerfectQuote(payload);
+          if (!quoteResp.ok) {
+            quoteError = `PP quote failed (${quoteResp.status} ${quoteResp.statusText})`;
+          } else {
+            const { quoteno, rates } = extractQuoteFromV28(quoteResp.data || {});
+            if (!quoteno) {
+              quoteError = "PP quote missing quote number.";
+            } else {
+              const picked = pickService(rates);
+              const baseTotal = picked
+                ? Number(picked.total ?? picked.subtotal ?? picked.charge ?? 0)
+                : 0;
+              const marginRate = Number.isFinite(PP_MARGIN_RATE) ? PP_MARGIN_RATE : 1.05;
+              const total = baseTotal * marginRate;
+              quote = {
+                quoteno,
+                service: picked?.service || null,
+                rates,
+                baseTotal,
+                total,
+                marginRate,
+                placeCode: destplace,
+                parcelCount,
+                totalWeightKg
+              };
+            }
+          }
+        }
+      } catch (err) {
+        quoteError = String(err?.message || err);
+      }
+
+      if (quote) quoted += 1;
+      if (quoteError) failed += 1;
+
+      orders.push({ ...summary, quote, quoteError });
+    }
+
+    return res.json({
+      orders,
+      stats: {
+        total: orders.length,
+        quoted,
+        failed
+      }
     });
+  } catch (err) {
+    console.error("Shopify open-orders quote error:", err);
+    if (err?.status) {
+      return res.status(err.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: err.status,
+        statusText: err.statusText,
+        body: err.body
+      });
+    }
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
   }
 });
 
