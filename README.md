@@ -131,6 +131,11 @@ A standalone page (`/flocs`) to capture a new order:
 
 - Local-only stock counts stored in `localStorage` under `fl_stock_levels_v1` with “stock take” and “stock received” modes; no backend calls required.【F:public/stock.js†L1-L200】
 
+### 5) Price Manager
+
+- Dedicated price-tier editor (`/price-manager.html`) to review SKU pricing tiers and sync tiers into Shopify variant metafields (`custom.price_tiers`).
+- Supports optional public price sync to update storefront pricing by writing the variant price through the Admin API.【F:public/price-manager.js†L1-L201】【F:server.js†L289-L366】
+
 ---
 
 ## Data model
@@ -324,6 +329,7 @@ Open `http://localhost:3000` for Scan Station/Dispatch/Docs, `http://localhost:3
 - `server.js` — Express API server and proxy to Shopify/ParcelPerfect/PrintNode. 【F:server.js†L1-L453】
 - `public/index.html` + `public/app.js` — Scan Station + Dispatch Board + embedded docs. 【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】
 - `public/flocs.html` + `public/flocs.js` — FLOCS order capture tool. 【F:public/flocs.html†L1-L200】【F:public/flocs.js†L1-L200】
+- `public/price-manager.html` + `public/price-manager.js` — Price manager for tier pricing and storefront sync. 【F:public/price-manager.html†L1-L200】【F:public/price-manager.js†L1-L201】
 - `public/stock.html` + `public/stock.js` — Stock take tool. 【F:public/stock.js†L1-L200】
 - `.env.example` — Example environment config. 【F:.env.example†L1-L18】
 - `package.json` — Scripts and dependencies. 【F:package.json†L1-L16】

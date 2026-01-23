@@ -150,6 +150,20 @@ function toKg(weight, unit) {
   }
 }
 
+function parsePriceTiers(raw) {
+  if (!raw) return null;
+  if (typeof raw === "object") return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function requireTruckEmailConfigured(res) {
   if (!SMTP_HOST || !SMTP_FROM || !TRUCK_EMAIL_TO) {
     res.status(501).json({
@@ -267,6 +281,58 @@ async function shopifyFetch(pathname, { method = "GET", headers = {}, body } = {
   }
 
   return resp;
+}
+
+async function fetchVariantPriceTiers(variantId) {
+  if (!variantId) return null;
+  const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+  const url = `${base}/variants/${variantId}/metafields.json?namespace=custom&key=price_tiers`;
+  const resp = await shopifyFetch(url, { method: "GET" });
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  const meta = Array.isArray(data.metafields) ? data.metafields[0] : null;
+  if (!meta) return null;
+  return {
+    id: meta.id,
+    value: parsePriceTiers(meta.value)
+  };
+}
+
+async function upsertVariantPriceTiers(variantId, priceTiers) {
+  const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+  const existing = await fetchVariantPriceTiers(variantId);
+  const payload = {
+    metafield: {
+      namespace: "custom",
+      key: "price_tiers",
+      type: "json",
+      value: JSON.stringify(priceTiers || {})
+    }
+  };
+  if (existing?.id) {
+    return shopifyFetch(`${base}/metafields/${existing.id}.json`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+  }
+  return shopifyFetch(`${base}/variants/${variantId}/metafields.json`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+async function updateVariantPrice(variantId, price) {
+  const base = `/admin/api/${SHOPIFY_API_VERSION}`;
+  const payload = {
+    variant: {
+      id: variantId,
+      price: String(price)
+    }
+  };
+  return shopifyFetch(`${base}/variants/${variantId}.json`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
 }
 
 // ===== 1) ParcelPerfect proxy (v28, POST form) =====
@@ -489,6 +555,9 @@ app.get("/shopify/products/search", async (req, res) => {
 
     const q = String(req.query.q || "").trim();
     if (!q) return badRequest(res, "Missing search query (?q=...)");
+    const includePriceTiers =
+      String(req.query.includePriceTiers || "").toLowerCase() === "true" ||
+      String(req.query.includePriceTiers || "") === "1";
 
     const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 50);
     const base = `/admin/api/${SHOPIFY_API_VERSION}`;
@@ -595,6 +664,22 @@ app.get("/shopify/products/search", async (req, res) => {
       }
     });
 
+    if (includePriceTiers && normalized.length) {
+      const tiersMap = new Map();
+      await Promise.all(
+        normalized.map(async (item) => {
+          const tierData = await fetchVariantPriceTiers(item.variantId);
+          if (tierData?.value) {
+            tiersMap.set(String(item.variantId), tierData.value);
+          }
+        })
+      );
+      normalized.forEach((item) => {
+        const tiers = tiersMap.get(String(item.variantId));
+        if (tiers) item.priceTiers = tiers;
+      });
+    }
+
     return res.json({ products: normalized });
   } catch (err) {
     console.error("Shopify product search error:", err);
@@ -613,6 +698,9 @@ app.get("/shopify/products/collection", async (req, res) => {
     if (!handle) {
       return badRequest(res, "Missing collection handle (?handle=...)");
     }
+    const includePriceTiers =
+      String(req.query.includePriceTiers || "").toLowerCase() === "true" ||
+      String(req.query.includePriceTiers || "") === "1";
 
     const base = `/admin/api/${SHOPIFY_API_VERSION}`;
     const customUrl = `${base}/custom_collections.json?handle=${encodeURIComponent(
@@ -688,9 +776,104 @@ app.get("/shopify/products/collection", async (req, res) => {
       });
     });
 
+    if (includePriceTiers && normalized.length) {
+      const tiersMap = new Map();
+      await Promise.all(
+        normalized.map(async (item) => {
+          const tierData = await fetchVariantPriceTiers(item.variantId);
+          if (tierData?.value) {
+            tiersMap.set(String(item.variantId), tierData.value);
+          }
+        })
+      );
+      normalized.forEach((item) => {
+        const tiers = tiersMap.get(String(item.variantId));
+        if (tiers) item.priceTiers = tiers;
+      });
+    }
+
     return res.json({ products: normalized });
   } catch (err) {
     console.error("Shopify collection products error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+// ===== 2c.2) Shopify: update variant price tiers =====
+app.post("/shopify/variants/price-tiers", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const body = req.body || {};
+    const updates = Array.isArray(body.updates)
+      ? body.updates
+      : body.variantId
+        ? [body]
+        : [];
+
+    if (!updates.length) {
+      return badRequest(res, "Provide updates array or variantId payload");
+    }
+
+    const results = await Promise.all(
+      updates.map(async (update) => {
+        const variantId = update?.variantId;
+        if (!variantId) {
+          return {
+            ok: false,
+            error: "MISSING_VARIANT_ID"
+          };
+        }
+
+        const rawTiers =
+          update?.priceTiers && typeof update.priceTiers === "object"
+            ? update.priceTiers
+            : null;
+        if (!rawTiers) {
+          return {
+            ok: false,
+            variantId,
+            error: "MISSING_PRICE_TIERS"
+          };
+        }
+
+        const cleaned = {};
+        Object.entries(rawTiers).forEach(([key, value]) => {
+          if (value == null || value === "") return;
+          const num = Number(value);
+          if (Number.isFinite(num)) cleaned[key] = num;
+        });
+
+        const metaResp = await upsertVariantPriceTiers(variantId, cleaned);
+        const metaOk = metaResp.ok;
+
+        let publicPriceUpdated = false;
+        if (update?.updatePublicPrice) {
+          const publicPrice =
+            update?.publicPrice != null
+              ? Number(update.publicPrice)
+              : cleaned.default;
+          if (Number.isFinite(publicPrice)) {
+            const priceResp = await updateVariantPrice(variantId, publicPrice);
+            publicPriceUpdated = priceResp.ok;
+          }
+        }
+
+        return {
+          ok: metaOk,
+          variantId,
+          metafieldUpdated: metaOk,
+          publicPriceUpdated
+        };
+      })
+    );
+
+    const anyFailed = results.some((r) => !r.ok);
+    return res.status(anyFailed ? 207 : 200).json({ results });
+  } catch (err) {
+    console.error("Shopify price tier update error:", err);
     return res
       .status(502)
       .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
