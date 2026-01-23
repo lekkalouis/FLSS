@@ -176,11 +176,12 @@
   function priceForCustomer(product) {
     if (!product) return null;
     const tier = state.priceTier;
-    if (tier && product.prices && product.prices[tier] != null) {
-      return Number(product.prices[tier]);
+    const tiers = product.priceTiers || product.prices || null;
+    if (tier && tiers && tiers[tier] != null) {
+      return Number(tiers[tier]);
     }
-    if (product.prices && product.prices.default != null) {
-      return Number(product.prices.default);
+    if (tiers && tiers.default != null) {
+      return Number(tiers.default);
     }
     if (product.price != null) {
       return Number(product.price);
@@ -986,7 +987,7 @@ ${state.customer.email || ""}${
     try {
       const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/search?q=${encodeURIComponent(
         q
-      )}`;
+      )}&includePriceTiers=1`;
       const res = await fetch(url);
       const data = await res.json();
       const list = Array.isArray(data.products) ? data.products : [];
@@ -1041,7 +1042,7 @@ ${state.customer.email || ""}${
     try {
       const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/collection?handle=${encodeURIComponent(
         handle
-      )}`;
+      )}&includePriceTiers=1`;
       const res = await fetch(url);
       const data = await res.json();
       const list = Array.isArray(data.products) ? data.products : [];
