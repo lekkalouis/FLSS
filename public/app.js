@@ -154,6 +154,14 @@
       type: "link",
       target: "/simulate.html",
       tag: "Sandbox"
+    },
+    {
+      id: "locator",
+      title: "Store Locator",
+      description: "Browse the retailer network on an interactive map.",
+      type: "link",
+      target: "/locator.html",
+      tag: "Retail"
     }
   ];
 

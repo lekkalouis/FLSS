@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flippen Lekka Store Locator</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --panel-strong: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --accent: #2563eb;
+      --radius: 12px;
+      --sans: "Inter", system-ui, -apple-system, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      padding: 1.5rem 2rem 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.7rem;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--text-muted);
+      max-width: 780px;
+    }
+
+    .locator-shell {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) 2fr;
+      gap: 1rem;
+      padding: 1.5rem 2rem 2rem;
+    }
+
+    @media (max-width: 980px) {
+      .locator-shell {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-strong);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    .controls {
+      display: grid;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+
+    select,
+    input {
+      width: 100%;
+      padding: 0.6rem 0.7rem;
+      border-radius: 10px;
+      border: 1px solid var(--panel-strong);
+      font-size: 0.95rem;
+    }
+
+    #map {
+      height: 520px;
+      width: 100%;
+      border-radius: var(--radius);
+      border: 1px solid var(--panel-strong);
+      overflow: hidden;
+    }
+
+    .store-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0.75rem 0 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .store-list {
+      display: grid;
+      gap: 0.75rem;
+      max-height: 520px;
+      overflow: auto;
+      padding-right: 0.35rem;
+    }
+
+    .province-card {
+      border: 1px solid var(--panel-strong);
+      border-radius: 12px;
+      padding: 0.75rem;
+      background: #fff;
+    }
+
+    .province-card h3 {
+      margin: 0 0 0.5rem;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .province-card ul {
+      margin: 0;
+      padding-left: 1.25rem;
+      display: grid;
+      gap: 0.25rem;
+      font-size: 0.9rem;
+    }
+
+    .note {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .back-link {
+      margin: 0 2rem 1.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Store Locator</h1>
+    <p>Explore the Flippen Lekka retail network on the map or scan the list by province.</p>
+  </header>
+
+  <a class="back-link" href="/">← Back to Dashboard</a>
+
+  <section class="locator-shell">
+    <div class="panel">
+      <div class="controls">
+        <div>
+          <label for="provinceFilter">Filter by province</label>
+          <select id="provinceFilter"></select>
+        </div>
+        <div>
+          <label for="storeSearch">Search stores</label>
+          <input id="storeSearch" type="search" placeholder="Search by store name" />
+        </div>
+      </div>
+
+      <div class="store-summary" id="storeSummary"></div>
+      <div class="store-list" id="storeList"></div>
+      <p class="note">Store names are based on the provided retailer list and can be refined as needed.</p>
+    </div>
+
+    <div class="panel">
+      <div id="map"></div>
+    </div>
+  </section>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="/locator.js"></script>
+</body>
+</html>
