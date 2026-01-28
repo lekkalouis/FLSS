@@ -75,6 +75,27 @@ function toKg(weight, unit) {
   }
 }
 
+function parsePageInfo(linkHeader) {
+  if (!linkHeader) return { next: null, previous: null };
+  const parts = linkHeader.split(",").map((part) => part.trim());
+  const info = { next: null, previous: null };
+  parts.forEach((part) => {
+    const match = part.match(/<([^>]+)>;\s*rel="([^"]+)"/);
+    if (!match) return;
+    const url = match[1];
+    const rel = match[2];
+    try {
+      const parsed = new URL(url);
+      const pageInfo = parsed.searchParams.get("page_info");
+      if (pageInfo) info[rel] = pageInfo;
+    } catch {
+      const pageMatch = url.match(/[?&]page_info=([^&]+)/);
+      if (pageMatch && pageMatch[1]) info[rel] = pageMatch[1];
+    }
+  });
+  return info;
+}
+
 router.get("/shopify/customers/search", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -222,19 +243,34 @@ router.get("/shopify/products/search", async (req, res) => {
     const includePriceTiers =
       String(req.query.includePriceTiers || "").toLowerCase() === "true" ||
       String(req.query.includePriceTiers || "") === "1";
+    const productCode = String(req.query.productCode || "").trim();
+    const productPageInfo = String(req.query.productPageInfo || "").trim();
+    const variantPageInfo = String(req.query.variantPageInfo || "").trim();
 
     const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 50);
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
 
-    const productUrl =
-      `${base}/products.json?limit=${limit}` +
-      `&title=${encodeURIComponent(q)}` +
-      `&fields=id,title,variants`;
+    const productParams = new URLSearchParams({
+      limit: String(limit),
+      fields: "id,title,variants"
+    });
+    if (productPageInfo) {
+      productParams.set("page_info", productPageInfo);
+    } else {
+      productParams.set("title", q);
+    }
+    const productUrl = `${base}/products.json?${productParams.toString()}`;
 
-    const variantUrl =
-      `${base}/variants.json?limit=${limit}` +
-      `&sku=${encodeURIComponent(q)}` +
-      `&fields=id,product_id,title,sku,price,weight,weight_unit`;
+    const variantParams = new URLSearchParams({
+      limit: String(limit),
+      fields: "id,product_id,title,sku,price,weight,weight_unit"
+    });
+    if (variantPageInfo) {
+      variantParams.set("page_info", variantPageInfo);
+    } else {
+      variantParams.set("sku", q);
+    }
+    const variantUrl = `${base}/variants.json?${variantParams.toString()}`;
 
     const [prodResp, varResp] = await Promise.all([
       shopifyFetch(productUrl, { method: "GET" }),
@@ -255,6 +291,9 @@ router.get("/shopify/products/search", async (req, res) => {
     const varData = await varResp.json();
     const products = Array.isArray(prodData.products) ? prodData.products : [];
     const variants = Array.isArray(varData.variants) ? varData.variants : [];
+
+    const productPaging = parsePageInfo(prodResp.headers.get("link"));
+    const variantPaging = parsePageInfo(varResp.headers.get("link"));
 
     const productTitleById = new Map(products.map((p) => [p.id, p.title]));
 
@@ -320,23 +359,36 @@ router.get("/shopify/products/search", async (req, res) => {
       }
     });
 
-    if (includePriceTiers && normalized.length) {
+    let filtered = normalized;
+    if (productCode) {
+      const code = productCode.toLowerCase();
+      filtered = normalized.filter((item) => {
+        if (String(item.variantId) === productCode) return true;
+        const sku = String(item.sku || "").toLowerCase();
+        return sku === code;
+      });
+    }
+
+    if (includePriceTiers && filtered.length) {
       const tiersMap = new Map();
       await Promise.all(
-        normalized.map(async (item) => {
+        filtered.map(async (item) => {
           const tierData = await fetchVariantPriceTiers(item.variantId);
           if (tierData?.value) {
             tiersMap.set(String(item.variantId), tierData.value);
           }
         })
       );
-      normalized.forEach((item) => {
+      filtered.forEach((item) => {
         const tiers = tiersMap.get(String(item.variantId));
         if (tiers) item.priceTiers = tiers;
       });
     }
 
-    return res.json({ products: normalized });
+    return res.json({
+      products: filtered,
+      pageInfo: { products: productPaging, variants: variantPaging }
+    });
   } catch (err) {
     console.error("Shopify product search error:", err);
     return res
@@ -783,6 +835,77 @@ router.post("/shopify/orders", async (req, res) => {
     });
   } catch (err) {
     console.error("Shopify order create error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+router.post("/shopify/orders/cash", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { lineItems, note, cashier } = req.body || {};
+
+    if (!Array.isArray(lineItems) || !lineItems.length) {
+      return badRequest(res, "Missing lineItems");
+    }
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const orderPayload = {
+      order: {
+        line_items: lineItems.map((li) => {
+          const entry = {
+            quantity: li.quantity || 1
+          };
+          if (li.variantId) {
+            entry.variant_id = li.variantId;
+          } else {
+            entry.title = li.title || li.sku || "Custom item";
+            if (li.price != null) entry.price = String(li.price);
+          }
+          if (li.sku) entry.sku = li.sku;
+          if (li.price != null && !entry.price) entry.price = String(li.price);
+          return entry;
+        }),
+        financial_status: "paid",
+        tags: "pos_cash",
+        note: note || "POS cash sale",
+        source_name: "pos",
+        note_attributes: cashier ? [{ name: "cashier", value: String(cashier) }] : [],
+        payment_gateway_names: ["Cash"]
+      }
+    };
+
+    const resp = await shopifyFetch(`${base}/orders.json`, {
+      method: "POST",
+      body: JSON.stringify(orderPayload)
+    });
+
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body: data
+      });
+    }
+
+    const order = data.order || null;
+    return res.json({
+      ok: true,
+      order: order ? { id: order.id, name: order.name, orderNumber: order.order_number } : null
+    });
+  } catch (err) {
+    console.error("Shopify cash order error:", err);
     return res
       .status(502)
       .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });

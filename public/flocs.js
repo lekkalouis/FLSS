@@ -80,6 +80,10 @@
   const productSearch    = document.getElementById("flocs-productSearch");
   const productResults   = document.getElementById("flocs-productResults");
   const productStatus    = document.getElementById("flocs-productStatus");
+  const productCodeInput = document.getElementById("flocs-productCode");
+  const productPager     = document.getElementById("flocs-productPager");
+  const productPrevBtn   = document.getElementById("flocs-productPrev");
+  const productNextBtn   = document.getElementById("flocs-productNext");
   const filterFlavour    = document.getElementById("flocs-filterFlavour");
   const filterSize       = document.getElementById("flocs-filterSize");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
@@ -118,6 +122,8 @@
     priceOverrides: {},
     priceOverrideEnabled: {}
   };
+  let productPageInfo = { products: {}, variants: {} };
+  let productPagingCursor = { products: null, variants: null };
 
   // ===== HELPERS =====
   const money = (v) =>
@@ -976,6 +982,7 @@ ${state.customer.email || ""}${
       productResults.hidden = true;
       productResults.innerHTML = "";
       productStatus.textContent = "Search by SKU or product title";
+      resetProductPaging();
       return;
     }
 
@@ -983,19 +990,29 @@ ${state.customer.email || ""}${
     productResults.hidden = false;
     productResults.innerHTML =
       `<div class="flocs-customerEmpty">Searching…</div>`;
+    if (productPager) productPager.hidden = true;
 
     try {
-      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/search?q=${encodeURIComponent(
-        q
-      )}&includePriceTiers=1`;
+      const productCode = (productCodeInput?.value || "").trim();
+      const params = new URLSearchParams({ q, includePriceTiers: "1" });
+      if (productCode) params.set("productCode", productCode);
+      if (productPagingCursor.products) {
+        params.set("productPageInfo", productPagingCursor.products);
+      }
+      if (productPagingCursor.variants) {
+        params.set("variantPageInfo", productPagingCursor.variants);
+      }
+      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/search?${params.toString()}`;
       const res = await fetch(url);
       const data = await res.json();
       const list = Array.isArray(data.products) ? data.products : [];
+      productPageInfo = data.pageInfo || { products: {}, variants: {} };
 
       if (!list.length) {
         productResults.innerHTML =
           `<div class="flocs-customerEmpty">No products found.</div>`;
         productStatus.textContent = "No products found. Refine search.";
+        if (productPager) productPager.hidden = true;
         return;
       }
 
@@ -1018,14 +1035,34 @@ ${state.customer.email || ""}${
         .join("");
       productResults._data = list;
       productStatus.textContent = "Click add to include in the order.";
+      updateProductPager();
     } catch (e) {
       console.error("Product search error:", e);
       productResults.innerHTML =
         `<div class="flocs-customerEmpty">Error searching: ${String(
           e?.message || e
-        )}</div>`;
+      )}</div>`;
       productStatus.textContent = "Error searching products.";
+      if (productPager) productPager.hidden = true;
     }
+  }
+
+  function updateProductPager() {
+    if (!productPager || !productPrevBtn || !productNextBtn) return;
+    const hasPrev =
+      Boolean(productPageInfo?.products?.previous) ||
+      Boolean(productPageInfo?.variants?.previous);
+    const hasNext =
+      Boolean(productPageInfo?.products?.next) || Boolean(productPageInfo?.variants?.next);
+    productPrevBtn.disabled = !hasPrev;
+    productNextBtn.disabled = !hasNext;
+    productPager.hidden = !(hasPrev || hasNext);
+  }
+
+  function resetProductPaging() {
+    productPageInfo = { products: {}, variants: {} };
+    productPagingCursor = { products: null, variants: null };
+    if (productPager) productPager.hidden = true;
   }
 
   async function loadCollectionProducts() {
@@ -1726,9 +1763,39 @@ ${state.customer.email || ""}${
     }
 
     if (productSearch) {
-      productSearch.addEventListener("input", () =>
-        searchProductsDebounced()
-      );
+      productSearch.addEventListener("input", () => {
+        resetProductPaging();
+        searchProductsDebounced();
+      });
+    }
+
+    if (productCodeInput) {
+      productCodeInput.addEventListener("input", () => {
+        resetProductPaging();
+        searchProductsDebounced();
+      });
+    }
+
+    if (productPrevBtn) {
+      productPrevBtn.addEventListener("click", () => {
+        if (!productPageInfo) return;
+        productPagingCursor = {
+          products: productPageInfo.products?.previous || null,
+          variants: productPageInfo.variants?.previous || null
+        };
+        searchProductsNow();
+      });
+    }
+
+    if (productNextBtn) {
+      productNextBtn.addEventListener("click", () => {
+        if (!productPageInfo) return;
+        productPagingCursor = {
+          products: productPageInfo.products?.next || null,
+          variants: productPageInfo.variants?.next || null
+        };
+        searchProductsNow();
+      });
     }
 
     if (collectionLoadBtn) {
