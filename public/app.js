@@ -270,11 +270,11 @@
   };
 
   const SERVICE_LABELS = {
-    server: "Server",
-    shopify: "Shopify",
-    parcelPerfect: "ParcelPerfect",
-    printNode: "PrintNode",
-    email: "Email"
+    server: "FL Server",
+    shopify: "Shopify API",
+    parcelPerfect: "SWE PP API",
+    printNode: "Print Node",
+    email: "Email Service"
   };
 
   function getParcelSet(orderNo) {
