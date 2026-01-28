@@ -135,6 +135,7 @@ A standalone page (`/flocs`) to capture a new order:
 
 - Dedicated price-tier editor (`/price-manager.html`) to review SKU pricing tiers and sync tiers into Shopify variant metafields (`custom.price_tiers`).
 - Supports optional public price sync to update storefront pricing by writing the variant price through the Admin API.【F:public/price-manager.js†L1-L201】【F:server.js†L289-L366】
+- Theme-only pricing logic (no extra app) can be implemented by reading `custom.price_tiers` in your Shopify theme and resolving prices from customer tags. See `docs/price-tiers-theme.md`.
 
 ---
 
