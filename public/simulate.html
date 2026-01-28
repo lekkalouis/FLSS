@@ -28,16 +28,16 @@
   }
   .simApp{
     min-height:100dvh;
-    padding:32px clamp(20px,4vw,48px);
+    padding:20px clamp(16px,3vw,36px);
     display:flex;
     flex-direction:column;
-    gap:24px;
+    gap:18px;
   }
   .simHeader{
     background:var(--panel);
     border:1px solid var(--panel-strong);
     border-radius:var(--radius);
-    padding:24px;
+    padding:18px;
     box-shadow:var(--shadow);
     display:flex;
     flex-wrap:wrap;
@@ -56,7 +56,7 @@
   .simControls{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-    gap:12px;
+    gap:10px;
     align-items:end;
     flex:1;
     min-width:min(520px,100%);
@@ -106,8 +106,8 @@
   .btnGhost:hover{ background:#e2e8f0; }
   .simMain{
     display:grid;
-    grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);
-    gap:24px;
+    grid-template-columns:minmax(0,1.25fr) minmax(0,.85fr);
+    gap:18px;
   }
   @media (max-width:960px){
     .simMain{ grid-template-columns:1fr; }
@@ -116,7 +116,7 @@
     background:var(--panel);
     border-radius:var(--radius);
     border:1px solid var(--panel-strong);
-    padding:20px;
+    padding:16px;
     box-shadow:var(--shadow);
   }
   .panelHeader{
@@ -196,16 +196,16 @@
     list-style:none;
     padding:0;
     margin:0;
-    display:flex;
-    flex-direction:column;
-    gap:10px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:8px;
   }
   .stepItem{
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:12px;
-    padding:12px 14px;
+    padding:10px 12px;
     border-radius:12px;
     border:1px solid var(--panel-strong);
     background:var(--panel-muted);
@@ -335,7 +335,7 @@
   .metricsGrid{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-    gap:12px;
+    gap:10px;
   }
   .metricCard{
     background:var(--panel-muted);
@@ -355,7 +355,7 @@
     font-weight:700;
   }
   .progressWrap{
-    margin-top:16px;
+    margin-top:12px;
   }
   .progressBar{
     height:10px;
@@ -438,6 +438,21 @@
     font-size:.8rem;
     color:var(--text-muted);
   }
+  .processGrid{
+    display:grid;
+    grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);
+    gap:16px;
+    align-items:start;
+  }
+  @media (max-width:1200px){
+    .processGrid{ grid-template-columns:1fr; }
+  }
+  .panelSub{
+    background:var(--panel-muted);
+    border-radius:14px;
+    border:1px solid var(--panel-strong);
+    padding:14px;
+  }
 </style>
 </head>
 <body>
@@ -491,51 +506,57 @@
           <h2>Process actions</h2>
           <span class="statusPill" id="orderStatus">Order 1 of 24</span>
         </div>
-        <ol class="stepsList" id="stepsList"></ol>
-        <div class="panel" style="margin-top:16px;">
-          <div class="panelHeader">
-            <h2>Output summary</h2>
-            <span class="statusPill" id="runtimeStatus">Idle</span>
-          </div>
-          <div class="metricsGrid">
-            <div class="metricCard">
-              <div class="metricLabel">Auto actions</div>
-              <div class="metricValue" id="totalActions">0</div>
+        <div class="processGrid">
+          <ol class="stepsList" id="stepsList"></ol>
+          <div class="panelSub">
+            <div class="panelHeader" style="margin-bottom:12px;">
+              <h2>Output summary</h2>
+              <span class="statusPill" id="runtimeStatus">Idle</span>
             </div>
-            <div class="metricCard">
-              <div class="metricLabel">Manual actions</div>
-              <div class="metricValue" id="manualActionsTotal">0</div>
+            <div class="metricsGrid">
+              <div class="metricCard">
+                <div class="metricLabel">Auto actions</div>
+                <div class="metricValue" id="totalActions">0</div>
+              </div>
+              <div class="metricCard">
+                <div class="metricLabel">Manual actions</div>
+                <div class="metricValue" id="manualActionsTotal">0</div>
+              </div>
+              <div class="metricCard">
+                <div class="metricLabel">Efficiency gain</div>
+                <div class="metricValue" id="efficiencyGain">0×</div>
+              </div>
+              <div class="metricCard">
+                <div class="metricLabel">Systems touched</div>
+                <div class="metricValue" id="systemsCount">0</div>
+              </div>
+              <div class="metricCard">
+                <div class="metricLabel">Completed actions</div>
+                <div class="metricValue" id="completedActions">0</div>
+              </div>
+              <div class="metricCard">
+                <div class="metricLabel">Actions / minute</div>
+                <div class="metricValue" id="actionsPerMinute">0</div>
+              </div>
+              <div class="metricCard">
+                <div class="metricLabel">Avg per day</div>
+                <div class="metricValue" id="actionsPerDay">0</div>
+              </div>
+              <div class="metricCard">
+                <div class="metricLabel">Manual minutes saved</div>
+                <div class="metricValue" id="manualMinutesSaved">0</div>
+              </div>
+              <div class="metricCard">
+                <div class="metricLabel">Knowledge domains</div>
+                <div class="metricValue" id="knowledgeCount">0</div>
+              </div>
             </div>
-            <div class="metricCard">
-              <div class="metricLabel">Efficiency gain</div>
-              <div class="metricValue" id="efficiencyGain">0×</div>
+            <div class="progressWrap">
+              <div class="progressBar">
+                <div class="progressFill" id="progressFill"></div>
+              </div>
+              <p class="warningNote" id="estimateNote"></p>
             </div>
-            <div class="metricCard">
-              <div class="metricLabel">Systems touched</div>
-              <div class="metricValue" id="systemsCount">0</div>
-            </div>
-            <div class="metricCard">
-              <div class="metricLabel">Actions / minute</div>
-              <div class="metricValue" id="actionsPerMinute">0</div>
-            </div>
-            <div class="metricCard">
-              <div class="metricLabel">Avg per day</div>
-              <div class="metricValue" id="actionsPerDay">0</div>
-            </div>
-            <div class="metricCard">
-              <div class="metricLabel">Manual minutes saved</div>
-              <div class="metricValue" id="manualMinutesSaved">0</div>
-            </div>
-            <div class="metricCard">
-              <div class="metricLabel">Knowledge domains</div>
-              <div class="metricValue" id="knowledgeCount">0</div>
-            </div>
-          </div>
-          <div class="progressWrap">
-            <div class="progressBar">
-              <div class="progressFill" id="progressFill"></div>
-            </div>
-            <p class="warningNote" id="estimateNote"></p>
           </div>
         </div>
       </section>

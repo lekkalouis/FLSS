@@ -1489,6 +1489,105 @@
     border-radius:var(--radius-md);
     color:#0c4a6e;
   }
+  .slotEgg{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:1.5rem;
+    z-index:60;
+  }
+  .slotEgg[hidden]{
+    display:none;
+  }
+  .slotEgg__backdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(15,23,42,.72);
+  }
+  .slotEgg__panel{
+    position:relative;
+    background:#0f172a;
+    color:#f8fafc;
+    border-radius:1rem;
+    padding:1.4rem 1.6rem;
+    width:min(420px,92vw);
+    box-shadow:0 30px 80px rgba(15,23,42,.55);
+    border:1px solid rgba(148,163,184,.3);
+    z-index:1;
+  }
+  .slotEgg__header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    margin-bottom:.4rem;
+  }
+  .slotEgg__title{
+    margin:0;
+    font-size:1.15rem;
+  }
+  .slotEgg__close{
+    border:none;
+    background:transparent;
+    color:#f8fafc;
+    font-size:1.2rem;
+    cursor:pointer;
+  }
+  .slotEgg__hint{
+    color:#cbd5f5;
+    font-size:.85rem;
+    margin:0 0 1rem;
+  }
+  .slotEgg__reels{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:.75rem;
+    margin-bottom:1rem;
+  }
+  .slotEgg__reel{
+    background:#111827;
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:.75rem;
+    padding:.9rem .6rem;
+    text-align:center;
+    font-size:1.1rem;
+    font-weight:700;
+    letter-spacing:.04em;
+    min-height:3.1rem;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .slotEgg__actions{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    flex-wrap:wrap;
+  }
+  .slotEgg__spin{
+    border:none;
+    border-radius:999px;
+    padding:.45rem 1.2rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    background:#f97316;
+    color:#0f172a;
+    cursor:pointer;
+  }
+  .slotEgg__spin[disabled]{
+    opacity:.6;
+    cursor:default;
+  }
+  .slotEgg__result{
+    font-size:.85rem;
+    color:#cbd5f5;
+    flex:1;
+    min-width:160px;
+  }
   .pill{
     display:inline-flex;
     align-items:center;
@@ -1842,6 +1941,26 @@
       </div>
     </div>
       </main>
+    </div>
+  </div>
+
+  <div class="slotEgg" id="slotEgg" hidden aria-hidden="true">
+    <div class="slotEgg__backdrop" data-slot-close></div>
+    <div class="slotEgg__panel" role="dialog" aria-modal="true" aria-labelledby="slotEggTitle">
+      <div class="slotEgg__header">
+        <h2 class="slotEgg__title" id="slotEggTitle">Secret Spice Slots</h2>
+        <button class="slotEgg__close" type="button" data-slot-close aria-label="Close spice slots">✕</button>
+      </div>
+      <p class="slotEgg__hint">Pull the lever and see which blend lines up.</p>
+      <div class="slotEgg__reels">
+        <div class="slotEgg__reel" data-slot-reel>🌶️ Chilli</div>
+        <div class="slotEgg__reel" data-slot-reel>🧄 Garlic</div>
+        <div class="slotEgg__reel" data-slot-reel>🧂 Sea Salt</div>
+      </div>
+      <div class="slotEgg__actions">
+        <button class="slotEgg__spin" id="slotSpinBtn" type="button">Spin</button>
+        <div class="slotEgg__result" id="slotResult">Match all three for a “house blend” win.</div>
+      </div>
     </div>
   </div>
 
