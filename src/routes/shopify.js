@@ -951,6 +951,66 @@ router.get("/shopify/orders/open", async (req, res) => {
   }
 });
 
+router.post("/shopify/orders/run-flow", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+    const { orderId, flowTag } = req.body || {};
+    if (!orderId) return badRequest(res, "Missing orderId");
+    const tagToApply = String(flowTag || config.SHOPIFY_FLOW_TAG || "dispatch_flow")
+      .trim()
+      .replace(/^,+|,+$/g, "");
+    if (!tagToApply) return badRequest(res, "Missing flow tag");
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const orderResp = await shopifyFetch(`${base}/orders/${orderId}.json?fields=id,tags`, {
+      method: "GET"
+    });
+    if (!orderResp.ok) {
+      const body = await orderResp.text();
+      return res.status(orderResp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: orderResp.status,
+        statusText: orderResp.statusText,
+        body
+      });
+    }
+
+    const orderData = await orderResp.json();
+    const existingTags = String(orderData?.order?.tags || "")
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+
+    if (!existingTags.includes(tagToApply)) {
+      existingTags.push(tagToApply);
+    }
+
+    const tagString = existingTags.join(", ");
+    const updateResp = await shopifyFetch(`${base}/orders/${orderId}.json`, {
+      method: "PUT",
+      body: JSON.stringify({ order: { id: orderId, tags: tagString } })
+    });
+
+    if (!updateResp.ok) {
+      const body = await updateResp.text();
+      return res.status(updateResp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: updateResp.status,
+        statusText: updateResp.statusText,
+        body
+      });
+    }
+
+    return res.json({ ok: true, tag: tagToApply, tags: tagString });
+  } catch (err) {
+    console.error("Shopify run-flow error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
 router.get("/shopify/shipments/recent", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;

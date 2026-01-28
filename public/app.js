@@ -24,7 +24,8 @@
     },
     PP_ENDPOINT: "/pp",
     SHOPIFY: { PROXY_BASE: "/shopify" },
-    PROGRESS_STEP_DELAY_MS: 450
+    PROGRESS_STEP_DELAY_MS: 450,
+    FLOW_TRIGGER_TAG: "dispatch_flow"
   };
 
   const $ = (id) => document.getElementById(id);
@@ -208,6 +209,10 @@
   const lineItemOrderIndex = new Map(
     lineItemOrder.map((key, index) => [key, index])
   );
+  const OPP_DOCUMENTS = [
+    { type: "picklist", label: "OPP pick list" },
+    { type: "packing-slip", label: "OPP packing slip" }
+  ];
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
@@ -597,10 +602,24 @@
   function normalizePackingBoxes(boxes) {
     if (!Array.isArray(boxes)) return [];
     return boxes.map((box, index) => ({
-      label: String(box?.label || `BOX ${index + 1}`),
+      label: String(box?.label || `PARCEL ${index + 1}`),
       items: box?.items && typeof box.items === "object" ? { ...box.items } : {},
       parcelCode: String(box?.parcelCode || "").trim()
     }));
+  }
+
+  function addPackingBox(state, { seedPacked = false } = {}) {
+    if (!state) return null;
+    if (!Array.isArray(state.boxes)) state.boxes = [];
+    const label = `PARCEL ${state.boxes.length + 1}`;
+    const box = {
+      label,
+      items: seedPacked ? snapshotPackedItems(state) : {},
+      parcelCode: ""
+    };
+    state.boxes.push(box);
+    state.activeBoxIndex = state.boxes.length - 1;
+    return box;
   }
 
   function ensureActiveBox(state) {
@@ -614,7 +633,7 @@
         : null;
     if (activeIndex == null) {
       if (!state.boxes.length) {
-        state.boxes.push({ label: "BOX 1", items: {}, parcelCode: "" });
+        addPackingBox(state);
       }
       state.activeBoxIndex = 0;
     }
@@ -2122,6 +2141,23 @@ async function startOrder(orderNo) {
       .join("<br>");
   }
 
+  function renderOppDocButtons(orderNo) {
+    if (!orderNo) {
+      return OPP_DOCUMENTS.map(
+        (doc) =>
+          `<button class="dispatchOppBtn" type="button" disabled>${doc.label}</button>`
+      ).join("");
+    }
+    return OPP_DOCUMENTS.map(
+      (doc) =>
+        `<button class="dispatchOppBtn" type="button" data-action="print-opp" data-doc-type="${doc.type}" data-order-no="${orderNo}">${doc.label}</button>`
+    ).join("");
+  }
+
+  function getOppDocLabel(docType) {
+    return OPP_DOCUMENTS.find((doc) => doc.type === docType)?.label || "OPP document";
+  }
+
   function renderDispatchActions(order, laneId, orderNo, packingState) {
     const actionBtn =
       laneId === "delivery"
@@ -2136,7 +2172,12 @@ async function startOrder(orderNo) {
         ? `<button class="dispatchBookBtn" type="button" data-action="book-now" data-order-no="${orderNo}">Book Now</button>`
         : `<button class="dispatchBookBtn" type="button" disabled>Book Now</button>`;
 
-    return `${actionBtn}`;
+    const flowBtn = orderNo
+      ? `<button class="dispatchFlowBtn" type="button" data-action="run-flow" data-order-no="${orderNo}">Run flow</button>`
+      : `<button class="dispatchFlowBtn" type="button" disabled>Run flow</button>`;
+    const oppBtns = renderOppDocButtons(orderNo);
+
+    return `${actionBtn}${flowBtn}${oppBtns}`;
   }
 
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
@@ -2185,7 +2226,7 @@ async function startOrder(orderNo) {
         </div>
         <div class="dispatchPackingFooter">
           <div class="dispatchParcelScan">
-            <button class="dispatchParcelBoxBtn" type="button" data-action="add-box" data-order-no="${orderNo}">Add box</button>
+            <button class="dispatchParcelBoxBtn" type="button" data-action="add-box" data-order-no="${orderNo}">Add parcel</button>
           </div>
           <div class="dispatchBoxList">
             ${
@@ -2200,11 +2241,11 @@ async function startOrder(orderNo) {
                       `
                     )
                     .join("")
-                : `<span class="dispatchBoxEmpty">No boxes added yet.</span>`
+                : `<span class="dispatchBoxEmpty">No parcels added yet.</span>`
             }
           </div>
           <div class="dispatchPackingControls">
-            <span class="dispatchPackingCount">Boxes packed: ${parcelCount}</span>
+            <span class="dispatchPackingCount">Parcels packed: ${parcelCount}</span>
             <button class="dispatchFinishPackingBtn" type="button" data-action="finish-packing" data-order-no="${orderNo}" ${packingState.endTime ? "disabled" : ""}>
               ${packingState.endTime ? "Packing finished" : "Finish packing"}
             </button>
@@ -2551,6 +2592,83 @@ async function startOrder(orderNo) {
     if (pruned) savePackingState();
   }
 
+  function printOppDocument(order, docType) {
+    const normalizedType =
+      docType === "picklist" ? "picklist" : docType === "packing-slip" ? "packing-slip" : null;
+    if (!order || !normalizedType) return false;
+    const orderNo = String(order.name || "").replace("#", "").trim();
+    const title = order.customer_name || order.name || `Order ${order.id}`;
+    const packingState = dispatchPackingState.get(orderNo) || getPackingState(order);
+    const parcelCount = getPackingParcelCount(packingState);
+    const created = order.created_at ? new Date(order.created_at).toLocaleString() : "";
+    const addressLines = [
+      order.shipping_address1,
+      order.shipping_address2,
+      [order.shipping_city, order.shipping_postal].filter(Boolean).join(" ")
+    ]
+      .filter(Boolean)
+      .join("<br>");
+    const packedByIndex = new Map(
+      (packingState?.items || []).map((item) => [item.index, item.packed || 0])
+    );
+    const rows = (order.line_items || [])
+      .map((li, index) => {
+        const variantTitle = (li.variant_title || "").trim();
+        const itemLabel = [li.title, variantTitle && variantTitle !== "Default Title" ? variantTitle : ""]
+          .filter(Boolean)
+          .join(" · ");
+        const packedCount = packedByIndex.get(index) || 0;
+        const docCell =
+          normalizedType === "picklist"
+            ? `<td class="oppCell oppCell--blank"></td>`
+            : `<td>${packedCount}</td>`;
+        return `<tr><td>${itemLabel || ""}</td><td>${li.sku || ""}</td><td>${li.quantity}</td>${docCell}</tr>`;
+      })
+      .join("");
+
+    const docTitle =
+      normalizedType === "picklist" ? "OPP Pick List" : "OPP Packing Slip";
+    const extraColumnHeader = normalizedType === "picklist" ? "Picked" : "Packed";
+    const doc = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${docTitle} ${orderNo}</title>
+        <style>
+          body{ font-family:Arial, sans-serif; padding:24px; color:#0f172a; }
+          h1{ font-size:18px; margin-bottom:8px; }
+          .meta{ font-size:12px; color:#475569; margin-bottom:12px; }
+          .summary{ font-size:12px; color:#0f172a; margin-bottom:16px; }
+          table{ width:100%; border-collapse:collapse; font-size:12px; }
+          th,td{ border:1px solid #cbd5f5; padding:6px; text-align:left; }
+          th{ background:#e2e8f0; }
+          .addr{ margin-top:10px; font-size:12px; }
+          .oppCell--blank{ background:#fff; }
+        </style>
+      </head>
+      <body>
+        <h1>${docTitle} • Order ${orderNo}</h1>
+        <div class="meta">${title}${created ? ` · ${created}` : ""}</div>
+        <div class="summary">Parcels: ${parcelCount || 0}</div>
+        <div class="addr"><strong>Deliver to:</strong><br>${addressLines || "No address on file"}</div>
+        <table>
+          <thead><tr><th>Item</th><th>SKU</th><th>Qty</th><th>${extraColumnHeader}</th></tr></thead>
+          <tbody>${rows || "<tr><td colspan='4'>No line items.</td></tr>"}</tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    const win = window.open("", "_blank", "width=820,height=900");
+    if (!win) return false;
+    win.document.open();
+    win.document.write(doc);
+    win.document.close();
+    win.focus();
+    win.print();
+    return true;
+  }
+
   function printDeliveryNote(order) {
     if (!order) return false;
     const orderNo = String(order.name || "").replace("#", "").trim();
@@ -2877,9 +2995,14 @@ async function startOrder(orderNo) {
       if (!order) return true;
       const state = getPackingState(order);
       if (!state) return true;
+      const hadBoxes = Array.isArray(state.boxes) && state.boxes.length > 0;
       if (!state.startTime) {
         state.startTime = new Date().toISOString();
         logDispatchEvent(`Packing started for order ${orderNo}.`);
+      }
+      if (!hadBoxes) {
+        addPackingBox(state, { seedPacked: true });
+        logDispatchEvent(`Parcel 1 opened for order ${orderNo}.`);
       }
       state.active = true;
       savePackingState();
@@ -2937,15 +3060,9 @@ async function startOrder(orderNo) {
       const state = dispatchPackingState.get(orderNo);
       if (!state) return true;
       if (!state.startTime) state.startTime = new Date().toISOString();
-      if (!Array.isArray(state.boxes)) state.boxes = [];
-      const label = `BOX ${state.boxes.length + 1}`;
-      const box = { label, items: {}, parcelCode: "" };
-      if (!state.boxes.length) {
-        box.items = snapshotPackedItems(state);
-      }
-      state.boxes.push(box);
-      state.activeBoxIndex = state.boxes.length - 1;
-      logDispatchEvent(`Box added for order ${orderNo}: ${label}.`);
+      const seedPacked = !Array.isArray(state.boxes) || !state.boxes.length;
+      const box = addPackingBox(state, { seedPacked });
+      logDispatchEvent(`Parcel added for order ${orderNo}: ${box?.label || ""}`.trim());
       savePackingState();
       refreshDispatchViews(orderNo);
       return true;
@@ -2957,6 +3074,58 @@ async function startOrder(orderNo) {
       if (!state.startTime) state.startTime = new Date().toISOString();
       finalizePacking(state);
       refreshDispatchViews(orderNo);
+      return true;
+    }
+    if (actionType === "run-flow") {
+      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+      if (!orderNo || !order) {
+        statusExplain("Flow trigger unavailable.", "warn");
+        logDispatchEvent("Flow trigger failed: order not found.");
+        return true;
+      }
+      try {
+        setDispatchProgress(2, `Triggering flow for ${orderNo}`);
+        const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/run-flow`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: order.id,
+            orderNo,
+            flowTag: CONFIG.FLOW_TRIGGER_TAG
+          })
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          statusExplain("Flow trigger failed.", "warn");
+          logDispatchEvent(`Flow trigger failed for order ${orderNo}: ${text}`);
+          return true;
+        }
+        statusExplain(`Flow triggered for ${orderNo}.`, "ok");
+        logDispatchEvent(`Flow triggered for order ${orderNo}.`);
+      } catch (err) {
+        statusExplain("Flow trigger failed.", "warn");
+        logDispatchEvent(`Flow trigger failed for order ${orderNo}: ${String(err)}`);
+      }
+      return true;
+    }
+    if (actionType === "print-opp") {
+      const docType = action.dataset.docType;
+      const docLabel = getOppDocLabel(docType);
+      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+      if (!orderNo || !order) {
+        statusExplain("OPP document unavailable.", "warn");
+        logDispatchEvent("OPP document failed: order not found.");
+        return true;
+      }
+      setDispatchProgress(4, `Printing ${docLabel} for ${orderNo}`);
+      logDispatchEvent(`Printing ${docLabel} for order ${orderNo}.`);
+      const ok = printOppDocument(order, docType);
+      if (!ok) {
+        statusExplain("Pop-up blocked for OPP document.", "warn");
+        logDispatchEvent("OPP document blocked by popup settings.");
+        return true;
+      }
+      statusExplain(`${docLabel} printed for ${orderNo}.`, "ok");
       return true;
     }
     if (actionType === "print-note") {
