@@ -284,6 +284,204 @@
     grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));
     gap:1rem;
   }
+  .factoryShell{
+    border-radius:var(--radius-lg);
+    border:1px solid var(--panel-strong);
+    padding:1.5rem;
+    background:linear-gradient(135deg, rgba(15,23,42,.92), rgba(30,41,59,.92));
+    color:#e2e8f0;
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 24px 46px rgba(15,23,42,.25);
+  }
+  .factoryShell::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      radial-gradient(circle at top left, rgba(56,189,248,.22), transparent 55%),
+      radial-gradient(circle at bottom right, rgba(59,130,246,.25), transparent 55%);
+    opacity:.9;
+    pointer-events:none;
+  }
+  .factoryHeader{
+    position:relative;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:1rem;
+    flex-wrap:wrap;
+    z-index:1;
+  }
+  .factoryHeader h2{
+    margin:0 0 .35rem;
+    font-size:1.2rem;
+    color:#f8fafc;
+  }
+  .factoryHeader p{
+    margin:0;
+    color:rgba(226,232,240,.8);
+    font-size:.9rem;
+  }
+  .factoryMap{
+    position:relative;
+    margin-top:1.25rem;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:1rem;
+    z-index:1;
+  }
+  .factoryArea{
+    position:relative;
+    border-radius:1rem;
+    padding:1rem 1rem 1.1rem;
+    border:1px solid rgba(148,163,184,.35);
+    background:rgba(15,23,42,.65);
+    color:#e2e8f0;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    gap:.5rem;
+    transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    overflow:hidden;
+  }
+  .factoryArea::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(120deg, rgba(56,189,248,.22), rgba(59,130,246,.05));
+    opacity:0;
+    transition:opacity .2s ease;
+  }
+  .factoryArea:hover{
+    transform:translateY(-3px);
+    border-color:rgba(56,189,248,.65);
+    box-shadow:0 16px 28px rgba(14,116,144,.35);
+  }
+  .factoryArea:hover::after{
+    opacity:1;
+  }
+  .factoryAreaTitle{
+    font-weight:700;
+    font-size:.95rem;
+    margin:0;
+    position:relative;
+    z-index:1;
+  }
+  .factoryAreaMeta{
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:rgba(148,163,184,.9);
+    position:relative;
+    z-index:1;
+  }
+  .factoryAreaDetail{
+    font-size:.78rem;
+    color:rgba(226,232,240,.78);
+    line-height:1.4;
+    margin:0;
+    position:relative;
+    z-index:1;
+  }
+  .factoryArea--active{
+    border-color:rgba(56,189,248,.9);
+    box-shadow:0 18px 32px rgba(59,130,246,.4);
+  }
+  .factoryAreaPulse{
+    position:absolute;
+    top:.65rem;
+    right:.65rem;
+    width:.55rem;
+    height:.55rem;
+    border-radius:999px;
+    background:#38bdf8;
+    box-shadow:0 0 12px rgba(56,189,248,.9);
+    animation:pulse 2.5s ease-in-out infinite;
+    z-index:1;
+  }
+  @keyframes pulse{
+    0%,100%{ transform:scale(.9); opacity:.6; }
+    50%{ transform:scale(1.3); opacity:1; }
+  }
+  .factoryDetail{
+    position:relative;
+    margin-top:1.4rem;
+    background:rgba(15,23,42,.8);
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:1rem;
+    padding:1.1rem 1.2rem;
+    display:flex;
+    flex-direction:column;
+    gap:.9rem;
+    z-index:1;
+  }
+  .factoryDetailHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    flex-wrap:wrap;
+  }
+  .factoryDetailTitle{
+    font-size:1rem;
+    font-weight:700;
+    margin:0;
+    color:#f8fafc;
+  }
+  .factoryDetailBadge{
+    font-size:.65rem;
+    font-weight:700;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    background:rgba(56,189,248,.18);
+    color:#7dd3fc;
+    padding:.25rem .6rem;
+    border-radius:999px;
+  }
+  .factoryTools{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:.75rem;
+  }
+  .factoryTool{
+    border-radius:.85rem;
+    padding:.75rem .85rem;
+    border:1px solid rgba(148,163,184,.35);
+    background:rgba(15,23,42,.7);
+    color:#e2e8f0;
+    display:flex;
+    flex-direction:column;
+    gap:.35rem;
+    position:relative;
+  }
+  .factoryToolTitle{
+    font-weight:700;
+    font-size:.85rem;
+    margin:0;
+  }
+  .factoryToolDesc{
+    margin:0;
+    font-size:.72rem;
+    color:rgba(226,232,240,.75);
+    line-height:1.4;
+  }
+  .factoryToolBtn{
+    align-self:flex-start;
+    margin-top:.35rem;
+    border:none;
+    border-radius:.6rem;
+    padding:.35rem .75rem;
+    font-size:.72rem;
+    font-weight:700;
+    color:#0f172a;
+    background:#38bdf8;
+    cursor:pointer;
+    box-shadow:0 8px 16px rgba(56,189,248,.3);
+  }
+  .factoryToolBtn:hover{
+    filter:brightness(1.05);
+  }
   .moduleCard{
     border:1px solid var(--panel-strong);
     border-radius:var(--radius-lg);
@@ -1597,6 +1795,55 @@
           </div>
           <span class="pill">Modular launcher</span>
         </div>
+        <section class="factoryShell" aria-labelledby="factoryTitle">
+          <div class="factoryHeader">
+            <div>
+              <h2 id="factoryTitle">Factory Command View</h2>
+              <p>Top-down operational map. Tap any department to reveal its live modules, tools, and playbooks.</p>
+            </div>
+            <span class="pill">Interactive floorplan</span>
+          </div>
+          <div id="factoryMap" class="factoryMap" role="list">
+            <button class="factoryArea" type="button" data-dept="manufacturing">
+              <span class="factoryAreaPulse"></span>
+              <span class="factoryAreaMeta">Manufacturing</span>
+              <h3 class="factoryAreaTitle">Production Lines</h3>
+              <p class="factoryAreaDetail">Live batch progress, quality gates, and line cadence.</p>
+            </button>
+            <button class="factoryArea" type="button" data-dept="dispatch">
+              <span class="factoryAreaPulse"></span>
+              <span class="factoryAreaMeta">Dispatch</span>
+              <h3 class="factoryAreaTitle">Outbound Staging</h3>
+              <p class="factoryAreaDetail">Carrier bookings, load sequencing, and dock status.</p>
+            </button>
+            <button class="factoryArea" type="button" data-dept="packing">
+              <span class="factoryAreaPulse"></span>
+              <span class="factoryAreaMeta">Packing</span>
+              <h3 class="factoryAreaTitle">Packing Cells</h3>
+              <p class="factoryAreaDetail">Carton builds, label prints, and QA signoff.</p>
+            </button>
+            <button class="factoryArea" type="button" data-dept="finished">
+              <span class="factoryAreaPulse"></span>
+              <span class="factoryAreaMeta">Finished Goods</span>
+              <h3 class="factoryAreaTitle">Ready to Ship</h3>
+              <p class="factoryAreaDetail">Final checks, palletization, and pickup windows.</p>
+            </button>
+            <button class="factoryArea" type="button" data-dept="warehouse">
+              <span class="factoryAreaPulse"></span>
+              <span class="factoryAreaMeta">Warehouse</span>
+              <h3 class="factoryAreaTitle">Storage Grid</h3>
+              <p class="factoryAreaDetail">Inventory depth, replenishment, and inbound capture.</p>
+            </button>
+          </div>
+          <div class="factoryDetail" aria-live="polite">
+            <div class="factoryDetailHeader">
+              <h3 class="factoryDetailTitle" id="factoryDetailTitle">Manufacturing Command Stack</h3>
+              <span class="factoryDetailBadge" id="factoryDetailBadge">Live</span>
+            </div>
+            <p class="factoryAreaDetail" id="factoryDetailDesc">Select a department to surface its recommended module stack.</p>
+            <div id="factoryTools" class="factoryTools"></div>
+          </div>
+        </section>
         <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
       </div>
     </div>
