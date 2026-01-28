@@ -1699,6 +1699,126 @@
     font-size:.7rem;
     font-weight:600;
   }
+  .invoiceShell{
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-lg);
+    padding:1.5rem;
+    box-shadow:0 10px 28px rgba(15,23,42,.08);
+    display:flex;
+    flex-direction:column;
+    gap:1.25rem;
+  }
+  .invoiceHeader{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:1rem;
+    flex-wrap:wrap;
+  }
+  .invoiceHeader h1{
+    margin:0;
+    font-size:1.35rem;
+  }
+  .invoiceHeader p{
+    margin:.3rem 0 0;
+    color:var(--text-muted);
+    font-size:.85rem;
+  }
+  .invoiceTemplateRow{
+    display:flex;
+    flex-direction:column;
+    gap:.5rem;
+  }
+  .invoiceTemplateRow label{
+    font-size:.8rem;
+    font-weight:700;
+    color:var(--text);
+  }
+  .invoiceTemplateInput{
+    display:flex;
+    gap:.6rem;
+    flex-wrap:wrap;
+  }
+  .invoiceTemplateInput input{
+    flex:1;
+    min-width:240px;
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    padding:.5rem .65rem;
+    font-family:var(--mono);
+    font-size:.85rem;
+  }
+  .invoiceHint{
+    margin:0;
+    font-size:.72rem;
+    color:var(--text-muted);
+  }
+  .invoiceFilters{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+    gap:.75rem;
+    align-items:end;
+  }
+  .invoiceField{
+    display:flex;
+    flex-direction:column;
+    gap:.35rem;
+  }
+  .invoiceField label{
+    font-size:.75rem;
+    font-weight:600;
+    color:var(--text-muted);
+  }
+  .invoiceField input{
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    padding:.45rem .6rem;
+    font-size:.85rem;
+    font-family:var(--mono);
+  }
+  .invoiceTableWrap{
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    overflow:hidden;
+    background:#fff;
+  }
+  .invoiceTable{
+    width:100%;
+    border-collapse:collapse;
+    font-size:.82rem;
+  }
+  .invoiceTable thead{
+    background:var(--panel-muted);
+  }
+  .invoiceTable th,
+  .invoiceTable td{
+    padding:.6rem .75rem;
+    border-bottom:1px solid var(--panel-strong);
+    text-align:left;
+    vertical-align:middle;
+  }
+  .invoiceTable th{
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--text-muted);
+  }
+  .invoiceActions{
+    display:flex;
+    gap:.4rem;
+    flex-wrap:wrap;
+  }
+  .invoiceActions .btn{
+    padding:.4rem .6rem;
+    font-size:.72rem;
+  }
+  .invoiceEmpty{
+    padding:1.5rem;
+    text-align:center;
+    color:var(--text-muted);
+    font-size:.85rem;
+  }
   .parcelNumbersPanel{
     background:linear-gradient(145deg, rgba(15,23,42,.04), rgba(148,163,184,.1));
     border:1px solid var(--panel-strong);
@@ -1769,6 +1889,7 @@
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true"><span class="flNavBtnText">Dashboard</span></button>
             <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false"><span class="flNavBtnText">Scan Station</span></button>
             <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false"><span class="flNavBtnText">Dispatch Board</span></button>
+            <button id="navInvoices" class="flNavBtn" type="button" role="tab" aria-controls="viewInvoices" aria-selected="false"><span class="flNavBtnText">Order invoices</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false"><span class="flNavBtnText">Documentation</span></button>
             <a class="flNavBtn" href="/flocs"><span class="flNavBtnText">Order capture (FLOCS)</span></a>
             <a class="flNavBtn" href="/stock.html"><span class="flNavBtnText">Stock take</span></a>
@@ -2024,6 +2145,63 @@
             <button class="dispatchShipmentModal__close" type="button" data-action="close-modal" aria-label="Close shipment details">✕</button>
           </div>
           <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
+        </div>
+      </div>
+    </div>
+
+        <div class="flView" id="viewInvoices" hidden>
+      <div class="invoiceShell">
+        <div class="invoiceHeader">
+          <div>
+            <h1>Order invoices</h1>
+            <p>Filter by order, customer, or date, then download, share, or print invoices.</p>
+          </div>
+          <span id="invoiceSyncStatus" class="pill">Not loaded</span>
+        </div>
+        <div class="invoiceTemplateRow">
+          <label for="invoiceTemplate">Invoice link template</label>
+          <div class="invoiceTemplateInput">
+            <input id="invoiceTemplate" type="text" placeholder="https://your-domain/invoice/{order_name}" />
+            <button id="invoiceTemplateSave" class="btn" type="button">Save template</button>
+          </div>
+          <p class="invoiceHint">Tokens: {order_name}, {order_number}, {order_id}, {customer_email}.</p>
+        </div>
+        <div class="invoiceFilters">
+          <div class="invoiceField">
+            <label for="invoiceFilterOrder">Order #</label>
+            <input id="invoiceFilterOrder" type="text" placeholder="#1001" />
+          </div>
+          <div class="invoiceField">
+            <label for="invoiceFilterCustomer">Customer</label>
+            <input id="invoiceFilterCustomer" type="text" placeholder="Customer name" />
+          </div>
+          <div class="invoiceField">
+            <label for="invoiceFilterFrom">Date from</label>
+            <input id="invoiceFilterFrom" type="date" />
+          </div>
+          <div class="invoiceField">
+            <label for="invoiceFilterTo">Date to</label>
+            <input id="invoiceFilterTo" type="date" />
+          </div>
+          <div class="invoiceField">
+            <label>&nbsp;</label>
+            <button id="invoiceRefresh" class="btn btnPrimary" type="button">Refresh orders</button>
+          </div>
+        </div>
+        <div class="invoiceTableWrap">
+          <table class="invoiceTable">
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Customer</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="invoiceTableBody">
+              <tr><td colspan="4" class="invoiceEmpty">Load orders to get started.</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
