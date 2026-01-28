@@ -82,11 +82,13 @@
   const navDashboard = $("navDashboard");
   const navScan = $("navScan");
   const navOps = $("navOps");
+  const navInvoices = $("navInvoices");
   const navDocs = $("navDocs");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
+  const viewInvoices = $("viewInvoices");
   const viewDocs = $("viewDocs");
   const actionFlash = $("actionFlash");
   const screenFlash = $("screenFlash");
@@ -95,6 +97,15 @@
   const btnBookNow = $("btnBookNow");
   const modeToggle = $("modeToggle");
   const moduleGrid = $("moduleGrid");
+  const invoiceTemplateInput = $("invoiceTemplate");
+  const invoiceTemplateSave = $("invoiceTemplateSave");
+  const invoiceFilterOrder = $("invoiceFilterOrder");
+  const invoiceFilterCustomer = $("invoiceFilterCustomer");
+  const invoiceFilterFrom = $("invoiceFilterFrom");
+  const invoiceFilterTo = $("invoiceFilterTo");
+  const invoiceRefresh = $("invoiceRefresh");
+  const invoiceTableBody = $("invoiceTableBody");
+  const invoiceSyncStatus = $("invoiceSyncStatus");
 
   const MAX_ORDER_AGE_HOURS = 180;
 
@@ -114,6 +125,14 @@
       type: "view",
       target: "ops",
       tag: "Core"
+    },
+    {
+      id: "invoices",
+      title: "Order Invoices",
+      description: "List orders, filter quickly, and send invoice actions.",
+      type: "view",
+      target: "invoices",
+      tag: "Module"
     },
     {
       id: "docs",
@@ -172,6 +191,7 @@
   let dispatchModalShipmentId = null;
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
+  const INVOICE_TEMPLATE_KEY = "fl_invoice_template_v1";
   let dailyParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
@@ -247,6 +267,157 @@
       actionFlash.style.opacity = "0.4";
     }, 2000);
   };
+
+  let invoiceOrders = [];
+
+  function loadInvoiceTemplate() {
+    const saved = localStorage.getItem(INVOICE_TEMPLATE_KEY);
+    if (invoiceTemplateInput && saved) {
+      invoiceTemplateInput.value = saved;
+    }
+  }
+
+  function getInvoiceTemplate() {
+    return invoiceTemplateInput ? invoiceTemplateInput.value.trim() : "";
+  }
+
+  function saveInvoiceTemplate() {
+    if (!invoiceTemplateInput) return;
+    const template = getInvoiceTemplate();
+    if (template) {
+      localStorage.setItem(INVOICE_TEMPLATE_KEY, template);
+      statusExplain("Invoice template saved.", "ok");
+    } else {
+      localStorage.removeItem(INVOICE_TEMPLATE_KEY);
+      statusExplain("Invoice template cleared.", "warn");
+    }
+  }
+
+  function buildInvoiceUrl(order) {
+    const template = getInvoiceTemplate();
+    if (!template) return "";
+    const orderName = String(order?.name || "");
+    const orderNumber = order?.order_number ?? orderName.replace(/^#/, "");
+    const replacements = {
+      "{order_name}": orderName,
+      "{order_number}": orderNumber,
+      "{order_id}": order?.id ?? "",
+      "{customer_email}": order?.email ?? ""
+    };
+    let url = template;
+    Object.entries(replacements).forEach(([token, value]) => {
+      url = url.split(token).join(encodeURIComponent(String(value)));
+    });
+    return url;
+  }
+
+  function formatInvoiceDate(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString();
+  }
+
+  function filterInvoiceOrders() {
+    const orderQuery = String(invoiceFilterOrder?.value || "").trim().toLowerCase();
+    const customerQuery = String(invoiceFilterCustomer?.value || "").trim().toLowerCase();
+    const fromValue = invoiceFilterFrom?.value ? new Date(invoiceFilterFrom.value) : null;
+    const toValue = invoiceFilterTo?.value ? new Date(invoiceFilterTo.value) : null;
+    const fromTime = fromValue ? fromValue.getTime() : null;
+    const toTime = toValue ? new Date(toValue.getTime() + 24 * 60 * 60 * 1000 - 1).getTime() : null;
+
+    return invoiceOrders.filter((order) => {
+      const name = String(order?.name || "").toLowerCase();
+      const orderNumber = String(order?.order_number || "").toLowerCase();
+      const customerName = String(order?.customer_name || "").toLowerCase();
+      const createdAt = order?.created_at ? new Date(order.created_at).getTime() : null;
+
+      if (orderQuery && !name.includes(orderQuery) && !orderNumber.includes(orderQuery)) {
+        return false;
+      }
+      if (customerQuery && !customerName.includes(customerQuery)) {
+        return false;
+      }
+      if (fromTime && (!createdAt || createdAt < fromTime)) {
+        return false;
+      }
+      if (toTime && (!createdAt || createdAt > toTime)) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  function renderInvoiceTable() {
+    if (!invoiceTableBody) return;
+    const filtered = filterInvoiceOrders();
+    if (!filtered.length) {
+      const emptyMessage = invoiceOrders.length
+        ? "No orders match these filters."
+        : "Load orders to get started.";
+      invoiceTableBody.innerHTML = `<tr><td colspan="4" class="invoiceEmpty">${emptyMessage}</td></tr>`;
+      return;
+    }
+
+    const rows = filtered.map((order) => {
+      const invoiceUrl = buildInvoiceUrl(order);
+      const safeUrl = invoiceUrl || "";
+      const downloadUrl = safeUrl || "#";
+      const orderLabel = order?.name || "—";
+      const customerLabel = order?.customer_name || "—";
+      const dateLabel = formatInvoiceDate(order?.created_at);
+      const disabledAttr = safeUrl ? "" : "disabled";
+      const whatsappText = encodeURIComponent(
+        `Invoice for ${orderLabel}: ${safeUrl || "Set invoice template first."}`
+      );
+      const whatsappUrl = safeUrl ? `https://wa.me/?text=${whatsappText}` : "#";
+
+      return `
+        <tr>
+          <td>${orderLabel}</td>
+          <td>${customerLabel}</td>
+          <td>${dateLabel}</td>
+          <td>
+            <div class="invoiceActions">
+              <a class="btn" href="${downloadUrl}" target="_blank" rel="noopener" ${safeUrl ? "" : "aria-disabled=\"true\""}>Download</a>
+              <a class="btn" href="${whatsappUrl}" target="_blank" rel="noopener" ${safeUrl ? "" : "aria-disabled=\"true\""}>WhatsApp</a>
+              <button class="btn" type="button" data-invoice-action="print" data-invoice-url="${safeUrl}" data-order-name="${orderLabel}" ${disabledAttr}>Print</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    invoiceTableBody.innerHTML = rows.join("");
+  }
+
+  async function refreshInvoiceOrders() {
+    if (!invoiceSyncStatus) return;
+    invoiceSyncStatus.textContent = "Loading orders…";
+    try {
+      const from = invoiceFilterFrom?.value ? new Date(`${invoiceFilterFrom.value}T00:00:00`) : null;
+      const to = invoiceFilterTo?.value ? new Date(`${invoiceFilterTo.value}T23:59:59.999`) : null;
+      const params = new URLSearchParams({ limit: "200" });
+      if (from) params.set("from", from.toISOString());
+      if (to) params.set("to", to.toISOString());
+      const resp = await fetch(`/shopify/orders/list?${params.toString()}`);
+      if (!resp.ok) {
+        throw new Error(`Order list failed (${resp.status})`);
+      }
+      const data = await resp.json();
+      invoiceOrders = Array.isArray(data.orders) ? data.orders : [];
+      invoiceSyncStatus.textContent = `Loaded ${invoiceOrders.length} orders`;
+      renderInvoiceTable();
+    } catch (err) {
+      console.error("Invoice order load error:", err);
+      invoiceSyncStatus.textContent = "Failed to load orders";
+      statusExplain("Invoice list failed to load.", "err");
+      if (invoiceTableBody) {
+        invoiceTableBody.innerHTML =
+          '<tr><td colspan="4" class="invoiceEmpty">Unable to load orders. Check Shopify connection.</td></tr>';
+      }
+    }
+  }
 
   const triggerBookedFlash = () => {
     if (!actionFlash) return;
@@ -2818,6 +2989,7 @@ async function startOrder(orderNo) {
     const showDashboard = view === "dashboard";
     const showScan = view === "scan";
     const showOps = view === "ops";
+    const showInvoices = view === "invoices";
     const showDocs = view === "docs";
 
     if (viewDashboard) {
@@ -2832,6 +3004,10 @@ async function startOrder(orderNo) {
       viewOps.hidden = !showOps;
       viewOps.classList.toggle("flView--active", showOps);
     }
+    if (viewInvoices) {
+      viewInvoices.hidden = !showInvoices;
+      viewInvoices.classList.toggle("flView--active", showInvoices);
+    }
     if (viewDocs) {
       viewDocs.hidden = !showDocs;
       viewDocs.classList.toggle("flView--active", showDocs);
@@ -2840,10 +3016,12 @@ async function startOrder(orderNo) {
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navOps?.classList.toggle("flNavBtn--active", showOps);
+    navInvoices?.classList.toggle("flNavBtn--active", showInvoices);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
+    navInvoices?.setAttribute("aria-selected", showInvoices ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
 
     if (showDashboard) {
@@ -2851,6 +3029,11 @@ async function startOrder(orderNo) {
     } else if (showScan) {
       statusExplain("Ready to scan orders…", "info");
       scanInput?.focus();
+    } else if (showInvoices) {
+      statusExplain("Invoice list ready.", "info");
+      if (!invoiceOrders.length) {
+        refreshInvoiceOrders();
+      }
     } else if (showDocs) {
       statusExplain("Viewing operator documentation", "info");
     } else {
@@ -2935,8 +3118,64 @@ async function startOrder(orderNo) {
 
   navScan?.addEventListener("click", () => switchMainView("scan"));
   navOps?.addEventListener("click", () => switchMainView("ops"));
+  navInvoices?.addEventListener("click", () => switchMainView("invoices"));
   navDocs?.addEventListener("click", () => switchMainView("docs"));
   navDashboard?.addEventListener("click", () => switchMainView("dashboard"));
+
+  invoiceTemplateSave?.addEventListener("click", () => {
+    saveInvoiceTemplate();
+    renderInvoiceTable();
+  });
+
+  invoiceTemplateInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      saveInvoiceTemplate();
+      renderInvoiceTable();
+    }
+  });
+
+  [invoiceFilterOrder, invoiceFilterCustomer, invoiceFilterFrom, invoiceFilterTo].forEach(
+    (input) => {
+      input?.addEventListener("input", renderInvoiceTable);
+      input?.addEventListener("change", renderInvoiceTable);
+    }
+  );
+
+  invoiceRefresh?.addEventListener("click", () => {
+    refreshInvoiceOrders();
+  });
+
+  invoiceTableBody?.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("button[data-invoice-action]");
+    if (!button) return;
+    const action = button.dataset.invoiceAction;
+    const invoiceUrl = button.dataset.invoiceUrl || "";
+    const orderName = button.dataset.orderName || "Invoice";
+    if (action === "print") {
+      if (!invoiceUrl) {
+        statusExplain("Set the invoice template first.", "warn");
+        return;
+      }
+      try {
+        statusExplain(`Printing ${orderName}…`, "info");
+        const resp = await fetch("/printnode/print-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invoiceUrl, title: `Invoice ${orderName}` })
+        });
+        if (!resp.ok) {
+          throw new Error(`Print failed (${resp.status})`);
+        }
+        statusExplain(`Sent ${orderName} to PrintNode.`, "ok");
+      } catch (err) {
+        console.error("Print invoice error:", err);
+        statusExplain(`Print failed for ${orderName}.`, "err");
+      }
+    }
+  });
 
   modeToggle?.addEventListener("click", () => {
     isAutoMode = !isAutoMode;
@@ -3245,6 +3484,8 @@ async function startOrder(orderNo) {
   refreshServerStatus();
   setInterval(refreshServerStatus, 20000);
   renderModuleDashboard();
+  loadInvoiceTemplate();
+  renderInvoiceTable();
   switchMainView("dashboard");
 
   if (location.protocol === "file:") {

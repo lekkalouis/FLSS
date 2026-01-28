@@ -951,6 +951,71 @@ router.get("/shopify/orders/open", async (req, res) => {
   }
 });
 
+router.get("/shopify/orders/list", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const limit = Math.min(Math.max(Number(req.query.limit || 100), 1), 250);
+    const createdAtMin = req.query.from ? `&created_at_min=${encodeURIComponent(req.query.from)}` : "";
+    const createdAtMax = req.query.to ? `&created_at_max=${encodeURIComponent(req.query.to)}` : "";
+
+    const url =
+      `${base}/orders.json?status=any` +
+      `&order=created_at+desc` +
+      `&limit=${limit}` +
+      `&fields=id,name,order_number,created_at,processed_at,customer,email,shipping_address` +
+      createdAtMin +
+      createdAtMax;
+
+    const resp = await shopifyFetch(url, { method: "GET" });
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body
+      });
+    }
+
+    const data = await resp.json();
+    const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
+    const orders = ordersRaw
+      .filter((o) => !o.cancelled_at)
+      .map((o) => {
+        const shipping = o.shipping_address || {};
+        const customer = o.customer || {};
+        const companyName =
+          (shipping.company && shipping.company.trim()) ||
+          (customer?.default_address?.company && customer.default_address.company.trim());
+
+        const customer_name =
+          companyName ||
+          shipping.name ||
+          `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
+          (o.name ? o.name.replace(/^#/, "") : "");
+
+        return {
+          id: o.id,
+          name: o.name,
+          order_number: o.order_number,
+          customer_name,
+          email: o.email || customer.email || "",
+          created_at: o.processed_at || o.created_at
+        };
+      });
+
+    return res.json({ orders });
+  } catch (err) {
+    console.error("Shopify order-list error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
 router.post("/shopify/orders/run-flow", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
