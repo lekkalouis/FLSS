@@ -1,1853 +1,385 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Flippen Lekka Scan Station — v5 (cleaned + 100×150 print lock)</title>
-<style>
-  :root{
-    --bg:#f8fafc;
-    --panel:#ffffff;
-    --panel-muted:#f8fafc;
-    --panel-strong:#e2e8f0;
-    --text:#0f172a;
-    --text-muted:#64748b;
-    --accent:#2563eb;
-    --accent-soft:rgba(37,99,235,.12);
-    --radius-lg:.75rem;
-    --radius-md:.5rem;
-    --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
-    --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
-    --print-scale:1.0; /* safe inner scaling for printers that overscan */
-  }
-  *{box-sizing:border-box}
-  body{
-    background:var(--bg);
-    color:var(--text);
-    font-family:var(--sans);
-    min-height:100dvh;
-    margin:0;
-  }
-  .flApp{
-    min-height:100dvh;
-    display:flex;
-    flex-direction:column;
-    gap:1rem;
-    padding:1rem 1.5rem 1.5rem;
-  }
-  @media (max-width:800px){
-    .flApp{ padding:1rem; gap:1rem; }
-  }
-  .flLayout{
-    display:flex;
-    align-items:stretch;
-    gap:1rem;
-    flex:1;
-    min-height:calc(100dvh - 2rem);
-  }
-  @media (max-width:900px){
-    .flLayout{ flex-direction:column; }
-  }
-  .flSide{
-    background:#fff;
-    border:1px solid var(--panel-strong);
-    box-shadow:0 10px 28px rgba(15,23,42,.08);
-    border-radius:var(--radius-md);
-    padding:.85rem .75rem;
-    display:flex;
-    flex-direction:column;
-    gap:1rem;
-    min-width:220px;
-    max-width:260px;
-  }
-  .flSideHeader{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:.75rem;
-  }
-  .flHamburger{
-    width:36px;
-    height:36px;
-    border-radius:.5rem;
-    border:1px solid var(--panel-strong);
-    background:#fff;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    transition:border-color .2s ease, box-shadow .2s ease;
-  }
-  .flHamburger:hover{
-    border-color:rgba(37,99,235,.5);
-    box-shadow:0 6px 16px rgba(37,99,235,.18);
-  }
-  .flHamburgerLines{
-    position:relative;
-    width:16px;
-    height:12px;
-  }
-  .flHamburgerLines::before,
-  .flHamburgerLines::after,
-  .flHamburgerLines span{
-    content:"";
-    position:absolute;
-    left:0;
-    right:0;
-    height:2px;
-    border-radius:999px;
-    background:var(--text);
-  }
-  .flHamburgerLines::before{ top:0; }
-  .flHamburgerLines span{ top:5px; }
-  .flHamburgerLines::after{ bottom:0; }
-  .flNav{
-    display:flex;
-    flex-direction:column;
-    gap:1rem;
-  }
-  .flNavTitle{
-    font-weight:700;
-    letter-spacing:.02em;
-    color:var(--text);
-    font-size:.95rem;
-  }
-  .flNavGroup{
-    display:flex;
-    flex-direction:column;
-    gap:.65rem;
-  }
-  .flNavBtn{
-    border:1px solid var(--panel-strong);
-    background:#fff;
-    color:var(--text);
-    font-weight:600;
-    font-size:.85rem;
-    padding:.45rem .85rem;
-    border-radius:.5rem;
-    cursor:pointer;
-    transition:all .2s ease;
-    text-decoration:none;
-    display:inline-flex;
-    align-items:center;
-    width:100%;
-    justify-content:flex-start;
-    gap:.5rem;
-  }
-  .flNavBtn:hover{
-    border-color:rgba(37,99,235,.5);
-    color:#1d4ed8;
-  }
-  .flNavBtn--active{
-    background:var(--accent);
-    border-color:var(--accent);
-    color:#fff;
-    box-shadow:0 6px 18px rgba(37,99,235,.22);
-  }
-  .flNavStatus{
-    display:flex;
-    align-items:center;
-    gap:.6rem;
-    flex-wrap:wrap;
-  }
-  .flMain{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    gap:1rem;
-  }
-  body.flNavCollapsed .flSide{
-    min-width:64px;
-    max-width:64px;
-    padding:.85rem .5rem;
-  }
-  body.flNavCollapsed .flNavTitle,
-  body.flNavCollapsed .flNavBtnText,
-  body.flNavCollapsed .flNavStatus{
-    display:none;
-  }
-  body.flNavCollapsed .flNavBtn{
-    justify-content:center;
-    padding:.5rem;
-  }
-  body.flNavCollapsed .flNavGroup{
-    align-items:center;
-  }
-  @media (max-width:900px){
-    body.flNavCollapsed .flSide{
-      max-width:none;
-      min-width:0;
-      width:100%;
-      padding:.65rem .75rem;
-      gap:.5rem;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Flippen Lekka Ops — Unified Console</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6fb;
+      --panel: #ffffff;
+      --panel-strong: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --accent: #2563eb;
+      --accent-soft: rgba(37, 99, 235, 0.12);
+      --radius-lg: 1rem;
+      --radius-md: 0.65rem;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      --sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
     }
-    body.flNavCollapsed .flNavTitle{
-      display:block;
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100dvh;
     }
-    body.flNavCollapsed .flNavGroup,
-    body.flNavCollapsed .flNavStatus{
-      display:none;
+
+    .app-shell {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
     }
-  }
-  .actionFlash{
-    font-size:.72rem;
-    color:var(--text-muted);
-    background:var(--panel-muted);
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-md);
-    padding:.3rem .55rem;
-    opacity:.75;
-    transition:opacity .2s ease;
-  }
-  .actionFlash--ok{ border-color:rgba(34,197,94,.55); color:#bbf7d0; }
-  .actionFlash--warn{ border-color:rgba(251,191,36,.6); color:#fde68a; }
-  .actionFlash--err{ border-color:rgba(248,113,113,.6); color:#fecaca; }
-  .actionFlash--booked{
-    color:#052e16;
-    border-color:rgba(34,197,94,.85);
-    background:linear-gradient(120deg, rgba(34,197,94,.9), rgba(74,222,128,.8));
-    box-shadow:0 0 24px rgba(34,197,94,.55);
-    animation:bookedFlash 1.2s ease-in-out 2;
-  }
-  @keyframes bookedFlash{
-    0%{ transform:scale(1); opacity:.7; }
-    35%{ transform:scale(1.06); opacity:1; }
-    70%{ transform:scale(1); opacity:.85; }
-    100%{ transform:scale(1); opacity:.7; }
-  }
-  .screenFlash{
-    position:fixed;
-    inset:0;
-    pointer-events:none;
-    opacity:0;
-    z-index:999;
-    mix-blend-mode:screen;
-  }
-  .screenFlash--success{
-    background:rgba(34,197,94,.35);
-    animation:screenFlash 0.65s ease;
-  }
-  .screenFlash--failure{
-    background:rgba(248,113,113,.4);
-    animation:screenFlash 0.65s ease;
-  }
-  .screenFlash--warn{
-    background:rgba(249,115,22,.35);
-    animation:screenFlash 0.65s ease;
-  }
-  @keyframes screenFlash{
-    0%{ opacity:0; }
-    20%{ opacity:1; }
-    100%{ opacity:0; }
-  }
-  .flView{
-    width:100%;
-    flex:1;
-  }
-  .flView--active{
-    display:flex;
-    flex-direction:column;
-  }
-  .flView[hidden]{ display:none; }
-  .flView .shell{ margin:0 auto; }
-  .dashboardShell{
-    width:100%;
-    max-width:1200px;
-    margin:0 auto;
-    background:#fff;
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-lg);
-    padding:1.75rem 2rem;
-    box-shadow:0 18px 48px rgba(15,23,42,.08);
-    display:flex;
-    flex-direction:column;
-    gap:1.5rem;
-  }
-  .dashboardHeader{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:1rem;
-    flex-wrap:wrap;
-  }
-  .dashboardHeader h1{
-    font-size:1.3rem;
-    margin:0 0 .35rem;
-  }
-  .dashboardHeader p{
-    margin:0;
-    color:var(--text-muted);
-    font-size:.9rem;
-  }
-  .moduleGrid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));
-    gap:1rem;
-  }
-  .moduleCard{
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-lg);
-    padding:1rem;
-    background:var(--panel);
-    display:flex;
-    flex-direction:column;
-    gap:.75rem;
-    box-shadow:0 10px 24px rgba(15,23,42,.06);
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-  }
-  .moduleCard:hover{
-    transform:translateY(-2px);
-    border-color:rgba(37,99,235,.4);
-    box-shadow:0 16px 30px rgba(15,23,42,.12);
-  }
-  .moduleCardHeader{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:.75rem;
-  }
-  .moduleCardTitle{
-    font-weight:700;
-    font-size:.95rem;
-    margin:0;
-  }
-  .moduleCardTag{
-    font-size:.65rem;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:.05em;
-    background:var(--accent-soft);
-    color:#0c4a6e;
-    border-radius:999px;
-    padding:.2rem .55rem;
-  }
-  .moduleCardDesc{
-    font-size:.82rem;
-    color:var(--text-muted);
-    margin:0;
-    line-height:1.4;
-  }
-  .moduleCardActions{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:.75rem;
-  }
-  .moduleMeta{
-    font-family:var(--mono);
-    font-size:.72rem;
-    color:var(--text-muted);
-  }
-  .moduleOpenBtn{
-    border:1px solid rgba(37,99,235,.45);
-    background:rgba(37,99,235,.08);
-    color:#1d4ed8;
-    font-weight:700;
-    font-size:.8rem;
-    padding:.4rem .8rem;
-    border-radius:.6rem;
-    cursor:pointer;
-  }
-  .moduleOpenBtn:hover{
-    background:rgba(37,99,235,.16);
-  }
-  .statusBar{
-    display:flex;
-    align-items:center;
-    gap:.5rem;
-    flex-wrap:wrap;
-    padding:.5rem .85rem;
-    border-radius:var(--radius-md);
-    border:1px solid var(--panel-strong);
-    background:#fff;
-    box-shadow:0 10px 26px rgba(15,23,42,.06);
-    font-size:.72rem;
-    color:var(--text-muted);
-  }
-  .statusBarLabel{
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:.08em;
-    font-size:.65rem;
-    color:var(--text-muted);
-  }
-  .statusPill{
-    display:inline-flex;
-    align-items:center;
-    gap:.35rem;
-    border-radius:999px;
-    padding:.25rem .55rem;
-    border:1px solid var(--panel-strong);
-    background:var(--panel-muted);
-    color:var(--text);
-    font-weight:600;
-  }
-  .statusPillDot{
-    width:8px;
-    height:8px;
-    border-radius:999px;
-    background:var(--panel-strong);
-  }
-  .statusPill--ok{
-    border-color:rgba(34,197,94,.45);
-    background:rgba(34,197,94,.12);
-    color:#166534;
-  }
-  .statusPill--ok .statusPillDot{ background:#22c55e; }
-  .statusPill--err{
-    border-color:rgba(248,113,113,.5);
-    background:rgba(254,226,226,.85);
-    color:#7f1d1d;
-  }
-  .statusPill--err .statusPillDot{ background:#ef4444; }
-  .statusPill--warn{
-    border-color:rgba(251,191,36,.55);
-    background:rgba(254,240,138,.75);
-    color:#92400e;
-  }
-  .statusPill--warn .statusPillDot{ background:#f59e0b; }
-  .shell{
-    width:100%;
-    max-width:none;
-    background:#fff;
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-lg);
-    box-shadow:0 18px 48px rgba(15,23,42,.08);
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    overflow:hidden;
-    min-height:calc(100dvh - 160px);
-  }
-  @media (max-width:1000px){ .shell{ grid-template-columns:1fr; } }
 
-  /* LEFT */
-  .leftPane{
-    background:#fff;
-    padding:1.5rem;
-    border-right:1px solid var(--panel-strong);
-  }
-  @media (max-width:1000px){ .leftPane{ border-right:0; border-bottom:1px solid rgba(148,163,184,.15);} }
-  .headerRow{ display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; flex-wrap:wrap; margin-bottom:.75rem; }
-  .line1{ font-size:.95rem; font-weight:700; color:var(--text); display:flex; gap:.5rem 1rem; align-items:center; flex-wrap:wrap; }
-  .badge{ background:var(--accent-soft); border:1px solid rgba(56,189,248,.5); color:#0c4a6e; font-size:1.1rem; border-radius:var(--radius-md); padding:.2rem .45rem; }
-  .sessionInfo{ font-size:.8rem; color:var(--text-muted); line-height:1.4; font-family:var(--mono);} 
-  .scanBox,.addrBox,.card{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.75rem; }
-  .scanBox{ margin-bottom:1rem; }
-  .scanTopBar{
-    display:flex;
-    justify-content:center;
-    padding:1rem 1.5rem 0;
-  }
-  .scanBox--centered{
-    width:min(520px, 100%);
-    margin-bottom:1.25rem;
-    text-align:center;
-  }
-  .scanBox--centered label{ justify-content:center; gap:.5rem; }
-  .scanBox--centered #scanInput{ text-align:center; font-size:1.1rem; }
-  .scanBox label{ display:flex; justify-content:space-between; align-items:baseline; font-size:.75rem; color:var(--text-muted); margin-bottom:.5rem; }
-  .scanBox label small{ color:#7c8da1; font-weight:400; font-size:.7rem; }
-  #scanInput{ width:100%; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:1rem; outline:none; padding:.5rem .6rem; }
-  #scanInput:focus{ border-color:var(--accent); box-shadow:0 0 20px rgba(56,189,248,.4); }
-  .btn{
-    border:1px solid rgba(56,189,248,.5);
-    background:var(--accent-soft);
-    color:#0c4a6e;
-    font-weight:700;
-    font-size:.85rem;
-    padding:.55rem .9rem;
-    border-radius:.7rem;
-    cursor:pointer;
-    transition:transform .15s ease, box-shadow .15s ease;
-  }
-  .btn:hover{ transform:translateY(-1px); box-shadow:0 6px 14px rgba(56,189,248,.2); }
-  .btnPrimary{
-    background:#0ea5e9;
-    border-color:#0ea5e9;
-    color:#fff;
-  }
-  .btnToggle{
-    background:#fff7ed;
-    border-color:#fdba74;
-    color:#9a3412;
-  }
-  .btnToggle.is-active{
-    background:#16a34a;
-    border-color:#16a34a;
-    color:#fff;
-    box-shadow:0 6px 14px rgba(22,163,74,.25);
-  }
-
-  /* Address picker */
-  .addrBox{ margin-bottom:1rem; }
-  .addrBox .row{ display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; }
-  .addrBox label{ font-size:.75rem; color:var(--text-muted); display:block; margin-bottom:.35rem; }
-  #addrSearch,#placeCode{ flex:1; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:.9rem; padding:.35rem .5rem; outline:none; }
-  #addrSearch:focus,#placeCode:focus{ border-color:var(--accent); box-shadow:0 0 16px rgba(56,189,248,.35); }
-  #placeCode{ width:140px; }
-  .addrList{ max-height:160px; overflow:auto; border:1px solid var(--panel-strong); border-radius:var(--radius-md); background:#fff; }
-  .addrItem{ padding:.5rem; border-bottom:1px solid rgba(148,163,184,.15); font-size:.74rem; cursor:pointer; color:var(--text); }
-  .addrItem:hover{ background:rgba(56,189,248,.08); }
-  .addrHint{ font-size:.7rem; color:var(--text-muted); margin-top:.35rem; }
-
-  /* Small cards */
-  .minigrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); gap:.75rem; }
-  .cardHeader{ font-size:.7rem; color:var(--text-muted); font-weight:700; margin-bottom:.5rem; }
-  .cardBody{ font-family:var(--mono); font-size:1.72rem; line-height:1.4; color:var(--text); white-space:pre-wrap; word-break:break-word; }
-  #debugLog{ display:none; background:#fff5f5; border:1px solid rgba(248,113,113,.4); color:#b91c1c; font-family:var(--mono); font-size:.7rem; line-height:1.4; border-radius:var(--radius-md); padding:.75rem; margin-top:1rem; max-height:180px; overflow:auto; white-space:pre-wrap; }
-
-  /* RIGHT */
-  .rightPane{
-    padding:1.5rem;
-    display:flex;
-    flex-direction:column;
-    background:#f8fafc;
-  }
-  .sectionTitle{ font-size:.82rem; color:var(--text); font-weight:700; display:flex; justify-content:space-between; gap:.5rem 1rem; margin-bottom:.6rem; }
-
-  .truckPanel{
-    background:var(--panel);
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-lg);
-    padding:1rem;
-    display:flex;
-    flex-direction:column;
-    gap:.85rem;
-    box-shadow:0 10px 28px rgba(15,23,42,.08);
-    margin-bottom:1rem;
-  }
-  .truckHeader{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:1rem;
-  }
-  .truckTitle{
-    font-size:.95rem;
-    font-weight:700;
-    color:var(--text);
-  }
-  .truckMeta{
-    font-size:.75rem;
-    color:var(--text-muted);
-    margin-top:.35rem;
-  }
-  .truckStatus{
-    font-size:.7rem;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:.08em;
-    padding:.35rem .6rem;
-    border-radius:999px;
-    border:1px solid rgba(239,68,68,.5);
-    color:#7f1d1d;
-    background:rgba(239,68,68,.12);
-  }
-  .truckStatus.is-booked{
-    border-color:rgba(34,197,94,.6);
-    color:#14532d;
-    background:rgba(34,197,94,.18);
-  }
-  .truckBookBtn{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:.75rem;
-    font-size:1.2rem;
-    font-weight:800;
-    letter-spacing:.02em;
-    padding:1rem 1.5rem;
-    border-radius:1rem;
-    border:2px solid rgba(37,99,235,.6);
-    background:linear-gradient(135deg, rgba(37,99,235,.95), rgba(30,64,175,.95));
-    color:#fff;
-    cursor:pointer;
-    box-shadow:0 18px 35px rgba(37,99,235,.24);
-    transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
-  }
-  .truckBookBtn:hover{
-    transform:translateY(-1px) scale(1.01);
-    filter:brightness(1.02);
-  }
-  .truckBookBtn.is-booked{
-    border-color:rgba(34,197,94,.7);
-    background:linear-gradient(135deg, rgba(34,197,94,.95), rgba(22,163,74,.95));
-    box-shadow:0 18px 35px rgba(34,197,94,.28);
-  }
-  .truckIcon{
-    font-size:1.6rem;
-  }
-  .truckHint{
-    font-size:.72rem;
-    color:var(--text-muted);
-  }
-  #modeToggle{
-    border:1px solid rgba(56,189,248,.5);
-    background:var(--accent-soft);
-    color:#0c4a6e;
-    font-weight:700;
-    font-size:.75rem;
-    padding:.35rem .6rem;
-    border-radius:.55rem;
-    cursor:pointer;
-  }
-  .statusChip{ font-size:.7rem; background:var(--panel-muted); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.35rem .5rem; color:var(--text-muted); }
-  .summaryCard{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.75rem; margin-bottom:.8rem; font-family:var(--mono); font-size:.7rem; line-height:1.4; color:#0c4a6e; white-space:pre-wrap; word-break:break-word; max-height:240px; overflow:auto; }
-  .waybillSheetPreview{ background:#fff; color:#000; border-radius:var(--radius-md); padding:.75rem; font-family:var(--mono); font-size:.72rem; line-height:1.4; min-height:180px; overflow:auto; }
-
-  /* ===== PRINT LOCK (100×150mm exact) ===== */
-  @media print{
-    @page{ size:100mm 150mm; margin:0; }
-    html,body{ margin:0!important; padding:0!important; }
-    .shell{ display:none!important; }
-    .printSheetWrapper{ display:block!important; }
-    .wb100x150{
-      width:calc(100mm / var(--print-scale))!important;
-      height:calc(150mm / var(--print-scale))!important;
-      transform:scale(var(--print-scale)); transform-origin:top left;
-      page-break-after:always; break-inside:avoid; overflow:hidden; background:#fff;
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(244, 246, 251, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--panel-strong);
     }
-    img{ print-color-adjust:exact; -webkit-print-color-adjust:exact; }
-  }
 
-  .printSheetWrapper{ display:none; padding:0; }
-  .wbPreviewZoom{ display:inline-block; transform:scale(.6); transform-origin:top left; }
+    .app-header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.25rem 1.5rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
 
-  /* ===== Waybill rubric (grid canvas) ===== */
-  .wb100x150{
-    box-sizing:border-box; padding:3mm 3.5mm; color:#000; font-family:var(--mono);
-    display:grid; grid-template-rows:18mm auto 52mm; row-gap:2mm;
-  }
-  .wbHead{ display:grid; grid-template-columns:1fr auto; grid-template-rows:auto auto 1fr; column-gap:3mm; row-gap:1mm; }
-  .wbHeadTitle{ grid-column:1/2; grid-row:1; font-size:3.6mm; line-height:1.2; font-weight:700; }
-  .wbSvcImg{ grid-column:2/3; grid-row:1/span 3; justify-self:end; align-self:start; display:inline-flex; align-items:center; justify-content:center; padding:.5mm 1mm; overflow:hidden; }
-  .wbSvcFallback{ font-weight:700; font-size:3mm; letter-spacing:.2mm; }
- .wbTopCode svg{
-  max-width:100%;
-  height:auto;
-  display:block;
-}
-.wbTopCode{ grid-column:1/2; grid-row:1; display:flex; flex-direction:column; align-items:left; gap:0mm; }
-  .wbTopHuman{ font-size:4.2mm; font-weight:700; }
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
 
-  .wbBody{ display:grid;  gap:2mm 3mm; margin-top:2mm; }
-  .wbFrom,.wbTo{ border:1px solid #000; border-radius:1mm; padding:2mm; font-size:3mm; line-height:1.32; background:#fff; }
-  .wbTo{ background:#f7f7f7; }
-  .wbBigCode{ grid-column:1/-1; border:1px solid #000; border-radius:1mm; padding:2mm; display:grid; grid-template-rows:auto 1fr auto; row-gap:1mm; }
-  .wbBigHuman{ font-size:3.6mm; font-weight:700; text-align:center; }
-  .wbBigCode svg{ width:100%; height:15mm; display:block; }
-  .wbMetaRow{ display:flex; justify-content:space-between; font-size:3mm; }
-  .wbFoot{ border-top:1px dashed #000; padding-top:2mm; display:grid; grid-template-columns:1fr; grid-auto-rows:minmax(0,1fr); row-gap:2mm; }
-  .podBox{ border:1px solid #000; border-radius:1mm; padding:2mm; font-size:3.2mm; line-height:1.35; display:grid; grid-template-rows:auto auto auto auto; row-gap:2mm; margin:0 auto; width:300px; }
-  .podTitle{  font-size: 12px; font-weight:700; }
+    .brand h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: 0.02em;
+    }
 
-/* === DISPATCH BOARD VIEW === */
-  #dispatchBoardContainer {
-  width:100%;
-  display:flex;
-  flex-direction:column;
-  gap:.85rem;
-  padding:1.25rem 1.5rem;
-  border-radius:var(--radius-lg);
-  background:#fff;
-  border:1px solid var(--panel-strong);
-  box-shadow:0 18px 48px rgba(15,23,42,.08);
-  min-height:calc(100dvh - 160px);
-}
+    .brand p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
 
-.dispatchStatusPanel {
-  display:flex;
-  flex-direction:column;
-  gap:.6rem;
-  padding:.85rem 1rem;
-  border-radius:var(--radius-lg);
-  border:1px solid var(--panel-strong);
-  background:linear-gradient(120deg, rgba(255,255,255,.96), rgba(224,231,255,.45));
-  box-shadow:0 18px 40px rgba(15,23,42,.08);
-}
-.dispatchStatusPanel--compact{
-  padding:.65rem .8rem;
-  gap:.5rem;
-}
-.dispatchStatusHeader {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:.75rem;
-}
-.dispatchStatusHeader h3{
-  font-size:.9rem;
-  margin:0;
-  color:#0f172a;
-}
-.dispatchStatusLabel{
-  font-size:.72rem;
-  padding:.25rem .6rem;
-  border-radius:999px;
-  border:1px solid rgba(251,191,36,.5);
-  background:rgba(251,191,36,.18);
-  color:#92400e;
-  font-weight:700;
-  text-transform:uppercase;
-  letter-spacing:.05em;
-}
-.dispatchProgressBar{
-  position:relative;
-  height:18px;
-  border-radius:999px;
-  overflow:hidden;
-  background:linear-gradient(90deg, rgba(254,240,138,.7), rgba(251,191,36,.2));
-  border:1px solid rgba(250,204,21,.65);
-}
-.dispatchProgressBar.is-pulse{
-  animation:dispatchPulse .6s ease;
-}
-.dispatchProgressFill{
-  position:absolute;
-  inset:0;
-  width:0%;
-  background:linear-gradient(90deg, #f97316, #facc15, #22d3ee);
-  box-shadow:0 0 14px rgba(251,191,36,.7);
-  transition:width .5s ease;
-}
-.dispatchProgressSun{
-  position:absolute;
-  top:50%;
-  right:12px;
-  transform:translateY(-50%);
-  width:26px;
-  height:26px;
-  border-radius:50%;
-  background:radial-gradient(circle, rgba(254,240,138,.95), rgba(251,191,36,.95), rgba(249,115,22,.9));
-  box-shadow:0 0 20px rgba(251,191,36,.85);
-  pointer-events:none;
-}
-.dispatchProgressSteps{
-  display:flex;
-  flex-wrap:nowrap;
-  gap:.35rem .6rem;
-  font-size:.7rem;
-  color:#334155;
-  overflow-x:auto;
-  scrollbar-width:thin;
-}
-.dispatchStatusPanel--compact .dispatchProgressSteps{
-  font-size:.62rem;
-}
-.dispatchProgressStep{
-  display:flex;
-  align-items:center;
-  gap:.35rem;
-  padding:.25rem .4rem;
-  border-radius:.5rem;
-  border:1px solid var(--panel-strong);
-  background:#fff;
-  flex:0 0 auto;
-  white-space:nowrap;
-}
-.dispatchProgressDot{
-  width:.55rem;
-  height:.55rem;
-  border-radius:50%;
-  background:#cbd5f5;
-}
-.dispatchProgressStep.is-active{
-  border-color:rgba(56,189,248,.8);
-  background:rgba(56,189,248,.12);
-  color:#0c4a6e;
-}
-.dispatchProgressStep.is-active .dispatchProgressDot{
-  background:#38bdf8;
-  box-shadow:0 0 10px rgba(56,189,248,.8);
-}
-.dispatchProgressStep.is-complete{
-  border-color:rgba(34,197,94,.7);
-  background:rgba(34,197,94,.12);
-  color:#065f46;
-}
-.dispatchProgressStep.is-complete .dispatchProgressDot{
-  background:#22c55e;
-  box-shadow:0 0 10px rgba(34,197,94,.65);
-}
-@keyframes dispatchPulse{
-  0%{ transform:scaleX(1); }
-  50%{ transform:scaleX(1.02); }
-  100%{ transform:scaleX(1); }
-}
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
 
-.dispatchLogPanel{
-  border:1px solid var(--panel-strong);
-  border-radius:var(--radius-lg);
-  background:#fff;
-  padding:.75rem 1rem;
-  box-shadow:0 14px 32px rgba(15,23,42,.08);
-}
-.dispatchLogPanel--compact{
-  padding:.65rem .8rem;
-}
-.dispatchLogHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  font-size:.8rem;
-  font-weight:700;
-  color:#0f172a;
-  margin-bottom:.4rem;
-}
-.dispatchLog{
-  max-height:180px;
-  overflow:auto;
-  font-size:.72rem;
-  color:#1f2937;
-  line-height:1.4;
-}
-.dispatchLogPanel--compact .dispatchLog{
-  max-height:140px;
-}
-.dispatchLogEntry{
-  padding:.35rem .25rem;
-  border-bottom:1px dashed rgba(226,232,240,.9);
-  display:flex;
-  gap:.5rem;
-  align-items:flex-start;
-}
-.dispatchLogEntry:last-child{
-  border-bottom:none;
-}
-.dispatchLogEntry span{
-  font-family:var(--mono);
-  color:#64748b;
-  min-width:75px;
-}
+    .nav button {
+      border: 1px solid transparent;
+      background: transparent;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
 
-/* lanes across the screen */
-#dispatchBoardGrid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1rem;
-  padding: .35rem;
-  min-height: 65vh;
-  overflow-y: auto;
-  background:#f8fafc;
-}
-@media (max-width:1400px){
-  #dispatchBoardGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-@media (max-width:1100px){
-  #dispatchBoardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width:700px){
-  #dispatchBoardGrid { grid-template-columns: 1fr; }
-}
+    .nav button:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
 
-/* column headers */
-.dispatchColHeader {
-  font-size: .9rem;
-  font-weight: 700;
-  color: #0284c7;
-  margin-bottom: 0.4rem;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-}
+    .nav button.is-active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+    }
 
-/* cards in columns */
-.dispatchCard {
-  background: #ffffff;
-  border: 1px solid var(--panel-strong);
-  border-radius: 10px;
-  padding: 0.6rem 0.65rem;
-  margin-bottom: 0.6rem;
-  box-shadow: 0 2px 6px rgba(15,23,42,0.08);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  cursor: pointer;
-}
+    main {
+      flex: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      width: 100%;
+    }
 
-.dispatchCard:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(56,189,248,0.18);
-}
+    .view {
+      display: none;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
 
-.dispatchCardTitle {
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: var(--text);
-  margin-bottom: 0.2rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  line-clamp: 2;
-  overflow: hidden;
-  word-break: break-word;
-}
+    .view.is-active {
+      display: flex;
+    }
 
-.dispatchCardMeta {
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  margin-bottom: 0.35rem;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
+    .hero {
+      background: var(--panel);
+      border: 1px solid var(--panel-strong);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 1.5rem;
+    }
 
+    .hero h2 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
 
-  .dispatchCardLines {
-    font-size: 0.72rem;
-    color: #334155;
-    line-height: 1.25;
-    white-space: pre-line;
-    word-break:break-word;
-  }
-  .dispatchLineItem{
-    display:inline;
-  }
-  .dispatchLineItem.is-complete{
-    text-decoration:line-through;
-    color:#94a3b8;
-  }
-  .dispatchLineItem.is-partial{
-    text-decoration:line-through;
-    color:#94a3b8;
-  }
-  .dispatchLineRemainder{
-    font-weight:800;
-    color:#0f172a;
-  }
+    .hero p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
 
-  .dispatchCardActions{
-    display:flex;
-    justify-content:flex-end;
-    flex-wrap:wrap;
-    gap:.35rem;
-    margin-top:.5rem;
-  }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
 
-  .dispatchBookBtn{
-    border:1px solid rgba(56,189,248,.45);
-    background:rgba(56,189,248,.12);
-    color:#0c4a6e;
-    font-size:.7rem;
-    font-weight:700;
-    padding:.35rem .55rem;
-    border-radius:.5rem;
-    cursor:pointer;
-  }
+    .pill {
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid var(--panel-strong);
+      background: #fff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text);
+    }
 
-  .dispatchBookBtn:hover{
-    background:rgba(56,189,248,.22);
-  }
-  .dispatchBookBtn:disabled{
-    opacity:.5;
-    cursor:not-allowed;
-  }
-  .dispatchNoteBtn{
-    border:1px solid rgba(34,197,94,.55);
-    background:rgba(34,197,94,.16);
-    color:#065f46;
-    font-size:.7rem;
-    font-weight:700;
-    padding:.35rem .55rem;
-    border-radius:.5rem;
-    cursor:pointer;
-  }
-  .dispatchNoteBtn:hover{
-    background:rgba(34,197,94,.26);
-  }
-  .dispatchFlowBtn{
-    border:1px solid rgba(59,130,246,.45);
-    background:rgba(59,130,246,.12);
-    color:#1e3a8a;
-    font-size:.7rem;
-    font-weight:700;
-    padding:.35rem .55rem;
-    border-radius:.5rem;
-    cursor:pointer;
-  }
-  .dispatchFlowBtn:hover{
-    background:rgba(59,130,246,.22);
-  }
-  .dispatchFlowBtn:disabled{
-    opacity:.5;
-    cursor:not-allowed;
-  }
-  .dispatchOppBtn{
-    border:1px solid rgba(14,116,144,.45);
-    background:rgba(14,116,144,.12);
-    color:#0f172a;
-    font-size:.7rem;
-    font-weight:700;
-    padding:.35rem .55rem;
-    border-radius:.5rem;
-    cursor:pointer;
-  }
-  .dispatchOppBtn:hover{
-    background:rgba(14,116,144,.22);
-  }
-  .dispatchOppBtn:disabled{
-    opacity:.5;
-    cursor:not-allowed;
-  }
-  .dispatchNotifyBtn{
-    border:1px solid rgba(234,179,8,.5);
-    background:rgba(254,240,138,.5);
-    color:#92400e;
-    font-size:.7rem;
-    font-weight:700;
-    padding:.35rem .55rem;
-    border-radius:.5rem;
-    cursor:pointer;
-  }
-  .dispatchNotifyBtn:hover{
-    background:rgba(254,240,138,.75);
-  }
-  .dispatchNotifyBtn:disabled{
-    opacity:.5;
-    cursor:not-allowed;
-  }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
 
-  .dispatchCol--shipments .dispatchColBody{
-    padding:0;
-  }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--panel-strong);
+      border-radius: var(--radius-md);
+      padding: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    }
 
-  .dispatchShipmentTable{
-    background:#ffffff;
-    border:1px solid var(--panel-strong);
-    border-radius:10px;
-    overflow:hidden;
-    box-shadow:0 2px 6px rgba(15,23,42,0.08);
-  }
+    .card h3 {
+      margin: 0;
+      font-size: 0.95rem;
+    }
 
-  .dispatchShipmentRow{
-    display:grid;
-    grid-template-columns: 1.2fr 1fr 1fr;
-    gap:.5rem;
-    padding:.55rem .6rem;
-    border-bottom:1px solid #e2e8f0;
-    font-size:.72rem;
-    color:#0f172a;
-    cursor:pointer;
-  }
+    .card p {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
 
-  .dispatchShipmentRow--header{
-    background:#f1f5f9;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:.6px;
-    cursor:default;
-  }
+    .card a,
+    .card button {
+      margin-top: auto;
+      align-self: flex-start;
+      text-decoration: none;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid rgba(37, 99, 235, 0.4);
+      border-radius: 0.65rem;
+      padding: 0.4rem 0.7rem;
+      font-weight: 600;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
 
-  .dispatchShipmentRow:last-child{
-    border-bottom:none;
-  }
+    .quick-list {
+      display: grid;
+      gap: 0.65rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
 
-  .dispatchShipmentCell--tracking{
-    font-family:var(--mono);
-    color:#0f172a;
-  }
+    .quick-list li {
+      background: #fff;
+      border: 1px solid var(--panel-strong);
+      border-radius: var(--radius-md);
+      padding: 0.65rem 0.8rem;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
 
-  .dispatchShipmentCell--status{
-    color:#475569;
-  }
+    footer {
+      border-top: 1px solid var(--panel-strong);
+      background: #fff;
+      padding: 1rem 1.5rem 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      text-align: center;
+    }
 
-  .dispatchShipmentEmpty{
-    padding:.75rem;
-    font-size:.75rem;
-    color:#94a3b8;
-  }
+    @media (max-width: 700px) {
+      .app-header-inner {
+        flex-direction: column;
+        align-items: flex-start;
+      }
 
-  .dispatchShipmentInfo{
-    display:grid;
-    gap:.35rem;
-    font-size:.85rem;
-    color:#0f172a;
-    margin-bottom:1rem;
-  }
+      main {
+        padding: 1.25rem;
+      }
 
-  .dispatchShipmentEventsTitle{
-    font-weight:700;
-    margin-bottom:.5rem;
-  }
-
-  .dispatchShipmentEvent{
-    border:1px solid #e2e8f0;
-    border-radius:.6rem;
-    padding:.6rem;
-    margin-bottom:.5rem;
-    background:#f8fafc;
-  }
-
-  .dispatchShipmentEventTitle{
-    font-weight:700;
-    color:#0f172a;
-    margin-bottom:.2rem;
-  }
-
-  .dispatchShipmentEventMeta{
-    font-size:.72rem;
-    color:#64748b;
-    margin-bottom:.2rem;
-  }
-
-  .dispatchShipmentEventMessage{
-    font-size:.78rem;
-    color:#334155;
-  }
-
-  .dispatchShipmentEventEmpty{
-    font-size:.78rem;
-    color:#94a3b8;
-  }
-
-  .dispatchPackingPanel{
-    border-top:1px dashed rgba(148,163,184,.5);
-    margin-top:.6rem;
-    padding-top:.6rem;
-    display:none;
-  }
-  .dispatchPackingPanel.is-active{
-    display:block;
-  }
-  .dispatchPackingHeader{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:.5rem;
-    margin-bottom:.45rem;
-  }
-  .dispatchPackingTitle{
-    font-size:.78rem;
-    font-weight:700;
-    color:#0f172a;
-  }
-  .dispatchPackingTimes{
-    font-size:.62rem;
-    color:#64748b;
-    display:flex;
-    flex-direction:column;
-    gap:.2rem;
-    text-align:right;
-  }
-  .dispatchPackingList{
-    display:flex;
-    flex-direction:column;
-    gap:.45rem;
-    margin-bottom:.5rem;
-  }
-  .dispatchPackingRow{
-    border:1px solid rgba(226,232,240,.9);
-    border-radius:.5rem;
-    padding:.4rem .5rem;
-    background:#f8fafc;
-  }
-  .dispatchPackingRow.is-complete{
-    background:rgba(148,163,184,.12);
-  }
-  .dispatchPackingRow.is-complete .dispatchPackingItem{
-    text-decoration:line-through;
-    color:#94a3b8;
-  }
-  .dispatchPackingInfo{
-    display:flex;
-    flex-direction:column;
-    gap:.15rem;
-  }
-  .dispatchPackingItem{
-    font-size:.74rem;
-    font-weight:600;
-    color:#0f172a;
-  }
-  .dispatchPackingMeta{
-    font-size:.64rem;
-    color:#475569;
-  }
-  .dispatchPackingActions{
-    display:flex;
-    flex-wrap:wrap;
-    gap:.35rem;
-    margin-top:.35rem;
-  }
-  .dispatchPackingQty{
-    width:60px;
-    border-radius:.4rem;
-    border:1px solid rgba(148,163,184,.6);
-    padding:.2rem .3rem;
-    font-size:.7rem;
-  }
-  .dispatchPackQtyBtn,
-  .dispatchPackAllBtn{
-    border-radius:.4rem;
-    border:1px solid rgba(59,130,246,.3);
-    background:rgba(59,130,246,.08);
-    color:#1e3a8a;
-    font-size:.66rem;
-    padding:.25rem .45rem;
-    cursor:pointer;
-  }
-  .dispatchPackQtyBtn:hover,
-  .dispatchPackAllBtn:hover{
-    background:rgba(59,130,246,.16);
-  }
-  .dispatchPackQtyBtn:disabled,
-  .dispatchPackAllBtn:disabled{
-    opacity:.5;
-    cursor:not-allowed;
-  }
-  .dispatchPackingFooter{
-    display:flex;
-    flex-direction:column;
-    gap:.45rem;
-  }
-  .dispatchParcelScan{
-    display:flex;
-    gap:.35rem;
-    flex-wrap:wrap;
-  }
-  .dispatchParcelBoxBtn{
-    border-radius:.45rem;
-    border:1px solid rgba(124,58,237,.35);
-    background:rgba(124,58,237,.12);
-    color:#5b21b6;
-    font-size:.65rem;
-    font-weight:700;
-    padding:.3rem .45rem;
-    cursor:pointer;
-  }
-  .dispatchParcelBoxBtn:hover{
-    background:rgba(124,58,237,.2);
-  }
-  .dispatchBoxList{
-    display:flex;
-    flex-wrap:wrap;
-    gap:.35rem;
-    font-size:.62rem;
-    color:#0f172a;
-  }
-  .dispatchBoxRow{
-    display:flex;
-    align-items:center;
-    gap:.45rem;
-    background:rgba(226,232,240,.8);
-    border-radius:.6rem;
-    padding:.3rem .5rem;
-    font-size:.62rem;
-    color:#0f172a;
-    font-weight:600;
-  }
-  .dispatchBoxLabel{
-    font-size:.62rem;
-    font-weight:700;
-    color:#0f172a;
-  }
-  .dispatchBoxParcelInput{
-    border-radius:.4rem;
-    border:1px solid rgba(148,163,184,.6);
-    padding:.2rem .3rem;
-    font-size:.62rem;
-    min-width:140px;
-  }
-  .dispatchBoxEmpty{
-    color:#94a3b8;
-  }
-  .dispatchPackingControls{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:.5rem;
-  }
-  .dispatchPackingCount{
-    font-size:.65rem;
-    color:#475569;
-  }
-  .dispatchFinishPackingBtn{
-    border-radius:.45rem;
-    border:1px solid rgba(234,88,12,.35);
-    background:rgba(251,146,60,.15);
-    color:#9a3412;
-    font-size:.65rem;
-    font-weight:700;
-    padding:.3rem .55rem;
-    cursor:pointer;
-  }
-  .dispatchFinishPackingBtn:hover{
-    background:rgba(251,146,60,.24);
-  }
-  .dispatchFinishPackingBtn:disabled{
-    opacity:.55;
-    cursor:not-allowed;
-  }
-  .dispatchPackingEmpty{
-    font-size:.65rem;
-    color:#94a3b8;
-  }
-  .dispatchOrderModal{
-    position:fixed;
-    inset:0;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index:60;
-  }
-  .dispatchOrderModal.is-open{
-    display:flex;
-  }
-  .dispatchOrderModal__backdrop{
-    position:absolute;
-    inset:0;
-    background:rgba(15,23,42,.55);
-  }
-  .dispatchOrderModal__content{
-    position:relative;
-    background:#ffffff;
-    border-radius:16px;
-    border:1px solid rgba(148,163,184,.6);
-    width:min(900px, 92vw);
-    max-height:90vh;
-    overflow:hidden;
-    box-shadow:0 18px 40px rgba(15,23,42,.25);
-    display:flex;
-    flex-direction:column;
-  }
-  .dispatchOrderModal__header{
-    padding:1rem 1.2rem 0;
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:1rem;
-  }
-  .dispatchOrderModal__title{
-    font-size:1rem;
-    font-weight:700;
-    color:#0f172a;
-  }
-  .dispatchOrderModal__meta{
-    font-size:.75rem;
-    color:#64748b;
-    margin-top:.2rem;
-  }
-  .dispatchOrderModal__body{
-    padding:0 1.2rem 1.2rem;
-    overflow-y:auto;
-  }
-  .dispatchOrderModal__close{
-    border:none;
-    background:rgba(148,163,184,.2);
-    color:#0f172a;
-    font-weight:700;
-    border-radius:999px;
-    width:32px;
-    height:32px;
-    cursor:pointer;
-  }
-  .dispatchOrderModal__close:hover{
-    background:rgba(148,163,184,.35);
-  }
-  .dispatchShipmentModal{
-    position:fixed;
-    inset:0;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index:60;
-  }
-  .dispatchShipmentModal.is-open{
-    display:flex;
-  }
-  .dispatchShipmentModal__backdrop{
-    position:absolute;
-    inset:0;
-    background:rgba(15,23,42,.55);
-  }
-  .dispatchShipmentModal__content{
-    position:relative;
-    background:#ffffff;
-    border-radius:16px;
-    border:1px solid rgba(148,163,184,.6);
-    width:min(820px, 92vw);
-    max-height:90vh;
-    overflow:hidden;
-    box-shadow:0 18px 40px rgba(15,23,42,.25);
-    display:flex;
-    flex-direction:column;
-  }
-  .dispatchShipmentModal__header{
-    padding:1rem 1.2rem 0;
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:1rem;
-  }
-  .dispatchShipmentModal__title{
-    font-size:1rem;
-    font-weight:700;
-    color:#0f172a;
-  }
-  .dispatchShipmentModal__meta{
-    font-size:.75rem;
-    color:#64748b;
-    margin-top:.2rem;
-  }
-  .dispatchShipmentModal__body{
-    padding:0 1.2rem 1.2rem;
-    overflow-y:auto;
-  }
-  .dispatchShipmentModal__close{
-    border:none;
-    background:rgba(148,163,184,.2);
-    color:#0f172a;
-    font-weight:700;
-    border-radius:999px;
-    width:32px;
-    height:32px;
-    cursor:pointer;
-  }
-  .dispatchShipmentModal__close:hover{
-    background:rgba(148,163,184,.35);
-  }
-
-.dispatchColBody {
-  overflow-y: auto;
-  max-height: 62vh;
-  padding-right: 6px;
-}
-
-/* lane separation */
-.dispatchCol {
-  display: flex;
-  flex-direction: column;
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 0.85rem;
-  border: 1px solid var(--panel-strong);
-}
-
-.dispatchBoardEmpty {
-  grid-column: 1 / -1;
-  text-align: center;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  padding: 1rem 0;
-}
-
-.dispatchBoardEmptyCol {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  padding: 0.35rem 0.1rem;
-}
-
-  .dispatchStamp{
-  font-size:.7rem;
-  color:var(--text-muted);
-  font-family:var(--mono);
-}
-
-  /* Documentation */
-  .docsShell{
-    max-width:1200px;
-    width:100%;
-    margin:0 auto;
-    background:rgba(255,255,255,.96);
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-lg);
-    box-shadow:0 18px 48px rgba(15,23,42,.1);
-    padding:1.75rem 2rem;
-  }
-  .docsShell h2{
-    font-size:1rem;
-    margin:1.25rem 0 .5rem;
-  }
-  .docsShell h3{
-    font-size:.9rem;
-    margin:1rem 0 .4rem;
-  }
-  .docsShell p,
-  .docsShell li{
-    font-size:.85rem;
-    color:var(--text);
-    line-height:1.5;
-  }
-  .docsGrid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));
-    gap:1rem;
-  }
-  .docsCard{
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-md);
-    padding:1rem;
-    background:var(--panel);
-  }
-  .docsMeta{
-    font-family:var(--mono);
-    font-size:.78rem;
-    color:var(--text-muted);
-  }
-  .docsCode{
-    font-family:var(--mono);
-    font-size:.78rem;
-    background:var(--panel-muted);
-    border:1px dashed var(--panel-strong);
-    padding:.5rem .6rem;
-    border-radius:var(--radius-md);
-    color:#0c4a6e;
-  }
-  .pill{
-    display:inline-flex;
-    align-items:center;
-    gap:.35rem;
-    padding:.2rem .5rem;
-    border-radius:999px;
-    border:1px solid rgba(56,189,248,.5);
-    background:var(--accent-soft);
-    color:#0c4a6e;
-    font-size:.7rem;
-    font-weight:600;
-  }
-  .parcelNumbersPanel{
-    background:linear-gradient(145deg, rgba(15,23,42,.04), rgba(148,163,184,.1));
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-lg);
-    padding:1rem;
-    min-height:320px;
-    display:flex;
-    flex-direction:column;
-    gap:.75rem;
-  }
-  .parcelNumbersHeader{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    font-weight:700;
-    color:var(--text);
-  }
-  .parcelNumbersSub{
-    font-size:.78rem;
-    color:var(--text-muted);
-  }
-  .parcelNumbersGrid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(80px, 1fr));
-    gap:.75rem;
-  }
-  .parcelNumber{
-    display:grid;
-    place-items:center;
-    font-size:2.1rem;
-    font-weight:800;
-    border-radius:1rem;
-    min-height:80px;
-    background:#fff;
-    border:2px dashed rgba(148,163,184,.5);
-    color:#94a3b8;
-    transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-  }
-  .parcelNumber.is-scanned{
-    border-style:solid;
-    border-color:rgba(34,197,94,.6);
-    color:#16a34a;
-    box-shadow:0 10px 25px rgba(34,197,94,.15);
-    background:rgba(240,253,244,.9);
-    transform:translateY(-2px);
-  }
-  .parcelNumbersEmpty{
-    color:var(--text-muted);
-    font-size:.9rem;
-    padding:1.5rem 0;
-    text-align:center;
-  }
-
-</style>
+      .hero {
+        padding: 1.5rem;
+      }
+    }
+  </style>
 </head>
- <body>
-  <div class="flApp">
-    <div class="flLayout">
-      <aside class="flSide">
-        <div class="flSideHeader">
-          <div class="flNavTitle">Flippen Lekka Operations</div>
-          <button id="navToggle" class="flHamburger" type="button" aria-label="Toggle navigation" aria-expanded="true">
-            <span class="flHamburgerLines"><span></span></span>
-          </button>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header-inner">
+        <div class="brand">
+          <h1>Flippen Lekka Ops</h1>
+          <p>Unified console for scanning, dispatch, and daily operations.</p>
         </div>
-        <nav class="flNav" aria-label="Primary">
-          <div class="flNavGroup" role="tablist" aria-label="Primary views">
-            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true"><span class="flNavBtnText">Dashboard</span></button>
-            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false"><span class="flNavBtnText">Scan Station</span></button>
-            <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false"><span class="flNavBtnText">Dispatch Board</span></button>
-            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false"><span class="flNavBtnText">Documentation</span></button>
-            <a class="flNavBtn" href="/flocs"><span class="flNavBtnText">Order capture (FLOCS)</span></a>
-            <a class="flNavBtn" href="/stock.html"><span class="flNavBtnText">Stock take</span></a>
-            <a class="flNavBtn" href="/price-manager.html"><span class="flNavBtnText">Price manager</span></a>
-          </div>
-          <div class="flNavStatus">
-            <span id="statusChip" class="statusChip">Ready to scan orders…</span>
-            <span id="actionFlash" class="actionFlash">Ready to scan orders…</span>
-          </div>
+        <nav class="nav" aria-label="Primary">
+          <button type="button" data-view="home" class="is-active">Home</button>
+          <button type="button" data-view="scan">Scan</button>
+          <button type="button" data-view="ops">Operations</button>
+          <button type="button" data-view="docs">Docs</button>
         </nav>
-      </aside>
-      <main class="flMain">
-        <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite">
-          <span class="statusBarLabel">Connections</span>
-          <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
-        </div>
+      </div>
+    </header>
 
-        <div class="flView flView--active" id="viewDashboard">
-        <div class="dashboardShell">
-          <div class="dashboardHeader">
-            <div>
-              <h1>Operations Dashboard</h1>
-              <p>Launch an app module below. Add new modules in <strong>public/app.js</strong> when you build more tools.</p>
+    <main>
+      <section class="view is-active" id="view-home">
+        <div class="hero">
+          <div>
+            <h2>Everything in one place.</h2>
+            <p>
+              This streamlined SPA keeps the essentials front and center. Use the shared navigation
+              to move between scan, dispatch, and documentation without leaving the console.
+            </p>
           </div>
-          <span class="pill">Modular launcher</span>
-        </div>
-        <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
-      </div>
-    </div>
-
-        <div class="flView" id="viewScan" hidden>
-      <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
-      <div class="scanTopBar">
-        <div class="scanBox scanBox--centered">
-          <label for="scanInput"><span>Scan parcel sticker barcode</span><small>Example: 252051001</small></label>
-          <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." />
-          <button id="multiShipToggle" class="btn btnToggle" type="button">Multi-shipment override: Off</button>
-          <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
-        </div>
-      </div>
-      <div class="shell" role="application" aria-label="Flippen Lekka Scan Station">
-  <!-- LEFT -->
-  <section class="leftPane">
-    <div class="headerRow">
-      <div class="line1">Flippen Lekka Scan Station <span class="badge" aria-live="polite">v1.0</span></div>
-      <div class="sessionInfo" aria-live="polite">
-        <div>Order: <span id="uiOrderNo">--</span></div>
-        <div>Bundled orders: <span id="uiBundleOrders">--</span></div>
-        <div>Multi-ship: <span id="uiMultiShip">Off</span></div>
-        <div>Session mode: <span id="uiSessionMode">Waiting</span></div>
-        <div>Parcels: <span id="uiParcelCount">0</span> / <span id="uiExpectedCount">--</span></div>
-        <div>Parcel source: <span id="uiParcelSource">--</span></div>
-        <div>Auto-book: <span id="uiAutoBook">Idle</span></div>
-      
-      </div>
-    </div>
-
-    <!-- Address search/select (toggle display if needed) -->
-    <div class="addrBox" id="addrBox" hidden>
-      <label>Destination address <span class="addrHint" style="font-weight:400">(search & select)</span></label>
-      <div class="row">
-        <input id="addrSearch" type="text" placeholder="Type name, city, postal, street…" />
-        <input id="placeCode" type="text" placeholder="place code" title="ParcelPerfect place code (optional)" />
-      </div>
-      <div class="addrList" id="addrResults" role="listbox" aria-label="Address results"></div>
-      <div class="addrHint">Tip: selecting an item sets the destination and its place code (if present). You can paste a code too.</div>
-    </div>
-
-    <!-- Service override (toggle display if needed) -->
-    <div class="card" id="svcBox" hidden>
-      <div class="cardHeader">Service</div>
-      <div class="svcRow">
-        <label for="serviceOverride" class="addrHint" style="font-size:.8rem">Prefer:</label>
-        <select id="serviceOverride" title="Choose a service or Auto">
-          <option value="AUTO">Auto (RFX→ECO→RDF→first)</option>
-          <option value="RFX">RFX (Road Express)</option>
-          <option value="ECO">ECO (Economy Road)</option>
-          <option value="RDF" selected>RDF (Roadfreight)</option>
-          <option value="ONX">ONX (Overnight Air)</option>
-          <option value="OVN">OVN (Overnight 2)</option>
-          <option value="CSS">CSS (ChainStores)</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Info cards -->
-    <div class="minigrid">
-      <div class="card"><div class="cardHeader">Scanned Parcel Details</div><div class="cardBody" id="parcelList">No parcels scanned yet.</div></div>
-      <div class="card"><div class="cardHeader">Ship To</div><div class="cardBody" id="shipToCard">None yet.</div></div>
-      
-        <div id="last-booking" class="card">
-  <div class="card-title">Last Booking Status</div>
-  <div id="last-booking-body"></div>
-      </div>
-    </div>
-
-    <div id="debugLog" aria-live="polite"></div>
-  </section>
-
-  <!-- RIGHT -->
-  <section class="rightPane">
-
-    <div class="truckPanel" aria-live="polite">
-      <div class="truckHeader">
-        <div>
-          <div class="truckTitle">Truck collection</div>
-          <div class="truckMeta">Today's parcels: <span id="truckParcelCount">0</span></div>
-        </div>
-        <span id="truckStatus" class="truckStatus">Not booked</span>
-      </div>
-      <button id="truckBookBtn" class="truckBookBtn" type="button" aria-pressed="false">
-        <span class="truckIcon" aria-hidden="true">🚚</span>
-        <span class="truckLabel">Book Truck</span>
-      </button>
-      <div class="truckHint">Auto-books when today's parcels exceed 25.</div>
-    </div>
-
-    <div class="sectionTitle" style="margin-top:.8rem">
-    <button id="modeToggle" type="button">MODE: AUTO</button>
-
-    </div>
-    <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
-      <div class="dispatchStatusHeader">
-        <h3>Booking progress</h3>
-        <span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span>
-      </div>
-      <div class="dispatchProgressBar" id="scanProgressBar">
-        <div id="scanProgressFill" class="dispatchProgressFill"></div>
-        <div class="dispatchProgressSun" aria-hidden="true"></div>
-      </div>
-      <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
-    </div>
-    <div class="dispatchLogPanel dispatchLogPanel--compact">
-      <div class="dispatchLogHeader">
-        <span>Dispatch log</span>
-        <span class="dispatchStamp">Latest activity</span>
-      </div>
-      <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
-    </div>
-    <div class="parcelNumbersPanel" aria-live="polite">
-      <div class="parcelNumbersHeader">
-        <span>Parcel Numbers</span>
-        <span class="parcelNumbersSub">Large scan confirmation</span>
-      </div>
-      <div id="parcelNumbers" class="parcelNumbersGrid">
-        <div class="parcelNumbersEmpty">Scan an order to show parcel numbers.</div>
-      </div>
-    </div>
-  </section>
-</div>
-    </div>
-
-        <div class="flView" id="viewOps" hidden>
-      <div id="dispatchBoardContainer">
-        <div class="dispatchStatusPanel" aria-live="polite">
-          <div class="dispatchStatusHeader">
-            <h3>Booking progress</h3>
-            <span id="dispatchProgressLabel" class="dispatchStatusLabel">Idle</span>
-          </div>
-          <div class="dispatchProgressBar" id="dispatchProgressBar">
-            <div id="dispatchProgressFill" class="dispatchProgressFill"></div>
-            <div class="dispatchProgressSun" aria-hidden="true"></div>
-          </div>
-          <div class="dispatchProgressSteps" id="dispatchProgressSteps"></div>
-        </div>
-        <div class="dispatchLogPanel">
-          <div class="dispatchLogHeader">
-            <span>Dispatch log</span>
-            <span class="dispatchStamp">Latest activity</span>
-          </div>
-          <div id="dispatchLog" class="dispatchLog" aria-live="polite"></div>
-        </div>
-        <div class="dispatchBoardPanel">
-          <div class="sectionTitle" style="margin-top:.4rem">
-            <span>Dispatch Whiteboard</span>
-            <span id="dispatchStamp" class="dispatchStamp">–</span>
-          </div>
-          <div class="dispatchBoard" id="dispatchBoardGrid">
-            <div class="dispatchBoardEmpty">Loading open orders…</div>
+          <div class="pill-row">
+            <span class="pill">Unified navigation</span>
+            <span class="pill">Consistent look &amp; feel</span>
+            <span class="pill">Quick links to legacy tools</span>
           </div>
         </div>
-      </div>
-      <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
-        <div class="dispatchOrderModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
-        <div class="dispatchOrderModal__content" role="dialog" aria-modal="true" aria-labelledby="dispatchOrderModalTitle">
-          <div class="dispatchOrderModal__header">
-            <div>
-              <div class="dispatchOrderModal__title" id="dispatchOrderModalTitle">Order</div>
-              <div class="dispatchOrderModal__meta" id="dispatchOrderModalMeta"></div>
-            </div>
-            <button class="dispatchOrderModal__close" type="button" data-action="close-modal" aria-label="Close order details">✕</button>
+
+        <div class="grid">
+          <div class="card">
+            <h3>Scan Station</h3>
+            <p>Jump into parcel scans and keep the flow moving with a single view.</p>
+            <button type="button" data-view="scan">Open Scan</button>
           </div>
-          <div class="dispatchOrderModal__body" id="dispatchOrderModalBody"></div>
-        </div>
-      </div>
-      <div class="dispatchShipmentModal" id="dispatchShipmentModal" aria-hidden="true">
-        <div class="dispatchShipmentModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
-        <div class="dispatchShipmentModal__content" role="dialog" aria-modal="true" aria-labelledby="dispatchShipmentModalTitle">
-          <div class="dispatchShipmentModal__header">
-            <div>
-              <div class="dispatchShipmentModal__title" id="dispatchShipmentModalTitle">Shipment</div>
-              <div class="dispatchShipmentModal__meta" id="dispatchShipmentModalMeta"></div>
-            </div>
-            <button class="dispatchShipmentModal__close" type="button" data-action="close-modal" aria-label="Close shipment details">✕</button>
+          <div class="card">
+            <h3>Dispatch Overview</h3>
+            <p>Track packing progress, priorities, and daily targets at a glance.</p>
+            <button type="button" data-view="ops">Open Ops</button>
           </div>
-          <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
-        </div>
-      </div>
-    </div>
-
-        <div class="flView" id="viewDocs" hidden>
-      <div class="docsShell">
-        <div class="pill">Operator Guide</div>
-        <h2>Scan Station Overview</h2>
-        <p>This console books shipments automatically based on scanned parcel labels and Shopify order metadata. The session banner shows the active order, mode, expected parcel count, and auto-book countdown so operators can confirm readiness before booking.</p>
-
-        <div class="docsGrid">
-          <div class="docsCard">
-            <h3>Quick Start (Daily Use)</h3>
-            <ol>
-              <li>Open the Scan Station view and keep the cursor in the scan field.</li>
-              <li>Scan parcel barcodes in order; the session panel will show scanned vs expected parcels.</li>
-              <li>Use the <strong>MODE</strong> toggle to switch between Auto (tag/idle booking) and Manual (tap Book Now).</li>
-              <li>If a <span class="pill">parcel_count_#</span> tag exists, the booking is triggered on the first scan.</li>
-              <li>If no tag exists, the system auto-books after the idle timer expires or you can tap <strong>BOOK NOW</strong>.</li>
-              
-          </div>
-         
-        </div>
-
-        <h2>Dispatch Board</h2>
-        <p>The Dispatch Board groups open Shopify orders by urgency. Each card lists customer details, service code, tags, and a parcel count indicator so planners can prioritize packing.</p>
-        <p>Tap a card to open the packing modal, add boxes, and update packed quantities. Pickup orders use <strong>Notify customer</strong> once the courier can collect.</p>
-
-        <h2>Mobile Access (Same Network)</h2>
-        <p>To access the app from a phone or tablet on the same Wi-Fi, the server must listen on all interfaces. By default all origins are allowed unless <span class="docsCode">FRONTEND_ORIGIN</span> is set.</p>
-        <div class="docsCard">
-          <h3>Step-by-Step</h3>
-          <ol>
-            <li>Find the computer's IP address on your network (example: <span class="docsCode">192.168.1.25</span>).</li>
-            <li>Start the server with <span class="docsCode">HOST=0.0.0.0</span>.</li>
-            <li>Optional: set <span class="docsCode">FRONTEND_ORIGIN</span> to include both desktop and mobile origins (comma-separated). Use <span class="docsCode">*</span> to explicitly allow all origins.</li>
-            <li>On the phone, open <span class="docsCode">http://192.168.1.25:3000</span>.</li>
-          </ol>
-          <p class="docsMeta">Tip: If you see a CORS error, update <span class="docsCode">FRONTEND_ORIGIN</span> to include the mobile address or set it to <span class="docsCode">*</span>.</p>
-        </div>
-
-        <h2>Endpoints</h2>
-        <div class="docsGrid">
-          <div class="docsCard">
-            <h3>Core API</h3>
-            <ul>
-              <li><span class="docsCode">POST /pp</span> — ParcelPerfect proxy for bookings and quotes.</li>
-              <li><span class="docsCode">GET /shopify/orders/by-name/:name</span> — Order lookup by Shopify name.</li>
-              <li><span class="docsCode">GET /shopify/orders/open</span> — Dispatch board feed.</li>
-              <li><span class="docsCode">POST /shopify/fulfill</span> — Fulfillment + tracking update.</li>
-              <li><span class="docsCode">GET /healthz</span> — Service health check.</li>
-            </ul>
-          </div>
-          <div class="docsCard">
-            <h3>Operator Tips</h3>
-            <ul>
-              <li>Use <strong>Emergency Stop</strong> to clear the session if the wrong order is scanned.</li>
-              <li>If an order is already booked, scans are blocked to prevent duplicates.</li>
-              <li>Keep labels flat in the printer; the preview matches the 100×150mm output.</li>
-            </ul>
+          <div class="card">
+            <h3>Documentation</h3>
+            <p>Keep quick-start notes, contact details, and workflows in one place.</p>
+            <button type="button" data-view="docs">Open Docs</button>
           </div>
         </div>
-      </div>
-    </div>
-      </main>
-    </div>
+      </section>
+
+      <section class="view" id="view-scan">
+        <div class="hero">
+          <div>
+            <h2>Scan essentials</h2>
+            <p>Use this view for the core scan workflow and fast context while you work.</p>
+          </div>
+          <div class="pill-row">
+            <span class="pill">Live scan queue</span>
+            <span class="pill">Auto-book ready</span>
+            <span class="pill">Quick incident log</span>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <h3>Start a scan</h3>
+            <p>Focus area for live scans. Connect your scanner and begin capturing parcels.</p>
+          </div>
+          <div class="card">
+            <h3>Booking status</h3>
+            <p>Track booking readiness and printer connections without leaving this page.</p>
+          </div>
+          <div class="card">
+            <h3>Alerts &amp; exceptions</h3>
+            <p>Log mismatches or damage instantly to keep the queue moving.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-ops">
+        <div class="hero">
+          <div>
+            <h2>Operations snapshot</h2>
+            <p>Stay on top of packing status, truck readiness, and priority dispatch notes.</p>
+          </div>
+          <div class="pill-row">
+            <span class="pill">Shift summary</span>
+            <span class="pill">Dispatch checklist</span>
+            <span class="pill">Live readiness</span>
+          </div>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <h3>Today&apos;s focus</h3>
+            <p>Highlight the orders or routes that need attention now.</p>
+          </div>
+          <div class="card">
+            <h3>Dispatch blockers</h3>
+            <p>Capture anything slowing down shipment, with owners and timestamps.</p>
+          </div>
+          <div class="card">
+            <h3>Quick tools</h3>
+            <p>Jump to legacy utilities without breaking the unified experience.</p>
+            <a href="/flocs">FLOCS</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-docs">
+        <div class="hero">
+          <div>
+            <h2>Operator notes</h2>
+            <p>Keep the essentials close: escalation contacts, daily routines, and system reminders.</p>
+          </div>
+          <div class="pill-row">
+            <span class="pill">Contact list</span>
+            <span class="pill">Daily flow</span>
+            <span class="pill">Quick references</span>
+          </div>
+        </div>
+        <ul class="quick-list">
+          <li>Morning checklist: open scan station, verify printer, confirm dispatch schedule.</li>
+          <li>Escalations: log any shipment mismatch in the alerts channel immediately.</li>
+          <li>End of shift: reconcile parcel count, close out booking summary, power down scanners.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      Unified SPA layout • Shared navigation • Minimal operational focus
+    </footer>
   </div>
-
-<!-- PRINT-ONLY MOUNT -->
-<div class="printSheetWrapper"><div id="printMount"></div></div>
-
-<script src="/app.js"></script>
-</body> 
+  <script src="/app.js" defer></script>
+</body>
 </html>
