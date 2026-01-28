@@ -140,6 +140,14 @@
       tag: "Module"
     },
     {
+      id: "pos",
+      title: "POS Walk-In",
+      description: "Scan walk-in items, show a large total, and close cash orders.",
+      type: "link",
+      target: "/pos.html",
+      tag: "Module"
+    },
+    {
       id: "simulate",
       title: "Simulator",
       description: "Test scan/booking flows without live orders.",
