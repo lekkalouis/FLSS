@@ -3654,6 +3654,74 @@ async function startOrder(orderNo) {
     }
   });
 
+  const slotEgg = $("slotEgg");
+  const slotReels = Array.from(document.querySelectorAll("[data-slot-reel]"));
+  const slotSpinBtn = $("slotSpinBtn");
+  const slotResult = $("slotResult");
+  const slotCloseButtons = Array.from(document.querySelectorAll("[data-slot-close]"));
+  const slotSpices = [
+    { name: "Chilli", icon: "🌶️" },
+    { name: "Garlic", icon: "🧄" },
+    { name: "Paprika", icon: "🫑" },
+    { name: "Cumin", icon: "🌿" },
+    { name: "Pepper", icon: "🧂" },
+    { name: "Turmeric", icon: "🟨" },
+    { name: "Coriander", icon: "🌱" },
+    { name: "Ginger", icon: "🫚" },
+    { name: "Smoked Salt", icon: "🧂" }
+  ];
+  let slotSpinning = false;
+  let slotSecretBuffer = "";
+  const slotSecret = "SPICE";
+
+  const formatSpice = (spice) => `${spice.icon} ${spice.name}`;
+
+  const openSlotEgg = () => {
+    if (!slotEgg || !slotResult) return;
+    slotEgg.hidden = false;
+    slotEgg.setAttribute("aria-hidden", "false");
+    slotSecretBuffer = "";
+    slotResult.textContent = "Match all three for a “house blend” win.";
+  };
+
+  const closeSlotEgg = () => {
+    if (!slotEgg) return;
+    slotEgg.hidden = true;
+    slotEgg.setAttribute("aria-hidden", "true");
+  };
+
+  const spinSlots = () => {
+    if (!slotSpinBtn || !slotResult || slotSpinning || slotReels.length === 0) return;
+    slotSpinning = true;
+    slotSpinBtn.disabled = true;
+    let ticks = 0;
+    let lastPicks = [];
+    slotResult.textContent = "Spinning the spice rack…";
+
+    const interval = setInterval(() => {
+      lastPicks = slotReels.map((reel) => {
+        const pick = slotSpices[Math.floor(Math.random() * slotSpices.length)];
+        reel.textContent = formatSpice(pick);
+        return pick;
+      });
+      ticks += 1;
+      if (ticks >= 8) {
+        clearInterval(interval);
+        const [first, second, third] = lastPicks;
+        if (first?.name === second?.name && second?.name === third?.name) {
+          slotResult.textContent = `Jackpot! House blend: ${first.name}.`;
+        } else {
+          slotResult.textContent = `Blend of the day: ${lastPicks.map((pick) => pick.name).join(" · ")}.`;
+        }
+        slotSpinning = false;
+        slotSpinBtn.disabled = false;
+      }
+    }, 120);
+  };
+
+  slotSpinBtn?.addEventListener("click", spinSlots);
+  slotCloseButtons.forEach((btn) => btn.addEventListener("click", closeSlotEgg));
+
   dispatchOrderModal?.addEventListener("change", (e) => {
     const input = e.target.closest(".dispatchBoxParcelInput");
     if (!input) return;
@@ -3670,6 +3738,17 @@ async function startOrder(orderNo) {
     if (e.key === "Escape") {
       closeDispatchOrderModal();
       closeDispatchShipmentModal();
+      closeSlotEgg();
+      return;
+    }
+    if (slotEgg && !slotEgg.hidden) return;
+    if (e.target instanceof HTMLElement && (e.target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName))) {
+      return;
+    }
+    if (e.key.length !== 1) return;
+    slotSecretBuffer = `${slotSecretBuffer}${e.key.toUpperCase()}`.slice(-slotSecret.length);
+    if (slotSecretBuffer === slotSecret) {
+      openSlotEgg();
     }
   });
 
