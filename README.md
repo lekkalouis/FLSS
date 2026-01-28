@@ -312,7 +312,35 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` for Scan Station/Dispatch/Docs, `http://localhost:3000/flocs` for order capture, and `http://localhost:3000/stock.html` for stock take. The server listens on `HOST`/`PORT` and logs allowed origins on boot.【F:package.json†L1-L16】【F:server.js†L441-L453】
+Open `http://localhost:3000` for Scan Station/Dispatch/Docs, `http://localhost:3000/flocs` for order capture, and `http://localhost:3000/stock.html` for stock take. The server listens on `HOST`/`PORT` and logs allowed origins on boot.【F:package.json†L1-L16】【F:server.js†L1-L17】
+
+---
+
+## Developer guide
+
+### Backend structure (refactored)
+
+The backend is now organized into focused modules under `src/`:
+
+- **`src/app.js`** — Express app setup (middleware, routes, static hosting).
+- **`src/config.js`** — Environment configuration and defaults.
+- **`src/routes/`** — Domain routers for Shopify, ParcelPerfect, PrintNode, alerts, and status.
+- **`src/services/`** — External integrations (Shopify token/cache, SMTP).
+- **`src/utils/`** — Shared HTTP helpers.
+
+The root `server.js` is a thin entrypoint that imports the app and starts the listener.【F:src/app.js†L1-L65】【F:src/config.js†L1-L36】【F:src/routes/shopify.js†L1-L649】【F:src/routes/parcelperfect.js†L1-L104】【F:src/routes/printnode.js†L1-L62】【F:src/routes/alerts.js†L1-L60】【F:src/routes/status.js†L1-L48】【F:src/services/shopify.js†L1-L115】【F:src/services/email.js†L1-L21】【F:src/utils/http.js†L1-L6】【F:server.js†L1-L17】
+
+### Adding a new backend endpoint
+
+1. Create a new route file in `src/routes/` (or extend an existing router).
+2. Add shared integration logic in `src/services/` if needed.
+3. Register the router in `src/app.js`.
+4. Update the API reference in this README if the endpoint is public-facing.
+
+### Configuration tips
+
+- Keep new env vars grouped in `src/config.js` so defaults are centralized.
+- For any email-related feature, reuse `src/services/email.js` so SMTP settings stay consistent.【F:src/config.js†L1-L36】【F:src/services/email.js†L1-L21】
 
 ---
 
@@ -326,7 +354,12 @@ Open `http://localhost:3000` for Scan Station/Dispatch/Docs, `http://localhost:3
 
 ## File map
 
-- `server.js` — Express API server and proxy to Shopify/ParcelPerfect/PrintNode. 【F:server.js†L1-L453】
+- `server.js` — Entrypoint that starts the Express app. 【F:server.js†L1-L17】
+- `src/app.js` — Express middleware + route registration + static hosting. 【F:src/app.js†L1-L65】
+- `src/config.js` — Environment configuration defaults. 【F:src/config.js†L1-L36】
+- `src/routes/` — Domain routers for ParcelPerfect/Shopify/PrintNode/status/alerts. 【F:src/routes/parcelperfect.js†L1-L104】【F:src/routes/shopify.js†L1-L649】【F:src/routes/printnode.js†L1-L62】【F:src/routes/status.js†L1-L48】【F:src/routes/alerts.js†L1-L60】
+- `src/services/` — Shopify token cache + SMTP transport helpers. 【F:src/services/shopify.js†L1-L115】【F:src/services/email.js†L1-L21】
+- `src/utils/http.js` — Shared HTTP helpers (bad request, status). 【F:src/utils/http.js†L1-L6】
 - `public/index.html` + `public/app.js` — Scan Station + Dispatch Board + embedded docs. 【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】
 - `public/flocs.html` + `public/flocs.js` — FLOCS order capture tool. 【F:public/flocs.html†L1-L200】【F:public/flocs.js†L1-L200】
 - `public/price-manager.html` + `public/price-manager.js` — Price manager for tier pricing and storefront sync. 【F:public/price-manager.html†L1-L200】【F:public/price-manager.js†L1-L201】
