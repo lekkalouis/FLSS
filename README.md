@@ -180,7 +180,7 @@ A standalone page (`/flocs`) to capture a new order:
 
 - **Token caching**: Shopify access tokens are cached and refreshed before expiry, with a retry on 401/403 responses.【F:server.js†L120-L207】
 - **Rate limiting**: 120 requests/minute (standard headers enabled).【F:server.js†L92-L107】
-- **CORS enforcement**: only origins listed in `FRONTEND_ORIGIN` are allowed (unless `*`).【F:server.js†L62-L91】
+- **CORS enforcement**: if `FRONTEND_ORIGIN` is set, only origins listed there are allowed (unless `*`). When it is unset, all origins are allowed by default.【F:server.js†L62-L91】
 
 ### Scan Station (frontend)
 
@@ -244,7 +244,8 @@ Configuration comes from environment variables. The server expects these at runt
 ```bash
 PORT=3000
 HOST=0.0.0.0
-FRONTEND_ORIGIN=http://localhost:3000
+# Optional: comma-separated origins, or "*" to allow all origins
+# FRONTEND_ORIGIN=http://localhost:3000,http://192.168.1.25:3000
 
 # ParcelPerfect
 PP_BASE_URL=https://adpdemo.pperfect.com/ecomService/v10/Json/

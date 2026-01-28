@@ -888,9 +888,21 @@
               <span class="icon">⭐</span><span>Load collection</span>
             </button>
           </div>
-          <input id="flocs-productSearch" class="flocs-input" type="text"
-                 placeholder="Search Shopify products (SKU/title)..." autocomplete="off" />
+          <div class="flocs-row" style="margin-bottom:.5rem">
+            <input id="flocs-productSearch" class="flocs-input" type="text"
+                   placeholder="Search Shopify products (SKU/title)..." autocomplete="off" />
+            <input id="flocs-productCode" class="flocs-input" type="text"
+                   placeholder="Filter by product code (exact SKU)..." autocomplete="off" />
+          </div>
           <div id="flocs-productResults" class="flocs-productResults" hidden></div>
+          <div class="flocs-actionsRow" id="flocs-productPager" hidden>
+            <button id="flocs-productPrev" class="flocs-btn" type="button">
+              <span class="icon">⬅</span><span>Previous</span>
+            </button>
+            <button id="flocs-productNext" class="flocs-btn" type="button">
+              <span class="icon">➡</span><span>Next</span>
+            </button>
+          </div>
           <div class="flocs-filterRow">
             <select id="flocs-filterFlavour" class="flocs-select">
               <option value="">All flavours</option>
