@@ -35,5 +35,5 @@ export const config = {
 
 export function getFrontendOrigin() {
   if (config.FRONTEND_ORIGIN) return config.FRONTEND_ORIGIN;
-  return config.NODE_ENV === "production" ? "http://localhost:3000" : "*";
+  return "*";
 }

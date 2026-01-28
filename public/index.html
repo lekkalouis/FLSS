@@ -177,18 +177,16 @@
     body.flNavCollapsed .flSide{
       max-width:none;
       min-width:0;
+      width:100%;
+      padding:.65rem .75rem;
+      gap:.5rem;
     }
-    body.flNavCollapsed .flNavTitle,
-    body.flNavCollapsed .flNavBtnText,
+    body.flNavCollapsed .flNavTitle{
+      display:block;
+    }
+    body.flNavCollapsed .flNavGroup,
     body.flNavCollapsed .flNavStatus{
-      display:flex;
-    }
-    body.flNavCollapsed .flNavBtn{
-      justify-content:flex-start;
-      padding:.45rem .85rem;
-    }
-    body.flNavCollapsed .flNavGroup{
-      align-items:stretch;
+      display:none;
     }
   }
   .actionFlash{
@@ -1808,16 +1806,16 @@
         <p>Tap a card to open the packing modal, add boxes, and update packed quantities. Pickup orders use <strong>Notify customer</strong> once the courier can collect.</p>
 
         <h2>Mobile Access (Same Network)</h2>
-        <p>To access the app from a phone or tablet on the same Wi-Fi, the server must listen on all interfaces and allow the phone's origin.</p>
+        <p>To access the app from a phone or tablet on the same Wi-Fi, the server must listen on all interfaces. By default all origins are allowed unless <span class="docsCode">FRONTEND_ORIGIN</span> is set.</p>
         <div class="docsCard">
           <h3>Step-by-Step</h3>
           <ol>
             <li>Find the computer's IP address on your network (example: <span class="docsCode">192.168.1.25</span>).</li>
             <li>Start the server with <span class="docsCode">HOST=0.0.0.0</span>.</li>
-            <li>Set <span class="docsCode">FRONTEND_ORIGIN</span> to include both desktop and mobile origins (comma-separated), or use <span class="docsCode">*</span> for local testing.</li>
+            <li>Optional: set <span class="docsCode">FRONTEND_ORIGIN</span> to include both desktop and mobile origins (comma-separated). Use <span class="docsCode">*</span> to explicitly allow all origins.</li>
             <li>On the phone, open <span class="docsCode">http://192.168.1.25:3000</span>.</li>
           </ol>
-          <p class="docsMeta">Tip: If you see a CORS error, update <span class="docsCode">FRONTEND_ORIGIN</span> to include the mobile address.</p>
+          <p class="docsMeta">Tip: If you see a CORS error, update <span class="docsCode">FRONTEND_ORIGIN</span> to include the mobile address or set it to <span class="docsCode">*</span>.</p>
         </div>
 
         <h2>Endpoints</h2>
