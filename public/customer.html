@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flippen Lekka Customer Portal</title>
+  <style>
+    :root{
+      --bg:#f8fafc;
+      --panel:#ffffff;
+      --panel-muted:#f1f5f9;
+      --panel-strong:#e2e8f0;
+      --text:#0f172a;
+      --text-muted:#64748b;
+      --accent:#2563eb;
+      --accent-strong:#1d4ed8;
+      --danger:#dc2626;
+      --success:#16a34a;
+      --radius-md:.65rem;
+      --radius-sm:.45rem;
+      --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      font-family:var(--sans);
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      min-height:100dvh;
+    }
+    .page{
+      max-width:1100px;
+      margin:0 auto;
+      padding:2rem 1.5rem 3rem;
+      display:flex;
+      flex-direction:column;
+      gap:1.5rem;
+    }
+    header{
+      display:flex;
+      flex-direction:column;
+      gap:.4rem;
+    }
+    h1{font-size:1.8rem;margin:0;}
+    p{margin:0;color:var(--text-muted);}
+    .card{
+      background:var(--panel);
+      border:1px solid var(--panel-strong);
+      border-radius:var(--radius-md);
+      padding:1.5rem;
+      box-shadow:0 12px 32px rgba(15,23,42,.08);
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+      gap:1rem;
+    }
+    label{
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+      font-weight:600;
+      font-size:.9rem;
+    }
+    input, select, textarea{
+      padding:.55rem .65rem;
+      border-radius:var(--radius-sm);
+      border:1px solid var(--panel-strong);
+      font-size:.9rem;
+      font-family:inherit;
+    }
+    textarea{min-height:90px;resize:vertical;}
+    button{
+      padding:.6rem 1rem;
+      border-radius:var(--radius-sm);
+      border:1px solid var(--accent);
+      background:var(--accent);
+      color:#fff;
+      font-weight:600;
+      cursor:pointer;
+      transition:all .2s ease;
+    }
+    button.secondary{
+      border-color:var(--panel-strong);
+      background:#fff;
+      color:var(--text);
+    }
+    button.danger{
+      border-color:var(--danger);
+      background:var(--danger);
+    }
+    button:hover{background:var(--accent-strong);}
+    button.secondary:hover{background:var(--panel-muted);}
+    button:disabled{opacity:.6;cursor:not-allowed;}
+    .status{
+      padding:.6rem .85rem;
+      border-radius:var(--radius-sm);
+      font-size:.9rem;
+      background:var(--panel-muted);
+      border:1px solid var(--panel-strong);
+    }
+    .status.success{border-color:rgba(22,163,74,.4);color:var(--success);}
+    .status.error{border-color:rgba(220,38,38,.4);color:var(--danger);}
+    .hidden{display:none;}
+    .inline{
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+      flex-wrap:wrap;
+    }
+    .line-items{
+      display:flex;
+      flex-direction:column;
+      gap:.75rem;
+      margin-top:.5rem;
+    }
+    .line-item{
+      display:flex;
+      align-items:center;
+      gap:.75rem;
+      flex-wrap:wrap;
+      padding:.65rem;
+      border-radius:var(--radius-sm);
+      border:1px solid var(--panel-strong);
+      background:var(--panel-muted);
+      font-size:.9rem;
+    }
+    .line-item span{flex:1;}
+    .muted{color:var(--text-muted);}
+    .divider{
+      height:1px;
+      background:var(--panel-strong);
+      margin:1rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>Special Customer Portal</h1>
+      <p>Log in with your access code to place an order directly into Flippen Lekka.</p>
+    </header>
+
+    <section class="card" id="login-card">
+      <h2>Sign in</h2>
+      <div class="grid">
+        <label>
+          Email
+          <input type="email" id="login-email" autocomplete="username" />
+        </label>
+        <label>
+          Access code
+          <input type="password" id="login-passcode" autocomplete="current-password" />
+        </label>
+      </div>
+      <div class="inline" style="margin-top:1rem;">
+        <button id="login-btn">Log in</button>
+        <span class="status hidden" id="login-status"></span>
+      </div>
+    </section>
+
+    <section class="card hidden" id="order-card">
+      <div class="inline" style="justify-content:space-between;">
+        <div>
+          <h2 style="margin:0 0 .35rem;">Place an order</h2>
+          <p class="muted" id="customer-label"></p>
+        </div>
+        <button class="secondary" id="logout-btn">Log out</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <h3>Order details</h3>
+      <div class="grid">
+        <label>
+          PO number (optional)
+          <input type="text" id="po-number" />
+        </label>
+        <label>
+          Delivery method
+          <select id="shipping-method">
+            <option value="ship">Ship</option>
+            <option value="pickup">Pickup</option>
+            <option value="delivery">Local delivery</option>
+          </select>
+        </label>
+        <label>
+          Shipping service
+          <input type="text" id="shipping-service" placeholder="Courier name" />
+        </label>
+        <label>
+          Shipping price
+          <input type="number" id="shipping-price" min="0" step="0.01" />
+        </label>
+      </div>
+
+      <h3 style="margin-top:1.5rem;">Shipping address</h3>
+      <div class="grid">
+        <label>
+          Address line 1
+          <input type="text" id="ship-address1" />
+        </label>
+        <label>
+          Address line 2
+          <input type="text" id="ship-address2" />
+        </label>
+        <label>
+          City
+          <input type="text" id="ship-city" />
+        </label>
+        <label>
+          Province/State
+          <input type="text" id="ship-province" />
+        </label>
+        <label>
+          Postal code
+          <input type="text" id="ship-zip" />
+        </label>
+        <label>
+          Country
+          <input type="text" id="ship-country" value="South Africa" />
+        </label>
+        <label>
+          Phone
+          <input type="text" id="ship-phone" />
+        </label>
+        <label>
+          Company (optional)
+          <input type="text" id="ship-company" />
+        </label>
+      </div>
+
+      <h3 style="margin-top:1.5rem;">Line items</h3>
+      <div class="grid">
+        <label>
+          SKU / Title
+          <input type="text" id="item-title" />
+        </label>
+        <label>
+          Quantity
+          <input type="number" id="item-qty" min="1" value="1" />
+        </label>
+        <label>
+          Price (optional)
+          <input type="number" id="item-price" min="0" step="0.01" />
+        </label>
+        <label>
+          Notes (optional)
+          <input type="text" id="item-notes" />
+        </label>
+      </div>
+      <div class="inline" style="margin-top:1rem;">
+        <button class="secondary" id="add-item-btn">Add item</button>
+        <span class="muted">Add each product before submitting the order.</span>
+      </div>
+      <div class="line-items" id="line-items"></div>
+
+      <div class="divider"></div>
+
+      <div class="inline">
+        <button id="submit-order-btn">Place order</button>
+        <span class="status hidden" id="order-status"></span>
+      </div>
+    </section>
+  </div>
+
+  <script src="/customer.js"></script>
+</body>
+</html>

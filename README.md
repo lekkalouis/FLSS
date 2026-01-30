@@ -231,6 +231,11 @@ A standalone page (`/flocs`) to capture a new order:
 
 - `POST /printnode/print` — Print a base64 PDF to a configured printer. 【F:server.js†L435-L503】
 
+### Customer portal
+
+- `POST /customer/login` — Verify special customer credentials and return a short-lived token. 【F:src/routes/customer.js†L1-L212】
+- `POST /customer/orders` — Place an order as a logged-in special customer. Requires `Authorization: Bearer <token>`. 【F:src/routes/customer.js†L214-L321】
+
 ### Utility
 
 - `GET /healthz` — Health check. 【F:server.js†L505-L507】
@@ -263,6 +268,13 @@ SHOPIFY_API_VERSION=2025-10
 # PrintNode
 PRINTNODE_API_KEY=your-printnode-api-key
 PRINTNODE_PRINTER_ID=123456
+
+# Customer portal
+CUSTOMER_AUTH_SECRET=super-long-random-secret
+CUSTOMER_AUTH_TTL_MINUTES=60
+# JSON array of special customers with access codes + Shopify customer IDs
+# Example:
+# SPECIAL_CUSTOMERS=[{"email":"vip@example.com","passcode":"VIP-2024","customerId":123456789}]
 ```
 
 The included `.env.example` file is a starting point, but Shopify configuration has been updated to use OAuth client credentials in the server (see `SHOPIFY_CLIENT_ID` and `SHOPIFY_CLIENT_SECRET`).【F:server.js†L18-L60】【F:.env.example†L1-L18】

@@ -9,6 +9,7 @@ import rateLimit from "express-rate-limit";
 
 import { config, getFrontendOrigin } from "./config.js";
 import alertsRouter from "./routes/alerts.js";
+import customerRouter from "./routes/customer.js";
 import parcelPerfectRouter from "./routes/parcelperfect.js";
 import printnodeRouter from "./routes/printnode.js";
 import shopifyRouter from "./routes/shopify.js";
@@ -59,6 +60,7 @@ export function createApp() {
   app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
 
   app.use(statusRouter);
+  app.use(customerRouter);
   app.use(parcelPerfectRouter);
   app.use(shopifyRouter);
   app.use(printnodeRouter);
@@ -67,6 +69,7 @@ export function createApp() {
   const publicDir = path.join(__dirname, "..", "public");
   app.use(express.static(publicDir));
   app.get("/flocs", (req, res) => res.sendFile(path.join(publicDir, "flocs.html")));
+  app.get("/customer", (req, res) => res.sendFile(path.join(publicDir, "customer.html")));
   app.get("/simulate", (req, res) => res.sendFile(path.join(publicDir, "simulate.html")));
 
   app.get("*", (req, res) => res.sendFile(path.join(publicDir, "index.html")));

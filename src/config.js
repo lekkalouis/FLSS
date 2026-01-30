@@ -30,10 +30,30 @@ export const config = {
   SMTP_FROM: process.env.SMTP_FROM,
   TRUCK_EMAIL_TO: process.env.TRUCK_EMAIL_TO,
 
-  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN
+  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
+
+  CUSTOMER_AUTH_SECRET: process.env.CUSTOMER_AUTH_SECRET,
+  CUSTOMER_AUTH_TTL_MINUTES: Number(process.env.CUSTOMER_AUTH_TTL_MINUTES || 60),
+  SPECIAL_CUSTOMERS: parseSpecialCustomers(process.env.SPECIAL_CUSTOMERS)
 };
 
 export function getFrontendOrigin() {
   if (config.FRONTEND_ORIGIN) return config.FRONTEND_ORIGIN;
   return "*";
+}
+
+function parseSpecialCustomers(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+    if (parsed && typeof parsed === "object") {
+      return Object.entries(parsed)
+        .map(([email, passcode]) => ({ email, passcode }))
+        .filter((entry) => entry.email && entry.passcode);
+    }
+  } catch {
+    return [];
+  }
+  return [];
 }
