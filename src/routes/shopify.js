@@ -981,7 +981,7 @@ router.get("/shopify/orders/open", async (req, res) => {
     const url =
       `${base}/orders.json?status=open` +
       `&fulfillment_status=unfulfilled,in_progress,partial` +
-      `&limit=50&order=created_at+desc`;
+      `&limit=250&order=created_at+desc`;
 
     const resp = await shopifyFetch(url, { method: "GET" });
 
