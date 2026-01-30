@@ -977,26 +977,48 @@ router.get("/shopify/orders/open", async (req, res) => {
     if (!requireShopifyConfigured(res)) return;
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const limit = 250;
+    const maxPages = Math.min(Math.max(Number(req.query.max_pages || 5), 1), 10);
 
-    const url =
+    const firstPath =
       `${base}/orders.json?status=open` +
       `&fulfillment_status=unfulfilled,in_progress,partial` +
-      `&limit=50&order=created_at+desc`;
+      `&limit=${limit}&order=created_at+desc`;
 
-    const resp = await shopifyFetch(url, { method: "GET" });
+    const ordersRaw = [];
+    let nextPath = firstPath;
+    let pageCount = 0;
 
-    if (!resp.ok) {
-      const body = await resp.text();
-      return res.status(resp.status).json({
-        error: "SHOPIFY_UPSTREAM",
-        status: resp.status,
-        statusText: resp.statusText,
-        body
-      });
+    const getNextPath = (linkHeader) => {
+      if (!linkHeader) return null;
+      const match = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+      if (!match) return null;
+      try {
+        const url = new URL(match[1]);
+        return `${url.pathname}${url.search}`;
+      } catch (err) {
+        return match[1].replace(/^https?:\\/\\/[^/]+/, "");
+      }
+    };
+
+    while (nextPath && pageCount < maxPages) {
+      const resp = await shopifyFetch(nextPath, { method: "GET" });
+
+      if (!resp.ok) {
+        const body = await resp.text();
+        return res.status(resp.status).json({
+          error: "SHOPIFY_UPSTREAM",
+          status: resp.status,
+          statusText: resp.statusText,
+          body
+        });
+      }
+
+      const data = await resp.json();
+      if (Array.isArray(data.orders)) ordersRaw.push(...data.orders);
+      nextPath = getNextPath(resp.headers.get("link"));
+      pageCount += 1;
     }
-
-    const data = await resp.json();
-    const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
 
     const orders = ordersRaw
       .filter((o) => !o.cancelled_at)
