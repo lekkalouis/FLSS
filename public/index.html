@@ -923,11 +923,11 @@
 .dispatchProgressSteps{
   display:flex;
   flex-wrap:nowrap;
-  gap:.35rem .6rem;
+  justify-content:space-between;
+  gap:.4rem;
   font-size:.7rem;
   color:#334155;
-  overflow-x:auto;
-  scrollbar-width:thin;
+  width:100%;
 }
 .dispatchStatusPanel--compact .dispatchProgressSteps{
   font-size:.62rem;
@@ -935,13 +935,15 @@
 .dispatchProgressStep{
   display:flex;
   align-items:center;
+  justify-content:center;
   gap:.35rem;
-  padding:.25rem .4rem;
+  padding:.25rem .2rem;
   border-radius:.5rem;
   border:1px solid var(--panel-strong);
   background:#fff;
-  flex:0 0 auto;
-  white-space:nowrap;
+  flex:1 1 0;
+  min-width:0;
+  text-align:center;
 }
 .dispatchProgressDot{
   width:.55rem;
@@ -979,6 +981,89 @@
   background:#fff;
   padding:.75rem 1rem;
   box-shadow:0 14px 32px rgba(15,23,42,.08);
+}
+.dispatchTodoPanel{
+  border:1px solid var(--panel-strong);
+  border-radius:var(--radius-lg);
+  background:#fff;
+  padding:.75rem 1rem;
+  display:flex;
+  flex-direction:column;
+  gap:.65rem;
+  box-shadow:0 14px 32px rgba(15,23,42,.08);
+}
+.dispatchTodoHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+}
+.dispatchTodoHeader h3{
+  font-size:.95rem;
+  margin:0;
+  color:#0f172a;
+}
+.dispatchTodoMeta{
+  font-size:.7rem;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#64748b;
+  font-weight:600;
+}
+.dispatchTodoForm{
+  display:flex;
+  gap:.5rem;
+}
+.dispatchTodoForm input{
+  flex:1;
+  border:1px solid var(--panel-strong);
+  border-radius:var(--radius-md);
+  padding:.45rem .6rem;
+  font-size:.85rem;
+}
+.dispatchTodoForm button{
+  border:none;
+  border-radius:var(--radius-md);
+  padding:.45rem .8rem;
+  background:#0ea5e9;
+  color:#fff;
+  font-weight:600;
+}
+.dispatchTodoList{
+  display:flex;
+  flex-direction:column;
+  gap:.4rem;
+}
+.dispatchTodoEmpty{
+  font-size:.8rem;
+  color:#64748b;
+  padding:.35rem .2rem;
+}
+.dispatchTodoItem{
+  display:flex;
+  align-items:center;
+  gap:.5rem;
+  padding:.45rem .55rem;
+  border-radius:var(--radius-md);
+  border:1px solid var(--panel-strong);
+  background:var(--panel-muted);
+}
+.dispatchTodoItem input{
+  width:16px;
+  height:16px;
+}
+.dispatchTodoItem span{
+  flex:1;
+  font-size:.85rem;
+  color:#0f172a;
+}
+.dispatchTodoItem.is-complete{
+  background:rgba(34,197,94,.1);
+  border-color:rgba(34,197,94,.4);
+}
+.dispatchTodoItem.is-complete span{
+  text-decoration:line-through;
+  color:#64748b;
 }
 .dispatchLogPanel--compact{
   padding:.65rem .8rem;
@@ -2209,6 +2294,17 @@
             <span class="dispatchStamp">Latest activity</span>
           </div>
           <div id="dispatchLog" class="dispatchLog" aria-live="polite"></div>
+        </div>
+        <div class="dispatchTodoPanel">
+          <div class="dispatchTodoHeader">
+            <h3>Dispatch todo</h3>
+            <span class="dispatchTodoMeta">Notes</span>
+          </div>
+          <form id="dispatchTodoForm" class="dispatchTodoForm">
+            <input id="dispatchTodoInput" type="text" placeholder="Add a dispatch note…" autocomplete="off" />
+            <button type="submit">Add</button>
+          </form>
+          <div id="dispatchTodoList" class="dispatchTodoList" role="list"></div>
         </div>
         <div class="dispatchBoardPanel">
           <div class="sectionTitle" style="margin-top:.4rem">

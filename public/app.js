@@ -65,6 +65,9 @@
   const dispatchProgressSteps = $("dispatchProgressSteps");
   const dispatchProgressLabel = $("dispatchProgressLabel");
   const dispatchLog = $("dispatchLog");
+  const dispatchTodoForm = $("dispatchTodoForm");
+  const dispatchTodoInput = $("dispatchTodoInput");
+  const dispatchTodoList = $("dispatchTodoList");
   const dispatchOrderModal = $("dispatchOrderModal");
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
   const dispatchOrderModalTitle = $("dispatchOrderModalTitle");
@@ -333,11 +336,13 @@
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
   const INVOICE_TEMPLATE_KEY = "fl_invoice_template_v1";
+  const DISPATCH_TODO_KEY = "fl_dispatch_todo_v1";
   let dailyParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
   let truckBookedBy = null;
   let truckBookingInFlight = false;
+  let dispatchTodos = [];
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -787,6 +792,79 @@
           </div>
         `
       ).join("");
+    });
+  }
+
+  function saveDispatchTodos() {
+    localStorage.setItem(DISPATCH_TODO_KEY, JSON.stringify(dispatchTodos));
+  }
+
+  function renderDispatchTodos() {
+    if (!dispatchTodoList) return;
+    dispatchTodoList.innerHTML = "";
+    if (!dispatchTodos.length) {
+      const empty = document.createElement("div");
+      empty.className = "dispatchTodoEmpty";
+      empty.textContent = "No dispatch notes yet.";
+      dispatchTodoList.appendChild(empty);
+      return;
+    }
+    dispatchTodos.forEach((todo) => {
+      const item = document.createElement("div");
+      item.className = `dispatchTodoItem${todo.completed ? " is-complete" : ""}`;
+      item.dataset.todoId = todo.id;
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = todo.completed;
+      checkbox.setAttribute("aria-label", `Mark ${todo.text} as complete`);
+      const text = document.createElement("span");
+      text.textContent = todo.text;
+      item.append(checkbox, text);
+      dispatchTodoList.appendChild(item);
+    });
+  }
+
+  function loadDispatchTodos() {
+    if (!dispatchTodoList) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(DISPATCH_TODO_KEY) || "[]");
+      dispatchTodos = Array.isArray(stored) ? stored : [];
+    } catch (error) {
+      dispatchTodos = [];
+    }
+    renderDispatchTodos();
+  }
+
+  function initDispatchTodos() {
+    if (!dispatchTodoForm || !dispatchTodoInput || !dispatchTodoList) return;
+    loadDispatchTodos();
+    dispatchTodoForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const text = dispatchTodoInput.value.trim();
+      if (!text) return;
+      dispatchTodos.unshift({
+        id: `todo-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        text,
+        completed: false
+      });
+      dispatchTodoInput.value = "";
+      saveDispatchTodos();
+      renderDispatchTodos();
+    });
+    dispatchTodoList.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) || target.type !== "checkbox") return;
+      const item = target.closest(".dispatchTodoItem");
+      if (!item) return;
+      const todo = dispatchTodos.find((entry) => entry.id === item.dataset.todoId);
+      if (!todo) return;
+      const wasComplete = todo.completed;
+      todo.completed = target.checked;
+      if (!wasComplete && todo.completed) {
+        triggerScreenFlash("success");
+      }
+      saveDispatchTodos();
+      renderDispatchTodos();
     });
   }
 
@@ -3767,6 +3845,7 @@ async function startOrder(orderNo) {
   }
   initDispatchProgress();
   setDispatchProgress(0, "Idle", { silent: true });
+  initDispatchTodos();
   initAddressSearch();
   refreshDispatchData();
   setInterval(refreshDispatchData, 30000);
