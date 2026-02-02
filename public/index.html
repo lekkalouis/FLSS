@@ -327,16 +327,22 @@
     position:relative;
     margin-top:1.25rem;
     display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-    gap:1rem;
+    grid-template-columns:repeat(3,minmax(160px,1fr));
+    grid-template-areas:
+      "receiving labelling office"
+      "production packing warehouse"
+      "dispatch dispatch dispatch";
+    gap:1.1rem;
     z-index:1;
+    perspective:1200px;
+    transform-style:preserve-3d;
   }
   .factoryArea{
     position:relative;
     border-radius:1rem;
     padding:1rem 1rem 1.1rem;
     border:1px solid rgba(148,163,184,.35);
-    background:rgba(15,23,42,.65);
+    background:linear-gradient(135deg, rgba(15,23,42,.9), rgba(30,41,59,.9));
     color:#e2e8f0;
     cursor:pointer;
     display:flex;
@@ -344,6 +350,18 @@
     gap:.5rem;
     transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
     overflow:hidden;
+    transform:rotateX(6deg) translateZ(0);
+    transform-style:preserve-3d;
+  }
+  .factoryArea::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:inherit;
+    background:linear-gradient(180deg, rgba(148,163,184,.18), rgba(2,6,23,.9));
+    transform:translateY(12px);
+    opacity:.5;
+    z-index:0;
   }
   .factoryArea::after{
     content:"";
@@ -352,9 +370,10 @@
     background:linear-gradient(120deg, rgba(56,189,248,.22), rgba(59,130,246,.05));
     opacity:0;
     transition:opacity .2s ease;
+    z-index:0;
   }
   .factoryArea:hover{
-    transform:translateY(-3px);
+    transform:rotateX(6deg) translateY(-3px);
     border-color:rgba(56,189,248,.65);
     box-shadow:0 16px 28px rgba(14,116,144,.35);
   }
@@ -387,6 +406,7 @@
   .factoryArea--active{
     border-color:rgba(56,189,248,.9);
     box-shadow:0 18px 32px rgba(59,130,246,.4);
+    transform:rotateX(6deg) translateY(-4px) scale(1.01);
   }
   .factoryAreaPulse{
     position:absolute;
@@ -399,6 +419,26 @@
     box-shadow:0 0 12px rgba(56,189,248,.9);
     animation:pulse 2.5s ease-in-out infinite;
     z-index:1;
+  }
+  .factoryArea--production{ grid-area:production; }
+  .factoryArea--packing{ grid-area:packing; }
+  .factoryArea--warehouse{ grid-area:warehouse; }
+  .factoryArea--dispatch{ grid-area:dispatch; }
+  .factoryArea--office{ grid-area:office; }
+  .factoryArea--receiving{ grid-area:receiving; }
+  .factoryArea--labelling{ grid-area:labelling; }
+  @media (max-width:900px){
+    .factoryMap{
+      grid-template-columns:1fr;
+      grid-template-areas:
+        "receiving"
+        "labelling"
+        "office"
+        "production"
+        "packing"
+        "warehouse"
+        "dispatch";
+    }
   }
   @keyframes pulse{
     0%,100%{ transform:scale(.9); opacity:.6; }
@@ -2103,46 +2143,58 @@
         <section class="factoryShell" aria-labelledby="factoryTitle">
           <div class="factoryHeader">
             <div>
-              <h2 id="factoryTitle">Factory Command View</h2>
-              <p>Top-down operational map. Tap any department to reveal its live modules, tools, and playbooks.</p>
+              <h2 id="factoryTitle">3D Facility Map</h2>
+              <p>Click any area to light it up and reveal the live modules, tools, and playbooks for that space.</p>
             </div>
-            <span class="pill">Interactive floorplan</span>
+            <span class="pill">Interactive 3D layout</span>
           </div>
           <div id="factoryMap" class="factoryMap" role="list">
-            <button class="factoryArea" type="button" data-dept="manufacturing">
+            <button class="factoryArea factoryArea--receiving" type="button" data-dept="receiving">
               <span class="factoryAreaPulse"></span>
-              <span class="factoryAreaMeta">Manufacturing</span>
-              <h3 class="factoryAreaTitle">Production Lines</h3>
+              <span class="factoryAreaMeta">Receiving</span>
+              <h3 class="factoryAreaTitle">Inbound Dock</h3>
+              <p class="factoryAreaDetail">Schedule receipts, inspections, and intake priorities.</p>
+            </button>
+            <button class="factoryArea factoryArea--labelling" type="button" data-dept="labelling">
+              <span class="factoryAreaPulse"></span>
+              <span class="factoryAreaMeta">Labelling Room</span>
+              <h3 class="factoryAreaTitle">Label Print Bay</h3>
+              <p class="factoryAreaDetail">Templates, print runs, and compliance checks.</p>
+            </button>
+            <button class="factoryArea factoryArea--office" type="button" data-dept="office">
+              <span class="factoryAreaPulse"></span>
+              <span class="factoryAreaMeta">Office</span>
+              <h3 class="factoryAreaTitle">Admin Hub</h3>
+              <p class="factoryAreaDetail">Orders, purchasing, and finance workflows.</p>
+            </button>
+            <button class="factoryArea factoryArea--production" type="button" data-dept="production">
+              <span class="factoryAreaPulse"></span>
+              <span class="factoryAreaMeta">Production</span>
+              <h3 class="factoryAreaTitle">Production Floor</h3>
               <p class="factoryAreaDetail">Live batch progress, quality gates, and line cadence.</p>
             </button>
-            <button class="factoryArea" type="button" data-dept="dispatch">
-              <span class="factoryAreaPulse"></span>
-              <span class="factoryAreaMeta">Dispatch</span>
-              <h3 class="factoryAreaTitle">Outbound Staging</h3>
-              <p class="factoryAreaDetail">Carrier bookings, load sequencing, and dock status.</p>
-            </button>
-            <button class="factoryArea" type="button" data-dept="packing">
+            <button class="factoryArea factoryArea--packing" type="button" data-dept="packing">
               <span class="factoryAreaPulse"></span>
               <span class="factoryAreaMeta">Packing</span>
               <h3 class="factoryAreaTitle">Packing Cells</h3>
               <p class="factoryAreaDetail">Carton builds, label prints, and QA signoff.</p>
             </button>
-            <button class="factoryArea" type="button" data-dept="finished">
-              <span class="factoryAreaPulse"></span>
-              <span class="factoryAreaMeta">Finished Goods</span>
-              <h3 class="factoryAreaTitle">Ready to Ship</h3>
-              <p class="factoryAreaDetail">Final checks, palletization, and pickup windows.</p>
-            </button>
-            <button class="factoryArea" type="button" data-dept="warehouse">
+            <button class="factoryArea factoryArea--warehouse" type="button" data-dept="warehouse">
               <span class="factoryAreaPulse"></span>
               <span class="factoryAreaMeta">Warehouse</span>
               <h3 class="factoryAreaTitle">Storage Grid</h3>
               <p class="factoryAreaDetail">Inventory depth, replenishment, and inbound capture.</p>
             </button>
+            <button class="factoryArea factoryArea--dispatch" type="button" data-dept="dispatch">
+              <span class="factoryAreaPulse"></span>
+              <span class="factoryAreaMeta">Dispatch</span>
+              <h3 class="factoryAreaTitle">Outbound Staging</h3>
+              <p class="factoryAreaDetail">Carrier bookings, load sequencing, and dock status.</p>
+            </button>
           </div>
           <div class="factoryDetail" aria-live="polite">
             <div class="factoryDetailHeader">
-              <h3 class="factoryDetailTitle" id="factoryDetailTitle">Manufacturing Command Stack</h3>
+              <h3 class="factoryDetailTitle" id="factoryDetailTitle">Production Command Stack</h3>
               <span class="factoryDetailBadge" id="factoryDetailBadge">Live</span>
             </div>
             <p class="factoryAreaDetail" id="factoryDetailDesc">Select a department to surface its recommended module stack.</p>
