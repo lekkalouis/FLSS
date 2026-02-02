@@ -66,7 +66,12 @@ export function createApp() {
 
   const publicDir = path.join(__dirname, "..", "public");
   app.use(express.static(publicDir));
-  app.get("/flocs", (req, res) => res.sendFile(path.join(publicDir, "flocs.html")));
+  app.get("/flocs", (_req, res) => res.redirect(302, "/apps/scan-station/"));
+  app.get("/pos.html", (_req, res) => res.redirect(302, "/apps/order-capture/"));
+  app.get("/stock.html", (_req, res) => res.redirect(302, "/apps/inventory/"));
+  app.get("/price-manager.html", (_req, res) => res.redirect(302, "/apps/price-manager/"));
+  app.get("/customers.html", (_req, res) => res.redirect(302, "/apps/customers/"));
+  app.get("/invoices.html", (_req, res) => res.redirect(302, "/apps/invoices/"));
   app.get("/simulate", (req, res) => res.sendFile(path.join(publicDir, "simulate.html")));
 
   app.get("*", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
