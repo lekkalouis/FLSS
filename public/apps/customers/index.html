@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Customers — Flippen Lekka Ops</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-light: #1f2937;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1.5rem 2rem 0.5rem;
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.6rem;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    main {
+      flex: 1;
+      padding: 1rem 2rem 2rem;
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.5);
+    }
+
+    .panel h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1.1rem;
+    }
+
+    .panel p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .tag {
+      background: var(--panel-light);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: var(--accent);
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Customers</h1>
+    <p>Customer profiles, order history, and relationship notes.</p>
+  </header>
+  <main>
+    <section class="panel">
+      <h2>Customer workspace</h2>
+      <p>
+        Use this view to search profiles, track repeat buyers, and capture support history
+        while keeping the launcher open in a separate tab.
+      </p>
+      <div class="tag-row">
+        <span class="tag">Profiles</span>
+        <span class="tag">Order history</span>
+        <span class="tag">Support notes</span>
+        <span class="tag">VIP flags</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

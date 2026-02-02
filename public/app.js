@@ -1,55 +1,36 @@
 (() => {
   "use strict";
 
-  const navButtons = Array.from(document.querySelectorAll(".nav button"));
-  const cardButtons = Array.from(document.querySelectorAll(".card button"));
-  const views = Array.from(document.querySelectorAll(".view"));
+  const searchInput = document.querySelector("#app-search");
+  const cards = Array.from(document.querySelectorAll("[data-app-card]"));
+  const emptyState = document.querySelector("#no-results");
+  const resultCount = document.querySelector("#result-count");
 
-  const normalizeView = (value) => (value || "home").trim().toLowerCase();
+  const getSearchText = (card) =>
+    `${card.dataset.title || ""} ${card.dataset.keywords || ""}`.toLowerCase();
 
-  const setActiveView = (viewName) => {
-    const target = normalizeView(viewName);
-    views.forEach((view) => {
-      view.classList.toggle("is-active", view.id === `view-${target}`);
+  const updateResults = () => {
+    if (!searchInput || !resultCount) return;
+
+    const query = searchInput.value.trim().toLowerCase();
+    let matches = 0;
+
+    cards.forEach((card) => {
+      const isMatch = !query || getSearchText(card).includes(query);
+      card.classList.toggle("is-hidden", !isMatch);
+      if (isMatch) matches += 1;
     });
 
-    navButtons.forEach((button) => {
-      button.classList.toggle("is-active", button.dataset.view === target);
-    });
+    resultCount.textContent = String(matches);
 
-    const nextHash = `#${target}`;
-    if (window.location.hash !== nextHash) {
-      window.history.replaceState(null, "", nextHash);
+    if (emptyState) {
+      emptyState.hidden = matches !== 0;
     }
   };
 
-  const handleNavClick = (event) => {
-    const { view } = event.currentTarget.dataset;
-    setActiveView(view);
-  };
+  if (searchInput) {
+    searchInput.addEventListener("input", updateResults);
+  }
 
-  const handleCardClick = (event) => {
-    const { view } = event.currentTarget.dataset;
-    if (view) {
-      setActiveView(view);
-    }
-  };
-
-  navButtons.forEach((button) => {
-    button.addEventListener("click", handleNavClick);
-  });
-
-  cardButtons.forEach((button) => {
-    button.addEventListener("click", handleCardClick);
-  });
-
-  window.addEventListener("hashchange", () => {
-    const view = window.location.hash.replace("#", "");
-    if (view) {
-      setActiveView(view);
-    }
-  });
-
-  const initialView = window.location.hash.replace("#", "") || "home";
-  setActiveView(initialView);
+  updateResults();
 })();
