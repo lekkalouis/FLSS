@@ -60,6 +60,8 @@
   const customerEmail    = document.getElementById("flocs-customerEmail");
   const customerPhone    = document.getElementById("flocs-customerPhone");
   const customerCompany  = document.getElementById("flocs-customerCompany");
+  const customerVat      = document.getElementById("flocs-customerVat");
+  const customerDeliveryNotes = document.getElementById("flocs-customerDeliveryNotes");
   const customerDelivery = document.getElementById("flocs-customerDelivery");
   const customerAddr1    = document.getElementById("flocs-customerAddr1");
   const customerAddr2    = document.getElementById("flocs-customerAddr2");
@@ -72,9 +74,10 @@
 
   const poInput          = document.getElementById("flocs-po");
   const deliveryGroup    = document.getElementById("flocs-deliveryGroup");
-  const shipSection      = document.getElementById("flocs-shipSection");
   const addrSelect       = document.getElementById("flocs-addressSelect");
   const addrPreview      = document.getElementById("flocs-addressPreview");
+  const billingAddrSelect = document.getElementById("flocs-billingAddressSelect");
+  const billingAddrPreview = document.getElementById("flocs-billingAddressPreview");
 
   const productsBody     = document.getElementById("flocs-productsBody");
   const productSearch    = document.getElementById("flocs-productSearch");
@@ -108,7 +111,8 @@
     customer: null,
     po: "",
     delivery: "ship",        // ship | pickup | deliver
-    addressIndex: null,      // index in customer.addresses
+    shippingAddressIndex: null,      // index in customer.addresses
+    billingAddressIndex: null,       // index in customer.addresses
     items: {},               // sku -> qty
     products: [...CONFIG.PRODUCTS],
     shippingQuote: null,     // { service, total, quoteno, raw }
@@ -124,6 +128,7 @@
   };
   let productPageInfo = { products: {}, variants: {} };
   let productPagingCursor = { products: null, variants: null };
+  let priceTierLoading = false;
 
   // ===== HELPERS =====
   const money = (v) =>
@@ -179,15 +184,34 @@
     );
   }
 
+  function normalizePriceTiers(product) {
+    if (!product) return null;
+    const raw = product.priceTiers || product.prices || null;
+    if (!raw || typeof raw !== "object") return null;
+    const normalized = { ...raw };
+    if (normalized.default == null) {
+      if (product.price != null) {
+        normalized.default = product.price;
+      } else if (product.prices && product.prices.standard != null) {
+        normalized.default = product.prices.standard;
+      }
+    }
+    if (normalized.standard == null && product.prices && product.prices.standard != null) {
+      normalized.standard = product.prices.standard;
+    }
+    return normalized;
+  }
+
   function priceForCustomer(product) {
     if (!product) return null;
     const tier = state.priceTier;
-    const tiers = product.priceTiers || product.prices || null;
+    const tiers = normalizePriceTiers(product);
     if (tier && tiers && tiers[tier] != null) {
       return Number(tiers[tier]);
     }
-    if (tiers && tiers.default != null) {
-      return Number(tiers.default);
+    if (tiers) {
+      const fallback = tiers.default != null ? tiers.default : tiers.standard;
+      if (fallback != null) return Number(fallback);
     }
     if (product.price != null) {
       return Number(product.price);
@@ -247,10 +271,17 @@
     return state.delivery || "ship";
   }
 
-  function currentAddress() {
+  function currentShippingAddress() {
     if (!state.customer || !Array.isArray(state.customer.addresses)) return null;
     const idx =
-      state.addressIndex != null ? state.addressIndex : 0;
+      state.shippingAddressIndex != null ? state.shippingAddressIndex : 0;
+    return state.customer.addresses[idx] || null;
+  }
+
+  function currentBillingAddress() {
+    if (!state.customer || !Array.isArray(state.customer.addresses)) return null;
+    const idx =
+      state.billingAddressIndex != null ? state.billingAddressIndex : 0;
     return state.customer.addresses[idx] || null;
   }
 
@@ -406,6 +437,58 @@
       .join("");
   }
 
+  async function hydratePriceTiersForProducts(products) {
+    if (priceTierLoading) return;
+    const missingIds = Array.from(
+      new Set(
+        products
+          .filter(
+            (p) =>
+              p?.variantId &&
+              (!p.priceTiers || !Object.keys(p.priceTiers).length)
+          )
+          .map((p) => String(p.variantId))
+          .filter(Boolean)
+      )
+    );
+    if (!missingIds.length) return;
+
+    priceTierLoading = true;
+    try {
+      const resp = await fetch(
+        `${CONFIG.SHOPIFY.PROXY_BASE}/variants/price-tiers/fetch`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ variantIds: missingIds })
+        }
+      );
+      if (!resp.ok) {
+        console.warn("Price tier fetch failed:", resp.status, resp.statusText);
+        return;
+      }
+      const payload = await resp.json();
+      const tiersByVariantId = payload?.priceTiersByVariantId || {};
+      let updated = false;
+      products.forEach((product) => {
+        const tiers = tiersByVariantId[String(product.variantId)];
+        if (tiers) {
+          product.priceTiers = tiers;
+          updated = true;
+        }
+      });
+      if (updated) {
+        renderProductsTable();
+        renderInvoice();
+        validate();
+      }
+    } catch (err) {
+      console.warn("Price tier hydration failed:", err);
+    } finally {
+      priceTierLoading = false;
+    }
+  }
+
   // ===== UI: selected customer chips & address selector =====
   function renderCustomerChips() {
     if (!customerChips) return;
@@ -414,7 +497,8 @@
       return;
     }
     const c = state.customer;
-    const addr = currentAddress();
+    const shipAddr = currentShippingAddress();
+    const billAddr = currentBillingAddress();
 
     const deliveryLabel =
       currentDelivery() === "pickup"
@@ -433,40 +517,58 @@
       ? `Pricing: ${state.priceTier}`
       : "Pricing: default";
 
+    const companyLabel = state.customer?.companyName
+      ? `<span class="flocs-chip">Company: ${state.customer.companyName}</span>`
+      : "";
+    const vatLabel = state.customer?.vatNumber
+      ? `<span class="flocs-chip">VAT: ${state.customer.vatNumber}</span>`
+      : "";
+    const deliveryNotesLabel = state.customer?.deliveryInstructions
+      ? `<span class="flocs-chip">Delivery notes set</span>`
+      : "";
+
     customerChips.innerHTML = `
       <span class="flocs-chip">Customer: ${c.name}</span>
       <span class="flocs-chip">Delivery: ${deliveryLabel}</span>
       <span class="flocs-chip">${tierLabel}</span>
+      ${companyLabel}
+      ${vatLabel}
+      ${deliveryNotesLabel}
       ${
-        addr
-          ? `<span class="flocs-chip">Ship-to: ${addr.city || ""} ${addr.zip || ""}</span>`
+        billAddr
+          ? `<span class="flocs-chip">Bill-to: ${billAddr.city || ""} ${billAddr.zip || ""}</span>`
+          : ""
+      }
+      ${
+        shipAddr
+          ? `<span class="flocs-chip">Ship-to: ${shipAddr.city || ""} ${shipAddr.zip || ""}</span>`
           : ""
       }
       ${tagChips}
     `;
   }
 
-  function renderAddressSelect() {
-    if (!addrSelect) return;
+  function renderAddressSelect(selectEl, previewEl, addressIndexKey) {
+    if (!selectEl) return;
     if (!state.customer) {
-      addrSelect.innerHTML =
+      selectEl.innerHTML =
         `<option value="">Select a customer first…</option>`;
-      addrSelect.disabled = true;
-      addrPreview.hidden = true;
+      selectEl.disabled = true;
+      if (previewEl) previewEl.hidden = true;
       return;
     }
     const addrs = Array.isArray(state.customer.addresses)
       ? state.customer.addresses
       : [];
     if (!addrs.length) {
-      addrSelect.innerHTML =
+      selectEl.innerHTML =
         `<option value="">No addresses on customer</option>`;
-      addrSelect.disabled = true;
-      addrPreview.hidden = true;
+      selectEl.disabled = true;
+      if (previewEl) previewEl.hidden = true;
       return;
     }
-    addrSelect.disabled = false;
-    addrSelect.innerHTML = addrs
+    selectEl.disabled = false;
+    selectEl.innerHTML = addrs
       .map((a, idx) => {
         const labelParts = [];
         if (a.company) labelParts.push(a.company);
@@ -479,23 +581,32 @@
       .join("");
 
     const idx =
-      state.addressIndex != null ? state.addressIndex : 0;
-    addrSelect.value = String(Math.min(idx, addrs.length - 1));
-    state.addressIndex = Number(addrSelect.value);
-    const addr = currentAddress();
-    if (addr) {
-      addrPreview.textContent = formatAddress(addr);
-      addrPreview.hidden = false;
-    } else {
-      addrPreview.hidden = true;
+      state[addressIndexKey] != null ? state[addressIndexKey] : 0;
+    selectEl.value = String(Math.min(idx, addrs.length - 1));
+    state[addressIndexKey] = Number(selectEl.value);
+    const addr = addrs[state[addressIndexKey]];
+    if (addr && previewEl) {
+      previewEl.textContent = formatAddress(addr);
+      previewEl.hidden = false;
+    } else if (previewEl) {
+      previewEl.hidden = true;
     }
+  }
+
+  function renderBillingAddressSelect() {
+    renderAddressSelect(billingAddrSelect, billingAddrPreview, "billingAddressIndex");
+  }
+
+  function renderShippingAddressSelect() {
+    renderAddressSelect(addrSelect, addrPreview, "shippingAddressIndex");
   }
 
   // ===== UI: invoice preview =====
   function renderInvoice() {
     if (!invoice) return;
     const items = buildItemsArray();
-    const addr = currentAddress();
+    const shipAddr = currentShippingAddress();
+    const billAddr = currentBillingAddress();
 
     const delivery = currentDelivery();
     const totals = computeTotals(items);
@@ -513,15 +624,22 @@
       ? `${customerName}
 ${state.customer.email || ""}${
           state.customer.phone ? "\n" + state.customer.phone : ""
+        }${
+          state.customer.companyName ? "\n" + state.customer.companyName : ""
+        }${
+          state.customer.vatNumber ? "\nVAT: " + state.customer.vatNumber : ""
+        }${
+          billAddr ? "\n" + formatAddress(billAddr) : ""
         }`
       : "No customer selected";
 
+    const shipToLabel = delivery === "ship" ? "Ship to" : "Shipping address";
     const shipToText =
-      delivery === "ship"
-        ? addr
-          ? formatAddress(addr)
-          : "Ship selected but no address chosen"
-        : "Not applicable";
+      shipAddr
+        ? formatAddress(shipAddr)
+        : delivery === "ship"
+        ? "Ship selected but no address chosen"
+        : "Not selected";
 
     const shippingLine =
       delivery === "ship" && state.shippingQuote
@@ -588,9 +706,7 @@ ${state.customer.email || ""}${
           ${billToText}
         </div>
         <div class="flocs-invoiceCol">
-          <div class="flocs-invoiceColTitle">${
-            delivery === "ship" ? "Ship to" : "Delivery context"
-          }</div>
+          <div class="flocs-invoiceColTitle">${shipToLabel}</div>
           ${shipToText}
         </div>
       </div>
@@ -643,7 +759,7 @@ ${state.customer.email || ""}${
     }
 
     if (currentDelivery() === "ship") {
-      if (!currentAddress()) {
+      if (!currentShippingAddress()) {
         errs.push("Select a ship-to address.");
       }
       if (!state.shippingQuote) {
@@ -842,7 +958,7 @@ ${state.customer.email || ""}${
       renderInvoice();
       return;
     }
-    const addr = currentAddress();
+    const addr = currentShippingAddress();
     if (!addr) {
       showToast("Select a ship-to address first.", "err");
       return;
@@ -1217,6 +1333,8 @@ ${state.customer.email || ""}${
     const email = customerEmail?.value?.trim() || "";
     const phone = customerPhone?.value?.trim() || "";
     const company = customerCompany?.value?.trim() || "";
+    const vatNumber = customerVat?.value?.trim() || "";
+    const deliveryInstructions = customerDeliveryNotes?.value?.trim() || "";
     const deliveryMethod = customerDelivery?.value || "";
     const address1 = customerAddr1?.value?.trim() || "";
     const address2 = customerAddr2?.value?.trim() || "";
@@ -1245,6 +1363,8 @@ ${state.customer.email || ""}${
       email,
       phone,
       company,
+      vatNumber,
+      deliveryInstructions,
       deliveryMethod,
       address: address1 || address2 || city || province || zip || country
         ? { address1, address2, city, province, zip, country }
@@ -1305,6 +1425,8 @@ ${state.customer.email || ""}${
     if (customerEmail) customerEmail.value = "";
     if (customerPhone) customerPhone.value = "";
     if (customerCompany) customerCompany.value = "";
+    if (customerVat) customerVat.value = "";
+    if (customerDeliveryNotes) customerDeliveryNotes.value = "";
     if (customerDelivery) customerDelivery.value = "";
     if (customerAddr1) customerAddr1.value = "";
     if (customerAddr2) customerAddr2.value = "";
@@ -1318,6 +1440,15 @@ ${state.customer.email || ""}${
     }
   }
 
+  function resolveDefaultAddressIndex(addresses, defaultAddress) {
+    const addrs = Array.isArray(addresses) ? addresses : [];
+    if (defaultAddress && defaultAddress.id) {
+      const foundIdx = addrs.findIndex((a) => a.id === defaultAddress.id);
+      if (foundIdx >= 0) return foundIdx;
+    }
+    return addrs.length ? 0 : null;
+  }
+
   function applySelectedCustomer(c) {
     state.customer = c;
 
@@ -1328,14 +1459,9 @@ ${state.customer.email || ""}${
     }
 
     const addrs = Array.isArray(c.addresses) ? c.addresses : [];
-    if (c.default_address) {
-      const did = c.default_address.id;
-      const foundIdx = addrs.findIndex((a) => a.id === did);
-      state.addressIndex =
-        foundIdx >= 0 ? foundIdx : addrs.length ? 0 : null;
-    } else {
-      state.addressIndex = addrs.length ? 0 : null;
-    }
+    const defaultIdx = resolveDefaultAddressIndex(addrs, c.default_address);
+    state.shippingAddressIndex = defaultIdx;
+    state.billingAddressIndex = defaultIdx;
 
     if (customerResults) customerResults.hidden = true;
     if (customerStatus) customerStatus.textContent = `Selected: ${c.name}`;
@@ -1343,9 +1469,11 @@ ${state.customer.email || ""}${
     state.priceTier = resolvePriceTier(state.customerTags);
     renderCustomerChips();
     renderProductsTable();
-    renderAddressSelect();
+    renderBillingAddressSelect();
+    renderShippingAddressSelect();
     renderInvoice();
     validate();
+    hydratePriceTiersForProducts(state.products);
   }
 
   function addProductToOrder(product) {
@@ -1402,7 +1530,7 @@ ${state.customer.email || ""}${
     confirmBtn.textContent = "Creating draft order…";
 
     const delivery = currentDelivery();
-    const addr = currentAddress();
+    const addr = currentShippingAddress();
     const shippingPrice =
       delivery === "ship" && state.shippingQuote
         ? state.shippingQuote.total
@@ -1417,9 +1545,9 @@ ${state.customer.email || ""}${
         : null;
 
     const billingAddress =
-      state.customer?.default_address || null;
+      currentBillingAddress() || state.customer?.default_address || null;
     const shippingAddress =
-      delivery === "ship" && addr ? addr : null;
+      addr || null;
 
     const payload = {
       customerId: state.customer.id,
@@ -1515,7 +1643,7 @@ ${state.customer.email || ""}${
     }
 
     const delivery = currentDelivery();
-    const addr = currentAddress();
+    const addr = currentShippingAddress();
     const shippingPrice =
       delivery === "ship" && state.shippingQuote
         ? state.shippingQuote.total
@@ -1530,9 +1658,9 @@ ${state.customer.email || ""}${
         : null;
 
     const billingAddress =
-      state.customer?.default_address || null;
+      currentBillingAddress() || state.customer?.default_address || null;
     const shippingAddress =
-      delivery === "ship" && addr ? addr : null;
+      addr || null;
 
     const payload = {
       customerId: state.customer.id,
@@ -1601,7 +1729,8 @@ ${state.customer.email || ""}${
     state.customer = null;
     state.po = "";
     state.delivery = "ship";
-    state.addressIndex = null;
+    state.shippingAddressIndex = null;
+    state.billingAddressIndex = null;
     state.items = {};
     state.shippingQuote = null;
     state.errors = [];
@@ -1650,7 +1779,8 @@ ${state.customer.email || ""}${
     renderCustomerChips();
     updateFiltersFromProducts();
     renderProductsTable();
-    renderAddressSelect();
+    renderBillingAddressSelect();
+    renderShippingAddressSelect();
     renderInvoice();
     validate();
     renderConvertButton();
@@ -1753,8 +1883,6 @@ ${state.customer.email || ""}${
         const t = e.target;
         if (!t || t.name !== "delivery") return;
         state.delivery = t.value;
-        shipSection.style.display =
-          t.value === "ship" ? "" : "none";
         if (t.value !== "ship") {
           state.shippingQuote = null;
           shippingSummary.textContent =
@@ -1770,14 +1898,33 @@ ${state.customer.email || ""}${
       addrSelect.addEventListener("change", () => {
         const v = addrSelect.value;
         if (!state.customer) return;
-        state.addressIndex =
+        state.shippingAddressIndex =
           v === "" ? null : Number(v);
-        const addr = currentAddress();
+        const addr = currentShippingAddress();
         if (addr) {
           addrPreview.textContent = formatAddress(addr);
           addrPreview.hidden = false;
         } else {
           addrPreview.hidden = true;
+        }
+        renderCustomerChips();
+        renderInvoice();
+        validate();
+      });
+    }
+
+    if (billingAddrSelect) {
+      billingAddrSelect.addEventListener("change", () => {
+        const v = billingAddrSelect.value;
+        if (!state.customer) return;
+        state.billingAddressIndex =
+          v === "" ? null : Number(v);
+        const addr = currentBillingAddress();
+        if (addr && billingAddrPreview) {
+          billingAddrPreview.textContent = formatAddress(addr);
+          billingAddrPreview.hidden = false;
+        } else if (billingAddrPreview) {
+          billingAddrPreview.hidden = true;
         }
         renderCustomerChips();
         renderInvoice();
@@ -1968,6 +2115,7 @@ ${state.customer.email || ""}${
     updateFiltersFromProducts();
     renderProductsTable();
     resetForm();
+    hydratePriceTiersForProducts(state.products);
     initEvents();
   }
 
