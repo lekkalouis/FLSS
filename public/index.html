@@ -1997,6 +1997,21 @@
     padding:.4rem .6rem;
     font-size:.72rem;
   }
+  .invoiceQuote{
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    font-weight:600;
+  }
+  .invoiceQuote--pending{
+    color:var(--text-muted);
+  }
+  .invoiceQuote--warn{
+    color:var(--accent-warn, #c27b00);
+  }
+  .invoiceQuote--err{
+    color:var(--accent-danger, #c2002f);
+  }
   .invoiceEmpty{
     padding:1.5rem;
     text-align:center;
@@ -2390,11 +2405,12 @@
                 <th>Order</th>
                 <th>Customer</th>
                 <th>Date</th>
+                <th>Shipping quote</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="invoiceTableBody">
-              <tr><td colspan="4" class="invoiceEmpty">Load orders to get started.</td></tr>
+              <tr><td colspan="5" class="invoiceEmpty">Load orders to get started.</td></tr>
             </tbody>
           </table>
         </div>
