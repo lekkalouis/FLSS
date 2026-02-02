@@ -300,7 +300,7 @@
         subtotal += Number(li.price) * li.quantity;
       }
     }
-    const shipping = state.shippingQuote?.total || 0;
+    const shipping = state.shippingQuote?.totalExVat ?? state.shippingQuote?.total ?? 0;
     return {
       subtotal,
       shipping,
@@ -321,7 +321,7 @@
 
   function computeBoxCount(totalWeightKg) {
     const base = Number(totalWeightKg || 0);
-    const boxes = Math.ceil(base * 0.051 + 0.5);
+    const boxes = Math.round(base * 0.051 + 0.5);
     return Math.max(boxes, 0);
   }
 
@@ -525,11 +525,22 @@ ${state.customer.email || ""}${
 
     const shippingLine =
       delivery === "ship" && state.shippingQuote
-        ? `Shipping (${state.shippingQuote.service || "Courier"} @ ${money(
-            state.shippingQuote.ratePerKg || 0
-          )}/kg, quoteno ${state.shippingQuote.quoteno}): ${money(
-            state.shippingQuote.total
-          )} (base ${money(state.shippingQuote.baseTotal || 0)} + 5% margin)`
+        ? [
+            `Shipping (${state.shippingQuote.serviceLabel || "SWE Couriers"}, quoteno ${state.shippingQuote.quoteno}): ${money(
+              state.shippingQuote.totalExVat || 0
+            )} excl VAT`,
+            `Quote subtotal: ${money(state.shippingQuote.quoteSubtotal || 0)}`,
+            state.shippingQuote.surcharges?.length
+              ? `Surcharges: ${state.shippingQuote.surcharges
+                  .map((s) => `${s.label} ${money(s.amount)}`)
+                  .join(", ")}`
+              : "Surcharges: none",
+            `Parcel fee: ${money(state.shippingQuote.parcelFee || 0)} (${state.shippingQuote.boxCount} parcel${
+              state.shippingQuote.boxCount === 1 ? "" : "s"
+            } × R10)`
+          ]
+            .filter(Boolean)
+            .join("<br>")
         : delivery === "ship"
         ? "Shipping will be added once SWE quote is calculated"
         : "R0.00 (pickup/deliver)";
@@ -695,6 +706,75 @@ ${state.customer.email || ""}${
       if (idx !== -1) return rates[idx];
     }
     return rates[0];
+  }
+
+  function normalizeSurcharges(rate) {
+    const list = [];
+    const pushCharge = (label, amount) => {
+      const val = Number(amount);
+      if (!Number.isFinite(val) || val === 0) return;
+      list.push({ label: label || "Surcharge", amount: val });
+    };
+
+    const raw =
+      rate?.surcharges ??
+      rate?.surcharge ??
+      rate?.surcharge_list ??
+      rate?.surchargeList ??
+      null;
+
+    if (Array.isArray(raw)) {
+      for (const entry of raw) {
+        if (entry == null) continue;
+        if (typeof entry === "number") {
+          pushCharge("Surcharge", entry);
+          continue;
+        }
+        if (typeof entry === "string") {
+          pushCharge(entry, 0);
+          continue;
+        }
+        if (typeof entry === "object") {
+          const label = entry.label || entry.name || entry.description || entry.code || "Surcharge";
+          const amount =
+            entry.amount ??
+            entry.value ??
+            entry.charge ??
+            entry.total ??
+            entry.cost ??
+            entry.price ??
+            0;
+          pushCharge(label, amount);
+        }
+      }
+    } else if (raw && typeof raw === "object") {
+      for (const [label, amount] of Object.entries(raw)) {
+        pushCharge(label, amount);
+      }
+    } else if (typeof raw === "number") {
+      pushCharge("Surcharge", raw);
+    }
+
+    const outlyingCharge =
+      rate?.outlying_charge ??
+      rate?.outlyingcharge ??
+      rate?.outlying ??
+      rate?.outline_charge ??
+      rate?.outlinecharge ??
+      rate?.outline ??
+      0;
+    if (Number(outlyingCharge)) {
+      pushCharge("Outlying charge", outlyingCharge);
+    }
+
+    return list;
+  }
+
+  function formatServiceLabel(service) {
+    const label = String(service || "").trim();
+    if (!label) return "SWE Couriers";
+    if (label.toUpperCase() === "RFX") return "SWE Couriers";
+    return `SWE Couriers (${label})`;
   }
 
   async function lookupPlaceCodeForAddress(addr) {
@@ -875,18 +955,23 @@ ${state.customer.email || ""}${
         return;
       }
 
-      const baseTotal =
-        Number(picked.total ?? picked.subtotal ?? picked.charge ?? 0) || 0;
-      const marginRate = 1.05;
-      const total = baseTotal * marginRate;
-      const marginAmount = total - baseTotal;
-      const ratePerKg = grossWeightKg ? total / grossWeightKg : 0;
+      const quoteSubtotal =
+        Number(picked.subtotal ?? picked.total ?? picked.charge ?? 0) || 0;
+      const surcharges = normalizeSurcharges(picked);
+      const surchargeTotal = surcharges.reduce((sum, s) => sum + Number(s.amount || 0), 0);
+      const parcelFee = boxCount * 10;
+      const totalExVat = quoteSubtotal + surchargeTotal + parcelFee;
+      const ratePerKg = grossWeightKg ? totalExVat / grossWeightKg : 0;
+      const serviceLabel = formatServiceLabel(picked.service);
       state.shippingQuote = {
         service: picked.service,
-        total,
-        baseTotal,
-        marginRate,
-        marginAmount,
+        serviceLabel,
+        total: totalExVat,
+        totalExVat,
+        quoteSubtotal,
+        surcharges,
+        surchargeTotal,
+        parcelFee,
         quoteno,
         ratePerKg,
         grossWeightKg,
@@ -895,9 +980,16 @@ ${state.customer.email || ""}${
         raw: { rates }
       };
 
+      const surchargeLabel = surcharges.length
+        ? surcharges.map((s) => `${s.label} ${money(s.amount)}`).join(", ")
+        : "none";
+
       shippingSummary.textContent =
-        `Quote: ${picked.service} – ${money(total)} (base ${money(baseTotal)} + 5% margin)` +
-        ` · ${money(ratePerKg)}/kg · ${grossWeightKg.toFixed(2)}kg gross incl ${boxCount} boxes` +
+        `Quote: ${serviceLabel} – ${money(totalExVat)} excl VAT` +
+        ` · subtotal ${money(quoteSubtotal)}` +
+        ` · surcharges ${surchargeLabel}` +
+        ` · parcel fee ${money(parcelFee)} (${boxCount} × R10)` +
+        ` · ${money(ratePerKg)}/kg · ${grossWeightKg.toFixed(2)}kg gross` +
         ` (quoteno ${quoteno})`;
 
       validate();
@@ -1317,7 +1409,7 @@ ${state.customer.email || ""}${
         : null;
     const shippingService =
       delivery === "ship" && state.shippingQuote
-        ? state.shippingQuote.service
+        ? state.shippingQuote.serviceLabel || state.shippingQuote.service
         : null;
     const shippingQuoteNo =
       delivery === "ship" && state.shippingQuote
@@ -1430,7 +1522,7 @@ ${state.customer.email || ""}${
         : null;
     const shippingService =
       delivery === "ship" && state.shippingQuote
-        ? state.shippingQuote.service
+        ? state.shippingQuote.serviceLabel || state.shippingQuote.service
         : null;
     const shippingQuoteNo =
       delivery === "ship" && state.shippingQuote
