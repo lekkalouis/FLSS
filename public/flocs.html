@@ -861,11 +861,23 @@
           </div>
         </div>
 
-        <!-- Shipping address selector (only when Ship) -->
+        <!-- Billing address selector -->
+        <div class="flocs-formSection" id="flocs-billSection">
+          <div class="flocs-labelRow">
+            <span>Billing address</span>
+            <span class="flocs-hint">Pulled from customer’s Shopify addresses</span>
+          </div>
+          <select id="flocs-billingAddressSelect" class="flocs-select">
+            <option value="">Select a customer first…</option>
+          </select>
+          <div id="flocs-billingAddressPreview" class="flocs-addressPreview" hidden></div>
+        </div>
+
+        <!-- Shipping address selector -->
         <div class="flocs-formSection" id="flocs-shipSection">
           <div class="flocs-labelRow">
-            <span>Ship-to address</span>
-            <span class="flocs-hint">Pulled from customer’s Shopify addresses</span>
+            <span>Shipping address</span>
+            <span class="flocs-hint">Saved to the draft order even for pickup/deliver</span>
           </div>
           <select id="flocs-addressSelect" class="flocs-select">
             <option value="">Select a customer first…</option>

@@ -572,6 +572,43 @@ router.post("/shopify/variants/price-tiers", async (req, res) => {
   }
 });
 
+router.post("/shopify/variants/price-tiers/fetch", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const body = req.body || {};
+    const variantIds = Array.isArray(body.variantIds) ? body.variantIds : [];
+    if (!variantIds.length) {
+      return badRequest(res, "Missing variantIds");
+    }
+
+    const uniqueIds = Array.from(
+      new Set(
+        variantIds
+          .map((id) => String(id || "").trim())
+          .filter(Boolean)
+      )
+    ).slice(0, 250);
+
+    const tiersByVariantId = {};
+    await Promise.all(
+      uniqueIds.map(async (variantId) => {
+        const tierData = await fetchVariantPriceTiers(variantId);
+        if (tierData?.value && typeof tierData.value === "object") {
+          tiersByVariantId[String(variantId)] = tierData.value;
+        }
+      })
+    );
+
+    return res.json({ priceTiersByVariantId: tiersByVariantId });
+  } catch (err) {
+    console.error("Shopify price tier fetch error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 router.post("/shopify/draft-orders", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -630,8 +667,15 @@ router.post("/shopify/draft-orders", async (req, res) => {
       }
     };
 
+    const tags = [];
+    if (config.SHOPIFY_FLOW_TAG) {
+      tags.push(config.SHOPIFY_FLOW_TAG);
+    }
     if (shippingMethod && shippingMethod !== "ship") {
-      payload.draft_order.tags = `delivery_${shippingMethod}`;
+      tags.push(`delivery_${shippingMethod}`);
+    }
+    if (tags.length) {
+      payload.draft_order.tags = tags.join(", ");
     }
 
     if (shippingPrice != null && shippingMethod === "ship") {
