@@ -181,52 +181,26 @@
 
   const FACTORY_AREAS = [
     {
-      id: "manufacturing",
-      title: "Manufacturing Command Stack",
+      id: "production",
+      title: "Production Command Stack",
       badge: "Live",
-      description: "Monitor live batch builds, quality gates, and line cadence.",
+      description: "Monitor batch builds, quality gates, and line cadence.",
       tools: [
         {
           title: "Line Scan Station",
-          description: "Scan line output and auto-book production lots.",
+          description: "Scan production output and auto-book finished lots.",
           type: "view",
           target: "scan"
+        },
+        {
+          title: "Batch Scheduler",
+          description: "Sequence the next production runs and line changeovers.",
+          type: "view",
+          target: "docs"
         },
         {
           title: "Process Simulator",
           description: "Run a sandbox pass for new formulations or batches.",
-          type: "link",
-          target: "/simulate.html"
-        },
-        {
-          title: "SOP Quick Guide",
-          description: "Open the operator playbook for line start-up.",
-          type: "view",
-          target: "docs"
-        }
-      ]
-    },
-    {
-      id: "dispatch",
-      title: "Dispatch Command Stack",
-      badge: "Priority",
-      description: "Orchestrate outbound bookings, dock readiness, and carrier status.",
-      tools: [
-        {
-          title: "Dispatch Board",
-          description: "Track outbound orders and live packing status.",
-          type: "view",
-          target: "ops"
-        },
-        {
-          title: "Carrier Booking",
-          description: "Scan and book parcels with SLA tracking.",
-          type: "view",
-          target: "scan"
-        },
-        {
-          title: "Manifest Simulator",
-          description: "Preview truck loads and pickup windows.",
           type: "link",
           target: "/simulate.html"
         }
@@ -259,32 +233,6 @@
       ]
     },
     {
-      id: "finished",
-      title: "Finished Goods Command Stack",
-      badge: "Ready",
-      description: "Coordinate pallet staging, final checks, and pickup windows.",
-      tools: [
-        {
-          title: "Finished Goods Staging",
-          description: "Review packed inventory and staging confirmation.",
-          type: "link",
-          target: "/stock.html"
-        },
-        {
-          title: "Dispatch Priority",
-          description: "Align dispatch sequencing with carrier ETAs.",
-          type: "view",
-          target: "ops"
-        },
-        {
-          title: "Outbound Drilldown",
-          description: "Explore shipment analytics and pickup readiness.",
-          type: "view",
-          target: "docs"
-        }
-      ]
-    },
-    {
       id: "warehouse",
       title: "Warehouse Command Stack",
       badge: "Inventory",
@@ -297,14 +245,118 @@
           target: "/stock.html"
         },
         {
-          title: "Inbound Capture",
-          description: "Capture new inbound orders and intake checks.",
+          title: "Storage Map",
+          description: "Review bin locations and replenishment targets.",
+          type: "view",
+          target: "docs"
+        },
+        {
+          title: "Cycle Count Queue",
+          description: "Assign daily cycle counts to keep accuracy high.",
+          type: "view",
+          target: "docs"
+        }
+      ]
+    },
+    {
+      id: "dispatch",
+      title: "Dispatch Command Stack",
+      badge: "Priority",
+      description: "Orchestrate outbound bookings, dock readiness, and carrier status.",
+      tools: [
+        {
+          title: "Dispatch Board",
+          description: "Track outbound orders and live packing status.",
+          type: "view",
+          target: "ops"
+        },
+        {
+          title: "Carrier Booking",
+          description: "Scan and book parcels with SLA tracking.",
+          type: "view",
+          target: "scan"
+        },
+        {
+          title: "Load Manifest",
+          description: "Preview truck loads and pickup windows.",
+          type: "link",
+          target: "/simulate.html"
+        }
+      ]
+    },
+    {
+      id: "office",
+      title: "Office Command Stack",
+      badge: "Support",
+      description: "Coordinate admin, purchasing, and finance workflows.",
+      tools: [
+        {
+          title: "Order Capture",
+          description: "Create and manage incoming orders from the office.",
           type: "link",
           target: "/flocs"
         },
         {
-          title: "Storage SOP",
-          description: "Open the storage layout and replenishment guide.",
+          title: "Invoice Review",
+          description: "Filter, audit, and export invoices quickly.",
+          type: "view",
+          target: "invoices"
+        },
+        {
+          title: "Docs & Policies",
+          description: "Open internal SOPs and compliance playbooks.",
+          type: "view",
+          target: "docs"
+        }
+      ]
+    },
+    {
+      id: "receiving",
+      title: "Receiving Command Stack",
+      badge: "Inbound",
+      description: "Log inbound deliveries, inspections, and intake priorities.",
+      tools: [
+        {
+          title: "Inbound Capture",
+          description: "Capture inbound orders and intake checks.",
+          type: "link",
+          target: "/flocs"
+        },
+        {
+          title: "Supplier Schedule",
+          description: "Confirm appointment slots and ETA updates.",
+          type: "view",
+          target: "docs"
+        },
+        {
+          title: "Inspection Checklist",
+          description: "Verify inbound quality and compliance.",
+          type: "view",
+          target: "docs"
+        }
+      ]
+    },
+    {
+      id: "labelling",
+      title: "Labelling Command Stack",
+      badge: "Compliance",
+      description: "Manage label templates, print runs, and QA signoff.",
+      tools: [
+        {
+          title: "Label Print Queue",
+          description: "Print labels and track current batches.",
+          type: "view",
+          target: "scan"
+        },
+        {
+          title: "Template Library",
+          description: "Maintain label templates and version history.",
+          type: "view",
+          target: "docs"
+        },
+        {
+          title: "Regulatory Checks",
+          description: "Verify compliance and batch signoff.",
           type: "view",
           target: "docs"
         }
