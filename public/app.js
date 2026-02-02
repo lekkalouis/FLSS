@@ -2136,27 +2136,46 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       params: { quoteno, service: pickedService, reference: buildShipmentReference() }
     });
 
-    await stepDispatchProgress(3, "Booking collection");
-    logDispatchEvent("Booking collection & requesting labels.");
-    const collRes = await ppCall({
-      method: "quoteToCollection",
-      classVal: "Collection",
-      params: { quoteno, starttime: "12:00", endtime: "15:00", printLabels: 1, printWaybill: 0 }
+    await stepDispatchProgress(3, "Booking waybill");
+    logDispatchEvent("Booking waybill & requesting labels.");
+    const waybillRes = await ppCall({
+      method: "quoteToWaybill",
+      classVal: "Quote",
+      params: {
+        quoteno,
+        printWaybill: 1,
+        printLabels: 1,
+        printLabel: 1
+      }
     });
 
-    if (!collRes || collRes.status !== 200) {
+    const waybillData = waybillRes?.data || {};
+    const waybillErrorCode = Number(waybillData.errorcode ?? waybillData.errorCode ?? 0);
+    if (!waybillRes || waybillRes.status !== 200 || waybillErrorCode !== 0) {
       statusExplain("Booking failed", "err");
       setDispatchProgress(3, "Booking failed");
-      logDispatchEvent(`Booking failed (HTTP ${collRes?.status || "?"}).`);
-      if (bookingSummary) bookingSummary.textContent = `Booking error: HTTP ${collRes?.status} ${collRes?.statusText}\n${JSON.stringify(collRes?.data, null, 2)}`;
+      const errorMessage = waybillData.errormessage || waybillData.errorMessage || "";
+      const errorSuffix = waybillErrorCode ? ` PP ${waybillErrorCode}${errorMessage ? `: ${errorMessage}` : ""}` : "";
+      logDispatchEvent(`Booking failed (HTTP ${waybillRes?.status || "?"}).${errorSuffix}`);
+      if (bookingSummary) {
+        bookingSummary.textContent = `Booking error: HTTP ${waybillRes?.status} ${waybillRes?.statusText}${errorSuffix}\n${JSON.stringify(waybillRes?.data, null, 2)}`;
+      }
       armedForBooking = false;
       confirmBookingFeedback("failure");
       return;
     }
 
-    const cr = collRes.data || {};
+    const cr = waybillRes.data || {};
     const maybe = cr.results?.[0] || cr;
-    const waybillNo = String(maybe.waybill || maybe.waybillno || maybe.waybillNo || maybe.trackingNo || "WB-TEST-12345");
+    const waybillNo = String(
+      maybe.waybillno ||
+        maybe.waybillNo ||
+        maybe.waybill ||
+        maybe.trackingNo ||
+        cr.waybillno ||
+        cr.waybillNo ||
+        "WB-TEST-12345"
+    );
     appendDebug("Waybill = " + waybillNo);
 
     const labelsBase64 = maybe.labelsBase64 || maybe.labelBase64 || maybe.labels_pdf || null;
