@@ -9,7 +9,7 @@
     // Configure your real SKUs + variant IDs and optional weights/prices here.
    PRODUCTS: [
   { sku: "FL002", title: "FL002 – Original Multi-Purpose Spice 200ml", flavour: "Original", size: "200ml", variantId: 42912375701551, weightKg: 0.195, prices: { standard: 45.0 } },
-  { sku: "FL003", title: "FL003 – Original Multi-Purpose Spice 500g", flavour: "Original", size: "500g", variantId: 42912375734319, weightKg: 0.5, prices: { standard: 100.0 } },
+  { sku: "FL003", title: "FL003 – Original Multi-Purpose Spice 500g", flavour: "Original", size: "500g", variantId: 42912375734319, weightKg: 0.5, prices: { agent: 100.0 } },
   { sku: "FL004", title: "FL004 – Original Multi-Purpose Spice 1kg", flavour: "Original", size: "1kg", variantId: 42912375767087, weightKg: 1.007, prices: { standard: 200.0 } },
   { sku: "FL005", title: "FL005 – 750g Original Multi-Purpose Spice Bag", flavour: "Original", size: "750g", variantId: 43610261061679, weightKg: 0.75, prices: { standard: 78.0 } },
   { sku: "FL005-1", title: "FL005-1 – Original Multi-Purpose Spice Tub", flavour: "Original", size: "750g Tub", variantId: 43874490023983, weightKg: 0.75, prices: { standard: 110.0 } },
