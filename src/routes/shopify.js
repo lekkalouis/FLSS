@@ -997,7 +997,7 @@ router.get("/shopify/orders/open", async (req, res) => {
         const url = new URL(match[1]);
         return `${url.pathname}${url.search}`;
       } catch (err) {
-        return match[1].replace(/^https?:\\/\\/[^/]+/, "");
+        return match[1].replace(/^https?:\/\/[^/]+/, "");
       }
     };
 
