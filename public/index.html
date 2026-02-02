@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Flippen Lekka Ops — Unified Console</title>
+  <title>Flippen Lekka Ops — App Launcher</title>
   <style>
     :root {
       color-scheme: light;
@@ -36,72 +36,62 @@
       flex-direction: column;
     }
 
-    .app-header {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: rgba(244, 246, 251, 0.92);
+    header {
+      background: rgba(244, 246, 251, 0.95);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--panel-strong);
     }
 
-    .app-header-inner {
+    .header-inner {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 1.25rem 1.5rem 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-    }
-
-    .brand {
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
+      padding: 1.5rem 1.5rem 1.25rem;
+      display: grid;
+      gap: 1rem;
     }
 
     .brand h1 {
       margin: 0;
-      font-size: 1.35rem;
+      font-size: 1.6rem;
       letter-spacing: 0.02em;
     }
 
     .brand p {
-      margin: 0;
+      margin: 0.35rem 0 0;
       color: var(--text-muted);
-      font-size: 0.9rem;
+      font-size: 0.95rem;
     }
 
-    .nav {
+    .search-row {
       display: flex;
-      align-items: center;
-      gap: 0.5rem;
+      gap: 1rem;
       flex-wrap: wrap;
+      align-items: center;
     }
 
-    .nav button {
-      border: 1px solid transparent;
-      background: transparent;
-      padding: 0.45rem 0.85rem;
-      border-radius: 999px;
+    .search-row label {
       font-weight: 600;
       font-size: 0.85rem;
       color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.2s ease;
     }
 
-    .nav button:hover {
-      background: var(--accent-soft);
-      color: var(--accent);
+    .search-row input {
+      flex: 1;
+      min-width: 240px;
+      border: 1px solid var(--panel-strong);
+      border-radius: 999px;
+      padding: 0.7rem 1rem;
+      font-size: 0.95rem;
     }
 
-    .nav button.is-active {
-      background: var(--accent);
-      color: #fff;
-      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+    .meta-pill {
+      background: #fff;
+      border: 1px solid var(--panel-strong);
+      border-radius: 999px;
+      padding: 0.4rem 0.8rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text);
     }
 
     main {
@@ -110,31 +100,24 @@
       margin: 0 auto;
       padding: 1.5rem;
       width: 100%;
-    }
-
-    .view {
-      display: none;
+      display: flex;
       flex-direction: column;
       gap: 1.5rem;
-    }
-
-    .view.is-active {
-      display: flex;
     }
 
     .hero {
       background: var(--panel);
       border: 1px solid var(--panel-strong);
       border-radius: var(--radius-lg);
-      padding: 2rem;
+      padding: 1.75rem;
       box-shadow: var(--shadow);
       display: grid;
-      gap: 1.5rem;
+      gap: 1rem;
     }
 
     .hero h2 {
       margin: 0;
-      font-size: 1.4rem;
+      font-size: 1.3rem;
     }
 
     .hero p {
@@ -142,22 +125,6 @@
       color: var(--text-muted);
       font-size: 0.95rem;
       line-height: 1.5;
-    }
-
-    .pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
-
-    .pill {
-      padding: 0.35rem 0.7rem;
-      border-radius: 999px;
-      border: 1px solid var(--panel-strong);
-      background: #fff;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text);
     }
 
     .grid {
@@ -175,22 +142,27 @@
       flex-direction: column;
       gap: 0.65rem;
       box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 28px rgba(15, 23, 42, 0.12);
     }
 
     .card h3 {
       margin: 0;
-      font-size: 0.95rem;
+      font-size: 1rem;
     }
 
     .card p {
       margin: 0;
-      font-size: 0.82rem;
+      font-size: 0.85rem;
       color: var(--text-muted);
       line-height: 1.4;
     }
 
-    .card a,
-    .card button {
+    .card a {
       margin-top: auto;
       align-self: flex-start;
       text-decoration: none;
@@ -198,27 +170,31 @@
       color: var(--accent);
       border: 1px solid rgba(37, 99, 235, 0.4);
       border-radius: 0.65rem;
-      padding: 0.4rem 0.7rem;
+      padding: 0.4rem 0.8rem;
       font-weight: 600;
-      font-size: 0.78rem;
-      cursor: pointer;
+      font-size: 0.8rem;
     }
 
-    .quick-list {
-      display: grid;
-      gap: 0.65rem;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-
-    .quick-list li {
-      background: #fff;
-      border: 1px solid var(--panel-strong);
-      border-radius: var(--radius-md);
-      padding: 0.65rem 0.8rem;
-      font-size: 0.82rem;
+    .card span {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       color: var(--text-muted);
+    }
+
+    .card.is-hidden {
+      display: none;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      border: 1px dashed var(--panel-strong);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      background: #fff;
     }
 
     footer {
@@ -231,9 +207,8 @@
     }
 
     @media (max-width: 700px) {
-      .app-header-inner {
-        flex-direction: column;
-        align-items: flex-start;
+      .header-inner {
+        padding: 1.25rem;
       }
 
       main {
@@ -248,136 +223,76 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="app-header">
-      <div class="app-header-inner">
+    <header>
+      <div class="header-inner">
         <div class="brand">
-          <h1>Flippen Lekka Ops</h1>
-          <p>Unified console for scanning, dispatch, and daily operations.</p>
+          <h1>Flippen Lekka Ops — App Launcher</h1>
+          <p>Choose an app below to open it in a new tab while keeping this launcher ready.</p>
         </div>
-        <nav class="nav" aria-label="Primary">
-          <button type="button" data-view="home" class="is-active">Home</button>
-          <button type="button" data-view="scan">Scan</button>
-          <button type="button" data-view="ops">Operations</button>
-          <button type="button" data-view="docs">Docs</button>
-        </nav>
+        <div class="search-row">
+          <label for="app-search">Filter apps</label>
+          <input id="app-search" type="search" placeholder="Search by name, workflow, or team…" />
+          <div class="meta-pill"><span id="result-count">0</span> apps</div>
+        </div>
       </div>
     </header>
 
     <main>
-      <section class="view is-active" id="view-home">
-        <div class="hero">
-          <div>
-            <h2>Everything in one place.</h2>
-            <p>
-              This streamlined SPA keeps the essentials front and center. Use the shared navigation
-              to move between scan, dispatch, and documentation without leaving the console.
-            </p>
-          </div>
-          <div class="pill-row">
-            <span class="pill">Unified navigation</span>
-            <span class="pill">Consistent look &amp; feel</span>
-            <span class="pill">Quick links to legacy tools</span>
-          </div>
-        </div>
-
-        <div class="grid">
-          <div class="card">
-            <h3>Scan Station</h3>
-            <p>Jump into parcel scans and keep the flow moving with a single view.</p>
-            <button type="button" data-view="scan">Open Scan</button>
-          </div>
-          <div class="card">
-            <h3>Dispatch Overview</h3>
-            <p>Track packing progress, priorities, and daily targets at a glance.</p>
-            <button type="button" data-view="ops">Open Ops</button>
-          </div>
-          <div class="card">
-            <h3>Documentation</h3>
-            <p>Keep quick-start notes, contact details, and workflows in one place.</p>
-            <button type="button" data-view="docs">Open Docs</button>
-          </div>
-        </div>
+      <section class="hero">
+        <h2>Standard operations hub</h2>
+        <p>
+          Each module is treated as its own application. Launch any workflow in a separate tab—
+          scan station, order capture, inventory, customers, pricing, and invoices—while this
+          window stays open for the next launch.
+        </p>
       </section>
 
-      <section class="view" id="view-scan">
-        <div class="hero">
-          <div>
-            <h2>Scan essentials</h2>
-            <p>Use this view for the core scan workflow and fast context while you work.</p>
-          </div>
-          <div class="pill-row">
-            <span class="pill">Live scan queue</span>
-            <span class="pill">Auto-book ready</span>
-            <span class="pill">Quick incident log</span>
-          </div>
-        </div>
-        <div class="grid">
-          <div class="card">
-            <h3>Start a scan</h3>
-            <p>Focus area for live scans. Connect your scanner and begin capturing parcels.</p>
-          </div>
-          <div class="card">
-            <h3>Booking status</h3>
-            <p>Track booking readiness and printer connections without leaving this page.</p>
-          </div>
-          <div class="card">
-            <h3>Alerts &amp; exceptions</h3>
-            <p>Log mismatches or damage instantly to keep the queue moving.</p>
-          </div>
-        </div>
+      <section class="grid" id="app-grid">
+        <article class="card" data-app-card data-title="Scan Station" data-keywords="scan station parcels scanning flocs">
+          <span>Scanning</span>
+          <h3>Scan Station</h3>
+          <p>Open the live scan workflow and keep parcels moving.</p>
+          <a href="/flocs" target="_blank" rel="noopener">Launch Scan Station</a>
+        </article>
+        <article class="card" data-app-card data-title="Order Capture (System Flux)" data-keywords="order capture system flux pos walk-in">
+          <span>Order capture</span>
+          <h3>Order Capture (System Flux)</h3>
+          <p>Create walk-in or phone orders directly into Shopify.</p>
+          <a href="/pos.html" target="_blank" rel="noopener">Launch Order Capture</a>
+        </article>
+        <article class="card" data-app-card data-title="Inventory" data-keywords="inventory stock counts stocktake">
+          <span>Stock</span>
+          <h3>Inventory</h3>
+          <p>Review stock levels, restock alerts, and inventory movements.</p>
+          <a href="/stock.html" target="_blank" rel="noopener">Launch Inventory</a>
+        </article>
+        <article class="card" data-app-card data-title="Customers" data-keywords="customers crm profiles contacts">
+          <span>Customer care</span>
+          <h3>Customers</h3>
+          <p>Search customer profiles, order history, and support notes.</p>
+          <a href="/customers.html" target="_blank" rel="noopener">Launch Customers</a>
+        </article>
+        <article class="card" data-app-card data-title="Price Manager" data-keywords="pricing price manager markdowns">
+          <span>Pricing</span>
+          <h3>Price Manager</h3>
+          <p>Update pricing rules, promos, and margin guardrails.</p>
+          <a href="/price-manager.html" target="_blank" rel="noopener">Launch Price Manager</a>
+        </article>
+        <article class="card" data-app-card data-title="Invoice List" data-keywords="invoice list billing accounting">
+          <span>Billing</span>
+          <h3>Invoice List</h3>
+          <p>Review outstanding invoices and export billing summaries.</p>
+          <a href="/invoices.html" target="_blank" rel="noopener">Launch Invoice List</a>
+        </article>
       </section>
 
-      <section class="view" id="view-ops">
-        <div class="hero">
-          <div>
-            <h2>Operations snapshot</h2>
-            <p>Stay on top of packing status, truck readiness, and priority dispatch notes.</p>
-          </div>
-          <div class="pill-row">
-            <span class="pill">Shift summary</span>
-            <span class="pill">Dispatch checklist</span>
-            <span class="pill">Live readiness</span>
-          </div>
-        </div>
-        <div class="grid">
-          <div class="card">
-            <h3>Today&apos;s focus</h3>
-            <p>Highlight the orders or routes that need attention now.</p>
-          </div>
-          <div class="card">
-            <h3>Dispatch blockers</h3>
-            <p>Capture anything slowing down shipment, with owners and timestamps.</p>
-          </div>
-          <div class="card">
-            <h3>Quick tools</h3>
-            <p>Jump to legacy utilities without breaking the unified experience.</p>
-            <a href="/flocs">FLOCS</a>
-          </div>
-        </div>
-      </section>
-
-      <section class="view" id="view-docs">
-        <div class="hero">
-          <div>
-            <h2>Operator notes</h2>
-            <p>Keep the essentials close: escalation contacts, daily routines, and system reminders.</p>
-          </div>
-          <div class="pill-row">
-            <span class="pill">Contact list</span>
-            <span class="pill">Daily flow</span>
-            <span class="pill">Quick references</span>
-          </div>
-        </div>
-        <ul class="quick-list">
-          <li>Morning checklist: open scan station, verify printer, confirm dispatch schedule.</li>
-          <li>Escalations: log any shipment mismatch in the alerts channel immediately.</li>
-          <li>End of shift: reconcile parcel count, close out booking summary, power down scanners.</li>
-        </ul>
-      </section>
+      <div class="empty-state" id="no-results" hidden>
+        No apps match that filter. Try clearing the search or using a different keyword.
+      </div>
     </main>
 
     <footer>
-      Unified SPA layout • Shared navigation • Minimal operational focus
+      App Launcher • New tabs keep the launcher ready • Flippen Lekka Ops
     </footer>
   </div>
   <script src="/app.js" defer></script>
