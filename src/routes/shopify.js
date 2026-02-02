@@ -35,7 +35,7 @@ function requireCustomerEmailConfigured(res) {
   return true;
 }
 
-function normalizeCustomer(customer, deliveryMethod) {
+function normalizeCustomer(customer, metafields = {}) {
   if (!customer) return null;
   const first = (customer.first_name || "").trim();
   const last = (customer.last_name || "").trim();
@@ -54,7 +54,10 @@ function normalizeCustomer(customer, deliveryMethod) {
     tags: customer.tags || "",
     addresses: Array.isArray(customer.addresses) ? customer.addresses : [],
     default_address: customer.default_address || null,
-    delivery_method: deliveryMethod || null
+    delivery_method: metafields.delivery_method || null,
+    deliveryInstructions: metafields.delivery_instructions || null,
+    companyName: metafields.company_name || null,
+    vatNumber: metafields.vat_number || null
   };
 }
 
@@ -124,17 +127,22 @@ router.get("/shopify/customers/search", async (req, res) => {
     const data = await resp.json();
     const customers = Array.isArray(data.customers) ? data.customers : [];
 
-    const deliveries = await Promise.all(
+    const metafieldsByCustomer = await Promise.all(
       customers.map(async (cust) => {
         try {
           const metaUrl = `${base}/customers/${cust.id}/metafields.json`;
           const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
           if (!metaResp.ok) return null;
           const metaData = await metaResp.json();
-          const m = (metaData.metafields || []).find(
-            (mf) => mf.namespace === "custom" && mf.key === "delivery_method"
-          );
-          return m?.value || null;
+          const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
+          const getValue = (key) =>
+            metafields.find((mf) => mf.namespace === "custom" && mf.key === key)?.value || null;
+          return {
+            delivery_method: getValue("delivery_method"),
+            delivery_instructions: getValue("delivery_instructions"),
+            company_name: getValue("company_name"),
+            vat_number: getValue("vat_number")
+          };
         } catch {
           return null;
         }
@@ -142,7 +150,7 @@ router.get("/shopify/customers/search", async (req, res) => {
     );
 
     const normalized = customers
-      .map((cust, idx) => normalizeCustomer(cust, deliveries[idx]))
+      .map((cust, idx) => normalizeCustomer(cust, metafieldsByCustomer[idx] || {}))
       .filter(Boolean);
 
     return res.json({ customers: normalized });
@@ -158,7 +166,17 @@ router.post("/shopify/customers", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
-    const { firstName, lastName, email, phone, company, deliveryMethod, address } =
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      company,
+      vatNumber,
+      deliveryInstructions,
+      deliveryMethod,
+      address
+    } =
       req.body || {};
 
     if (!firstName && !lastName && !email && !phone) {
@@ -166,6 +184,40 @@ router.post("/shopify/customers", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const metafields = [];
+    if (deliveryMethod) {
+      metafields.push({
+        namespace: "custom",
+        key: "delivery_method",
+        type: "single_line_text_field",
+        value: deliveryMethod
+      });
+    }
+    if (deliveryInstructions) {
+      metafields.push({
+        namespace: "custom",
+        key: "delivery_instructions",
+        type: "multi_line_text_field",
+        value: deliveryInstructions
+      });
+    }
+    if (company) {
+      metafields.push({
+        namespace: "custom",
+        key: "company_name",
+        type: "single_line_text_field",
+        value: company
+      });
+    }
+    if (vatNumber) {
+      metafields.push({
+        namespace: "custom",
+        key: "vat_number",
+        type: "single_line_text_field",
+        value: vatNumber
+      });
+    }
+
     const payload = {
       customer: {
         first_name: firstName || "",
@@ -189,16 +241,7 @@ router.post("/shopify/customers", async (req, res) => {
             ]
           : [],
         note: company ? `Company: ${company}` : undefined,
-        metafields: deliveryMethod
-          ? [
-              {
-                namespace: "custom",
-                key: "delivery_method",
-                type: "single_line_text_field",
-                value: deliveryMethod
-              }
-            ]
-          : []
+        metafields
       }
     };
 
@@ -224,7 +267,12 @@ router.post("/shopify/customers", async (req, res) => {
       });
     }
 
-    const customer = normalizeCustomer(data.customer, deliveryMethod || null);
+    const customer = normalizeCustomer(data.customer, {
+      delivery_method: deliveryMethod || null,
+      delivery_instructions: deliveryInstructions || null,
+      company_name: company || null,
+      vat_number: vatNumber || null
+    });
     return res.json({ ok: true, customer });
   } catch (err) {
     console.error("Shopify customer create error:", err);

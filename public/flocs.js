@@ -60,6 +60,8 @@
   const customerEmail    = document.getElementById("flocs-customerEmail");
   const customerPhone    = document.getElementById("flocs-customerPhone");
   const customerCompany  = document.getElementById("flocs-customerCompany");
+  const customerVat      = document.getElementById("flocs-customerVat");
+  const customerDeliveryNotes = document.getElementById("flocs-customerDeliveryNotes");
   const customerDelivery = document.getElementById("flocs-customerDelivery");
   const customerAddr1    = document.getElementById("flocs-customerAddr1");
   const customerAddr2    = document.getElementById("flocs-customerAddr2");
@@ -515,10 +517,23 @@
       ? `Pricing: ${state.priceTier}`
       : "Pricing: default";
 
+    const companyLabel = state.customer?.companyName
+      ? `<span class="flocs-chip">Company: ${state.customer.companyName}</span>`
+      : "";
+    const vatLabel = state.customer?.vatNumber
+      ? `<span class="flocs-chip">VAT: ${state.customer.vatNumber}</span>`
+      : "";
+    const deliveryNotesLabel = state.customer?.deliveryInstructions
+      ? `<span class="flocs-chip">Delivery notes set</span>`
+      : "";
+
     customerChips.innerHTML = `
       <span class="flocs-chip">Customer: ${c.name}</span>
       <span class="flocs-chip">Delivery: ${deliveryLabel}</span>
       <span class="flocs-chip">${tierLabel}</span>
+      ${companyLabel}
+      ${vatLabel}
+      ${deliveryNotesLabel}
       ${
         billAddr
           ? `<span class="flocs-chip">Bill-to: ${billAddr.city || ""} ${billAddr.zip || ""}</span>`
@@ -609,6 +624,10 @@
       ? `${customerName}
 ${state.customer.email || ""}${
           state.customer.phone ? "\n" + state.customer.phone : ""
+        }${
+          state.customer.companyName ? "\n" + state.customer.companyName : ""
+        }${
+          state.customer.vatNumber ? "\nVAT: " + state.customer.vatNumber : ""
         }${
           billAddr ? "\n" + formatAddress(billAddr) : ""
         }`
@@ -1222,6 +1241,8 @@ ${state.customer.email || ""}${
     const email = customerEmail?.value?.trim() || "";
     const phone = customerPhone?.value?.trim() || "";
     const company = customerCompany?.value?.trim() || "";
+    const vatNumber = customerVat?.value?.trim() || "";
+    const deliveryInstructions = customerDeliveryNotes?.value?.trim() || "";
     const deliveryMethod = customerDelivery?.value || "";
     const address1 = customerAddr1?.value?.trim() || "";
     const address2 = customerAddr2?.value?.trim() || "";
@@ -1250,6 +1271,8 @@ ${state.customer.email || ""}${
       email,
       phone,
       company,
+      vatNumber,
+      deliveryInstructions,
       deliveryMethod,
       address: address1 || address2 || city || province || zip || country
         ? { address1, address2, city, province, zip, country }
@@ -1310,6 +1333,8 @@ ${state.customer.email || ""}${
     if (customerEmail) customerEmail.value = "";
     if (customerPhone) customerPhone.value = "";
     if (customerCompany) customerCompany.value = "";
+    if (customerVat) customerVat.value = "";
+    if (customerDeliveryNotes) customerDeliveryNotes.value = "";
     if (customerDelivery) customerDelivery.value = "";
     if (customerAddr1) customerAddr1.value = "";
     if (customerAddr2) customerAddr2.value = "";
