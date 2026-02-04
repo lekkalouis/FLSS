@@ -1120,7 +1120,7 @@
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.3fr);
   gap: 1rem;
   padding: .35rem;
   min-height: 65vh;
@@ -1315,13 +1315,16 @@
 
   .dispatchShipmentRow{
     display:grid;
-    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-columns: 1.4fr 1.1fr 1.1fr;
     gap:.5rem;
     padding:.55rem .6rem;
     border-bottom:1px solid #e2e8f0;
     font-size:.72rem;
     color:#0f172a;
     cursor:pointer;
+  }
+  .dispatchShipmentCell{
+    word-break:break-word;
   }
 
   .dispatchShipmentRow--header{
@@ -1343,6 +1346,21 @@
 
   .dispatchShipmentCell--status{
     color:#475569;
+    display:flex;
+    gap:.35rem;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+
+  .dispatchShipmentTag{
+    font-size:.6rem;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    padding:.12rem .35rem;
+    border-radius:999px;
+    background:rgba(16,185,129,.15);
+    color:#047857;
   }
 
   .dispatchShipmentEmpty{
@@ -2069,6 +2087,12 @@
     padding:1.5rem 0;
     text-align:center;
   }
+  .sessionControlRow{
+    margin-top:.5rem;
+    display:flex;
+    flex-wrap:wrap;
+    gap:.5rem;
+  }
 
 </style>
 </head>
@@ -2143,6 +2167,9 @@
         <div>Auto-book: <span id="uiAutoBook">Idle</span></div>
       
       </div>
+      <div class="sessionControlRow">
+        <button id="multiShipToggle" class="btn btnToggle" type="button">Multi-shipment override: Off</button>
+      </div>
     </div>
 
     <!-- Address search/select (toggle display if needed) -->
@@ -2207,7 +2234,6 @@
 
     <div class="sectionTitle sessionControls" style="margin-top:.8rem">
       <div class="sessionControlsGroup">
-        <button id="multiShipToggle" class="btn btnToggle" type="button">Multi-shipment override: Off</button>
         <button id="modeToggle" type="button">MODE: AUTO</button>
       </div>
     </div>

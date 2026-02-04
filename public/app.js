@@ -909,7 +909,8 @@
       }
     });
     if (!options.silent) {
-      playDispatchTone(700 + stepIndex * 40, 0.12);
+      const baseTone = linkedOrders.size ? 540 : 700;
+      playDispatchTone(baseTone + stepIndex * 40, 0.12);
     }
   }
 
@@ -1391,7 +1392,7 @@ function scheduleIdleAutoBook() {
   cancelAutoBookTimer();
 
   if (!isAutoMode) return;
-  if (multiShipEnabled && linkedOrders.size > 0) return;
+  if (linkedOrders.size > 0) return;
 
   // Only for untagged orders
   if (!activeOrderNo || !orderDetails) return;
@@ -2352,7 +2353,7 @@ function resetSession() {
     return { orderNo, parcelSeq: seq };
   }
 
-async function startOrder(orderNo) {
+async function startOrder(orderNo, preloadedDetails = null) {
   cancelAutoBookTimer();
 
   activeOrderNo = orderNo;
@@ -2366,7 +2367,7 @@ async function startOrder(orderNo) {
   placeCodeOverride = null;
   if (placeCodeInput) placeCodeInput.value = "";
 
-  orderDetails = await fetchShopifyOrder(activeOrderNo);
+  orderDetails = preloadedDetails || (await fetchShopifyOrder(activeOrderNo));
 
   if (orderDetails && orderDetails.placeCode != null) {
     placeCodeOverride = Number(orderDetails.placeCode) || orderDetails.placeCode;
@@ -2394,7 +2395,6 @@ async function startOrder(orderNo) {
       return;
     }
 
-    const crossOrderScan = activeOrderNo && parsed.orderNo !== activeOrderNo;
     let scanFeedbackType = "success";
 
     if (!activeOrderNo) {
@@ -2420,33 +2420,33 @@ async function startOrder(orderNo) {
 
       if (!canAutoBundle && !multiShipEnabled) {
         statusExplain(
-          `Different order scanned (${parsed.orderNo}). Enable multi-shipment to bundle.`,
+          `Different order scanned (${parsed.orderNo}). Starting new shipment.`,
           "warn"
         );
-        confirmScanFeedback("warn");
-        return;
-      }
-
-      if (canAutoBundle) {
-        statusExplain(`Bundling order ${parsed.orderNo} (same customer + address).`, "ok");
+        scanFeedbackType = "warn";
+        await startOrder(parsed.orderNo, candidate);
       } else {
-        const mismatchBits = [
-          !customerMatches ? "customer" : null,
-          !addressMatches ? "address" : null
-        ]
-          .filter(Boolean)
-          .join(" + ");
-        statusExplain(
-          `Bundling order ${parsed.orderNo} (override enabled — different ${mismatchBits}).`,
-          "ok"
-        );
-      }
+        if (canAutoBundle) {
+          statusExplain(`Bundling order ${parsed.orderNo} (same customer + address).`, "ok");
+        } else {
+          const mismatchBits = [
+            !customerMatches ? "customer" : null,
+            !addressMatches ? "address" : null
+          ]
+            .filter(Boolean)
+            .join(" + ");
+          statusExplain(
+            `Bundling order ${parsed.orderNo} (override enabled — different ${mismatchBits}).`,
+            "ok"
+          );
+        }
 
-      if (!canAutoBundle) {
-        scanFeedbackType = multiShipEnabled ? "success" : "warn";
-      }
+        if (!canAutoBundle) {
+          scanFeedbackType = "warn";
+        }
 
-      linkedOrders.set(parsed.orderNo, candidate);
+        linkedOrders.set(parsed.orderNo, candidate);
+      }
     }
 
     const parcelSet = getParcelSet(parsed.orderNo);
@@ -2460,7 +2460,7 @@ async function startOrder(orderNo) {
     const expected = getExpectedParcelCount(orderDetails);
 
     // TAGGED: auto-book immediately on first scan (single order only)
-    if (isAutoMode && hasParcelCountTag(orderDetails) && expected && !multiShipEnabled && !linkedOrders.size) {
+    if (isAutoMode && hasParcelCountTag(orderDetails) && expected && !linkedOrders.size) {
       cancelAutoBookTimer();
 
       parcelsByOrder.set(activeOrderNo, new Set(Array.from({ length: expected }, (_, i) => i + 1)));
@@ -2927,6 +2927,13 @@ async function startOrder(orderNo) {
   }
 
   function renderShipmentList(shipments) {
+    const trackingCounts = (shipments || []).reduce((acc, shipment) => {
+      const trackingKey = shipment.tracking_number || "";
+      if (trackingKey) {
+        acc[trackingKey] = (acc[trackingKey] || 0) + 1;
+      }
+      return acc;
+    }, {});
     const rows = shipments
       .map((shipment) => {
         const key = shipmentKey(shipment);
@@ -2934,11 +2941,18 @@ async function startOrder(orderNo) {
         const name = shipment.customer_name || shipment.order_name || "Unknown";
         const tracking = shipment.tracking_number || "—";
         const status = formatShipmentStatus(shipment.shipment_status);
+        const isMultiOrder = tracking !== "—" && trackingCounts[tracking] > 1;
+        const multiTag = isMultiOrder
+          ? `<span class="dispatchShipmentTag">Multi-order</span>`
+          : "";
         return `
           <div class="dispatchShipmentRow" data-shipment-key="${key}">
             <div class="dispatchShipmentCell dispatchShipmentCell--name">${name}</div>
             <div class="dispatchShipmentCell dispatchShipmentCell--tracking">${tracking}</div>
-            <div class="dispatchShipmentCell dispatchShipmentCell--status">${status}</div>
+            <div class="dispatchShipmentCell dispatchShipmentCell--status">
+              <span>${status}</span>
+              ${multiTag}
+            </div>
           </div>
         `;
       })
@@ -2951,7 +2965,7 @@ async function startOrder(orderNo) {
           <div class="dispatchShipmentCell dispatchShipmentCell--tracking">Tracking #</div>
           <div class="dispatchShipmentCell dispatchShipmentCell--status">Latest event</div>
         </div>
-        ${rows || `<div class="dispatchShipmentEmpty">No recent shipments awaiting delivery.</div>`}
+        ${rows || `<div class="dispatchShipmentEmpty">No fulfillment history yet.</div>`}
       </div>
     `;
   }
@@ -2987,7 +3001,7 @@ async function startOrder(orderNo) {
       { id: "shippingA", label: "Shipping", type: "cards" },
       { id: "shippingB", label: "Shipping", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" },
-      { id: "shipments", label: "Recently shipped", type: "shipments" }
+      { id: "shipments", label: "Fulfillment history", type: "shipments" }
     ];
     const lanes = {
       delivery: [],
@@ -3560,7 +3574,7 @@ async function startOrder(orderNo) {
     renderSessionUI();
     statusExplain(
       multiShipEnabled
-        ? "Multi-shipment override enabled. Only same-address orders will bundle."
+        ? "Multi-shipment override enabled. Different-address orders can bundle."
         : "Multi-shipment override disabled.",
       "info"
     );
