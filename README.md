@@ -91,7 +91,13 @@ The browser pages call the server through same-origin endpoints, which then prox
 - Customers: search and create customers with optional delivery method metafield.【F:server.js†L273-L374】
 - Products: search by title/SKU and load collection items.【F:server.js†L376-L564】
 - Draft orders: create and complete draft orders (with tags, shipping lines, and note attributes).【F:server.js†L566-L699】
-- Orders: create orders, find by name, list open orders, and fulfill orders with tracking data.【F:server.js†L701-L873】
+- Orders: create orders, find by name, list open orders or full order history, and fulfill orders with tracking data.【F:server.js†L701-L1190】
+- Shipments: recent fulfilled shipments with tracking metadata, plus fulfillment event timelines for tracking updates.【F:src/routes/shopify.js†L1316-L1479】
+
+### Operations + monitoring
+
+- Truck booking alert emails via SMTP when parcel volume hits thresholds (optional).【F:src/routes/alerts.js†L1-L74】
+- Service status endpoint that checks ParcelPerfect, PrintNode, email, and Shopify connectivity.【F:src/routes/status.js†L1-L60】
 
 ---
 
@@ -225,7 +231,10 @@ A standalone page (`/flocs`) to capture a new order:
 - `POST /shopify/orders` — Create order. 【F:server.js†L723-L799】
 - `GET /shopify/orders/by-name/:name` — Find order by Shopify name. 【F:server.js†L801-L873】
 - `GET /shopify/orders/open` — Open orders for dispatch board. 【F:server.js†L875-L956】
+- `GET /shopify/orders/list` — Recent orders list with paging/filtering. 【F:src/routes/shopify.js†L1191-L1314】
 - `POST /shopify/fulfill` — Fulfill order with tracking. 【F:server.js†L958-L1057】
+- `GET /shopify/shipments/recent` — Recent fulfilled shipments with tracking metadata. 【F:src/routes/shopify.js†L1316-L1428】
+- `GET /shopify/fulfillment-events?orderId=...&fulfillmentId=...` — Shopify fulfillment event timeline. 【F:src/routes/shopify.js†L1429-L1479】
 
 ### PrintNode
 
@@ -234,6 +243,11 @@ A standalone page (`/flocs`) to capture a new order:
 ### Utility
 
 - `GET /healthz` — Health check. 【F:server.js†L505-L507】
+- `GET /statusz` — Service status and integration checks. 【F:src/routes/status.js†L1-L60】
+
+### Alerts
+
+- `POST /alerts/book-truck` — Send a truck collection request email via SMTP. 【F:src/routes/alerts.js†L1-L74】
 
 ---
 

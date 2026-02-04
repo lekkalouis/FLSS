@@ -1416,7 +1416,9 @@ router.get("/shopify/shipments/recent", async (req, res) => {
       (a, b) => new Date(b.shipped_at || 0).getTime() - new Date(a.shipped_at || 0).getTime()
     );
 
-    return res.json({ shipments });
+    const recentShipments = shipments.slice(0, 10);
+
+    return res.json({ shipments: recentShipments });
   } catch (err) {
     console.error("Shopify shipments error:", err);
     return res.status(502).json({
