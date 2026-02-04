@@ -34,9 +34,10 @@
     }
 
     .flocs-shell {
-      max-width:1200px;
+      max-width:none;
+      width:100%;
       margin:0 auto;
-      padding:1.25rem .9rem 2.5rem;
+      padding:1.25rem 1.2rem 2.5rem;
     }
 
     header.flocs-header {
@@ -123,11 +124,11 @@
     }
 
     .flocs-panel.form {
-      flex:1.15;
+      flex:1 1 75%;
       min-width:0;
     }
     .flocs-panel.preview {
-      flex:.95;
+      flex:0 0 25%;
       min-width:0;
       background:radial-gradient(circle at 0 0,rgba(56,189,248,.15),transparent 60%),
                  linear-gradient(to bottom right,rgba(255,255,255,.98),rgba(241,245,249,.92));
@@ -416,6 +417,97 @@
     .flocs-productMeta {
       color:var(--muted);
       font-size:.7rem;
+    }
+    .flocs-sizeTabs {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.45rem;
+      margin:.35rem 0 .6rem;
+    }
+    .flocs-sizeBtn {
+      border-radius:999px;
+      padding:.25rem .75rem;
+      border:1px solid rgba(148,163,184,.55);
+      background:var(--panel);
+      color:var(--text);
+      font-size:.75rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      cursor:pointer;
+    }
+    .flocs-sizeBtn.is-active {
+      border-color:var(--accent);
+      background:var(--accent-soft);
+      color:#0c4a6e;
+    }
+    .flocs-sizeHint {
+      font-size:.75rem;
+      color:var(--muted);
+      margin-bottom:.6rem;
+    }
+    .flocs-quickList {
+      display:flex;
+      flex-direction:column;
+      gap:.6rem;
+    }
+    .flocs-quickItem {
+      display:grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, .7fr) minmax(0, 1fr);
+      gap:.75rem;
+      padding:.6rem .7rem;
+      border-radius:.65rem;
+      border:1px solid var(--panel-strong);
+      background:#fff;
+      align-items:center;
+    }
+    @media (max-width:900px) {
+      .flocs-quickItem {
+        grid-template-columns:1fr;
+      }
+    }
+    .flocs-quickTitle {
+      font-size:.85rem;
+      font-weight:600;
+      margin-bottom:.2rem;
+    }
+    .flocs-quickMeta {
+      font-size:.72rem;
+      color:var(--muted);
+    }
+    .flocs-quickPrice {
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+      align-items:flex-start;
+    }
+    .flocs-quickPriceLabel {
+      font-weight:700;
+      font-size:.85rem;
+    }
+    .flocs-quickQty {
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+    }
+    .flocs-qtyQuickRow {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.25rem;
+    }
+    .flocs-qtyChip {
+      border-radius:.5rem;
+      border:1px solid rgba(148,163,184,.5);
+      background:rgba(248,250,252,.95);
+      padding:.15rem .45rem;
+      font-size:.7rem;
+      cursor:pointer;
+      min-width:2rem;
+      text-align:center;
+    }
+    .flocs-qtyChip:hover {
+      border-color:var(--accent);
+      color:#0c4a6e;
     }
 
     .flocs-actionsRow {
@@ -895,7 +987,7 @@
         <div class="flocs-formSection">
         <div class="flocs-labelRow">
           <span>Items</span>
-          <span class="flocs-hint" id="flocs-productStatus">Search by SKU or product title</span>
+          <span class="flocs-hint" id="flocs-productStatus">Quick order by size, or search by SKU/title</span>
         </div>
           <div class="flocs-row" style="margin-bottom:.5rem">
             <select id="flocs-collectionSelect" class="flocs-select">
@@ -906,6 +998,13 @@
               <span class="icon">⭐</span><span>Load collection</span>
             </button>
           </div>
+          <div class="flocs-sizeTabs" id="flocs-sizeTabs">
+            <button class="flocs-sizeBtn" type="button" data-size="200ml">200ml</button>
+            <button class="flocs-sizeBtn" type="button" data-size="500g">500g</button>
+            <button class="flocs-sizeBtn" type="button" data-size="1kg">1kg</button>
+            <button class="flocs-sizeBtn" type="button" data-size="other">Other</button>
+          </div>
+          <div class="flocs-sizeHint" id="flocs-sizeHint">Select a size filter to show products.</div>
           <div class="flocs-row" style="margin-bottom:.5rem">
             <input id="flocs-productSearch" class="flocs-input" type="text"
                    placeholder="Search Shopify products (SKU/title)..." autocomplete="off" />
@@ -921,31 +1020,7 @@
               <span class="icon">➡</span><span>Next</span>
             </button>
           </div>
-          <div class="flocs-filterRow">
-            <select id="flocs-filterFlavour" class="flocs-select">
-              <option value="">All flavours</option>
-            </select>
-            <select id="flocs-filterSize" class="flocs-select">
-              <option value="">All sizes</option>
-            </select>
-            <span class="flocs-filterHint">Filter the quick order list by flavour & size.</span>
-          </div>
-          <table class="flocs-productsTable">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Description</th>
-                <th>Flavour</th>
-                <th>Size</th>
-                <th>Price</th>
-                <th>Override</th>
-                <th style="width:10%">Qty</th>
-              </tr>
-            </thead>
-            <tbody id="flocs-productsBody">
-              <!-- Populated by JS -->
-            </tbody>
-          </table>
+          <div id="flocs-quickList" class="flocs-quickList" hidden></div>
           <div class="flocs-actionsRow">
             <button id="flocs-calcShip" class="flocs-btn" type="button">
               <span class="icon">⛟</span><span>Calculate shipping (SWE quote)</span>
