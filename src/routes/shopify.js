@@ -1340,8 +1340,20 @@ router.get("/shopify/shipments/recent", async (req, res) => {
     const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
     const shipments = [];
 
+    const isPickupOrDelivery = (order) => {
+      const tags = String(order?.tags || "").toLowerCase();
+      const shippingTitles = (order?.shipping_lines || [])
+        .map((line) => String(line.title || "").toLowerCase())
+        .join(" ");
+      const combined = `${tags} ${shippingTitles}`.trim();
+      if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return true;
+      if (/(local delivery|same\s*day)/.test(combined)) return true;
+      return false;
+    };
+
     ordersRaw.forEach((o) => {
       if (o.cancelled_at) return;
+      if (isPickupOrDelivery(o)) return;
       const shipping = o.shipping_address || {};
       const customer = o.customer || {};
       const fulfillments = Array.isArray(o.fulfillments) ? o.fulfillments : [];
