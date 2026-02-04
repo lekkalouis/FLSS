@@ -885,8 +885,12 @@
   }
 
   function setDispatchProgress(stepIndex, label = "In progress", options = {}) {
+    let resolvedLabel = label;
+    if (linkedOrders.size && label && !label.includes("Multi-order")) {
+      resolvedLabel = `Multi-order ${label}`;
+    }
     dispatchProgressTargets.forEach((target) => {
-      if (target.label) target.label.textContent = label;
+      if (target.label) target.label.textContent = resolvedLabel;
       if (target.fill) {
         const pct = Math.max(0, Math.min(1, stepIndex / (DISPATCH_STEPS.length - 1)));
         target.fill.style.width = `${pct * 100}%`;
@@ -1567,6 +1571,28 @@ function scheduleIdleAutoBook() {
     const bundleOrders = getBundleOrders();
     const totalExpected = getTotalExpectedCount();
     const totalScanned = getTotalScannedCount();
+    const baseAddressSignature = addressSignature(orderDetails);
+    const baseCustomerSignature = customerSignature(orderDetails);
+    const isOverrideBundling = linkedOrders.size
+      ? Array.from(linkedOrders.values()).some((details) => {
+          const candidateAddressSignature = addressSignature(details);
+          const candidateCustomerSignature = customerSignature(details);
+          const addressMatches =
+            baseAddressSignature &&
+            candidateAddressSignature &&
+            baseAddressSignature === candidateAddressSignature;
+          const customerMatches =
+            baseCustomerSignature &&
+            candidateCustomerSignature &&
+            baseCustomerSignature === candidateCustomerSignature;
+          return !(addressMatches && customerMatches);
+        })
+      : false;
+    const bundleStatusLabel = linkedOrders.size
+      ? isOverrideBundling
+        ? "Override bundling active"
+        : "Multi-order bundling active"
+      : "";
     if (uiOrderNo) {
       if (!activeOrderNo) {
         uiOrderNo.textContent = "--";
@@ -1611,7 +1637,9 @@ function scheduleIdleAutoBook() {
     const sessionMode = !activeOrderNo
       ? "Waiting"
       : linkedOrders.size
-      ? "Bundled multi-order shipment"
+      ? isOverrideBundling
+        ? "Override-forced multi-order bundling"
+        : "Multi-order bundling"
       : isAutoMode
       ? hasParcelCountTag(orderDetails)
         ? "Tag auto-book"
@@ -1693,8 +1721,15 @@ Email: ${orderDetails.email || ""}${
         totalScanned === totalExpected ? "ok" : "info"
       );
     } else if (activeOrderNo) {
-      const tagDriven = isAutoMode && hasParcelCountTag(orderDetails);
-      statusExplain(tagDriven ? "Scan parcels until complete." : "Scan parcels, then BOOK NOW.", "info");
+      if (linkedOrders.size) {
+        statusExplain(bundleStatusLabel, "info");
+      } else {
+        const tagDriven = isAutoMode && hasParcelCountTag(orderDetails);
+        statusExplain(
+          tagDriven ? "Scan parcels until complete." : "Scan parcels, then BOOK NOW.",
+          "info"
+        );
+      }
     }
 
     if (uiAutoBook) {
@@ -1702,8 +1737,10 @@ Email: ${orderDetails.email || ""}${
         uiAutoBook.textContent = "Idle";
       } else if (!isAutoMode) {
         uiAutoBook.textContent = "Manual mode";
-      } else if (multiShipEnabled && linkedOrders.size) {
-        uiAutoBook.textContent = "Multi-order: auto-book paused";
+      } else if (linkedOrders.size) {
+        uiAutoBook.textContent = isOverrideBundling
+          ? "Override bundle: auto-book paused"
+          : "Multi-order bundle: auto-book paused";
       } else if (hasParcelCountTag(orderDetails)) {
         uiAutoBook.textContent = "Immediate on first scan";
       } else if (autoBookEndsAt) {
@@ -2358,6 +2395,7 @@ async function startOrder(orderNo) {
     }
 
     const crossOrderScan = activeOrderNo && parsed.orderNo !== activeOrderNo;
+    let scanFeedbackType = "success";
 
     if (!activeOrderNo) {
       await startOrder(parsed.orderNo);
@@ -2404,6 +2442,10 @@ async function startOrder(orderNo) {
         );
       }
 
+      if (!canAutoBundle) {
+        scanFeedbackType = multiShipEnabled ? "success" : "warn";
+      }
+
       linkedOrders.set(parsed.orderNo, candidate);
     }
 
@@ -2413,7 +2455,7 @@ async function startOrder(orderNo) {
     lastScanCode = code;
     armedForBooking = false;
 
-    confirmScanFeedback("success");
+    confirmScanFeedback(scanFeedbackType);
 
     const expected = getExpectedParcelCount(orderDetails);
 
