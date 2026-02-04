@@ -32,11 +32,20 @@ export function createApp() {
       .filter(Boolean)
   );
   const allowAllOrigins = allowedOrigins.has("*");
+  const allowFileOrigin = config.NODE_ENV !== "production";
 
   app.use(
     cors({
       origin: (origin, cb) => {
-        if (!origin || allowAllOrigins || allowedOrigins.has(origin)) return cb(null, true);
+        const isFileOrigin = origin === "null" || origin?.startsWith("file://");
+        if (
+          !origin ||
+          allowAllOrigins ||
+          allowedOrigins.has(origin) ||
+          (allowFileOrigin && isFileOrigin)
+        ) {
+          return cb(null, true);
+        }
         return cb(new Error("CORS: origin not allowed"));
       },
       methods: ["GET", "POST", "OPTIONS"],
