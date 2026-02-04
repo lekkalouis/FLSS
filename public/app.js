@@ -1374,6 +1374,40 @@
   ${rects.join("")}
 </svg>`;
   }
+
+  function normalizePdfBase64(value) {
+    if (!value || typeof value !== "string") return null;
+    const trimmed = value.trim();
+    const dataPrefix = "data:application/pdf;base64,";
+    if (trimmed.startsWith(dataPrefix)) {
+      return trimmed.slice(dataPrefix.length).replace(/\s/g, "");
+    }
+    const cleaned = trimmed.replace(/\s/g, "");
+    if (!cleaned) return null;
+    if (cleaned.startsWith("JVBERi0")) return cleaned;
+    if (/^[A-Za-z0-9+/=]+$/.test(cleaned)) return cleaned;
+    return null;
+  }
+
+  function extractPdfBase64(source, keys) {
+    if (!source) return null;
+    for (const key of keys) {
+      const candidate = normalizePdfBase64(source[key]);
+      if (candidate) return candidate;
+    }
+    return null;
+  }
+
+  function extractPdfUrl(source, keys) {
+    if (!source) return null;
+    for (const key of keys) {
+      const candidate = source[key];
+      if (typeof candidate === "string" && /^https?:\/\//i.test(candidate)) {
+        return candidate.trim();
+      }
+    }
+    return null;
+  }
 let autoBookTimer = null;
 let autoBookEndsAt = null;
 let autoBookTicker = null;
@@ -2247,31 +2281,53 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
     let usedPdf = false;
 
-    if (labelsBase64) {
-      usedPdf = true;
-      await stepDispatchProgress(4, "Printing labels");
-      logDispatchEvent("Printing labels via PrintNode.");
+    const hasLabelPayload = Boolean(labelsBase64 || labelsUrl);
+    const hasWaybillPayload = Boolean(waybillBase64 || waybillUrl);
 
-      try {
-        await fetch("/printnode/print", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pdfBase64: labelsBase64, title: `Labels ${waybillNo}` })
-        });
-      } catch (e) {
-        appendDebug("PrintNode label error: " + String(e));
-        logDispatchEvent("PrintNode label error.");
+    if (hasLabelPayload || hasWaybillPayload) {
+      usedPdf = true;
+
+      if (hasLabelPayload) {
+        await stepDispatchProgress(4, "Printing labels");
+        logDispatchEvent("Printing labels via PrintNode.");
+
+        try {
+          if (labelsBase64) {
+            await fetch("/printnode/print", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pdfBase64: labelsBase64, title: `Labels ${waybillNo}` })
+            });
+          } else {
+            await fetch("/printnode/print-url", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ invoiceUrl: labelsUrl, title: `Labels ${waybillNo}` })
+            });
+          }
+        } catch (e) {
+          appendDebug("PrintNode label error: " + String(e));
+          logDispatchEvent("PrintNode label error.");
+        }
       }
 
-      if (waybillBase64) {
+      if (hasWaybillPayload) {
         await stepDispatchProgress(4, "Printing waybill");
         logDispatchEvent("Printing waybill via PrintNode.");
         try {
-          await fetch("/printnode/print", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pdfBase64: waybillBase64, title: `Waybill ${waybillNo}` })
-          });
+          if (waybillBase64) {
+            await fetch("/printnode/print", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ pdfBase64: waybillBase64, title: `Waybill ${waybillNo}` })
+            });
+          } else {
+            await fetch("/printnode/print-url", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ invoiceUrl: waybillUrl, title: `Waybill ${waybillNo}` })
+            });
+          }
         } catch (e) {
           appendDebug("PrintNode waybill error: " + String(e));
           logDispatchEvent("PrintNode waybill error.");
@@ -2279,9 +2335,12 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       }
 
       if (stickerPreview) {
+        const headline = hasLabelPayload
+          ? "Labels sent to PrintNode"
+          : "Waybill sent to PrintNode";
         stickerPreview.innerHTML = `
           <div class="wbPreviewPdf">
-            <div style="font-weight:600;margin-bottom:0.25rem;">Labels sent to PrintNode</div>
+            <div style="font-weight:600;margin-bottom:0.25rem;">${headline}</div>
             <div style="font-size:0.8rem;color:#64748b;">
               Waybill: <strong>${waybillNo}</strong><br>
               Service: ${pickedService} • Parcels: ${totalExpected}
