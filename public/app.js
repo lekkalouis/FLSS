@@ -2226,25 +2226,43 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     );
     appendDebug("Waybill = " + waybillNo);
 
-    const labelsBase64 = maybe.labelsBase64 || maybe.labelBase64 || maybe.labels_pdf || null;
-    const waybillBase64 = maybe.waybillBase64 || maybe.waybillPdfBase64 || maybe.waybill_pdf || null;
+    const labelsBase64 =
+      maybe.labelsBase64 ||
+      maybe.labelBase64 ||
+      maybe.labels_pdf ||
+      cr.labelsBase64 ||
+      cr.labelBase64 ||
+      cr.labels_pdf ||
+      null;
+    const waybillBase64 =
+      maybe.waybillBase64 ||
+      maybe.waybillPdfBase64 ||
+      maybe.waybill_pdf ||
+      cr.waybillBase64 ||
+      cr.waybillPdfBase64 ||
+      cr.waybill_pdf ||
+      null;
 
     let usedPdf = false;
+    const hasPdf = Boolean(labelsBase64 || waybillBase64);
 
-    if (labelsBase64) {
+    if (hasPdf) {
       usedPdf = true;
-      await stepDispatchProgress(4, "Printing labels");
-      logDispatchEvent("Printing labels via PrintNode.");
 
-      try {
-        await fetch("/printnode/print", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pdfBase64: labelsBase64, title: `Labels ${waybillNo}` })
-        });
-      } catch (e) {
-        appendDebug("PrintNode label error: " + String(e));
-        logDispatchEvent("PrintNode label error.");
+      if (labelsBase64) {
+        await stepDispatchProgress(4, "Printing labels");
+        logDispatchEvent("Printing labels via PrintNode.");
+
+        try {
+          await fetch("/printnode/print", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pdfBase64: labelsBase64, title: `Labels ${waybillNo}` })
+          });
+        } catch (e) {
+          appendDebug("PrintNode label error: " + String(e));
+          logDispatchEvent("PrintNode label error.");
+        }
       }
 
       if (waybillBase64) {
@@ -2263,9 +2281,12 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       }
 
       if (stickerPreview) {
+        const previewTitle = labelsBase64
+          ? "Labels sent to PrintNode"
+          : "Waybill sent to PrintNode";
         stickerPreview.innerHTML = `
           <div class="wbPreviewPdf">
-            <div style="font-weight:600;margin-bottom:0.25rem;">Labels sent to PrintNode</div>
+            <div style="font-weight:600;margin-bottom:0.25rem;">${previewTitle}</div>
             <div style="font-size:0.8rem;color:#64748b;">
               Waybill: <strong>${waybillNo}</strong><br>
               Service: ${pickedService} • Parcels: ${totalExpected}
