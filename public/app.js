@@ -966,6 +966,104 @@
     ].join("||");
   }
 
+  const BOX_MODE_THRESHOLD = 60;
+  const BOX_MODE_CARTONS = 3;
+
+  function getTotalUnits(items) {
+    return (items || []).reduce((total, item) => total + (Number(item.quantity) || 0), 0);
+  }
+
+  function splitIntoBoxes(total, boxes = BOX_MODE_CARTONS) {
+    const perBox = Math.floor(total / boxes);
+    const remainder = total % boxes;
+    return Array.from({ length: boxes }, (_, i) => perBox + (i < remainder ? 1 : 0));
+  }
+
+  function buildBoxQueue(lineItems, boxPlan) {
+    const queue = [];
+    let currentBox = 0;
+    let placedInBox = 0;
+
+    for (const item of lineItems) {
+      for (let i = 0; i < item.quantity; i += 1) {
+        queue.push({
+          itemKey: item.key,
+          sku: item.sku,
+          box: currentBox + 1
+        });
+        placedInBox += 1;
+
+        if (placedInBox >= (boxPlan[currentBox] || 0)) {
+          currentBox += 1;
+          placedInBox = 0;
+        }
+      }
+    }
+
+    return queue;
+  }
+
+  function ensureBoxModeState(state) {
+    if (!state) return;
+    state.totalUnits = getTotalUnits(state.items);
+    state.boxMode = state.totalUnits >= BOX_MODE_THRESHOLD;
+    if (!state.boxMode) {
+      state.boxModeStarted = false;
+      state.boxModeComplete = false;
+      return;
+    }
+    const totalUnits = state.totalUnits;
+    let boxPlan = Array.isArray(state.boxPlan) ? [...state.boxPlan] : [];
+    const planTotal = boxPlan.reduce((acc, qty) => acc + (Number(qty) || 0), 0);
+    if (!boxPlan.length || planTotal !== totalUnits) {
+      boxPlan = splitIntoBoxes(totalUnits, BOX_MODE_CARTONS);
+    }
+    state.boxPlan = boxPlan;
+    if (!Array.isArray(state.boxQueue) || state.boxQueue.length !== totalUnits) {
+      state.boxQueue = buildBoxQueue(state.items, boxPlan);
+    }
+    if (!Number.isInteger(state.boxQueueIndex) || state.boxQueueIndex < 0) {
+      state.boxQueueIndex = 0;
+    }
+    if (!Array.isArray(state.boxCounts) || state.boxCounts.length !== boxPlan.length) {
+      const counts = boxPlan.map(() => 0);
+      const queue = state.boxQueue || [];
+      for (let i = 0; i < Math.min(state.boxQueueIndex, queue.length); i += 1) {
+        const entry = queue[i];
+        if (entry && Number.isInteger(entry.box)) {
+          const idx = entry.box - 1;
+          if (idx >= 0 && idx < counts.length) counts[idx] += 1;
+        }
+      }
+      state.boxCounts = counts;
+    }
+    if (typeof state.boxModeStarted !== "boolean") {
+      state.boxModeStarted = false;
+    }
+    if (typeof state.boxModeComplete !== "boolean") {
+      state.boxModeComplete = false;
+    }
+    state.boxModeComplete =
+      state.boxModeComplete ||
+      state.boxQueueIndex >= (state.boxQueue || []).length;
+  }
+
+  function ensureBoxModeBoxes(state) {
+    if (!state?.boxMode || !Array.isArray(state.boxPlan)) return;
+    const existing = Array.isArray(state.boxes) ? state.boxes : [];
+    state.boxes = state.boxPlan.map((_, index) => {
+      const fallback = existing[index] || {};
+      return {
+        label: `BOX ${index + 1}`,
+        items: fallback.items && typeof fallback.items === "object" ? { ...fallback.items } : {},
+        parcelCode: String(fallback.parcelCode || "").trim()
+      };
+    });
+    if (!Number.isInteger(state.activeBoxIndex)) {
+      state.activeBoxIndex = 0;
+    }
+  }
+
   function getPackingState(order) {
     const orderNo = String(order?.name || "").replace("#", "").trim();
     if (!orderNo) return null;
@@ -999,8 +1097,19 @@
       boxes: normalizePackingBoxes(existing?.boxes),
       activeBoxIndex: Number.isInteger(existing?.activeBoxIndex)
         ? existing.activeBoxIndex
-        : null
+        : null,
+      boxMode: Boolean(existing?.boxMode),
+      boxPlan: Array.isArray(existing?.boxPlan) ? existing.boxPlan : [],
+      boxQueue: Array.isArray(existing?.boxQueue) ? existing.boxQueue : [],
+      boxQueueIndex: Number.isInteger(existing?.boxQueueIndex)
+        ? existing.boxQueueIndex
+        : 0,
+      boxCounts: Array.isArray(existing?.boxCounts) ? existing.boxCounts : [],
+      boxModeStarted: Boolean(existing?.boxModeStarted),
+      boxModeComplete: Boolean(existing?.boxModeComplete),
+      totalUnits: Number(existing?.totalUnits) || 0
     };
+    ensureBoxModeState(state);
     dispatchPackingState.set(orderNo, state);
     return state;
   }
@@ -1096,7 +1205,15 @@
           parcels,
           items,
           boxes,
-          activeBoxIndex
+          activeBoxIndex,
+          boxMode: Boolean(state.boxMode),
+          boxPlan: Array.isArray(state.boxPlan) ? state.boxPlan : [],
+          boxQueue: Array.isArray(state.boxQueue) ? state.boxQueue : [],
+          boxQueueIndex: Number.isInteger(state.boxQueueIndex) ? state.boxQueueIndex : 0,
+          boxCounts: Array.isArray(state.boxCounts) ? state.boxCounts : [],
+          boxModeStarted: Boolean(state.boxModeStarted),
+          boxModeComplete: Boolean(state.boxModeComplete),
+          totalUnits: Number(state.totalUnits) || 0
         });
       });
     } catch {}
@@ -1115,7 +1232,15 @@
           boxes: normalizePackingBoxes(state.boxes),
           activeBoxIndex: Number.isInteger(state.activeBoxIndex)
             ? state.activeBoxIndex
-            : null
+            : null,
+          boxMode: Boolean(state.boxMode),
+          boxPlan: Array.isArray(state.boxPlan) ? state.boxPlan : [],
+          boxQueue: Array.isArray(state.boxQueue) ? state.boxQueue : [],
+          boxQueueIndex: Number.isInteger(state.boxQueueIndex) ? state.boxQueueIndex : 0,
+          boxCounts: Array.isArray(state.boxCounts) ? state.boxCounts : [],
+          boxModeStarted: Boolean(state.boxModeStarted),
+          boxModeComplete: Boolean(state.boxModeComplete),
+          totalUnits: Number(state.totalUnits) || 0
         };
       });
       localStorage.setItem("fl_packing_state_v1", JSON.stringify(payload));
@@ -1136,6 +1261,45 @@
       `Packing finished for order ${state.orderNo}${duration ? ` (${duration})` : ""}.`
     );
     savePackingState();
+  }
+
+  function handleBoxModeScan(orderNo, code) {
+    if (!orderNo) return;
+    const state = dispatchPackingState.get(orderNo);
+    if (!state) return;
+    ensureBoxModeState(state);
+    if (!state.boxMode || !state.boxModeStarted) return;
+    if (state.boxQueueIndex >= (state.boxQueue || []).length) return;
+    if (!state.startTime) {
+      state.startTime = new Date().toISOString();
+      logDispatchEvent(`Packing started for order ${orderNo}.`);
+    }
+    ensureBoxModeBoxes(state);
+    const next = state.boxQueue[state.boxQueueIndex];
+    if (!next) return;
+    state.activeBoxIndex = Math.max(0, next.box - 1);
+    const item = getPackingItem(state, next.itemKey);
+    if (item) {
+      const packed = Math.min(item.quantity, (Number(item.packed) || 0) + 1);
+      item.packed = packed;
+      allocatePackedToBox(state, item.key, 1);
+    }
+    if (Array.isArray(state.boxCounts) && Number.isInteger(next.box)) {
+      const idx = next.box - 1;
+      if (idx >= 0 && idx < state.boxCounts.length) {
+        state.boxCounts[idx] = (state.boxCounts[idx] || 0) + 1;
+      }
+    }
+    state.boxQueueIndex += 1;
+    state.boxModeComplete =
+      state.boxQueueIndex >= (state.boxQueue || []).length || isPackingComplete(state);
+    if (state.boxModeComplete) {
+      finalizePacking(state);
+    } else {
+      savePackingState();
+    }
+    refreshDispatchViews(orderNo);
+    focusBoxModeScanInput();
   }
 
   function renderCountdown() {
@@ -2680,8 +2844,75 @@ async function startOrder(orderNo, preloadedDetails = null) {
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
     if (!packingState) return "";
     const isActive = packingState.active || options.forceOpen;
+    ensureBoxModeState(packingState);
     const boxes = Array.isArray(packingState.boxes) ? packingState.boxes : [];
     const parcelCount = getPackingParcelCount(packingState);
+    if (packingState.boxMode) {
+      const totalUnits = packingState.totalUnits || getTotalUnits(packingState.items);
+      const boxPlan = packingState.boxPlan || splitIntoBoxes(totalUnits, BOX_MODE_CARTONS);
+      const isComplete =
+        packingState.boxModeComplete ||
+        packingState.boxQueueIndex >= (packingState.boxQueue || []).length;
+      const queue = packingState.boxQueue || [];
+      const currentStep = queue[packingState.boxQueueIndex] || null;
+      const currentBox = currentStep?.box || null;
+      const currentCount =
+        currentBox && Array.isArray(packingState.boxCounts)
+          ? packingState.boxCounts[currentBox - 1] || 0
+          : 0;
+      const currentTarget = currentBox ? boxPlan[currentBox - 1] || 0 : 0;
+      const planLines = boxPlan
+        .map((qty, index) => `<div>Box ${index + 1} → ${qty}</div>`)
+        .join("");
+      const body = !packingState.boxModeStarted
+        ? `
+          <div class="dispatchBoxModeIntro">
+            <div class="dispatchBoxModeTag">BOX MODE</div>
+            <div class="dispatchBoxModeOrder">ORDER #${orderNo}</div>
+            <div class="dispatchBoxModeSummary">${totalUnits} UNITS • ${boxPlan.length} CARTONS</div>
+            <div class="dispatchBoxModePlan">
+              <div class="dispatchBoxModePlanTitle">BOX PLAN</div>
+              <div class="dispatchBoxModePlanLines">${planLines}</div>
+            </div>
+            <button class="dispatchBoxModeStartBtn" type="button" data-action="box-mode-start" data-order-no="${orderNo}">
+              START PACKING
+            </button>
+          </div>
+        `
+        : isComplete
+        ? `
+          <div class="dispatchBoxModeComplete">
+            <div class="dispatchBoxModeCompleteTitle">ALL ITEMS SCANNED</div>
+            <div class="dispatchBoxModeCompleteCallout">FILL • TAPE • LABEL</div>
+            <div class="dispatchBoxModeCompleteMeta">${boxPlan.length} CARTONS</div>
+            <button class="dispatchBoxModePrintBtn" type="button" data-action="box-mode-print-labels" data-order-no="${orderNo}">
+              PRINT ALL LABELS
+            </button>
+          </div>
+        `
+        : `
+          <div class="dispatchBoxModeScan">
+            <div class="dispatchBoxModeScanPrompt">PUT ITEM IN</div>
+            <div class="dispatchBoxModeScanBox">BOX ${currentBox ?? "--"}</div>
+            <div class="dispatchBoxModeScanCount">
+              BOX ${currentBox ?? "--"} ${currentCount} / ${currentTarget}
+            </div>
+            <input
+              class="dispatchBoxModeScanInput"
+              type="text"
+              inputmode="none"
+              autocomplete="off"
+              data-order-no="${orderNo}"
+              aria-label="Scan item for box mode"
+            />
+          </div>
+        `;
+      return `
+        <div class="dispatchPackingPanel dispatchPackingPanel--boxmode ${isActive ? "is-active" : ""}" data-order-no="${orderNo}">
+          ${body}
+        </div>
+      `;
+    }
     return `
       <div class="dispatchPackingPanel ${isActive ? "is-active" : ""}" data-order-no="${orderNo}">
         <div class="dispatchPackingHeader">
@@ -2752,12 +2983,20 @@ async function startOrder(orderNo, preloadedDetails = null) {
     `;
   }
 
+  function focusBoxModeScanInput() {
+    const input = dispatchOrderModalBody?.querySelector(".dispatchBoxModeScanInput");
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+    }
+  }
+
   function openDispatchOrderModal(orderNo) {
     if (!dispatchOrderModal || !dispatchOrderModalBody || !dispatchOrderModalTitle) return;
     const order = dispatchOrderCache.get(orderNo);
     if (!order) return;
     const packingState = getPackingState(order);
     const laneId = laneFromOrder(order);
+    const isBoxMode = Boolean(packingState?.boxMode);
     const title = order.customer_name || order.name || `Order ${order.id}`;
     const city = order.shipping_city || "";
     const created = order.created_at ? new Date(order.created_at).toLocaleTimeString() : "";
@@ -2766,21 +3005,28 @@ async function startOrder(orderNo, preloadedDetails = null) {
     if (dispatchOrderModalMeta) {
       dispatchOrderModalMeta.textContent = `#${(order.name || "").replace("#", "")} · ${city} · ${created}`;
     }
-    dispatchOrderModalBody.innerHTML = `
-      <div class="dispatchCardLines">${lines || "No line items listed."}</div>
-      <div class="dispatchCardActions">
-        ${renderDispatchActions(order, laneId, orderNo, packingState)}
-      </div>
-      ${renderDispatchPackingPanel(packingState, orderNo, { forceOpen: true })}
-    `;
+    dispatchOrderModal.classList.toggle("is-box-mode", isBoxMode);
+    dispatchOrderModalBody.innerHTML = isBoxMode
+      ? `${renderDispatchPackingPanel(packingState, orderNo, { forceOpen: true })}`
+      : `
+        <div class="dispatchCardLines">${lines || "No line items listed."}</div>
+        <div class="dispatchCardActions">
+          ${renderDispatchActions(order, laneId, orderNo, packingState)}
+        </div>
+        ${renderDispatchPackingPanel(packingState, orderNo, { forceOpen: true })}
+      `;
     dispatchOrderModal.classList.add("is-open");
     dispatchOrderModal.setAttribute("aria-hidden", "false");
     dispatchModalOrderNo = orderNo;
+    if (isBoxMode) {
+      requestAnimationFrame(() => focusBoxModeScanInput());
+    }
   }
 
   function closeDispatchOrderModal() {
     if (!dispatchOrderModal || !dispatchOrderModalBody) return;
     dispatchOrderModal.classList.remove("is-open");
+    dispatchOrderModal.classList.remove("is-box-mode");
     dispatchOrderModal.setAttribute("aria-hidden", "true");
     dispatchOrderModalBody.innerHTML = "";
     dispatchModalOrderNo = null;
@@ -3641,6 +3887,33 @@ async function startOrder(orderNo, preloadedDetails = null) {
       refreshDispatchViews(orderNo);
       return true;
     }
+    if (actionType === "box-mode-start") {
+      if (!orderNo) return true;
+      const order = dispatchOrderCache.get(orderNo);
+      if (!order) return true;
+      const state = getPackingState(order);
+      if (!state) return true;
+      ensureBoxModeState(state);
+      if (!state.boxMode) return true;
+      if (!state.startTime) {
+        state.startTime = new Date().toISOString();
+        logDispatchEvent(`Packing started for order ${orderNo}.`);
+      }
+      state.boxModeStarted = true;
+      state.boxModeComplete = false;
+      state.active = true;
+      ensureBoxModeBoxes(state);
+      savePackingState();
+      refreshDispatchViews(orderNo);
+      focusBoxModeScanInput();
+      return true;
+    }
+    if (actionType === "box-mode-print-labels") {
+      if (!orderNo) return true;
+      statusExplain(`Printing ${orderNo} labels.`, "info");
+      logDispatchEvent(`Box mode label print requested for order ${orderNo}.`);
+      return true;
+    }
     if (actionType === "pack-all") {
       if (!orderNo) return true;
       const state = dispatchPackingState.get(orderNo);
@@ -3828,6 +4101,17 @@ async function startOrder(orderNo, preloadedDetails = null) {
     if (action) {
       await handleDispatchAction(action);
     }
+  });
+
+  dispatchOrderModal?.addEventListener("keydown", (e) => {
+    const input = e.target.closest(".dispatchBoxModeScanInput");
+    if (!input) return;
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const orderNo = input.dataset.orderNo;
+    const code = input.value.trim();
+    input.value = "";
+    handleBoxModeScan(orderNo, code);
   });
 
   dispatchShipmentModal?.addEventListener("click", (e) => {
