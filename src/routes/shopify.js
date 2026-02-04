@@ -1201,7 +1201,7 @@ router.get("/shopify/orders/list", async (req, res) => {
       `${base}/orders.json?status=any` +
       `&order=created_at+desc` +
       `&limit=${limit}` +
-      `&fields=id,name,order_number,created_at,processed_at,customer,email,shipping_address` +
+      `&fields=id,name,order_number,created_at,processed_at,customer,email,shipping_address,total_weight` +
       createdAtMin +
       createdAtMax;
 
@@ -1233,13 +1233,28 @@ router.get("/shopify/orders/list", async (req, res) => {
           `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
           (o.name ? o.name.replace(/^#/, "") : "");
 
+        const totalWeightKg =
+          typeof o.total_weight === "number" ? Number((o.total_weight / 1000).toFixed(2)) : null;
+
         return {
           id: o.id,
           name: o.name,
           order_number: o.order_number,
           customer_name,
           email: o.email || customer.email || "",
-          created_at: o.processed_at || o.created_at
+          created_at: o.processed_at || o.created_at,
+          total_weight_kg: totalWeightKg,
+          shipping_address: {
+            name: shipping.name || customer_name || "",
+            company: shipping.company || "",
+            address1: shipping.address1 || "",
+            address2: shipping.address2 || "",
+            city: shipping.city || "",
+            province: shipping.province || shipping.province_code || "",
+            postal: shipping.zip || "",
+            country: shipping.country_code || shipping.country || "",
+            phone: shipping.phone || customer.phone || ""
+          }
         };
       });
 

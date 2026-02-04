@@ -415,6 +415,11 @@
   };
 
   let invoiceOrders = [];
+  const invoiceQuoteCache = new Map();
+  const invoiceQuoteInFlight = new Set();
+  const invoiceQuoteQueue = [];
+  let activeInvoiceQuotes = 0;
+  const MAX_INVOICE_QUOTE_CONCURRENCY = 3;
 
   function loadInvoiceTemplate() {
     const saved = localStorage.getItem(INVOICE_TEMPLATE_KEY);
@@ -494,6 +499,147 @@
     });
   }
 
+  function formatInvoiceQuoteMoney(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return "—";
+    return `R${num.toFixed(2)}`;
+  }
+
+  function formatInvoiceQuoteCell(quote) {
+    if (!quote) {
+      return `<span class="invoiceQuote invoiceQuote--pending">Queued</span>`;
+    }
+    if (quote.status === "loading") {
+      return `<span class="invoiceQuote invoiceQuote--pending">Fetching…</span>`;
+    }
+    if (quote.status === "missing") {
+      return `<span class="invoiceQuote invoiceQuote--warn" title="${quote.detail || ""}">Missing data</span>`;
+    }
+    if (quote.status === "error") {
+      return `<span class="invoiceQuote invoiceQuote--err" title="${quote.detail || ""}">Quote failed</span>`;
+    }
+    if (quote.status === "ok") {
+      const costLabel = formatInvoiceQuoteMoney(quote.cost);
+      const meta = quote.quoteno ? `Quote ${quote.quoteno}` : "Quote ready";
+      const serviceLabel = quote.service ? ` • ${quote.service}` : "";
+      return `<span class="invoiceQuote invoiceQuote--ok" title="${meta}">${costLabel}${serviceLabel}</span>`;
+    }
+    return `<span class="invoiceQuote invoiceQuote--pending">Queued</span>`;
+  }
+
+  function buildInvoiceQuoteDetails(order) {
+    const shipping = order?.shipping_address || {};
+    return {
+      name: shipping.name || order?.customer_name || "",
+      address1: shipping.address1 || "",
+      address2: shipping.address2 || "",
+      city: shipping.city || "",
+      province: shipping.province || "",
+      postal: shipping.postal || shipping.zip || "",
+      phone: shipping.phone || "",
+      email: order?.email || "",
+      totalWeightKg: typeof order?.total_weight_kg === "number" ? order.total_weight_kg : null
+    };
+  }
+
+  function resetInvoiceQuoteState() {
+    invoiceQuoteCache.clear();
+    invoiceQuoteInFlight.clear();
+    invoiceQuoteQueue.length = 0;
+    activeInvoiceQuotes = 0;
+  }
+
+  function setInvoiceQuoteState(orderId, state) {
+    if (!orderId) return;
+    invoiceQuoteCache.set(orderId, state);
+    renderInvoiceTable();
+  }
+
+  function enqueueInvoiceQuote(order) {
+    const orderId = order?.id;
+    if (!orderId || invoiceQuoteCache.has(orderId) || invoiceQuoteInFlight.has(orderId)) return;
+    invoiceQuoteInFlight.add(orderId);
+    invoiceQuoteQueue.push(order);
+    drainInvoiceQuoteQueue();
+  }
+
+  async function drainInvoiceQuoteQueue() {
+    while (activeInvoiceQuotes < MAX_INVOICE_QUOTE_CONCURRENCY && invoiceQuoteQueue.length) {
+      const order = invoiceQuoteQueue.shift();
+      activeInvoiceQuotes += 1;
+      requestInvoiceQuote(order)
+        .catch(() => {})
+        .finally(() => {
+          activeInvoiceQuotes -= 1;
+          invoiceQuoteInFlight.delete(order?.id);
+          drainInvoiceQuoteQueue();
+        });
+    }
+  }
+
+  async function requestInvoiceQuote(order) {
+    const orderId = order?.id;
+    if (!orderId) return;
+
+    const destDetails = buildInvoiceQuoteDetails(order);
+    const missing = [];
+    ["name", "address1", "city", "province", "postal"].forEach((key) => {
+      if (!destDetails[key]) missing.push(key);
+    });
+
+    if (missing.length) {
+      setInvoiceQuoteState(orderId, {
+        status: "missing",
+        detail: `Missing: ${missing.join(", ")}`
+      });
+      return;
+    }
+
+    setInvoiceQuoteState(orderId, { status: "loading" });
+
+    let payload = buildParcelPerfectPayload(destDetails, 1);
+    if (!payload.details.destplace) {
+      const place = await lookupPlaceCodeFromPP(destDetails);
+      if (place?.code != null) {
+        destDetails.placeCode = place.code;
+        payload = buildParcelPerfectPayload(destDetails, 1);
+      }
+    }
+
+    if (!payload.details.destplace) {
+      setInvoiceQuoteState(orderId, {
+        status: "missing",
+        detail: "Missing: place code"
+      });
+      return;
+    }
+
+    const quoteRes = await ppCall({ method: "requestQuote", classVal: "Quote", params: payload });
+    if (!quoteRes || quoteRes.status !== 200) {
+      setInvoiceQuoteState(orderId, {
+        status: "error",
+        detail: `HTTP ${quoteRes?.status || "?"} ${quoteRes?.statusText || ""}`.trim()
+      });
+      return;
+    }
+
+    const { quoteno, rates } = extractQuoteFromV28(quoteRes.data || {});
+    if (!quoteno) {
+      setInvoiceQuoteState(orderId, { status: "error", detail: "No quote number returned" });
+      return;
+    }
+
+    const pickedService = pickService(rates);
+    const chosenRate = rates?.find((r) => r.service === pickedService) || rates?.[0] || null;
+    const quoteCost = chosenRate ? Number(chosenRate.total ?? chosenRate.subtotal ?? chosenRate.charge ?? 0) : null;
+    setInvoiceQuoteState(orderId, {
+      status: "ok",
+      quoteno,
+      service: pickedService,
+      cost: quoteCost
+    });
+  }
+
   function renderInvoiceTable() {
     if (!invoiceTableBody) return;
     const filtered = filterInvoiceOrders();
@@ -501,7 +647,7 @@
       const emptyMessage = invoiceOrders.length
         ? "No orders match these filters."
         : "Load orders to get started.";
-      invoiceTableBody.innerHTML = `<tr><td colspan="4" class="invoiceEmpty">${emptyMessage}</td></tr>`;
+      invoiceTableBody.innerHTML = `<tr><td colspan="5" class="invoiceEmpty">${emptyMessage}</td></tr>`;
       return;
     }
 
@@ -512,6 +658,7 @@
       const orderLabel = order?.name || "—";
       const customerLabel = order?.customer_name || "—";
       const dateLabel = formatInvoiceDate(order?.created_at);
+      const quoteCell = formatInvoiceQuoteCell(invoiceQuoteCache.get(order?.id));
       const disabledAttr = safeUrl ? "" : "disabled";
       const whatsappText = encodeURIComponent(
         `Invoice for ${orderLabel}: ${safeUrl || "Set invoice template first."}`
@@ -523,6 +670,7 @@
           <td>${orderLabel}</td>
           <td>${customerLabel}</td>
           <td>${dateLabel}</td>
+          <td>${quoteCell}</td>
           <td>
             <div class="invoiceActions">
               <a class="btn" href="${downloadUrl}" target="_blank" rel="noopener" ${safeUrl ? "" : "aria-disabled=\"true\""}>Download</a>
@@ -553,14 +701,16 @@
       const data = await resp.json();
       invoiceOrders = Array.isArray(data.orders) ? data.orders : [];
       invoiceSyncStatus.textContent = `Loaded ${invoiceOrders.length} orders`;
+      resetInvoiceQuoteState();
       renderInvoiceTable();
+      invoiceOrders.forEach((order) => enqueueInvoiceQuote(order));
     } catch (err) {
       console.error("Invoice order load error:", err);
       invoiceSyncStatus.textContent = "Failed to load orders";
       statusExplain("Invoice list failed to load.", "err");
       if (invoiceTableBody) {
         invoiceTableBody.innerHTML =
-          '<tr><td colspan="4" class="invoiceEmpty">Unable to load orders. Check Shopify connection.</td></tr>';
+          '<tr><td colspan="5" class="invoiceEmpty">Unable to load orders. Check Shopify connection.</td></tr>';
       }
     }
   }
