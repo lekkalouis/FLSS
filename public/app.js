@@ -2226,8 +2226,22 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     );
     appendDebug("Waybill = " + waybillNo);
 
-    const labelsBase64 = maybe.labelsBase64 || maybe.labelBase64 || maybe.labels_pdf || null;
-    const waybillBase64 = maybe.waybillBase64 || maybe.waybillPdfBase64 || maybe.waybill_pdf || null;
+    const labelsBase64 =
+      maybe.labelsBase64 ||
+      maybe.labelBase64 ||
+      maybe.labels_pdf ||
+      cr.labelsBase64 ||
+      cr.labelBase64 ||
+      cr.labels_pdf ||
+      null;
+    const waybillBase64 =
+      maybe.waybillBase64 ||
+      maybe.waybillPdfBase64 ||
+      maybe.waybill_pdf ||
+      cr.waybillBase64 ||
+      cr.waybillPdfBase64 ||
+      cr.waybill_pdf ||
+      null;
 
     let usedPdf = false;
     const hasPdf = Boolean(labelsBase64 || waybillBase64);
