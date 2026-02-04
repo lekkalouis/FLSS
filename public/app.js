@@ -3268,23 +3268,7 @@ async function startOrder(orderNo) {
     openModuleById(moduleId);
   });
 
-  factoryMap?.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const area = target.closest("[data-dept]");
-    if (!area) return;
-    const deptId = area.dataset.dept;
-    if (!deptId) return;
-    renderFactoryView(deptId);
-  });
 
-  factoryTools?.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const button = target.closest(".factoryToolBtn");
-    if (!button) return;
-    openFactoryTool(button.dataset.toolType, button.dataset.toolTarget);
-  });
 
   function switchMainView(view) {
     const showDashboard = view === "dashboard";
@@ -3864,7 +3848,7 @@ async function startOrder(orderNo) {
   setInterval(refreshDispatchData, 30000);
   refreshServerStatus();
   setInterval(refreshServerStatus, 20000);
-  renderFactoryView();
+
   renderModuleDashboard();
   loadInvoiceTemplate();
   renderInvoiceTable();
