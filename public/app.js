@@ -464,6 +464,20 @@
     return date.toLocaleString();
   }
 
+  function buildDeliveryNoteUrl(order) {
+    const legacyId = Number(order?.id || 0);
+    if (!legacyId) return "";
+    const orderName = String(order?.name || "");
+    const slug = orderName
+      .replace("#", "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+    if (!slug) return "";
+    const multipliedId = legacyId * 2191;
+    return `https://flippenlekka.shop/apps/download-pdf/orders/492a0907560253c5e190/${multipliedId}/${slug}.pdf`;
+  }
+
   function filterInvoiceOrders() {
     const orderQuery = String(invoiceFilterOrder?.value || "").trim().toLowerCase();
     const customerQuery = String(invoiceFilterCustomer?.value || "").trim().toLowerCase();
@@ -508,7 +522,7 @@
     const rows = filtered.map((order) => {
       const invoiceUrl = buildInvoiceUrl(order);
       const safeUrl = invoiceUrl || "";
-      const downloadUrl = safeUrl || "#";
+      const deliveryNoteUrl = buildDeliveryNoteUrl(order);
       const orderLabel = order?.name || "—";
       const customerLabel = order?.customer_name || "—";
       const dateLabel = formatInvoiceDate(order?.created_at);
@@ -517,6 +531,7 @@
         `Invoice for ${orderLabel}: ${safeUrl || "Set invoice template first."}`
       );
       const whatsappUrl = safeUrl ? `https://wa.me/?text=${whatsappText}` : "#";
+      const deliveryNoteDisabled = deliveryNoteUrl ? "" : "aria-disabled=\"true\"";
 
       return `
         <tr>
@@ -525,7 +540,7 @@
           <td>${dateLabel}</td>
           <td>
             <div class="invoiceActions">
-              <a class="btn" href="${downloadUrl}" target="_blank" rel="noopener" ${safeUrl ? "" : "aria-disabled=\"true\""}>Download</a>
+              <a class="btn" href="${deliveryNoteUrl || "#"}" target="_blank" rel="noopener" ${deliveryNoteDisabled}>Delivery note</a>
               <a class="btn" href="${whatsappUrl}" target="_blank" rel="noopener" ${safeUrl ? "" : "aria-disabled=\"true\""}>WhatsApp</a>
               <button class="btn" type="button" data-invoice-action="print" data-invoice-url="${safeUrl}" data-order-name="${orderLabel}" ${disabledAttr}>Print</button>
             </div>
