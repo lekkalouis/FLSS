@@ -2260,33 +2260,24 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     );
     appendDebug("Waybill = " + waybillNo);
 
-    const labelKeys = [
-      "labelsBase64",
-      "labelBase64",
-      "labels_pdf",
-      "labelsPdf",
-      "labelsPdfBase64",
-      "labelPdf",
-      "labelPdfBase64",
-      "labels_pdf_base64"
-    ];
-    const waybillKeys = [
-      "waybillBase64",
-      "waybillPdfBase64",
-      "waybill_pdf",
-      "waybillPdf",
-      "waybillPdfBase64",
-      "waybill_pdf_base64"
-    ];
-
-    const labelsBase64 = extractPdfBase64(maybe, labelKeys) || extractPdfBase64(cr, labelKeys);
-    const waybillBase64 = extractPdfBase64(maybe, waybillKeys) || extractPdfBase64(cr, waybillKeys);
-    const labelsUrl =
-      extractPdfUrl(maybe, ["labelsUrl", "labels_url", "labelUrl", "label_url", "labelPdfUrl"]) ||
-      extractPdfUrl(cr, ["labelsUrl", "labels_url", "labelUrl", "label_url", "labelPdfUrl"]);
-    const waybillUrl =
-      extractPdfUrl(maybe, ["waybillUrl", "waybill_url", "waybillPdfUrl"]) ||
-      extractPdfUrl(cr, ["waybillUrl", "waybill_url", "waybillPdfUrl"]);
+    const labelsBase64 =
+      maybe.labelsBase64 ||
+      maybe.labelBase64 ||
+      maybe.labels_pdf ||
+      maybe.labelsPdf ||
+      maybe.labelsPdfBase64 ||
+      maybe.labelPdf ||
+      maybe.labelPdfBase64 ||
+      maybe.labels_pdf_base64 ||
+      null;
+    const waybillBase64 =
+      maybe.waybillBase64 ||
+      maybe.waybillPdfBase64 ||
+      maybe.waybill_pdf ||
+      maybe.waybillPdf ||
+      maybe.waybillPdfBase64 ||
+      maybe.waybill_pdf_base64 ||
+      null;
 
     let usedPdf = false;
 
@@ -2359,8 +2350,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       if (printMount) printMount.innerHTML = "";
     } else {
       await stepDispatchProgress(4, "Printing labels");
-      logDispatchEvent("PrintNode skipped: no PDF label payload returned.");
-      statusExplain("PrintNode requires a PDF payload. Check ParcelPerfect label settings.", "err");
+      logDispatchEvent("PrintNode skipped: no PDF labels returned.");
+      statusExplain("PrintNode requires PDF labels. Check ParcelPerfect label settings.", "err");
       appendDebug("No PDF label payload returned from ParcelPerfect; local printing disabled.");
       if (stickerPreview) {
         stickerPreview.innerHTML = `
