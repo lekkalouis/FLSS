@@ -4,39 +4,14 @@
   <meta charset="UTF-8" />
   <title>FLOCS — Flippen Lekka Order Capturing System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/shell.css" />
   <style>
-    :root {
-      --bg:#f5f7fb;
-      --panel:#ffffff;
-      --panel-soft:#f1f5f9;
-      --panel-strong:#e2e8f0;
-      --accent:#38bdf8;
-      --accent-soft:rgba(56,189,248,.18);
-      --accent-strong:rgba(34,197,94,.9);
-      --danger:#ef4444;
-      --text:#0f172a;
-      --muted:#5b6b7f;
-      --radius-lg:.85rem;
-      --radius-md:.6rem;
-      --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
-      --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    }
     * { box-sizing:border-box; }
-
-    body {
-      margin:0;
-      min-height:100vh;
-      background:radial-gradient(circle at 10% 10%, rgba(56,189,248,.15) 0%, rgba(245,247,251,0) 55%),
-                 radial-gradient(circle at 90% 15%, rgba(236,72,153,.08) 0%, rgba(245,247,251,0) 55%),
-                 var(--bg);
-      color:var(--text);
-      font-family:var(--sans);
-    }
 
     .flocs-shell {
       max-width:1200px;
       margin:0 auto;
-      padding:1.25rem .9rem 2.5rem;
+      width:100%;
     }
 
     header.flocs-header {
@@ -80,23 +55,6 @@
       gap:.5rem;
       flex-wrap:wrap;
       justify-content:flex-end;
-    }
-    .flocs-linkBtn {
-      display:inline-flex;
-      align-items:center;
-      gap:.4rem;
-      padding:.3rem .75rem;
-      border-radius:999px;
-      border:1px solid var(--panel-strong);
-      background:var(--panel);
-      color:var(--text);
-      font-size:.75rem;
-      text-decoration:none;
-      transition:all .2s ease;
-    }
-    .flocs-linkBtn:hover {
-      border-color:rgba(56,189,248,.7);
-      color:#0c4a6e;
     }
     .flocs-dot {
       width:.45rem; height:.45rem;
@@ -745,29 +703,47 @@
   </style>
 </head>
 <body>
-  <div class="flocs-shell" id="flocs-shell">
-    <header class="flocs-header">
-      <div class="flocs-titleBlock">
-        <div class="flocs-title">Flippen Lekka Order Capturing System</div>
-        <div class="flocs-sub">FLOCS · fast operator-friendly order entry into Shopify draft orders</div>
-      </div>
-      <div class="flocs-headerActions">
-        <a class="flocs-linkBtn" href="/">
-          <span>⟵</span>
-          <span>Scan station</span>
-        </a>
-        <a class="flocs-linkBtn" href="/stock.html">
-          <span>📦</span>
-          <span>Stock take</span>
-        </a>
-        <div class="flocs-badge">
-          <span class="flocs-dot"></span>
-          <span>Backend: Scan Station Node/Express & SWE v28</span>
+  <div class="flShell">
+    <div class="flLayout">
+      <aside class="flSide">
+        <div class="flSideHeader">
+          <div class="flNavTitle">Flippen Lekka Operations</div>
+          <button class="flHamburger" type="button" data-nav-toggle aria-label="Toggle navigation" aria-expanded="true">
+            <span class="flHamburgerLines"><span></span></span>
+          </button>
         </div>
-      </div>
-    </header>
+        <nav class="flNav" aria-label="Primary">
+          <div class="flNavGroup">
+            <a class="flNavBtn" href="/?view=dashboard" data-nav-link><span class="flNavBtnText">Dashboard</span></a>
+            <a class="flNavBtn" href="/?view=scan" data-nav-link><span class="flNavBtnText">Scan Station</span></a>
+            <a class="flNavBtn" href="/?view=ops" data-nav-link><span class="flNavBtnText">Dispatch Board</span></a>
+            <a class="flNavBtn" href="/?view=invoices" data-nav-link><span class="flNavBtnText">Order invoices</span></a>
+            <a class="flNavBtn" href="/?view=docs" data-nav-link><span class="flNavBtnText">Documentation</span></a>
+            <a class="flNavBtn" href="/flocs" data-nav-link><span class="flNavBtnText">Order capture (FLOCS)</span></a>
+            <a class="flNavBtn" href="/stock.html" data-nav-link><span class="flNavBtnText">Stock take</span></a>
+            <a class="flNavBtn" href="/price-manager.html" data-nav-link><span class="flNavBtnText">Price manager</span></a>
+          </div>
+          <div class="flNavStatus">
+            <span>Unified operations console</span>
+          </div>
+        </nav>
+      </aside>
+      <main class="flMain">
+        <div class="flocs-shell" id="flocs-shell">
+          <header class="flocs-header">
+            <div class="flocs-titleBlock">
+              <div class="flocs-title">Flippen Lekka Order Capturing System</div>
+              <div class="flocs-sub">FLOCS · fast operator-friendly order entry into Shopify draft orders</div>
+            </div>
+            <div class="flocs-headerActions">
+              <div class="flocs-badge">
+                <span class="flocs-dot"></span>
+                <span>Backend: Scan Station Node/Express & SWE v28</span>
+              </div>
+            </div>
+          </header>
 
-    <main class="flocs-layout">
+          <div class="flocs-layout">
       <!-- LEFT: FORM -->
       <section class="flocs-panel form" id="flocs-formPanel">
         <!-- Customer -->
@@ -979,23 +955,27 @@
           <!-- Filled by JS -->
         </div>
       </section>
-    </main>
-  </div>
+          </div>
+        </div>
 
-  <!-- Global toast -->
-  <div id="flocs-toast" class="flocs-toast"></div>
+        <!-- Global toast -->
+        <div id="flocs-toast" class="flocs-toast"></div>
 
-  <!-- Ready/confirm overlay -->
-  <div id="flocs-confirmOverlay" class="flocs-confirmOverlay">
-    <div class="flocs-confirmActions">
-      <button id="flocs-confirmBtn" class="flocs-confirmBtn" type="button">
-        <span class="icon">✅</span>
-        <span>Lock order & create Shopify draft</span>
-      </button>
-      <button id="flocs-disarmBtn" class="flocs-disarmBtn" type="button">Disarm</button>
+        <!-- Ready/confirm overlay -->
+        <div id="flocs-confirmOverlay" class="flocs-confirmOverlay">
+          <div class="flocs-confirmActions">
+            <button id="flocs-confirmBtn" class="flocs-confirmBtn" type="button">
+              <span class="icon">✅</span>
+              <span>Lock order & create Shopify draft</span>
+            </button>
+            <button id="flocs-disarmBtn" class="flocs-disarmBtn" type="button">Disarm</button>
+          </div>
+        </div>
+      </main>
     </div>
   </div>
 
   <script src="/flocs.js"></script>
+  <script src="/shell.js"></script>
 </body>
 </html>

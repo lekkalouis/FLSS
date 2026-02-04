@@ -4,37 +4,13 @@
   <meta charset="UTF-8" />
   <title>Flippen Lekka Stock Take</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/shell.css" />
   <style>
-    :root{
-      --bg:#f5f7fb;
-      --panel:#ffffff;
-      --panel-muted:#f1f5f9;
-      --panel-strong:#e2e8f0;
-      --text:#0f172a;
-      --text-muted:#5b6b7f;
-      --accent:#38bdf8;
-      --accent-soft:rgba(56,189,248,.18);
-      --success:#22c55e;
-      --warning:#f59e0b;
-      --radius-lg:.85rem;
-      --radius-md:.6rem;
-      --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
-      --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
-    }
     *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      min-height:100vh;
-      background:radial-gradient(circle at 10% 10%, rgba(56,189,248,.15) 0%, rgba(245,247,251,0) 55%),
-                 radial-gradient(circle at 90% 15%, rgba(236,72,153,.08) 0%, rgba(245,247,251,0) 55%),
-                 var(--bg);
-      color:var(--text);
-      font-family:var(--sans);
-    }
     .stock-shell{
       max-width:1200px;
       margin:0 auto;
-      padding:1.5rem 1rem 2.5rem;
+      width:100%;
       display:flex;
       flex-direction:column;
       gap:1rem;
@@ -67,29 +43,6 @@
       font-size:.8rem;
       color:var(--text-muted);
     }
-    .stock-nav{
-      display:flex;
-      gap:.5rem;
-      flex-wrap:wrap;
-    }
-    .stock-link{
-      display:inline-flex;
-      align-items:center;
-      gap:.4rem;
-      padding:.35rem .8rem;
-      border-radius:999px;
-      border:1px solid var(--panel-strong);
-      background:var(--panel);
-      color:var(--text);
-      text-decoration:none;
-      font-size:.75rem;
-      font-weight:600;
-    }
-    .stock-link:hover{
-      border-color:rgba(56,189,248,.7);
-      color:#0c4a6e;
-    }
-
     .stock-grid{
       display:grid;
       grid-template-columns:1.05fr .95fr;
@@ -283,66 +236,92 @@
   </style>
 </head>
 <body>
-  <div class="stock-shell">
-    <header class="stock-header">
-      <div class="stock-title">
-        <h1>Stock Take & Inventory Levels</h1>
-        <p>Review live counts, adjust during stock take, and log stock received.</p>
-      </div>
-      <nav class="stock-nav">
-        <a class="stock-link" href="/">⟵ Scan Station</a>
-        <a class="stock-link" href="/flocs">Order Capture (FLOCS)</a>
-      </nav>
-    </header>
-
-    <div class="stock-grid">
-      <section class="stock-card">
-        <h2>Stock overview</h2>
-        <div class="stock-toolbar">
-          <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
-          <div class="stock-modeToggle">
-            <button class="stock-modeBtn is-active" type="button" data-mode="take">Stock take</button>
-            <button class="stock-modeBtn" type="button" data-mode="receive">Stock received</button>
-          </div>
-          <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
+  <div class="flShell">
+    <div class="flLayout">
+      <aside class="flSide">
+        <div class="flSideHeader">
+          <div class="flNavTitle">Flippen Lekka Operations</div>
+          <button class="flHamburger" type="button" data-nav-toggle aria-label="Toggle navigation" aria-expanded="true">
+            <span class="flHamburgerLines"><span></span></span>
+          </button>
         </div>
-        <table class="stock-table">
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Product</th>
-              <th>Current</th>
-              <th id="stock-adjustLabel">New count</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="stock-tableBody"></tbody>
-        </table>
-      </section>
-
-      <aside class="stock-card">
-        <h2>Quick stock take</h2>
-        <div class="stock-focus">
-          <div class="stock-focusCard">
-            <div class="stock-focusLabel">Now counting</div>
-            <div id="stock-focusTitle" class="stock-focusTitle">–</div>
-            <div id="stock-focusMeta" class="stock-focusMeta">–</div>
-            <div class="stock-focusActions">
-              <input id="stock-focusInput" class="stock-input" type="number" step="1" min="0" placeholder="Enter count..." />
-              <button id="stock-focusApply" class="stock-actionBtn" type="button">Apply</button>
-              <button id="stock-focusPrev" class="stock-stepBtn" type="button">◀ Prev</button>
-              <button id="stock-focusNext" class="stock-stepBtn" type="button">Next ▶</button>
-            </div>
+        <nav class="flNav" aria-label="Primary">
+          <div class="flNavGroup">
+            <a class="flNavBtn" href="/?view=dashboard" data-nav-link><span class="flNavBtnText">Dashboard</span></a>
+            <a class="flNavBtn" href="/?view=scan" data-nav-link><span class="flNavBtnText">Scan Station</span></a>
+            <a class="flNavBtn" href="/?view=ops" data-nav-link><span class="flNavBtnText">Dispatch Board</span></a>
+            <a class="flNavBtn" href="/?view=invoices" data-nav-link><span class="flNavBtnText">Order invoices</span></a>
+            <a class="flNavBtn" href="/?view=docs" data-nav-link><span class="flNavBtnText">Documentation</span></a>
+            <a class="flNavBtn" href="/flocs" data-nav-link><span class="flNavBtnText">Order capture (FLOCS)</span></a>
+            <a class="flNavBtn" href="/stock.html" data-nav-link><span class="flNavBtnText">Stock take</span></a>
+            <a class="flNavBtn" href="/price-manager.html" data-nav-link><span class="flNavBtnText">Price manager</span></a>
           </div>
-          <div>
-            <div class="stock-focusLabel">Activity log</div>
-            <div id="stock-log" class="stock-log"></div>
+          <div class="flNavStatus">
+            <span>Unified operations console</span>
           </div>
-        </div>
+        </nav>
       </aside>
+      <main class="flMain">
+        <div class="stock-shell">
+          <header class="stock-header">
+            <div class="stock-title">
+              <h1>Stock Take & Inventory Levels</h1>
+              <p>Review live counts, adjust during stock take, and log stock received.</p>
+            </div>
+          </header>
+
+          <div class="stock-grid">
+            <section class="stock-card">
+              <h2>Stock overview</h2>
+              <div class="stock-toolbar">
+                <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
+                <div class="stock-modeToggle">
+                  <button class="stock-modeBtn is-active" type="button" data-mode="take">Stock take</button>
+                  <button class="stock-modeBtn" type="button" data-mode="receive">Stock received</button>
+                </div>
+                <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
+              </div>
+              <table class="stock-table">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Product</th>
+                    <th>Current</th>
+                    <th id="stock-adjustLabel">New count</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="stock-tableBody"></tbody>
+              </table>
+            </section>
+
+            <aside class="stock-card">
+              <h2>Quick stock take</h2>
+              <div class="stock-focus">
+                <div class="stock-focusCard">
+                  <div class="stock-focusLabel">Now counting</div>
+                  <div id="stock-focusTitle" class="stock-focusTitle">–</div>
+                  <div id="stock-focusMeta" class="stock-focusMeta">–</div>
+                  <div class="stock-focusActions">
+                    <input id="stock-focusInput" class="stock-input" type="number" step="1" min="0" placeholder="Enter count..." />
+                    <button id="stock-focusApply" class="stock-actionBtn" type="button">Apply</button>
+                    <button id="stock-focusPrev" class="stock-stepBtn" type="button">◀ Prev</button>
+                    <button id="stock-focusNext" class="stock-stepBtn" type="button">Next ▶</button>
+                  </div>
+                </div>
+                <div>
+                  <div class="stock-focusLabel">Activity log</div>
+                  <div id="stock-log" class="stock-log"></div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </main>
     </div>
   </div>
 
   <script src="/stock.js"></script>
+  <script src="/shell.js"></script>
 </body>
 </html>

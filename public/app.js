@@ -3960,7 +3960,13 @@ async function startOrder(orderNo, preloadedDetails = null) {
   renderModuleDashboard();
   loadInvoiceTemplate();
   renderInvoiceTable();
-  switchMainView("dashboard");
+  const initialView = (() => {
+    const view = new URLSearchParams(window.location.search).get("view");
+    if (!view) return "dashboard";
+    const allowed = new Set(["dashboard", "scan", "ops", "invoices", "docs"]);
+    return allowed.has(view) ? view : "dashboard";
+  })();
+  switchMainView(initialView);
 
   if (location.protocol === "file:") {
     alert("Open via http://localhost/... (not file://). Run a local server.");
