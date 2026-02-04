@@ -646,6 +646,22 @@
       .join("|");
   }
 
+  function normalizeCustomerField(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+  }
+
+  function customerSignature(details) {
+    if (!details) return "";
+    const email = normalizeCustomerField(details.email);
+    if (email) return email;
+    const name = normalizeCustomerField(details.name);
+    const phone = normalizeCustomerField(details.phone);
+    return [name, phone].filter(Boolean).join("|");
+  }
+
   function renderServerStatusBar(data) {
     if (!serverStatusBar) return;
     if (!data || !data.services) {
@@ -2347,7 +2363,24 @@ async function startOrder(orderNo) {
       await startOrder(parsed.orderNo);
     } else if (parsed.orderNo !== activeOrderNo && !linkedOrders.has(parsed.orderNo)) {
       cancelAutoBookTimer();
-      if (!multiShipEnabled) {
+      const candidate = await fetchShopifyOrder(parsed.orderNo);
+      if (!candidate) {
+        statusExplain(`Order ${parsed.orderNo} not found.`, "warn");
+        confirmScanFeedback("warn");
+        return;
+      }
+
+      const baseAddressSignature = addressSignature(orderDetails);
+      const candidateAddressSignature = addressSignature(candidate);
+      const baseCustomerSignature = customerSignature(orderDetails);
+      const candidateCustomerSignature = customerSignature(candidate);
+      const addressMatches =
+        baseAddressSignature && baseAddressSignature === candidateAddressSignature;
+      const customerMatches =
+        baseCustomerSignature && baseCustomerSignature === candidateCustomerSignature;
+      const canAutoBundle = addressMatches && customerMatches;
+
+      if (!canAutoBundle && !multiShipEnabled) {
         statusExplain(
           `Different order scanned (${parsed.orderNo}). Enable multi-shipment to bundle.`,
           "warn"
@@ -2356,23 +2389,22 @@ async function startOrder(orderNo) {
         return;
       }
 
-      const candidate = await fetchShopifyOrder(parsed.orderNo);
-      if (!candidate) {
-        statusExplain(`Order ${parsed.orderNo} not found.`, "warn");
-        confirmScanFeedback("warn");
-        return;
-      }
-
-      const baseSignature = addressSignature(orderDetails);
-      const candidateSignature = addressSignature(candidate);
-      if (!baseSignature || baseSignature !== candidateSignature) {
-        statusExplain(`Different order ${parsed.orderNo} has a different address.`, "warn");
-        confirmScanFeedback("warn");
-        return;
+      if (canAutoBundle) {
+        statusExplain(`Bundling order ${parsed.orderNo} (same customer + address).`, "ok");
+      } else {
+        const mismatchBits = [
+          !customerMatches ? "customer" : null,
+          !addressMatches ? "address" : null
+        ]
+          .filter(Boolean)
+          .join(" + ");
+        statusExplain(
+          `Bundling order ${parsed.orderNo} (override enabled — different ${mismatchBits}).`,
+          "ok"
+        );
       }
 
       linkedOrders.set(parsed.orderNo, candidate);
-      statusExplain(`Bundling order ${parsed.orderNo} (same address).`, "ok");
     }
 
     const parcelSet = getParcelSet(parsed.orderNo);
@@ -2381,7 +2413,7 @@ async function startOrder(orderNo) {
     lastScanCode = code;
     armedForBooking = false;
 
-    confirmScanFeedback(crossOrderScan ? "warn" : "success");
+    confirmScanFeedback("success");
 
     const expected = getExpectedParcelCount(orderDetails);
 
@@ -2444,9 +2476,10 @@ async function startOrder(orderNo) {
 
       const normalized = {
         raw: o,
+        customerId: customer.id || null,
         name,
         phone: shipping.phone || customer.phone || "",
-        email: o.email || "",
+        email: o.email || customer.email || "",
         address1: shipping.address1 || "",
         address2: shipping.address2 || "",
         city: shipping.city || "",
@@ -2474,6 +2507,7 @@ async function startOrder(orderNo) {
       appendDebug("Shopify fetch failed: " + String(e));
       return {
         raw: null,
+        customerId: null,
         name: "Unknown",
         phone: "",
         email: "",
