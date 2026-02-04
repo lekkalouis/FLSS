@@ -85,13 +85,23 @@ The browser pages call the server through same-origin endpoints, which then prox
 ### PrintNode proxy
 
 - `/printnode/print` accepts base64 PDF content and sends a print job to PrintNode for label printing.【F:server.js†L435-L503】
+- `/printnode/print-url` fetches a remote PDF and sends it to PrintNode for printing.【F:src/routes/printnode.js†L1-L96】
 
 ### Shopify domain endpoints
 
 - Customers: search and create customers with optional delivery method metafield.【F:server.js†L273-L374】
 - Products: search by title/SKU and load collection items.【F:server.js†L376-L564】
+- Price tiers: fetch and update variant price tier metafields for the price manager UI.【F:src/routes/shopify.js†L551-L659】
 - Draft orders: create and complete draft orders (with tags, shipping lines, and note attributes).【F:server.js†L566-L699】
-- Orders: create orders, find by name, list open orders, and fulfill orders with tracking data.【F:server.js†L701-L873】
+- Orders: create orders (including cash orders), find by name, list open orders or full order history, and fulfill orders with tracking data.【F:server.js†L701-L1190】
+- Flow tags: apply a Shopify Flow tag to orders to kick off downstream automations.【F:src/routes/shopify.js†L1256-L1314】
+- Shipments: recent fulfilled shipments with tracking metadata (last 10, excluding cancelled/pickup/delivery orders) plus fulfillment event timelines for tracking updates.【F:src/routes/shopify.js†L1316-L1479】
+- Notifications: send collection-ready emails for pickup orders.【F:src/routes/shopify.js†L1564-L1610】
+
+### Operations + monitoring
+
+- Truck booking alert emails via SMTP when parcel volume hits thresholds (optional).【F:src/routes/alerts.js†L1-L74】
+- Service status endpoint that checks ParcelPerfect, PrintNode, email, and Shopify connectivity.【F:src/routes/status.js†L1-L60】
 
 ---
 
@@ -220,20 +230,34 @@ A standalone page (`/flocs`) to capture a new order:
 - `POST /shopify/customers` — Create customer with optional delivery method metafield. 【F:server.js†L339-L374】
 - `GET /shopify/products/search?q=...` — Product + variant search. 【F:server.js†L376-L470】
 - `GET /shopify/products/collection?handle=...` — Products in a collection. 【F:server.js†L472-L564】
+- `POST /shopify/variants/price-tiers` — Update variant price tiers. 【F:src/routes/shopify.js†L551-L621】
+- `POST /shopify/variants/price-tiers/fetch` — Fetch variant price tiers. 【F:src/routes/shopify.js†L623-L659】
 - `POST /shopify/draft-orders` — Create draft order. 【F:server.js†L566-L669】
 - `POST /shopify/draft-orders/complete` — Complete draft order. 【F:server.js†L671-L721】
 - `POST /shopify/orders` — Create order. 【F:server.js†L723-L799】
+- `POST /shopify/orders/cash` — Create a cash order (paid). 【F:src/routes/shopify.js†L936-L1005】
 - `GET /shopify/orders/by-name/:name` — Find order by Shopify name. 【F:server.js†L801-L873】
 - `GET /shopify/orders/open` — Open orders for dispatch board. 【F:server.js†L875-L956】
+- `GET /shopify/orders/list` — Recent orders list with paging/filtering. 【F:src/routes/shopify.js†L1191-L1314】
+- `POST /shopify/orders/run-flow` — Apply a Flow tag to an order. 【F:src/routes/shopify.js†L1256-L1314】
 - `POST /shopify/fulfill` — Fulfill order with tracking. 【F:server.js†L958-L1057】
+- `GET /shopify/shipments/recent` — Recent fulfilled shipments with tracking metadata (last 10, excludes cancelled/pickup/delivery). 【F:src/routes/shopify.js†L1316-L1439】
+- `GET /shopify/fulfillment-events?orderId=...&fulfillmentId=...` — Shopify fulfillment event timeline. 【F:src/routes/shopify.js†L1429-L1479】
+- `POST /shopify/notify-collection` — Send collection-ready email notification. 【F:src/routes/shopify.js†L1564-L1610】
 
 ### PrintNode
 
 - `POST /printnode/print` — Print a base64 PDF to a configured printer. 【F:server.js†L435-L503】
+- `POST /printnode/print-url` — Fetch and print a remote PDF URL. 【F:src/routes/printnode.js†L1-L96】
 
 ### Utility
 
 - `GET /healthz` — Health check. 【F:server.js†L505-L507】
+- `GET /statusz` — Service status and integration checks. 【F:src/routes/status.js†L1-L60】
+
+### Alerts
+
+- `POST /alerts/book-truck` — Send a truck collection request email via SMTP. 【F:src/routes/alerts.js†L1-L74】
 
 ---
 
