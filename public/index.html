@@ -675,20 +675,6 @@
     color:#fff;
     box-shadow:0 6px 14px rgba(22,163,74,.25);
   }
-  .sessionControls{
-    justify-content:flex-end;
-    align-items:center;
-  }
-  .sessionControlsGroup{
-    display:flex;
-    flex-wrap:wrap;
-    gap:.5rem;
-    justify-content:flex-end;
-    align-items:center;
-  }
-  .sessionControls .btnToggle{
-    min-width:200px;
-  }
 
   /* Address picker */
   .addrBox{ margin-bottom:1rem; }
@@ -2093,10 +2079,7 @@
             <a class="flNavBtn" href="/stock.html"><span class="flNavBtnText">Stock take</span></a>
             <a class="flNavBtn" href="/price-manager.html"><span class="flNavBtnText">Price manager</span></a>
           </div>
-          <div class="flNavStatus">
-            <span id="statusChip" class="statusChip">Ready to scan orders…</span>
-            <span id="actionFlash" class="actionFlash">Ready to scan orders…</span>
-          </div>
+       
         </nav>
       </aside>
       <main class="flMain">
@@ -2125,6 +2108,7 @@
         <div class="scanBox scanBox--centered">
           <label for="scanInput"><span>Scan parcel sticker barcode</span><small>Example: 252051001</small></label>
           <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." />
+          <button id="multiShipToggle" class="btn btnToggle" type="button">Multi-shipment override: Off</button>
           <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
         </div>
       </div>
@@ -2205,11 +2189,9 @@
       <div class="truckHint">Auto-books when today's parcels exceed 25.</div>
     </div>
 
-    <div class="sectionTitle sessionControls" style="margin-top:.8rem">
-      <div class="sessionControlsGroup">
-        <button id="multiShipToggle" class="btn btnToggle" type="button">Multi-shipment override: Off</button>
-        <button id="modeToggle" type="button">MODE: AUTO</button>
-      </div>
+    <div class="sectionTitle" style="margin-top:.8rem">
+    <button id="modeToggle" type="button">MODE: AUTO</button>
+
     </div>
     <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
       <div class="dispatchStatusHeader">
