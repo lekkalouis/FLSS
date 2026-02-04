@@ -79,7 +79,9 @@
   const billingAddrSelect = document.getElementById("flocs-billingAddressSelect");
   const billingAddrPreview = document.getElementById("flocs-billingAddressPreview");
 
-  const productsBody     = document.getElementById("flocs-productsBody");
+  const quickList        = document.getElementById("flocs-quickList");
+  const sizeTabs         = document.getElementById("flocs-sizeTabs");
+  const sizeHint         = document.getElementById("flocs-sizeHint");
   const productSearch    = document.getElementById("flocs-productSearch");
   const productResults   = document.getElementById("flocs-productResults");
   const productStatus    = document.getElementById("flocs-productStatus");
@@ -87,8 +89,6 @@
   const productPager     = document.getElementById("flocs-productPager");
   const productPrevBtn   = document.getElementById("flocs-productPrev");
   const productNextBtn   = document.getElementById("flocs-productNext");
-  const filterFlavour    = document.getElementById("flocs-filterFlavour");
-  const filterSize       = document.getElementById("flocs-filterSize");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
@@ -122,13 +122,15 @@
     lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
-    filters: { flavour: "", size: "" },
+    quickSize: "",
     priceOverrides: {},
     priceOverrideEnabled: {}
   };
   let productPageInfo = { products: {}, variants: {} };
   let productPagingCursor = { products: null, variants: null };
   let priceTierLoading = false;
+  const QUICK_SIZES = ["200ml", "500g", "1kg"];
+  const QUICK_QTY = [1, 3, 5, 6, 10, 12, 18, 24, 36, 48, 60, 72, 96, 100];
 
   // ===== HELPERS =====
   const money = (v) =>
@@ -366,21 +368,27 @@
     return totalWeightKg + boxWeight;
   }
 
-  // ===== UI: products table rendering =====
+  // ===== UI: quick order rendering =====
   function renderProductsTable() {
-    if (!productsBody) return;
-    const flavourFilter = (state.filters.flavour || "").toLowerCase();
-    const sizeFilter = (state.filters.size || "").toLowerCase();
+    if (!quickList) return;
+    const sizeFilter = (state.quickSize || "").toLowerCase();
+    if (!sizeFilter) {
+      quickList.hidden = true;
+      if (sizeHint) {
+        sizeHint.textContent = "Select a size filter to show products.";
+      }
+      return;
+    }
 
     const filtered = state.products.filter((p) => {
-      const flavour = (p.flavour || "").toLowerCase();
       const size = (p.size || "").toLowerCase();
-      if (flavourFilter && flavour !== flavourFilter) return false;
-      if (sizeFilter && size !== sizeFilter) return false;
-      return true;
+      if (sizeFilter === "other") {
+        return !QUICK_SIZES.includes(size);
+      }
+      return size === sizeFilter;
     });
 
-    productsBody.innerHTML = filtered
+    quickList.innerHTML = filtered
       .map((p) => {
         const name = (p.title || p.sku || "").trim();
         const key = productKey(p);
@@ -391,13 +399,13 @@
           state.priceOverrides[key] != null ? state.priceOverrides[key] : "";
         const overridePrice = priceOverrideForKey(key);
         return `
-        <tr>
-          <td><code>${p.sku}</code></td>
-          <td>${name}</td>
-          <td>${p.flavour || "—"}</td>
-          <td>${p.size || "—"}</td>
-          <td>${price != null ? money(price) : "—"}</td>
-          <td>
+        <div class="flocs-quickItem">
+          <div>
+            <div class="flocs-quickTitle">${name}</div>
+            <div class="flocs-quickMeta"><code>${p.sku || "—"}</code> · ${p.flavour || "—"} · ${p.size || "—"}</div>
+          </div>
+          <div class="flocs-quickPrice">
+            <div class="flocs-quickPriceLabel">${price != null ? money(price) : "—"}</div>
             <div class="flocs-overrideWrap">
               <button class="flocs-overrideBtn ${overrideEnabled ? "is-active" : ""}" type="button" data-action="toggle-override" data-key="${key}">
                 ${overrideEnabled ? "Custom" : "Override"}
@@ -416,25 +424,33 @@
             <div class="flocs-overrideHint">
               ${overridePrice != null ? `Using ${money(overridePrice)}` : "Auto price"}
             </div>
-          </td>
-          <td>
-            <div class="flocs-qtyWrap">
-              <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
-              <input class="flocs-qtyInput"
-                     type="number"
-                     min="0"
-                     step="1"
-                     data-key="${key}"
-                     data-sku="${p.sku || ""}"
-                     inputmode="numeric"
-                     value="${value}" />
-              <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+          </div>
+          <div class="flocs-quickQty">
+            <input class="flocs-qtyInput"
+                   type="number"
+                   min="0"
+                   step="1"
+                   data-key="${key}"
+                   data-sku="${p.sku || ""}"
+                   inputmode="numeric"
+                   value="${value}" />
+            <div class="flocs-qtyQuickRow">
+              ${QUICK_QTY.map(
+                (qty) =>
+                  `<button class="flocs-qtyChip" type="button" data-action="quick-set" data-key="${key}" data-value="${qty}">${qty}</button>`
+              ).join("")}
             </div>
-          </td>
-        </tr>
+          </div>
+        </div>
       `;
       })
       .join("");
+    quickList.hidden = false;
+    if (sizeHint) {
+      sizeHint.textContent = filtered.length
+        ? `Showing ${filtered.length} products. Click a quantity chip to set the order fast.`
+        : "No products match this size filter.";
+    }
   }
 
   async function hydratePriceTiersForProducts(products) {
@@ -1491,25 +1507,7 @@ ${state.customer.email || ""}${
   }
 
   function updateFiltersFromProducts() {
-    if (!filterFlavour || !filterSize) return;
-    const flavours = new Set();
-    const sizes = new Set();
-    state.products.forEach((p) => {
-      if (p.flavour) flavours.add(p.flavour);
-      if (p.size) sizes.add(p.size);
-    });
-    const flavourOptions = ["", ...Array.from(flavours).sort()];
-    const sizeOptions = ["", ...Array.from(sizes).sort()];
-
-    filterFlavour.innerHTML = flavourOptions
-      .map((f) => `<option value="${f}">${f || "All flavours"}</option>`)
-      .join("");
-    filterSize.innerHTML = sizeOptions
-      .map((s) => `<option value="${s}">${s || "All sizes"}</option>`)
-      .join("");
-
-    filterFlavour.value = state.filters.flavour || "";
-    filterSize.value = state.filters.size || "";
+    if (!sizeTabs) return;
   }
 
   async function createDraftOrder() {
@@ -1741,7 +1739,7 @@ ${state.customer.email || ""}${
     }
     state.customerTags = [];
     state.priceTier = null;
-    state.filters = { flavour: "", size: "" };
+    state.quickSize = "";
     state.priceOverrides = {};
     state.priceOverrideEnabled = {};
 
@@ -1769,10 +1767,18 @@ ${state.customer.email || ""}${
     if (errorsBox) {
       errorsBox.textContent = "";
     }
+    if (sizeTabs) {
+      sizeTabs.querySelectorAll(".flocs-sizeBtn").forEach((btn) => {
+        btn.classList.remove("is-active");
+      });
+    }
+    if (sizeHint) {
+      sizeHint.textContent = "Select a size filter to show products.";
+    }
     setCustomerCreateVisible(false);
     // reset qty inputs
-    if (productsBody) {
-      const inputs = productsBody.querySelectorAll("input[data-key]");
+    if (quickList) {
+      const inputs = quickList.querySelectorAll("input[data-key]");
       inputs.forEach((inp) => (inp.value = ""));
     }
 
@@ -1932,8 +1938,8 @@ ${state.customer.email || ""}${
       });
     }
 
-    if (productsBody) {
-      productsBody.addEventListener("input", (e) => {
+    if (quickList) {
+      quickList.addEventListener("input", (e) => {
         const t = e.target;
         if (!(t instanceof HTMLInputElement)) return;
         const key = t.dataset.key;
@@ -1961,12 +1967,26 @@ ${state.customer.email || ""}${
         validate();
       });
 
-      productsBody.addEventListener("click", (e) => {
+      quickList.addEventListener("click", (e) => {
         const btn = e.target.closest("[data-action]");
         if (!btn) return;
         const action = btn.dataset.action;
         const key = btn.dataset.key;
         if (!key) return;
+        if (action === "quick-set") {
+          const value = Number(btn.dataset.value || 0);
+          if (!value || value < 0) return;
+          state.items[key] = value;
+          const input = quickList.querySelector(
+            `.flocs-qtyInput[data-key="${CSS.escape(key)}"]`
+          );
+          if (input) {
+            input.value = String(value);
+          }
+          renderInvoice();
+          validate();
+          return;
+        }
         const current = Number(state.items[key] || 0);
         if (action === "toggle-override") {
           state.priceOverrideEnabled[key] = !state.priceOverrideEnabled[key];
@@ -1978,26 +1998,6 @@ ${state.customer.email || ""}${
           validate();
           return;
         }
-        if (action === "inc") {
-          state.items[key] = current + 1;
-        } else if (action === "dec") {
-          const next = Math.max(0, current - 1);
-          if (next === 0) {
-            delete state.items[key];
-          } else {
-            state.items[key] = next;
-          }
-        } else {
-          return;
-        }
-        const input = productsBody.querySelector(
-          `.flocs-qtyInput[data-key="${CSS.escape(key)}"]`
-        );
-        if (input) {
-          input.value = state.items[key] ? String(state.items[key]) : "";
-        }
-        renderInvoice();
-        validate();
       });
     }
 
@@ -2057,16 +2057,15 @@ ${state.customer.email || ""}${
       });
     }
 
-    if (filterFlavour) {
-      filterFlavour.addEventListener("change", () => {
-        state.filters.flavour = filterFlavour.value || "";
-        renderProductsTable();
-      });
-    }
-
-    if (filterSize) {
-      filterSize.addEventListener("change", () => {
-        state.filters.size = filterSize.value || "";
+    if (sizeTabs) {
+      sizeTabs.addEventListener("click", (e) => {
+        const btn = e.target.closest(".flocs-sizeBtn");
+        if (!btn) return;
+        const nextSize = btn.dataset.size || "";
+        state.quickSize = nextSize;
+        sizeTabs.querySelectorAll(".flocs-sizeBtn").forEach((node) => {
+          node.classList.toggle("is-active", node === btn);
+        });
         renderProductsTable();
       });
     }
