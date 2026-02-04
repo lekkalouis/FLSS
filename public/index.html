@@ -1421,6 +1421,125 @@
   .dispatchPackingPanel.is-active{
     display:block;
   }
+  .dispatchPackingPanel--boxmode{
+    border:none;
+    margin-top:0;
+    padding:0;
+    min-height:70vh;
+    align-items:center;
+    justify-content:center;
+    display:none;
+  }
+  .dispatchPackingPanel--boxmode.is-active{
+    display:flex;
+  }
+  .dispatchBoxModeIntro,
+  .dispatchBoxModeScan,
+  .dispatchBoxModeComplete{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    gap:1rem;
+    width:100%;
+    max-width:640px;
+  }
+  .dispatchBoxModeScan{
+    position:relative;
+  }
+  .dispatchBoxModeTag{
+    font-size:.85rem;
+    letter-spacing:.2rem;
+    text-transform:uppercase;
+    color:#64748b;
+    font-weight:700;
+  }
+  .dispatchBoxModeOrder{
+    font-size:1.6rem;
+    font-weight:800;
+    color:#0f172a;
+  }
+  .dispatchBoxModeSummary{
+    font-size:1rem;
+    font-weight:600;
+    color:#334155;
+  }
+  .dispatchBoxModePlan{
+    border:1px solid rgba(226,232,240,.9);
+    border-radius:.8rem;
+    padding:1rem 1.2rem;
+    width:100%;
+    background:#f8fafc;
+  }
+  .dispatchBoxModePlanTitle{
+    font-size:.8rem;
+    font-weight:700;
+    color:#475569;
+    margin-bottom:.5rem;
+  }
+  .dispatchBoxModePlanLines{
+    display:flex;
+    flex-direction:column;
+    gap:.35rem;
+    font-size:1rem;
+    font-weight:700;
+    color:#0f172a;
+  }
+  .dispatchBoxModeStartBtn,
+  .dispatchBoxModePrintBtn{
+    border:none;
+    border-radius:.9rem;
+    padding:.85rem 1.4rem;
+    font-size:1rem;
+    font-weight:800;
+    cursor:pointer;
+    color:#0f172a;
+    background:#fde047;
+    box-shadow:0 10px 20px rgba(15,23,42,.15);
+  }
+  .dispatchBoxModeStartBtn:hover,
+  .dispatchBoxModePrintBtn:hover{
+    background:#facc15;
+  }
+  .dispatchBoxModeScanPrompt{
+    font-size:1rem;
+    letter-spacing:.15rem;
+    text-transform:uppercase;
+    color:#94a3b8;
+    font-weight:700;
+  }
+  .dispatchBoxModeScanBox{
+    font-size:2.8rem;
+    font-weight:800;
+    color:#0f172a;
+  }
+  .dispatchBoxModeScanCount{
+    font-size:1.4rem;
+    font-weight:700;
+    color:#1e293b;
+  }
+  .dispatchBoxModeScanInput{
+    position:absolute;
+    opacity:0;
+    pointer-events:none;
+    height:1px;
+    width:1px;
+  }
+  .dispatchBoxModeCompleteTitle{
+    font-size:2rem;
+    font-weight:800;
+    color:#0f172a;
+  }
+  .dispatchBoxModeCompleteCallout{
+    font-size:1.2rem;
+    font-weight:700;
+    color:#475569;
+  }
+  .dispatchBoxModeCompleteMeta{
+    font-size:1rem;
+    font-weight:700;
+    color:#64748b;
+  }
   .dispatchPackingHeader{
     display:flex;
     align-items:flex-start;
@@ -1620,6 +1739,19 @@
     box-shadow:0 18px 40px rgba(15,23,42,.25);
     display:flex;
     flex-direction:column;
+  }
+  .dispatchOrderModal.is-box-mode .dispatchOrderModal__content{
+    width:100vw;
+    height:100vh;
+    max-height:100vh;
+    border-radius:0;
+  }
+  .dispatchOrderModal.is-box-mode .dispatchOrderModal__header{
+    display:none;
+  }
+  .dispatchOrderModal.is-box-mode .dispatchOrderModal__body{
+    padding:2.4rem;
+    overflow:hidden;
   }
   .dispatchOrderModal__header{
     padding:1rem 1.2rem 0;
