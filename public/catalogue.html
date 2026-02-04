@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Flippen Lekka Product Catalogue</title>
+<style>
+  :root{
+    --bg:#f8fafc;
+    --panel:#ffffff;
+    --panel-muted:#f1f5f9;
+    --panel-strong:#e2e8f0;
+    --text:#0f172a;
+    --text-muted:#64748b;
+    --accent:#2563eb;
+    --accent-soft:rgba(37,99,235,.12);
+    --radius-lg:.9rem;
+    --radius-md:.6rem;
+    --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    background:var(--bg);
+    color:var(--text);
+    min-height:100dvh;
+  }
+  .page{
+    max-width:1200px;
+    margin:0 auto;
+    padding:2rem 1.5rem 3rem;
+    display:flex;
+    flex-direction:column;
+    gap:1.5rem;
+  }
+  header{
+    display:flex;
+    flex-direction:column;
+    gap:.35rem;
+  }
+  h1{
+    margin:0;
+    font-size:2rem;
+  }
+  .subtitle{
+    color:var(--text-muted);
+  }
+  .toolbar{
+    background:var(--panel);
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-lg);
+    padding:1.25rem;
+    display:grid;
+    gap:1rem;
+  }
+  .toolbar-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:1rem;
+    align-items:end;
+  }
+  label{
+    font-weight:600;
+    font-size:.9rem;
+    display:flex;
+    flex-direction:column;
+    gap:.4rem;
+  }
+  input{
+    padding:.6rem .75rem;
+    border-radius:var(--radius-md);
+    border:1px solid var(--panel-strong);
+    font-size:.95rem;
+  }
+  .btn-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:.75rem;
+  }
+  button{
+    border-radius:999px;
+    border:1px solid transparent;
+    padding:.55rem 1.15rem;
+    font-weight:600;
+    cursor:pointer;
+    background:var(--accent);
+    color:#fff;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  button.secondary{
+    background:#fff;
+    color:var(--accent);
+    border-color:var(--accent);
+  }
+  button.ghost{
+    background:transparent;
+    color:var(--text-muted);
+    border-color:var(--panel-strong);
+  }
+  button:disabled{
+    cursor:not-allowed;
+    opacity:.6;
+    box-shadow:none;
+  }
+  .status{
+    display:flex;
+    align-items:center;
+    gap:.75rem;
+    font-size:.9rem;
+    color:var(--text-muted);
+  }
+  .badge{
+    background:var(--accent-soft);
+    color:var(--accent);
+    padding:.2rem .6rem;
+    border-radius:999px;
+    font-weight:600;
+    font-size:.75rem;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+    gap:1rem;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-lg);
+    padding:1rem;
+    display:flex;
+    flex-direction:column;
+    gap:.75rem;
+    min-height:170px;
+  }
+  .card h3{
+    margin:0;
+    font-size:1rem;
+  }
+  .meta{
+    color:var(--text-muted);
+    font-size:.85rem;
+    display:flex;
+    flex-direction:column;
+    gap:.2rem;
+  }
+  .price{
+    font-weight:700;
+    font-size:1.1rem;
+  }
+  .tiers{
+    margin:0;
+    padding-left:1rem;
+    font-size:.8rem;
+    color:var(--text-muted);
+  }
+  .empty{
+    background:var(--panel);
+    border:1px dashed var(--panel-strong);
+    border-radius:var(--radius-lg);
+    padding:2rem;
+    text-align:center;
+    color:var(--text-muted);
+  }
+  .error{
+    color:#b91c1c;
+    background:#fee2e2;
+    border-radius:var(--radius-md);
+    padding:.5rem .75rem;
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <h1>Product Catalogue</h1>
+      <div class="subtitle">Browse your Shopify products by search or by collection handle.</div>
+    </header>
+
+    <section class="toolbar">
+      <div class="toolbar-grid">
+        <label>
+          Search products
+          <input id="searchInput" type="text" placeholder="Search by title or SKU" />
+        </label>
+        <label>
+          Collection handle
+          <input id="collectionInput" type="text" placeholder="e.g. best-sellers" />
+        </label>
+        <label>
+          Results limit
+          <input id="limitInput" type="number" min="1" max="50" value="20" />
+        </label>
+      </div>
+      <div class="btn-row">
+        <button id="searchBtn" type="button">Search products</button>
+        <button id="collectionBtn" class="secondary" type="button">Load collection</button>
+        <button id="clearBtn" class="ghost" type="button">Clear</button>
+      </div>
+      <div class="status" id="statusLine">
+        <span class="badge" id="statusBadge">Idle</span>
+        <span id="statusText">Enter a search query or collection handle to load products.</span>
+      </div>
+      <div id="errorLine" class="error" hidden></div>
+    </section>
+
+    <section>
+      <div class="status">
+        <span class="badge" id="countBadge">0 items</span>
+        <span id="summaryText">No catalogue loaded yet.</span>
+      </div>
+      <div id="catalogueGrid" class="grid" aria-live="polite"></div>
+      <div id="emptyState" class="empty">No products to display yet.</div>
+    </section>
+  </main>
+
+  <script src="/catalogue.js"></script>
+</body>
+</html>
