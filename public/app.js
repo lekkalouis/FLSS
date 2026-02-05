@@ -84,6 +84,7 @@
   const navOps = $("navOps");
   const navDocs = $("navDocs");
   const navFlocs = $("navFlocs");
+  const navFlpos = $("navFlpos");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
   const navSimulate = $("navSimulate");
@@ -93,6 +94,7 @@
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
   const viewFlocs = $("viewFlocs");
+  const viewFlpos = $("viewFlpos");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
   const viewSimulate = $("viewSimulate");
@@ -140,6 +142,14 @@
       description: "Create and manage incoming orders from the capture module.",
       type: "view",
       target: "flocs",
+      tag: "Module"
+    },
+    {
+      id: "flpos",
+      title: "Purchase Orders (FLPOS)",
+      description: "Capture supplier purchase orders with the same fast workflow.",
+      type: "view",
+      target: "flpos",
       tag: "Module"
     },
     {
@@ -2909,6 +2919,7 @@ async function startOrder(orderNo) {
     const showOps = view === "ops";
     const showDocs = view === "docs";
     const showFlocs = view === "flocs";
+    const showFlpos = view === "flpos";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
     const showSimulate = view === "simulate";
@@ -2933,6 +2944,10 @@ async function startOrder(orderNo) {
       viewFlocs.hidden = !showFlocs;
       viewFlocs.classList.toggle("flView--active", showFlocs);
     }
+    if (viewFlpos) {
+      viewFlpos.hidden = !showFlpos;
+      viewFlpos.classList.toggle("flView--active", showFlpos);
+    }
     if (viewStock) {
       viewStock.hidden = !showStock;
       viewStock.classList.toggle("flView--active", showStock);
@@ -2951,6 +2966,7 @@ async function startOrder(orderNo) {
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
+    navFlpos?.classList.toggle("flNavBtn--active", showFlpos);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navSimulate?.classList.toggle("flNavBtn--active", showSimulate);
@@ -2959,6 +2975,7 @@ async function startOrder(orderNo) {
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
+    navFlpos?.setAttribute("aria-selected", showFlpos ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
     navSimulate?.setAttribute("aria-selected", showSimulate ? "true" : "false");
@@ -2973,6 +2990,8 @@ async function startOrder(orderNo) {
       statusExplain("Viewing operator documentation", "info");
     } else if (showFlocs) {
       statusExplain("Order capture ready inside the dashboard view.", "info");
+    } else if (showFlpos) {
+      statusExplain("Purchase order capture ready inside the dashboard view.", "info");
     } else if (showStock) {
       statusExplain("Stock take module opened.", "info");
     } else if (showPriceManager) {
@@ -3064,6 +3083,7 @@ async function startOrder(orderNo) {
   navDocs?.addEventListener("click", () => switchMainView("docs"));
   navDashboard?.addEventListener("click", () => switchMainView("dashboard"));
   navFlocs?.addEventListener("click", () => switchMainView("flocs"));
+  navFlpos?.addEventListener("click", () => switchMainView("flpos"));
   navStock?.addEventListener("click", () => switchMainView("stock"));
   navPriceManager?.addEventListener("click", () => switchMainView("price-manager"));
   navSimulate?.addEventListener("click", () => switchMainView("simulate"));
