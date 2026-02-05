@@ -1806,14 +1806,15 @@ ${state.customer.email || ""}${
         }
         if (action === "quick-qty") {
           const qty = Number(btn.dataset.qty || 0);
+          const nextTotal = current + qty;
           if (qty > 0) {
-            state.items[key] = qty;
+            state.items[key] = nextTotal;
           }
           const input = productsBody.querySelector(
             `.flocs-qtyInput[data-key="${CSS.escape(key)}"]`
           );
           if (input) {
-            input.value = qty > 0 ? String(qty) : "";
+            input.value = qty > 0 ? String(nextTotal) : "";
           }
           renderInvoice();
           validate();
