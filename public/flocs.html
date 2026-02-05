@@ -191,6 +191,38 @@
       .flocs-row { flex-direction:column; }
     }
 
+    .flocs-letterBar {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.25rem;
+      margin-top:.45rem;
+    }
+    .flocs-letterBtn {
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.5);
+      background:#fff;
+      color:var(--text);
+      padding:.15rem .5rem;
+      font-size:.7rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      cursor:pointer;
+      min-width:1.7rem;
+      text-align:center;
+      transition:all .15s ease;
+    }
+    .flocs-letterBtn:hover {
+      border-color:rgba(14,165,233,.7);
+      color:#0c4a6e;
+    }
+    .flocs-letterBtn.is-active {
+      background:var(--accent-soft);
+      border-color:rgba(14,165,233,.9);
+      color:#0c4a6e;
+      box-shadow:0 0 0 1px rgba(56,189,248,.15);
+    }
+
     .flocs-customerResults {
       margin-top:.4rem;
       max-height:190px;
@@ -837,12 +869,13 @@
       <section class="flocs-panel form" id="flocs-formPanel">
         <!-- Customer -->
         <div class="flocs-formSection">
-          <div class="flocs-labelRow">
+        <div class="flocs-labelRow">
             <span>Customer</span>
             <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
           </div>
           <input id="flocs-customerSearch" class="flocs-input" type="text"
                  placeholder="Type to search Shopify customers…" autocomplete="off" />
+          <div class="flocs-letterBar" id="flocs-customerLetterBar" aria-label="Quick customer letter filter"></div>
           <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
           <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
           <div class="flocs-inlineActions" style="margin-top:.5rem">
