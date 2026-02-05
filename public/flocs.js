@@ -51,6 +51,7 @@
   const customerSearch   = document.getElementById("flocs-customerSearch");
   const customerResults  = document.getElementById("flocs-customerResults");
   const customerStatus   = document.getElementById("flocs-customerStatus");
+  const customerLetterBar = document.getElementById("flocs-customerLetterBar");
   const customerChips    = document.getElementById("flocs-selectedCustomerChips");
   const customerCreateToggle = document.getElementById("flocs-customerCreateToggle");
   const customerCreatePanel = document.getElementById("flocs-customerCreatePanel");
@@ -261,6 +262,37 @@
     }
     if (visible && customerFirst) {
       customerFirst.focus();
+    }
+  }
+
+  function renderCustomerLetterBar() {
+    if (!customerLetterBar) return;
+    const letters = Array.from({ length: 26 }, (_, idx) =>
+      String.fromCharCode(65 + idx)
+    );
+    customerLetterBar.innerHTML = letters
+      .map(
+        (letter) =>
+          `<button class="flocs-letterBtn" type="button" data-letter="${letter}">${letter}</button>`
+      )
+      .join("");
+  }
+
+  function setActiveCustomerLetter(letter) {
+    if (!customerLetterBar) return;
+    const buttons = customerLetterBar.querySelectorAll("[data-letter]");
+    buttons.forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.letter === letter);
+    });
+  }
+
+  function syncCustomerLetterFromInput() {
+    if (!customerSearch) return;
+    const value = (customerSearch.value || "").trim();
+    if (value.length === 1 && /^[a-z]$/i.test(value)) {
+      setActiveCustomerLetter(value.toUpperCase());
+    } else {
+      setActiveCustomerLetter("");
     }
   }
 
@@ -1552,6 +1584,7 @@ ${state.customer.email || ""}${
       customerStatus.textContent =
         "Search by name, email, company, or phone";
     }
+    setActiveCustomerLetter("");
     if (deliveryGroup) {
       const radios = deliveryGroup.querySelectorAll(
         "input[name='delivery']"
@@ -1630,9 +1663,23 @@ ${state.customer.email || ""}${
   // ===== EVENT WIRING =====
   function initEvents() {
     if (customerSearch) {
-      customerSearch.addEventListener("input", () =>
-        searchCustomersDebounced()
-      );
+      customerSearch.addEventListener("input", () => {
+        syncCustomerLetterFromInput();
+        searchCustomersDebounced();
+      });
+    }
+
+    if (customerLetterBar) {
+      customerLetterBar.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-letter]");
+        if (!btn || !customerSearch) return;
+        const letter = btn.dataset.letter || "";
+        if (!letter) return;
+        customerSearch.value = letter;
+        customerSearch.focus();
+        setActiveCustomerLetter(letter);
+        searchCustomersNow();
+      });
     }
 
     if (customerResults) {
@@ -1889,6 +1936,7 @@ ${state.customer.email || ""}${
   function boot() {
     updateFiltersFromProducts();
     renderProductsTable();
+    renderCustomerLetterBar();
     resetForm();
     initEvents();
   }
