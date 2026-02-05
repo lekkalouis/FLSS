@@ -140,40 +140,40 @@
       id: "flocs",
       title: "Order Capture (FLOCS)",
       description: "Create and manage incoming orders from the capture module.",
-      type: "view",
-      target: "flocs",
+      type: "link",
+      target: "/flocs",
       tag: "Module"
     },
     {
       id: "flpos",
       title: "Purchase Orders (FLPOS)",
       description: "Capture supplier purchase orders with the same fast workflow.",
-      type: "view",
-      target: "flpos",
+      type: "link",
+      target: "/flpos",
       tag: "Module"
     },
     {
       id: "stock",
       title: "Stock Take",
       description: "Run inventory counts and stock adjustments.",
-      type: "view",
-      target: "stock",
+      type: "link",
+      target: "/stock.html",
       tag: "Module"
     },
     {
       id: "price-manager",
       title: "Price Manager",
       description: "Maintain POS and wholesale pricing in one place.",
-      type: "view",
-      target: "price-manager",
+      type: "link",
+      target: "/price-manager.html",
       tag: "Module"
     },
     {
       id: "simulate",
       title: "Simulator",
       description: "Test scan/booking flows without live orders.",
-      type: "view",
-      target: "simulate",
+      type: "link",
+      target: "/simulate.html",
       tag: "Sandbox"
     }
   ];
@@ -3082,11 +3082,21 @@ async function startOrder(orderNo) {
   navOps?.addEventListener("click", () => switchMainView("ops"));
   navDocs?.addEventListener("click", () => switchMainView("docs"));
   navDashboard?.addEventListener("click", () => switchMainView("dashboard"));
-  navFlocs?.addEventListener("click", () => switchMainView("flocs"));
-  navFlpos?.addEventListener("click", () => switchMainView("flpos"));
-  navStock?.addEventListener("click", () => switchMainView("stock"));
-  navPriceManager?.addEventListener("click", () => switchMainView("price-manager"));
-  navSimulate?.addEventListener("click", () => switchMainView("simulate"));
+  navFlocs?.addEventListener("click", () => {
+    window.location.href = "/flocs";
+  });
+  navFlpos?.addEventListener("click", () => {
+    window.location.href = "/flpos";
+  });
+  navStock?.addEventListener("click", () => {
+    window.location.href = "/stock.html";
+  });
+  navPriceManager?.addEventListener("click", () => {
+    window.location.href = "/price-manager.html";
+  });
+  navSimulate?.addEventListener("click", () => {
+    window.location.href = "/simulate.html";
+  });
   goToDashboard?.addEventListener("click", () => switchMainView("dashboard"));
 
   scanDockToggle?.addEventListener("click", () => {
@@ -3408,7 +3418,14 @@ async function startOrder(orderNo) {
   renderModuleDashboard();
   setScanDockExpanded(false);
   setPosMode(false);
-  switchMainView("dashboard");
+  const initialView = (() => {
+    const viewParam = new URLSearchParams(window.location.search).get("view");
+    if (!viewParam) return "dashboard";
+    const normalizedView = viewParam === "scan" ? "dashboard" : viewParam;
+    const allowedViews = new Set(["dashboard", "ops", "docs"]);
+    return allowedViews.has(normalizedView) ? normalizedView : "dashboard";
+  })();
+  switchMainView(initialView);
 
   if (location.protocol === "file:") {
     alert("Open via http://localhost/... (not file://). Run a local server.");

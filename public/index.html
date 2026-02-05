@@ -227,34 +227,6 @@
     font-size:.7rem;
     color:var(--accent);
   }
-  .embeddedView{
-    border:1px solid var(--panel-strong);
-    background:var(--panel);
-    border-radius:var(--radius-md);
-    overflow:hidden;
-    min-height:70dvh;
-    display:flex;
-    flex-direction:column;
-  }
-  .embeddedHeader{
-    padding:.75rem 1rem;
-    border-bottom:1px solid var(--panel-strong);
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:.75rem;
-  }
-  .embeddedHeader h2{
-    margin:0;
-    font-size:1rem;
-  }
-  .embeddedFrame{
-    flex:1;
-    border:0;
-    width:100%;
-    min-height:60dvh;
-    background:#fff;
-  }
   .posPanel{
     margin-top:1rem;
     border:1px solid var(--panel-strong);
@@ -1704,9 +1676,9 @@
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true"><span class="flNavBtnText">Dashboard</span></button>
            
             
-            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false"><span class="flNavBtnText">Sales Orders </span></button>
+            <button id="navFlocs" class="flNavBtn" type="button"><span class="flNavBtnText">Sales Orders</span></button>
            
-            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false"><span class="flNavBtnText">Stock take</span></button>
+            <button id="navStock" class="flNavBtn" type="button"><span class="flNavBtnText">Stock take</span></button>
             <!-- <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false"><span class="flNavBtnText">Price manager</span></button>
             <button id="navSimulate" class="flNavBtn" type="button" role="tab" aria-controls="viewSimulate" aria-selected="false"><span class="flNavBtnText">Simulator</span></button> -->
           </div>
@@ -1898,56 +1870,6 @@
 
 
       
-
-        <div class="flView" id="viewFlocs" hidden>
-          <div class="embeddedView">
-            <div class="embeddedHeader">
-              <h2>Order Capture (FLOCS)</h2>
-              <span class="pill">Embedded module</span>
-            </div>
-            <iframe class="embeddedFrame" src="/flocs" title="Order capture (FLOCS)"></iframe>
-          </div>
-        </div>
-
-        <div class="flView" id="viewFlpos" hidden>
-          <div class="embeddedView">
-            <div class="embeddedHeader">
-              <h2>Purchase Orders (FLPOS)</h2>
-              <span class="pill">Embedded module</span>
-            </div>
-            <iframe class="embeddedFrame" src="/flpos" title="Purchase orders (FLPOS)"></iframe>
-          </div>
-        </div>
-
-        <div class="flView" id="viewStock" hidden>
-          <div class="embeddedView">
-            <div class="embeddedHeader">
-              <h2>Stock Take</h2>
-              <span class="pill">Embedded module</span>
-            </div>
-            <iframe class="embeddedFrame" src="/stock.html" title="Stock take"></iframe>
-          </div>
-        </div>
-
-        <div class="flView" id="viewPriceManager" hidden>
-          <div class="embeddedView">
-            <div class="embeddedHeader">
-              <h2>Price Manager</h2>
-              <span class="pill">Embedded module</span>
-            </div>
-            <iframe class="embeddedFrame" src="/price-manager.html" title="Price manager"></iframe>
-          </div>
-        </div>
-
-        <div class="flView" id="viewSimulate" hidden>
-          <div class="embeddedView">
-            <div class="embeddedHeader">
-              <h2>Simulator</h2>
-              <span class="pill">Embedded module</span>
-            </div>
-            <iframe class="embeddedFrame" src="/simulate.html" title="Simulator"></iframe>
-          </div>
-        </div>
 
         <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
           <div class="dispatchOrderModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
