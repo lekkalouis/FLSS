@@ -83,11 +83,19 @@
   const navScan = $("navScan");
   const navOps = $("navOps");
   const navDocs = $("navDocs");
+  const navFlocs = $("navFlocs");
+  const navStock = $("navStock");
+  const navPriceManager = $("navPriceManager");
+  const navSimulate = $("navSimulate");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
+  const viewFlocs = $("viewFlocs");
+  const viewStock = $("viewStock");
+  const viewPriceManager = $("viewPriceManager");
+  const viewSimulate = $("viewSimulate");
   const actionFlash = $("actionFlash");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
@@ -95,24 +103,27 @@
   const btnBookNow = $("btnBookNow");
   const modeToggle = $("modeToggle");
   const moduleGrid = $("moduleGrid");
+  const scanDock = $("scanDock");
+  const scanDockToggle = $("scanDockToggle");
+  const scanDockStatus = $("scanDockStatus");
+  const scanDockMode = $("scanDockMode");
+  const scanDockBody = $("scanDockBody");
+  const goToDashboard = $("goToDashboard");
+  const posPanel = $("posPanel");
+  const posList = $("posList");
+  const posTotal = $("posTotal");
+  const posLastScan = $("posLastScan");
+  const posExit = $("posExit");
 
   const MAX_ORDER_AGE_HOURS = 180;
 
   const MODULES = [
     {
-      id: "scan",
-      title: "Scan Station",
-      description: "Scan parcels and auto-book shipments with live booking progress.",
+      id: "dashboard",
+      title: "Dispatch Dashboard",
+      description: "Scan parcels and products while monitoring the dispatch whiteboard.",
       type: "view",
-      target: "scan",
-      tag: "Core"
-    },
-    {
-      id: "dispatch",
-      title: "Dispatch Board",
-      description: "Review open orders, track packing, and prioritize dispatch.",
-      type: "view",
-      target: "ops",
+      target: "dashboard",
       tag: "Core"
     },
     {
@@ -127,24 +138,32 @@
       id: "flocs",
       title: "Order Capture (FLOCS)",
       description: "Create and manage incoming orders from the capture module.",
-      type: "link",
-      target: "/flocs",
+      type: "view",
+      target: "flocs",
       tag: "Module"
     },
     {
       id: "stock",
       title: "Stock Take",
       description: "Run inventory counts and stock adjustments.",
-      type: "link",
-      target: "/stock.html",
+      type: "view",
+      target: "stock",
+      tag: "Module"
+    },
+    {
+      id: "price-manager",
+      title: "Price Manager",
+      description: "Maintain POS and wholesale pricing in one place.",
+      type: "view",
+      target: "price-manager",
       tag: "Module"
     },
     {
       id: "simulate",
       title: "Simulator",
       description: "Test scan/booking flows without live orders.",
-      type: "link",
-      target: "/simulate.html",
+      type: "view",
+      target: "simulate",
       tag: "Sandbox"
     }
   ];
@@ -163,6 +182,8 @@
   let isAutoMode = true;
   let linkedOrders = new Map();
   let multiShipEnabled = false;
+  let posModeActive = false;
+  const posItems = [];
   const dispatchOrderCache = new Map();
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
@@ -219,6 +240,7 @@
 
   const statusExplain = (msg, tone = "info") => {
     if (statusChip) statusChip.textContent = msg;
+    if (scanDockStatus) scanDockStatus.textContent = msg;
     if (!actionFlash) return;
     actionFlash.textContent = msg;
 
@@ -1896,6 +1918,62 @@ function resetSession() {
     return { orderNo, parcelSeq: seq };
   }
 
+  function isProductBarcode(code) {
+    if (!code) return false;
+    const trimmed = code.trim();
+    if (/^POS[-_]/i.test(trimmed)) return true;
+    return /^\d{12,14}$/.test(trimmed);
+  }
+
+  function setScanDockExpanded(expanded) {
+    if (!scanDock) return;
+    scanDock.classList.toggle("scanDock--expanded", expanded);
+    scanDockToggle?.setAttribute("aria-expanded", expanded ? "true" : "false");
+    if (scanDockToggle) scanDockToggle.textContent = expanded ? "Collapse" : "Expand";
+    if (expanded) scanInput?.focus();
+  }
+
+  function updatePosUI() {
+    if (posTotal) posTotal.textContent = String(posItems.length);
+    if (posList) {
+      posList.innerHTML = "";
+      if (!posItems.length) {
+        const empty = document.createElement("div");
+        empty.className = "posEmpty";
+        empty.textContent = "Scan a product barcode to start a POS cart.";
+        posList.appendChild(empty);
+      } else {
+        posItems.slice(-8).forEach((item) => {
+          const row = document.createElement("div");
+          row.textContent = `${item.code} • ${item.when}`;
+          posList.appendChild(row);
+        });
+      }
+    }
+  }
+
+  function setPosMode(active) {
+    posModeActive = active;
+    if (scanDockMode) scanDockMode.textContent = active ? "POS" : "Dispatch";
+    if (posPanel) posPanel.hidden = !active;
+    if (!active) {
+      posItems.length = 0;
+      updatePosUI();
+      if (posLastScan) posLastScan.textContent = "Last scan: --";
+    }
+  }
+
+  function enterPosMode(code) {
+    if (!posModeActive) {
+      setPosMode(true);
+      setScanDockExpanded(true);
+    }
+    posItems.push({ code, when: new Date().toLocaleTimeString() });
+    if (posLastScan) posLastScan.textContent = `Last scan: ${code}`;
+    updatePosUI();
+    statusExplain(`POS mode: product ${code} scanned.`, "ok");
+  }
+
 async function startOrder(orderNo) {
   cancelAutoBookTimer();
 
@@ -1924,12 +2002,23 @@ async function startOrder(orderNo) {
 }
 
   async function handleScan(code) {
-    const parsed = parseScan(code);
+    const trimmed = code.trim();
+    if (isProductBarcode(trimmed)) {
+      enterPosMode(trimmed);
+      confirmScanFeedback("success");
+      return;
+    }
+
+    const parsed = parseScan(trimmed);
     if (!parsed) {
-      appendDebug("Bad scan: " + code);
+      appendDebug("Bad scan: " + trimmed);
       statusExplain("Bad scan", "warn");
       confirmScanFeedback("failure");
       return;
+    }
+
+    if (posModeActive) {
+      setPosMode(false);
     }
 
     if (isBooked(parsed.orderNo)) {
@@ -2819,6 +2908,10 @@ async function startOrder(orderNo) {
     const showScan = view === "scan";
     const showOps = view === "ops";
     const showDocs = view === "docs";
+    const showFlocs = view === "flocs";
+    const showStock = view === "stock";
+    const showPriceManager = view === "price-manager";
+    const showSimulate = view === "simulate";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -2836,23 +2929,56 @@ async function startOrder(orderNo) {
       viewDocs.hidden = !showDocs;
       viewDocs.classList.toggle("flView--active", showDocs);
     }
+    if (viewFlocs) {
+      viewFlocs.hidden = !showFlocs;
+      viewFlocs.classList.toggle("flView--active", showFlocs);
+    }
+    if (viewStock) {
+      viewStock.hidden = !showStock;
+      viewStock.classList.toggle("flView--active", showStock);
+    }
+    if (viewPriceManager) {
+      viewPriceManager.hidden = !showPriceManager;
+      viewPriceManager.classList.toggle("flView--active", showPriceManager);
+    }
+    if (viewSimulate) {
+      viewSimulate.hidden = !showSimulate;
+      viewSimulate.classList.toggle("flView--active", showSimulate);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
+    navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
+    navStock?.classList.toggle("flNavBtn--active", showStock);
+    navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
+    navSimulate?.classList.toggle("flNavBtn--active", showSimulate);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
+    navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
+    navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
+    navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
+    navSimulate?.setAttribute("aria-selected", showSimulate ? "true" : "false");
 
     if (showDashboard) {
-      statusExplain("Dashboard ready — choose a module to launch.", "info");
+      statusExplain("Dashboard ready — scan parcels or products.", "info");
+      scanInput?.focus();
     } else if (showScan) {
       statusExplain("Ready to scan orders…", "info");
       scanInput?.focus();
     } else if (showDocs) {
       statusExplain("Viewing operator documentation", "info");
+    } else if (showFlocs) {
+      statusExplain("Order capture ready inside the dashboard view.", "info");
+    } else if (showStock) {
+      statusExplain("Stock take module opened.", "info");
+    } else if (showPriceManager) {
+      statusExplain("Price manager module opened.", "info");
+    } else if (showSimulate) {
+      statusExplain("Simulator module opened.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -2930,13 +3056,28 @@ async function startOrder(orderNo) {
     if (bookingSummary) bookingSummary.textContent = "";
     if (scanInput) scanInput.value = "";
     if (dbgOn && debugLog) debugLog.textContent = "";
-    switchMainView("scan");
+    switchMainView("dashboard");
   });
 
   navScan?.addEventListener("click", () => switchMainView("scan"));
   navOps?.addEventListener("click", () => switchMainView("ops"));
   navDocs?.addEventListener("click", () => switchMainView("docs"));
   navDashboard?.addEventListener("click", () => switchMainView("dashboard"));
+  navFlocs?.addEventListener("click", () => switchMainView("flocs"));
+  navStock?.addEventListener("click", () => switchMainView("stock"));
+  navPriceManager?.addEventListener("click", () => switchMainView("price-manager"));
+  navSimulate?.addEventListener("click", () => switchMainView("simulate"));
+  goToDashboard?.addEventListener("click", () => switchMainView("dashboard"));
+
+  scanDockToggle?.addEventListener("click", () => {
+    const isExpanded = scanDock?.classList.contains("scanDock--expanded");
+    setScanDockExpanded(!isExpanded);
+  });
+
+  posExit?.addEventListener("click", () => {
+    setPosMode(false);
+    statusExplain("POS mode exited.", "info");
+  });
 
   modeToggle?.addEventListener("click", () => {
     isAutoMode = !isAutoMode;
@@ -3245,6 +3386,8 @@ async function startOrder(orderNo) {
   refreshServerStatus();
   setInterval(refreshServerStatus, 20000);
   renderModuleDashboard();
+  setScanDockExpanded(false);
+  setPosMode(false);
   switchMainView("dashboard");
 
   if (location.protocol === "file:") {
