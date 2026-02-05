@@ -1,0 +1,447 @@
+#viewSimulate{
+    --bg:#f8fafc;
+    --panel:#ffffff;
+    --panel-muted:#f1f5f9;
+    --panel-strong:#e2e8f0;
+    --text:#0f172a;
+    --text-muted:#64748b;
+    --accent:#2563eb;
+    --accent-strong:#1d4ed8;
+    --success:#16a34a;
+    --warn:#f59e0b;
+    --radius:16px;
+    --shadow:0 12px 30px rgba(15,23,42,.08);
+  }
+  #viewSimulate *{box-sizing:border-box;}
+  #viewSimulate{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  #viewSimulate .simApp{
+    min-height:100dvh;
+    padding:20px clamp(16px,3vw,36px);
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  #viewSimulate .simHeader{
+    background:var(--panel);
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius);
+    padding:18px;
+    box-shadow:var(--shadow);
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+  }
+  #viewSimulate .simTitle h1{
+    margin:0 0 6px;
+    font-size:clamp(22px,3vw,30px);
+  }
+  #viewSimulate .simTitle p{
+    margin:0;
+    color:var(--text-muted);
+  }
+  #viewSimulate .simControls{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:10px;
+    align-items:end;
+    flex:1;
+    min-width:min(520px,100%);
+  }
+  #viewSimulate .controlGroup{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  #viewSimulate .controlGroup label{
+    font-size:.78rem;
+    color:var(--text-muted);
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+  #viewSimulate .controlGroup input, #viewSimulate .controlGroup select{
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid var(--panel-strong);
+    background:#fff;
+    font-size:.95rem;
+  }
+  #viewSimulate .controlActions{
+    display:flex;
+    gap:10px;
+  }
+  #viewSimulate .btn{
+    border:none;
+    padding:10px 16px;
+    border-radius:10px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .2s ease;
+  }
+  #viewSimulate .btnPrimary{
+    background:var(--accent);
+    color:#fff;
+    box-shadow:0 8px 18px rgba(37,99,235,.25);
+  }
+  #viewSimulate .btnPrimary:hover{ background:var(--accent-strong); }
+  #viewSimulate .btnGhost{
+    background:var(--panel-muted);
+    color:var(--text);
+  }
+  #viewSimulate .btnGhost:hover{ background:#e2e8f0; }
+  #viewSimulate .simMain{
+    display:grid;
+    grid-template-columns:minmax(0,1.25fr) minmax(0,.85fr);
+    gap:18px;
+  }
+  @media (max-width:960px){
+    #viewSimulate .simMain{ grid-template-columns:1fr; }
+  }
+  #viewSimulate .panel{
+    background:var(--panel);
+    border-radius:var(--radius);
+    border:1px solid var(--panel-strong);
+    padding:16px;
+    box-shadow:var(--shadow);
+  }
+  #viewSimulate .panelHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:16px;
+  }
+  #viewSimulate .panelHeader h2{
+    margin:0;
+    font-size:1.1rem;
+  }
+  #viewSimulate .statusPill{
+    background:var(--panel-muted);
+    border-radius:999px;
+    padding:6px 12px;
+    font-size:.8rem;
+    color:var(--text-muted);
+    border:1px solid var(--panel-strong);
+  }
+  #viewSimulate .statusPill--auto{
+    background:rgba(37,99,235,.12);
+    border-color:rgba(37,99,235,.4);
+    color:#1d4ed8;
+  }
+  #viewSimulate .statusPill--manual{
+    background:rgba(245,158,11,.15);
+    border-color:rgba(245,158,11,.45);
+    color:#92400e;
+  }
+  #viewSimulate .sideBySide{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    gap:16px;
+  }
+  #viewSimulate .processColumn{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  #viewSimulate .columnHeader{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    padding:12px 14px;
+    border-radius:12px;
+    border:1px solid var(--panel-strong);
+    background:var(--panel-muted);
+  }
+  #viewSimulate .columnHeader h3{
+    margin:0 0 4px;
+    font-size:.95rem;
+  }
+  #viewSimulate .columnHeader p{
+    margin:0;
+    font-size:.8rem;
+    color:var(--text-muted);
+  }
+  #viewSimulate .stepsListManual .stepItem{
+    background:rgba(245,158,11,.08);
+  }
+  #viewSimulate .stepsListManual .stepItemDone{
+    background:rgba(245,158,11,.18);
+    border-color:rgba(245,158,11,.45);
+  }
+  #viewSimulate .stepsListManual .checkMark{
+    border-color:rgba(245,158,11,.4);
+  }
+  #viewSimulate .stepsListManual .stepItemDone .checkMark{
+    background:var(--warn);
+    border-color:var(--warn);
+    box-shadow:0 8px 16px rgba(245,158,11,.2);
+  }
+  #viewSimulate .stepsList{
+    list-style:none;
+    padding:0;
+    margin:0;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:8px;
+  }
+  #viewSimulate .stepItem{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid var(--panel-strong);
+    background:var(--panel-muted);
+    transition:all .25s ease;
+  }
+  #viewSimulate .stepItemActive{
+    border-color:rgba(37,99,235,.5);
+    background:rgba(37,99,235,.08);
+    transform:translateX(4px);
+  }
+  #viewSimulate .stepItemDone{
+    background:rgba(22,163,74,.12);
+    border-color:rgba(22,163,74,.45);
+  }
+  #viewSimulate .stepLabel{
+    font-weight:600;
+  }
+  #viewSimulate .stepMeta{
+    font-size:.78rem;
+    color:var(--text-muted);
+  }
+  #viewSimulate .stepCard{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:12px;
+    align-items:flex-start;
+  }
+  #viewSimulate .stepIcon{
+    width:42px;
+    height:42px;
+    border-radius:12px;
+    border:1px solid var(--panel-strong);
+    background:#fff;
+    display:grid;
+    place-items:center;
+    font-size:1.1rem;
+  }
+  #viewSimulate .stepDetailGrid{
+    display:grid;
+    gap:10px;
+  }
+  #viewSimulate .stepColumns{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;
+  }
+  #viewSimulate .stepColumn{
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    border-radius:10px;
+    padding:10px;
+  }
+  #viewSimulate .stepColumn h4{
+    margin:0 0 6px;
+    font-size:.8rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--text-muted);
+  }
+  #viewSimulate .actionList{
+    list-style:none;
+    padding:0;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    font-size:.85rem;
+  }
+  #viewSimulate .actionItem{
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  #viewSimulate .actionDot{
+    width:8px;
+    height:8px;
+    border-radius:999px;
+    background:var(--panel-strong);
+  }
+  #viewSimulate .actionItem--done .actionDot{
+    background:var(--success);
+  }
+  #viewSimulate .actionItem--error .actionDot{
+    background:#ef4444;
+  }
+  #viewSimulate .metaRow{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    font-size:.75rem;
+    color:var(--text-muted);
+  }
+  #viewSimulate .metaChip{
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid var(--panel-strong);
+    background:#fff;
+  }
+  #viewSimulate .metaChip--warn{
+    border-color:rgba(245,158,11,.45);
+    background:rgba(245,158,11,.1);
+    color:#92400e;
+  }
+  #viewSimulate .metaChip--ok{
+    border-color:rgba(22,163,74,.45);
+    background:rgba(22,163,74,.1);
+    color:#166534;
+  }
+  #viewSimulate .checkMark{
+    width:26px;
+    height:26px;
+    border-radius:50%;
+    border:2px solid var(--panel-strong);
+    display:grid;
+    place-items:center;
+    font-size:.85rem;
+    color:transparent;
+    transition:all .2s ease;
+    background:#fff;
+  }
+  #viewSimulate .stepItemDone .checkMark{
+    border-color:var(--success);
+    background:var(--success);
+    color:#fff;
+    box-shadow:0 8px 16px rgba(22,163,74,.25);
+  }
+  #viewSimulate .metricsGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:10px;
+  }
+  #viewSimulate .metricCard{
+    background:var(--panel-muted);
+    border-radius:12px;
+    padding:12px 14px;
+    border:1px solid var(--panel-strong);
+  }
+  #viewSimulate .metricLabel{
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--text-muted);
+    margin-bottom:6px;
+  }
+  #viewSimulate .metricValue{
+    font-size:1.1rem;
+    font-weight:700;
+  }
+  #viewSimulate .progressWrap{
+    margin-top:12px;
+  }
+  #viewSimulate .progressBar{
+    height:10px;
+    background:var(--panel-muted);
+    border-radius:999px;
+    overflow:hidden;
+    border:1px solid var(--panel-strong);
+  }
+  #viewSimulate .progressFill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,var(--accent),#38bdf8);
+    transition:width .2s ease;
+  }
+  #viewSimulate .visualPanel{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  #viewSimulate .visualTimeline{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  #viewSimulate .visualNode{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px;
+    border-radius:12px;
+    border:1px solid var(--panel-strong);
+    background:var(--panel-muted);
+    position:relative;
+    transition:all .25s ease;
+  }
+  #viewSimulate .visualNodeActive{
+    border-color:rgba(37,99,235,.6);
+    background:rgba(37,99,235,.1);
+    box-shadow:0 0 0 2px rgba(37,99,235,.1);
+  }
+  #viewSimulate .visualIcon{
+    width:38px;
+    height:38px;
+    border-radius:10px;
+    display:grid;
+    place-items:center;
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    font-size:1.1rem;
+  }
+  #viewSimulate .visualTitle{
+    font-weight:600;
+  }
+  #viewSimulate .visualSub{
+    font-size:.78rem;
+    color:var(--text-muted);
+  }
+  #viewSimulate .visualStatus{
+    margin-left:auto;
+    font-size:.75rem;
+    padding:4px 8px;
+    border-radius:999px;
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    color:var(--text-muted);
+  }
+  #viewSimulate .visualNodeActive .visualStatus{
+    background:rgba(37,99,235,.12);
+    border-color:rgba(37,99,235,.4);
+    color:#1d4ed8;
+  }
+  #viewSimulate .logList{
+    margin:0;
+    padding-left:18px;
+    color:var(--text-muted);
+    font-size:.85rem;
+  }
+  #viewSimulate .logList li{ margin-bottom:6px; }
+  #viewSimulate .warningNote{
+    font-size:.8rem;
+    color:var(--text-muted);
+  }
+  #viewSimulate .processGrid{
+    display:grid;
+    grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);
+    gap:16px;
+    align-items:start;
+  }
+  @media (max-width:1200px){
+    #viewSimulate .processGrid{ grid-template-columns:1fr; }
+  }
+  #viewSimulate .panelSub{
+    background:var(--panel-muted);
+    border-radius:14px;
+    border:1px solid var(--panel-strong);
+    padding:14px;
+  }

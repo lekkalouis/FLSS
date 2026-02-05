@@ -1,3 +1,9 @@
+import { initFlocsView } from "./views/flocs.js";
+import { initStockView } from "./views/stock.js";
+import { initPosView } from "./views/pos.js";
+import { initSimulateView } from "./views/simulate.js";
+import { initPriceManagerView } from "./views/price-manager.js";
+
 (() => {
   "use strict";
 
@@ -87,12 +93,22 @@
   const navOps = $("navOps");
   const navInvoices = $("navInvoices");
   const navDocs = $("navDocs");
+  const navFlocs = $("navFlocs");
+  const navStock = $("navStock");
+  const navPos = $("navPos");
+  const navSimulate = $("navSimulate");
+  const navPriceManager = $("navPriceManager");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
   const viewInvoices = $("viewInvoices");
   const viewDocs = $("viewDocs");
+  const viewFlocs = $("viewFlocs");
+  const viewStock = $("viewStock");
+  const viewPos = $("viewPos");
+  const viewSimulate = $("viewSimulate");
+  const viewPriceManager = $("viewPriceManager");
   const actionFlash = $("actionFlash");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
@@ -117,65 +133,82 @@
       id: "scan",
       title: "Scan Station",
       description: "Scan parcels and auto-book shipments with live booking progress.",
-      type: "view",
-      target: "scan",
+      type: "route",
+      target: "/scan",
+      meta: "Internal module",
       tag: "Core"
     },
     {
       id: "dispatch",
       title: "Dispatch Board",
       description: "Review open orders, track packing, and prioritize dispatch.",
-      type: "view",
-      target: "ops",
+      type: "route",
+      target: "/ops",
+      meta: "Internal module",
       tag: "Core"
     },
     {
       id: "invoices",
       title: "Order Invoices",
       description: "List orders, filter quickly, and send invoice actions.",
-      type: "view",
-      target: "invoices",
+      type: "route",
+      target: "/invoices",
+      meta: "Internal module",
       tag: "Module"
     },
     {
       id: "docs",
       title: "Documentation",
       description: "Operator guide, quick start, and endpoint reference.",
-      type: "view",
-      target: "docs",
+      type: "route",
+      target: "/docs",
+      meta: "Internal module",
       tag: "Guide"
     },
     {
       id: "flocs",
       title: "Order Capture (FLOCS)",
       description: "Create and manage incoming orders from the capture module.",
-      type: "link",
+      type: "route",
       target: "/flocs",
+      meta: "Capture module",
       tag: "Module"
     },
     {
       id: "stock",
       title: "Stock Take",
       description: "Run inventory counts and stock adjustments.",
-      type: "link",
-      target: "/stock.html",
+      type: "route",
+      target: "/stock",
+      meta: "Inventory module",
       tag: "Module"
     },
     {
       id: "pos",
       title: "POS Walk-In",
       description: "Scan walk-in items, show a large total, and close cash orders.",
-      type: "link",
-      target: "/pos.html",
+      type: "route",
+      target: "/pos",
+      meta: "Retail module",
       tag: "Module"
     },
     {
       id: "simulate",
       title: "Simulator",
       description: "Test scan/booking flows without live orders.",
-      type: "link",
-      target: "/simulate.html",
+      type: "route",
+      target: "/simulate",
+      meta: "Sandbox",
       tag: "Sandbox"
+    },
+    {
+      id: "price-manager",
+      title: "Price Manager",
+      description: "Update tier pricing and sync to Shopify metafields.",
+      type: "route",
+      target: "/price-manager",
+      meta: "Pricing module",
+      tag: "Module"
     }
   ];
 
@@ -195,8 +228,8 @@
         {
           title: "Process Simulator",
           description: "Run a sandbox pass for new formulations or batches.",
-          type: "link",
-          target: "/simulate.html"
+          type: "route",
+          target: "/simulate"
         },
         {
           title: "SOP Quick Guide",
@@ -227,8 +260,8 @@
         {
           title: "Manifest Simulator",
           description: "Preview truck loads and pickup windows.",
-          type: "link",
-          target: "/simulate.html"
+          type: "route",
+          target: "/simulate"
         }
       ]
     },
@@ -267,8 +300,8 @@
         {
           title: "Finished Goods Staging",
           description: "Review packed inventory and staging confirmation.",
-          type: "link",
-          target: "/stock.html"
+          type: "route",
+          target: "/stock"
         },
         {
           title: "Dispatch Priority",
@@ -293,13 +326,13 @@
         {
           title: "Stock Take",
           description: "Run live inventory counts and adjustments.",
-          type: "link",
-          target: "/stock.html"
+          type: "route",
+          target: "/stock"
         },
         {
           title: "Inbound Capture",
           description: "Capture new inbound orders and intake checks.",
-          type: "link",
+          type: "route",
           target: "/flocs"
         },
         {
@@ -3161,7 +3194,7 @@ async function startOrder(orderNo) {
 
       const meta = document.createElement("span");
       meta.className = "moduleMeta";
-      meta.textContent = module.type === "view" ? "Internal module" : module.target;
+      meta.textContent = module.meta || module.target || "Module";
 
       const button = document.createElement("button");
       button.type = "button";
@@ -3223,7 +3256,11 @@ async function startOrder(orderNo) {
   function openFactoryTool(type, target) {
     if (!type || !target) return;
     if (type === "view") {
-      switchMainView(target);
+      navigateTo(routeForView(target));
+      return;
+    }
+    if (type === "route") {
+      navigateTo(target);
       return;
     }
     if (type === "link") {
@@ -3236,7 +3273,12 @@ async function startOrder(orderNo) {
     if (!module) return;
 
     if (module.type === "view") {
-      switchMainView(module.target);
+      navigateTo(routeForView(module.target));
+      return;
+    }
+
+    if (module.type === "route" && module.target) {
+      navigateTo(module.target);
       return;
     }
 
@@ -3279,6 +3321,11 @@ async function startOrder(orderNo) {
     const showOps = view === "ops";
     const showInvoices = view === "invoices";
     const showDocs = view === "docs";
+    const showFlocs = view === "flocs";
+    const showStock = view === "stock";
+    const showPos = view === "pos";
+    const showSimulate = view === "simulate";
+    const showPriceManager = view === "price-manager";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3300,17 +3347,47 @@ async function startOrder(orderNo) {
       viewDocs.hidden = !showDocs;
       viewDocs.classList.toggle("flView--active", showDocs);
     }
+    if (viewFlocs) {
+      viewFlocs.hidden = !showFlocs;
+      viewFlocs.classList.toggle("flView--active", showFlocs);
+    }
+    if (viewStock) {
+      viewStock.hidden = !showStock;
+      viewStock.classList.toggle("flView--active", showStock);
+    }
+    if (viewPos) {
+      viewPos.hidden = !showPos;
+      viewPos.classList.toggle("flView--active", showPos);
+    }
+    if (viewSimulate) {
+      viewSimulate.hidden = !showSimulate;
+      viewSimulate.classList.toggle("flView--active", showSimulate);
+    }
+    if (viewPriceManager) {
+      viewPriceManager.hidden = !showPriceManager;
+      viewPriceManager.classList.toggle("flView--active", showPriceManager);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navInvoices?.classList.toggle("flNavBtn--active", showInvoices);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
+    navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
+    navStock?.classList.toggle("flNavBtn--active", showStock);
+    navPos?.classList.toggle("flNavBtn--active", showPos);
+    navSimulate?.classList.toggle("flNavBtn--active", showSimulate);
+    navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navInvoices?.setAttribute("aria-selected", showInvoices ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
+    navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
+    navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
+    navPos?.setAttribute("aria-selected", showPos ? "true" : "false");
+    navSimulate?.setAttribute("aria-selected", showSimulate ? "true" : "false");
+    navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
@@ -3324,9 +3401,90 @@ async function startOrder(orderNo) {
       }
     } else if (showDocs) {
       statusExplain("Viewing operator documentation", "info");
+    } else if (showFlocs) {
+      statusExplain("Order capture ready.", "info");
+    } else if (showStock) {
+      statusExplain("Stock take ready.", "info");
+    } else if (showPos) {
+      statusExplain("POS walk-in ready.", "info");
+    } else if (showSimulate) {
+      statusExplain("Simulator ready.", "info");
+    } else if (showPriceManager) {
+      statusExplain("Price manager ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
+  }
+
+  const ROUTE_VIEW_MAP = new Map([
+    ["/", "dashboard"],
+    ["/dashboard", "dashboard"],
+    ["/scan", "scan"],
+    ["/ops", "ops"],
+    ["/invoices", "invoices"],
+    ["/docs", "docs"],
+    ["/flocs", "flocs"],
+    ["/stock", "stock"],
+    ["/pos", "pos"],
+    ["/simulate", "simulate"],
+    ["/price-manager", "price-manager"]
+  ]);
+
+  const VIEW_ROUTE_MAP = {
+    dashboard: "/",
+    scan: "/scan",
+    ops: "/ops",
+    invoices: "/invoices",
+    docs: "/docs",
+    flocs: "/flocs",
+    stock: "/stock",
+    pos: "/pos",
+    simulate: "/simulate",
+    "price-manager": "/price-manager"
+  };
+
+  const viewInitializers = {
+    flocs: initFlocsView,
+    stock: initStockView,
+    pos: initPosView,
+    simulate: initSimulateView,
+    "price-manager": initPriceManagerView
+  };
+
+  function normalizePath(path) {
+    if (!path) return "/";
+    let cleaned = path.split("?")[0].split("#")[0];
+    cleaned = cleaned.replace(/\/index\.html$/, "");
+    return cleaned.replace(/\/+$/, "") || "/";
+  }
+
+  function viewForPath(path) {
+    return ROUTE_VIEW_MAP.get(normalizePath(path)) || "dashboard";
+  }
+
+  function routeForView(view) {
+    return VIEW_ROUTE_MAP[view] || "/";
+  }
+
+  function initViewIfNeeded(view) {
+    const init = viewInitializers[view];
+    if (init) init();
+  }
+
+  function renderRoute(path) {
+    const view = viewForPath(path);
+    switchMainView(view);
+    initViewIfNeeded(view);
+  }
+
+  function navigateTo(path, { replace = false } = {}) {
+    const next = normalizePath(path);
+    if (replace) {
+      window.history.replaceState({}, "", next);
+    } else {
+      window.history.pushState({}, "", next);
+    }
+    renderRoute(next);
   }
 
   const NAV_COLLAPSE_KEY = "fl_nav_collapsed";
@@ -3401,14 +3559,19 @@ async function startOrder(orderNo) {
     if (bookingSummary) bookingSummary.textContent = "";
     if (scanInput) scanInput.value = "";
     if (dbgOn && debugLog) debugLog.textContent = "";
-    switchMainView("scan");
+    navigateTo("/scan", { replace: true });
   });
 
-  navScan?.addEventListener("click", () => switchMainView("scan"));
-  navOps?.addEventListener("click", () => switchMainView("ops"));
-  navInvoices?.addEventListener("click", () => switchMainView("invoices"));
-  navDocs?.addEventListener("click", () => switchMainView("docs"));
-  navDashboard?.addEventListener("click", () => switchMainView("dashboard"));
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const routeEl = target.closest("[data-route]");
+    if (!routeEl) return;
+    const route = routeEl.getAttribute("data-route") || routeEl.getAttribute("href");
+    if (!route) return;
+    event.preventDefault();
+    navigateTo(route);
+  });
 
   invoiceTemplateSave?.addEventListener("click", () => {
     saveInvoiceTemplate();
@@ -3855,7 +4018,11 @@ async function startOrder(orderNo) {
   renderModuleDashboard();
   loadInvoiceTemplate();
   renderInvoiceTable();
-  switchMainView("dashboard");
+  renderRoute(window.location.pathname);
+
+  window.addEventListener("popstate", () => {
+    renderRoute(window.location.pathname);
+  });
 
   if (location.protocol === "file:") {
     alert("Open via http://localhost/... (not file://). Run a local server.");

@@ -1,0 +1,178 @@
+#viewPos{
+      --bg:#0f172a;
+      --panel:#111827;
+      --panel-light:#1f2937;
+      --text:#f8fafc;
+      --muted:#94a3b8;
+      --accent:#22c55e;
+      --accent-dark:#16a34a;
+      --danger:#ef4444;
+      --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+      --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+    }
+    #viewPos *{box-sizing:border-box}
+    #viewPos{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:var(--sans);
+      min-height:100dvh;
+      display:flex;
+      flex-direction:column;
+    }
+    #viewPos header{
+      padding:1.5rem 2rem 0.5rem;
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+    }
+    #viewPos header h1{
+      margin:0;
+      font-size:1.6rem;
+      letter-spacing:.02em;
+    }
+    #viewPos header p{
+      margin:0;
+      color:var(--muted);
+      font-size:.95rem;
+    }
+    #viewPos main{
+      flex:1;
+      display:grid;
+      grid-template-columns:1fr 320px;
+      gap:1.5rem;
+      padding:1rem 2rem 2rem;
+    }
+    @media (max-width:960px){
+      #viewPos main{ grid-template-columns:1fr; }
+    }
+    #viewPos .panel{
+      background:var(--panel);
+      border:1px solid rgba(148,163,184,.2);
+      border-radius:1rem;
+      padding:1.2rem 1.4rem;
+      box-shadow:0 20px 60px rgba(15,23,42,.5);
+    }
+    #viewPos .total{
+      font-size:4rem;
+      font-weight:700;
+      letter-spacing:.02em;
+      color:var(--accent);
+    }
+    #viewPos .total small{
+      font-size:1.3rem;
+      color:var(--muted);
+      display:block;
+      margin-bottom:.35rem;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+    #viewPos .scan-row{
+      display:flex;
+      gap:.75rem;
+      margin-top:1rem;
+      flex-wrap:wrap;
+    }
+    #viewPos .scan-row input{
+      flex:1;
+      min-width:220px;
+      padding:.85rem 1rem;
+      border-radius:.75rem;
+      border:1px solid rgba(148,163,184,.3);
+      background:var(--panel-light);
+      color:var(--text);
+      font-size:1rem;
+      font-family:var(--mono);
+    }
+    #viewPos .scan-row button{
+      padding:.85rem 1.2rem;
+      border-radius:.75rem;
+      border:none;
+      background:var(--accent);
+      color:#052e16;
+      font-weight:700;
+      cursor:pointer;
+      transition:background .2s ease;
+    }
+    #viewPos .scan-row button:hover{
+      background:var(--accent-dark);
+    }
+    #viewPos .status{
+      margin-top:.75rem;
+      color:var(--muted);
+      font-size:.9rem;
+    }
+    #viewPos table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:1.5rem;
+      font-size:.95rem;
+    }
+    #viewPos th, #viewPos td{
+      text-align:left;
+      padding:.65rem .4rem;
+      border-bottom:1px solid rgba(148,163,184,.2);
+    }
+    #viewPos th{
+      color:var(--muted);
+      font-size:.8rem;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+    #viewPos .qty-btn{
+      background:transparent;
+      border:1px solid rgba(148,163,184,.4);
+      color:var(--text);
+      padding:.25rem .55rem;
+      border-radius:.5rem;
+      cursor:pointer;
+      margin-right:.35rem;
+    }
+    #viewPos .actions{
+      display:grid;
+      gap:.75rem;
+    }
+    #viewPos .actions button{
+      width:100%;
+      padding:.85rem 1rem;
+      border-radius:.75rem;
+      border:none;
+      font-weight:700;
+      cursor:pointer;
+    }
+    #viewPos .actions .primary{
+      background:var(--accent);
+      color:#052e16;
+    }
+    #viewPos .actions .secondary{
+      background:var(--panel-light);
+      color:var(--text);
+      border:1px solid rgba(148,163,184,.4);
+    }
+    #viewPos .actions .danger{
+      background:transparent;
+      color:var(--danger);
+      border:1px solid rgba(239,68,68,.5);
+    }
+    #viewPos .meta{
+      color:var(--muted);
+      font-size:.85rem;
+    }
+    #viewPos .receipt{
+      font-family:var(--mono);
+      font-size:.85rem;
+      background:var(--panel-light);
+      padding:.75rem;
+      border-radius:.75rem;
+      color:var(--text);
+      max-height:240px;
+      overflow:auto;
+      white-space:pre-wrap;
+    }
+    @media print {
+      #viewPos{ background:#fff; color:#000; }
+      #viewPos header, #viewPos .actions, #viewPos .scan-row, #viewPos .status{ display:none !important; }
+      #viewPos main{ padding:0; }
+      #viewPos .panel{ box-shadow:none; border:none; }
+      #viewPos .total{ color:#000; }
+    }

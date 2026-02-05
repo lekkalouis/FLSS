@@ -2057,6 +2057,11 @@
   }
 
 </style>
+  <link rel="stylesheet" href="/views/flocs.css">
+  <link rel="stylesheet" href="/views/stock.css">
+  <link rel="stylesheet" href="/views/pos.css">
+  <link rel="stylesheet" href="/views/simulate.css">
+  <link rel="stylesheet" href="/views/price-manager.css">
 </head>
  <body>
   <div class="flApp">
@@ -2070,14 +2075,16 @@
         </div>
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
-            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true"><span class="flNavBtnText">Dashboard</span></button>
-            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false"><span class="flNavBtnText">Scan Station</span></button>
-            <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false"><span class="flNavBtnText">Dispatch Board</span></button>
-            <button id="navInvoices" class="flNavBtn" type="button" role="tab" aria-controls="viewInvoices" aria-selected="false"><span class="flNavBtnText">Order invoices</span></button>
-            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false"><span class="flNavBtnText">Documentation</span></button>
-            <a class="flNavBtn" href="/flocs"><span class="flNavBtnText">Order capture (FLOCS)</span></a>
-            <a class="flNavBtn" href="/stock.html"><span class="flNavBtnText">Stock take</span></a>
-            <a class="flNavBtn" href="/price-manager.html"><span class="flNavBtnText">Price manager</span></a>
+            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnText">Dashboard</span></button>
+            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnText">Scan Station</span></button>
+            <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false" data-route="/ops"><span class="flNavBtnText">Dispatch Board</span></button>
+            <button id="navInvoices" class="flNavBtn" type="button" role="tab" aria-controls="viewInvoices" aria-selected="false" data-route="/invoices"><span class="flNavBtnText">Order invoices</span></button>
+            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Documentation</span></button>
+            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnText">Order capture (FLOCS)</span></button>
+            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnText">Stock take</span></button>
+            <button id="navPos" class="flNavBtn" type="button" role="tab" aria-controls="viewPos" aria-selected="false" data-route="/pos"><span class="flNavBtnText">POS Walk-In</span></button>
+            <button id="navSimulate" class="flNavBtn" type="button" role="tab" aria-controls="viewSimulate" aria-selected="false" data-route="/simulate"><span class="flNavBtnText">Simulator</span></button>
+            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -2461,6 +2468,550 @@
         </div>
       </div>
     </div>
+    <div class="flView" id="viewFlocs" hidden>
+      <div class="flocs-shell" id="flocs-shell">
+          <header class="flocs-header">
+            <div class="flocs-titleBlock">
+              <div class="flocs-title">Flippen Lekka Order Capturing System</div>
+              <div class="flocs-sub">FLOCS · fast operator-friendly order entry into Shopify draft orders</div>
+            </div>
+            <div class="flocs-headerActions">
+              <a class="flocs-linkBtn" href="/scan" data-route="/scan">
+                <span>⟵</span>
+                <span>Scan station</span>
+              </a>
+              <a class="flocs-linkBtn" href="/stock" data-route="/stock">
+                <span>📦</span>
+                <span>Stock take</span>
+              </a>
+              <div class="flocs-badge">
+                <span class="flocs-dot"></span>
+                <span>Backend: Scan Station Node/Express & SWE v28</span>
+              </div>
+            </div>
+          </header>
+
+          <main class="flocs-layout">
+            <!-- LEFT: FORM -->
+            <section class="flocs-panel form" id="flocs-formPanel">
+              <!-- Customer -->
+              <div class="flocs-formSection">
+                <div class="flocs-labelRow">
+                  <span>Customer</span>
+                  <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
+                </div>
+                <input id="flocs-customerSearch" class="flocs-input" type="text"
+                       placeholder="Type to search Shopify customers…" autocomplete="off" />
+                <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
+                <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
+                <div class="flocs-inlineActions" style="margin-top:.5rem">
+                  <button id="flocs-customerCreateToggle" class="flocs-miniBtn" type="button">
+                    Add new customer
+                  </button>
+                </div>
+                <div class="flocs-subSection" id="flocs-customerCreatePanel" hidden>
+                  <div class="flocs-labelRow">
+                    <span>Create new customer</span>
+                    <span class="flocs-hint" id="flocs-customerCreateStatus">Add a customer if search returns nothing.</span>
+                  </div>
+                  <div class="flocs-row">
+                    <input id="flocs-customerFirst" class="flocs-input" type="text" placeholder="First name" />
+                    <input id="flocs-customerLast" class="flocs-input" type="text" placeholder="Last name" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerEmail" class="flocs-input" type="email" placeholder="Email" />
+                    <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
+                    <select id="flocs-customerDelivery" class="flocs-select">
+                      <option value="">Default delivery (optional)</option>
+                      <option value="ship">Ship</option>
+                      <option value="pickup">Pickup</option>
+                      <option value="deliver">Deliver</option>
+                    </select>
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerVat" class="flocs-input" type="text" placeholder="VAT number (optional)" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <textarea id="flocs-customerDeliveryNotes" class="flocs-input" rows="2" placeholder="Delivery instructions (optional)"></textarea>
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1" />
+                    <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
+                    <input id="flocs-customerProvince" class="flocs-input" type="text" placeholder="Province" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />
+                    <input id="flocs-customerCountry" class="flocs-input" type="text" placeholder="Country" value="South Africa" />
+                  </div>
+                  <div class="flocs-inlineActions" style="margin-top:.5rem">
+                    <button id="flocs-customerCreateBtn" class="flocs-btn primary" type="button">
+                      <span class="icon">➕</span><span>Create customer</span>
+                    </button>
+                    <button id="flocs-customerResetBtn" class="flocs-miniBtn" type="button">Clear form</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PO + Delivery method -->
+              <div class="flocs-formSection">
+                <div class="flocs-row">
+                  <div>
+                    <div class="flocs-labelRow">
+                      <span>Customer PO</span>
+                      <span class="flocs-hint">Stored on draft order note & metafield</span>
+                    </div>
+                    <input id="flocs-po" class="flocs-input" type="text" placeholder="PO / reference (optional)" />
+                  </div>
+                  <div>
+                    <div class="flocs-labelRow">
+                      <span>Delivery type</span>
+                      <span class="flocs-hint">Uses customer metafield custom.delivery_method if set</span>
+                    </div>
+                    <div class="flocs-radioGroup" id="flocs-deliveryGroup">
+                      <label class="flocs-radioPill">
+                        <input type="radio" name="delivery" value="ship" checked />
+                        <span>Ship</span>
+                      </label>
+                      <label class="flocs-radioPill">
+                        <input type="radio" name="delivery" value="pickup" />
+                        <span>Pickup</span>
+                      </label>
+                      <label class="flocs-radioPill">
+                        <input type="radio" name="delivery" value="deliver" />
+                        <span>Deliver (own vehicle)</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Billing address selector -->
+              <div class="flocs-formSection" id="flocs-billSection">
+                <div class="flocs-labelRow">
+                  <span>Billing address</span>
+                  <span class="flocs-hint">Pulled from customer’s Shopify addresses</span>
+                </div>
+                <select id="flocs-billingAddressSelect" class="flocs-select">
+                  <option value="">Select a customer first…</option>
+                </select>
+                <div id="flocs-billingAddressPreview" class="flocs-addressPreview" hidden></div>
+              </div>
+
+              <!-- Shipping address selector -->
+              <div class="flocs-formSection" id="flocs-shipSection">
+                <div class="flocs-labelRow">
+                  <span>Shipping address</span>
+                  <span class="flocs-hint">Saved to the draft order even for pickup/deliver</span>
+                </div>
+                <select id="flocs-addressSelect" class="flocs-select">
+                  <option value="">Select a customer first…</option>
+                </select>
+                <div id="flocs-addressPreview" class="flocs-addressPreview" hidden></div>
+              </div>
+
+              <!-- Product grid -->
+              <div class="flocs-formSection">
+              <div class="flocs-labelRow">
+                <span>Items</span>
+                <span class="flocs-hint" id="flocs-productStatus">Search by SKU or product title</span>
+              </div>
+                <div class="flocs-row" style="margin-bottom:.5rem">
+                  <select id="flocs-collectionSelect" class="flocs-select">
+                    <option value="">Load a collection…</option>
+                    <option value="most-popular-products">Most popular products (public)</option>
+                  </select>
+                  <button id="flocs-collectionLoadBtn" class="flocs-btn" type="button">
+                    <span class="icon">⭐</span><span>Load collection</span>
+                  </button>
+                </div>
+                <div class="flocs-row" style="margin-bottom:.5rem">
+                  <input id="flocs-productSearch" class="flocs-input" type="text"
+                         placeholder="Search Shopify products (SKU/title)..." autocomplete="off" />
+                  <input id="flocs-productCode" class="flocs-input" type="text"
+                         placeholder="Filter by product code (exact SKU)..." autocomplete="off" />
+                </div>
+                <div id="flocs-productResults" class="flocs-productResults" hidden></div>
+                <div class="flocs-actionsRow" id="flocs-productPager" hidden>
+                  <button id="flocs-productPrev" class="flocs-btn" type="button">
+                    <span class="icon">⬅</span><span>Previous</span>
+                  </button>
+                  <button id="flocs-productNext" class="flocs-btn" type="button">
+                    <span class="icon">➡</span><span>Next</span>
+                  </button>
+                </div>
+                <div class="flocs-filterRow">
+                  <select id="flocs-filterFlavour" class="flocs-select">
+                    <option value="">All flavours</option>
+                  </select>
+                  <select id="flocs-filterSize" class="flocs-select">
+                    <option value="">All sizes</option>
+                  </select>
+                  <span class="flocs-filterHint">Filter the quick order list by flavour & size.</span>
+                </div>
+                <table class="flocs-productsTable">
+                  <thead>
+                    <tr>
+                      <th>SKU</th>
+                      <th>Description</th>
+                      <th>Flavour</th>
+                      <th>Size</th>
+                      <th>Price</th>
+                      <th>Override</th>
+                      <th style="width:10%">Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody id="flocs-productsBody">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+                <div class="flocs-actionsRow">
+                  <button id="flocs-calcShip" class="flocs-btn" type="button">
+                    <span class="icon">⛟</span><span>Calculate shipping (SWE quote)</span>
+                  </button>
+                  <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
+                </div>
+                <div id="flocs-errors" class="flocs-errors"></div>
+              </div>
+            </section>
+
+            <!-- RIGHT: PREVIEW -->
+            <section class="flocs-panel preview">
+              <div class="flocs-previewHeader">
+                <div>
+                <div class="flocs-previewTitle">Invoice-style preview</div>
+                <div class="flocs-hint">Live view of what the customer’s document will roughly look like</div>
+              </div>
+                <div>
+                  <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
+                  <button id="flocs-armBtn" class="flocs-armBtn" type="button" hidden>Arm lock</button>
+                  <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>
+                    Convert draft to order
+                  </button>
+                  <button id="flocs-createOrderBtn" class="flocs-createOrderBtn" type="button" hidden>
+                    Create order now
+                  </button>
+                </div>
+              </div>
+
+              <div class="flocs-invoice" id="flocs-invoice">
+                <!-- Filled by JS -->
+              </div>
+            </section>
+          </main>
+        </div>
+
+        <!-- Global toast -->
+        <div id="flocs-toast" class="flocs-toast"></div>
+
+        <!-- Ready/confirm overlay -->
+        <div id="flocs-confirmOverlay" class="flocs-confirmOverlay">
+          <div class="flocs-confirmActions">
+            <button id="flocs-confirmBtn" class="flocs-confirmBtn" type="button">
+              <span class="icon">✅</span>
+              <span>Lock order & create Shopify draft</span>
+            </button>
+            <button id="flocs-disarmBtn" class="flocs-disarmBtn" type="button">Disarm</button>
+          </div>
+        </div>
+    </div>
+
+    <div class="flView" id="viewStock" hidden>
+      <div class="stock-shell">
+          <header class="stock-header">
+            <div class="stock-title">
+              <h1>Stock Take & Inventory Levels</h1>
+              <p>Review live counts, adjust during stock take, and log stock received.</p>
+            </div>
+            <nav class="stock-nav">
+          <a class="stock-link" href="/scan" data-route="/scan">⟵ Scan Station</a>
+              <a class="stock-link" href="/flocs" data-route="/flocs">Order Capture (FLOCS)</a>
+            </nav>
+          </header>
+
+          <div class="stock-grid">
+            <section class="stock-card">
+              <h2>Stock overview</h2>
+              <div class="stock-toolbar">
+                <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
+                <div class="stock-modeToggle">
+                  <button class="stock-modeBtn is-active" type="button" data-mode="take">Stock take</button>
+                  <button class="stock-modeBtn" type="button" data-mode="receive">Stock received</button>
+                </div>
+                <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
+              </div>
+              <table class="stock-table">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Product</th>
+                    <th>Current</th>
+                    <th id="stock-adjustLabel">New count</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="stock-tableBody"></tbody>
+              </table>
+            </section>
+
+            <aside class="stock-card">
+              <h2>Quick stock take</h2>
+              <div class="stock-focus">
+                <div class="stock-focusCard">
+                  <div class="stock-focusLabel">Now counting</div>
+                  <div id="stock-focusTitle" class="stock-focusTitle">–</div>
+                  <div id="stock-focusMeta" class="stock-focusMeta">–</div>
+                  <div class="stock-focusActions">
+                    <input id="stock-focusInput" class="stock-input" type="number" step="1" min="0" placeholder="Enter count..." />
+                    <button id="stock-focusApply" class="stock-actionBtn" type="button">Apply</button>
+                    <button id="stock-focusPrev" class="stock-stepBtn" type="button">◀ Prev</button>
+                    <button id="stock-focusNext" class="stock-stepBtn" type="button">Next ▶</button>
+                  </div>
+                </div>
+                <div>
+                  <div class="stock-focusLabel">Activity log</div>
+                  <div id="stock-log" class="stock-log"></div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+    </div>
+
+    <div class="flView" id="viewPos" hidden>
+      <header>
+          <h1>POS Walk-In</h1>
+          <p>Scan a product code or SKU to add items. A cash order will be sent to Shopify.</p>
+        </header>
+        <main>
+          <section class="panel">
+            <div class="total"><small>Total</small><span id="pos-total">R0.00</span></div>
+            <div class="scan-row">
+              <input id="pos-scan" type="text" placeholder="Scan or type SKU…" autocomplete="off" />
+              <button id="pos-addBtn" type="button">Add item</button>
+            </div>
+            <div class="scan-row">
+              <input id="pos-cashier" type="text" placeholder="Cashier name (optional)" autocomplete="off" />
+            </div>
+            <div class="status" id="pos-status">Waiting for scan.</div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:40%">Item</th>
+                  <th>SKU</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>Line</th>
+                </tr>
+              </thead>
+              <tbody id="pos-items">
+                <tr><td colspan="5" class="meta">No items yet.</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <aside class="panel">
+            <div class="actions">
+              <button id="pos-submit" class="primary" type="button">Create cash order</button>
+              <button id="pos-print" class="secondary" type="button">Print receipt</button>
+              <button id="pos-clear" class="danger" type="button">Clear order</button>
+            </div>
+            <div style="margin-top:1.5rem">
+              <div class="meta">Receipt preview</div>
+              <div class="receipt" id="pos-receipt">Receipt will appear once items are added.</div>
+            </div>
+            <div class="status" id="pos-orderStatus"></div>
+          </aside>
+        </main>
+    </div>
+
+    <div class="flView" id="viewSimulate" hidden>
+      <div class="simApp">
+          <header class="simHeader">
+            <div class="simTitle">
+              <h1>Automation Process Simulator</h1>
+              <p>Visualize how many automated actions run per order and how quickly the flow completes.</p>
+            </div>
+            <div class="simControls">
+              <div class="controlGroup">
+                <label for="orderCount">Orders</label>
+                <input id="orderCount" type="number" min="1" max="250" value="24" />
+              </div>
+              <div class="controlGroup">
+                <label for="dayCount">Days simulated</label>
+                <input id="dayCount" type="number" min="1" max="30" value="3" />
+              </div>
+              <div class="controlGroup">
+                <label for="stepDelay">Step delay (ms)</label>
+                <input id="stepDelay" type="number" min="120" max="2000" value="450" />
+              </div>
+              <div class="controlGroup">
+                <label for="speedFactor">Speed factor</label>
+                <select id="speedFactor">
+                  <option value="0.75">0.75×</option>
+                  <option value="1" selected>1×</option>
+                  <option value="1.5">1.5×</option>
+                  <option value="2">2×</option>
+                  <option value="3">3×</option>
+                </select>
+              </div>
+              <div class="controlGroup">
+                <label for="errorRate">Error rate</label>
+                <input id="errorRate" type="number" min="0" max="25" value="3" />
+              </div>
+              <div class="controlGroup">
+                <label>&nbsp;</label>
+                <div class="controlActions">
+                  <button class="btn btnPrimary" id="startBtn">Start</button>
+                  <button class="btn btnGhost" id="pauseBtn">Pause</button>
+                  <button class="btn btnGhost" id="resetBtn">Reset</button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main class="simMain">
+            <section class="panel">
+              <div class="panelHeader">
+                <h2>Process actions</h2>
+                <span class="statusPill" id="orderStatus">Order 1 of 24</span>
+              </div>
+              <div class="processGrid">
+                <ol class="stepsList" id="stepsList"></ol>
+                <div class="panelSub">
+                  <div class="panelHeader" style="margin-bottom:12px;">
+                    <h2>Output summary</h2>
+                    <span class="statusPill" id="runtimeStatus">Idle</span>
+                  </div>
+                  <div class="metricsGrid">
+                    <div class="metricCard">
+                      <div class="metricLabel">Auto actions</div>
+                      <div class="metricValue" id="totalActions">0</div>
+                    </div>
+                    <div class="metricCard">
+                      <div class="metricLabel">Manual actions</div>
+                      <div class="metricValue" id="manualActionsTotal">0</div>
+                    </div>
+                    <div class="metricCard">
+                      <div class="metricLabel">Efficiency gain</div>
+                      <div class="metricValue" id="efficiencyGain">0×</div>
+                    </div>
+                    <div class="metricCard">
+                      <div class="metricLabel">Systems touched</div>
+                      <div class="metricValue" id="systemsCount">0</div>
+                    </div>
+                    <div class="metricCard">
+                      <div class="metricLabel">Completed actions</div>
+                      <div class="metricValue" id="completedActions">0</div>
+                    </div>
+                    <div class="metricCard">
+                      <div class="metricLabel">Actions / minute</div>
+                      <div class="metricValue" id="actionsPerMinute">0</div>
+                    </div>
+                    <div class="metricCard">
+                      <div class="metricLabel">Avg per day</div>
+                      <div class="metricValue" id="actionsPerDay">0</div>
+                    </div>
+                    <div class="metricCard">
+                      <div class="metricLabel">Manual minutes saved</div>
+                      <div class="metricValue" id="manualMinutesSaved">0</div>
+                    </div>
+                    <div class="metricCard">
+                      <div class="metricLabel">Knowledge domains</div>
+                      <div class="metricValue" id="knowledgeCount">0</div>
+                    </div>
+                  </div>
+                  <div class="progressWrap">
+                    <div class="progressBar">
+                      <div class="progressFill" id="progressFill"></div>
+                    </div>
+                    <p class="warningNote" id="estimateNote"></p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel visualPanel">
+              <div class="panelHeader">
+                <h2>Audit trail & integrity</h2>
+                <span class="statusPill" id="visualStatus">Waiting for orders</span>
+              </div>
+              <div>
+                <h3 style="margin:0 0 8px; font-size:1rem;">Order audit trail</h3>
+                <ul class="logList" id="orderLog"></ul>
+              </div>
+              <div>
+                <h3 style="margin:0 0 8px; font-size:1rem;">Systems & knowledge required</h3>
+                <div class="metaRow" id="systemsChips"></div>
+                <div class="metaRow" id="knowledgeChips" style="margin-top:8px;"></div>
+              </div>
+            </section>
+          </main>
+        </div>
+    </div>
+
+    <div class="flView" id="viewPriceManager" hidden>
+      <div class="pm-shell">
+          <header class="pm-header">
+            <div class="pm-titleBlock">
+              <div class="pm-title">Price Manager</div>
+              <div class="pm-sub">Manage tier pricing per SKU and sync to Shopify metafields + storefront.</div>
+            </div>
+            <div class="pm-headerActions">
+              <a class="pm-linkBtn" href="/" data-route="/">Dashboard</a>
+              <a class="pm-linkBtn" href="/flocs" data-route="/flocs">Order Capture</a>
+            </div>
+          </header>
+
+          <section class="pm-panel">
+            <div class="pm-row">
+              <div class="pm-field">
+                <label for="pmSearch">Search SKU or title</label>
+                <input id="pmSearch" type="text" placeholder="e.g. FL002" />
+              </div>
+              <button id="pmSearchBtn" class="pm-btn" type="button">Search</button>
+              <div class="pm-field">
+                <label for="pmCollection">Collection handle</label>
+                <input id="pmCollection" type="text" placeholder="e.g. wholesale" />
+              </div>
+              <button id="pmCollectionBtn" class="pm-btn" type="button">Load collection</button>
+              <span id="pmStatus" class="pm-muted">Search to load SKU pricing tiers.</span>
+            </div>
+
+            <div style="overflow:auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Title</th>
+                    <th>Public</th>
+                    <th>Default</th>
+                    <th>Agent</th>
+                    <th>Retailer</th>
+                    <th>Export</th>
+                    <th>Private</th>
+                    <th>FKB</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="pmTableBody">
+                  <tr>
+                    <td colspan="10" class="pm-muted">No data loaded yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+        <div id="pmToast" class="pm-toast"></div>
+    </div>
+
       </main>
     </div>
   </div>
@@ -2488,6 +3039,6 @@
 <!-- PRINT-ONLY MOUNT -->
 <div class="printSheetWrapper"><div id="printMount"></div></div>
 
-<script src="/app.js"></script>
+<script type="module" src="/app.js"></script>
 </body> 
 </html>
