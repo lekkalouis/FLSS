@@ -1047,7 +1047,7 @@
   }
 
   .dispatchCardActions{
-    display:flex;
+    display:none;
     justify-content:flex-end;
     flex-wrap:wrap;
     gap:.35rem;
@@ -1702,18 +1702,17 @@
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true"><span class="flNavBtnText">Dashboard</span></button>
-            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false"><span class="flNavBtnText">Scan Station</span></button>
-            <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false"><span class="flNavBtnText">Dispatch Board</span></button>
-            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false"><span class="flNavBtnText">Documentation</span></button>
-            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false"><span class="flNavBtnText">Order capture (FLOCS)</span></button>
-            <button id="navFlpos" class="flNavBtn" type="button" role="tab" aria-controls="viewFlpos" aria-selected="false"><span class="flNavBtnText">Purchase orders (FLPOS)</span></button>
+           
+            
+            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false"><span class="flNavBtnText">Sales Orders </span></button>
+           
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false"><span class="flNavBtnText">Stock take</span></button>
-            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false"><span class="flNavBtnText">Price manager</span></button>
-            <button id="navSimulate" class="flNavBtn" type="button" role="tab" aria-controls="viewSimulate" aria-selected="false"><span class="flNavBtnText">Simulator</span></button>
+            <!-- <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false"><span class="flNavBtnText">Price manager</span></button>
+            <button id="navSimulate" class="flNavBtn" type="button" role="tab" aria-controls="viewSimulate" aria-selected="false"><span class="flNavBtnText">Simulator</span></button> -->
           </div>
-          <div class="flNavStatus">
-            <span id="statusChip" class="statusChip">Ready to scan orders…</span>
-            <span id="actionFlash" class="actionFlash">Ready to scan orders…</span>
+           <div class="flNavStatus">
+          <!-- <span id="statusChip" class="statusChip">Ready to scan orders…</span>-->
+            <span id="actionFlash" class="actionFlash">Ready to scan orders…</span> 
           </div>
         </nav>
       </aside>
@@ -1897,29 +1896,8 @@
           </div>
         </div>
 
-        <div class="flView" id="viewScan" hidden>
-          <div class="dashboardShell">
-            <div class="dashboardHeader">
-              <div>
-                <h1>Scan Station</h1>
-                <p>The scan station now lives inside the dashboard scan dock. Use the dashboard to scan parcels or products.</p>
-              </div>
-              <span class="pill">Dashboard native</span>
-            </div>
-          </div>
-        </div>
 
-        <div class="flView" id="viewOps" hidden>
-          <div class="dashboardShell">
-            <div class="dashboardHeader">
-              <div>
-                <h1>Dispatch Board</h1>
-                <p>The dispatch whiteboard is now the main dashboard view.</p>
-              </div>
-              <button class="btn btnPrimary" type="button" id="goToDashboard">Go to dashboard</button>
-            </div>
-          </div>
-        </div>
+      
 
         <div class="flView" id="viewFlocs" hidden>
           <div class="embeddedView">
@@ -1998,66 +1976,7 @@
           </div>
         </div>
 
-        <div class="flView" id="viewDocs" hidden>
-      <div class="docsShell">
-        <div class="pill">Operator Guide</div>
-        <h2>Scan Station Overview</h2>
-        <p>This console books shipments automatically based on scanned parcel labels and Shopify order metadata. The session banner shows the active order, mode, expected parcel count, and auto-book countdown so operators can confirm readiness before booking.</p>
-
-        <div class="docsGrid">
-          <div class="docsCard">
-            <h3>Quick Start (Daily Use)</h3>
-            <ol>
-              <li>Open the Scan Station view and keep the cursor in the scan field.</li>
-              <li>Scan parcel barcodes in order; the session panel will show scanned vs expected parcels.</li>
-              <li>Use the <strong>MODE</strong> toggle to switch between Auto (tag/idle booking) and Manual (tap Book Now).</li>
-              <li>If a <span class="pill">parcel_count_#</span> tag exists, the booking is triggered on the first scan.</li>
-              <li>If no tag exists, the system auto-books after the idle timer expires or you can tap <strong>BOOK NOW</strong>.</li>
-              
-          </div>
-         
-        </div>
-
-        <h2>Dispatch Board</h2>
-        <p>The Dispatch Board groups open Shopify orders by urgency. Each card lists customer details, service code, tags, and a parcel count indicator so planners can prioritize packing.</p>
-        <p>Tap a card to open the packing modal, add boxes, and update packed quantities. Pickup orders use <strong>Notify customer</strong> once the courier can collect.</p>
-
-        <h2>Mobile Access (Same Network)</h2>
-        <p>To access the app from a phone or tablet on the same Wi-Fi, the server must listen on all interfaces. By default all origins are allowed unless <span class="docsCode">FRONTEND_ORIGIN</span> is set.</p>
-        <div class="docsCard">
-          <h3>Step-by-Step</h3>
-          <ol>
-            <li>Find the computer's IP address on your network (example: <span class="docsCode">192.168.1.25</span>).</li>
-            <li>Start the server with <span class="docsCode">HOST=0.0.0.0</span>.</li>
-            <li>Optional: set <span class="docsCode">FRONTEND_ORIGIN</span> to include both desktop and mobile origins (comma-separated). Use <span class="docsCode">*</span> to explicitly allow all origins.</li>
-            <li>On the phone, open <span class="docsCode">http://192.168.1.25:3000</span>.</li>
-          </ol>
-          <p class="docsMeta">Tip: If you see a CORS error, update <span class="docsCode">FRONTEND_ORIGIN</span> to include the mobile address or set it to <span class="docsCode">*</span>.</p>
-        </div>
-
-        <h2>Endpoints</h2>
-        <div class="docsGrid">
-          <div class="docsCard">
-            <h3>Core API</h3>
-            <ul>
-              <li><span class="docsCode">POST /pp</span> — ParcelPerfect proxy for bookings and quotes.</li>
-              <li><span class="docsCode">GET /shopify/orders/by-name/:name</span> — Order lookup by Shopify name.</li>
-              <li><span class="docsCode">GET /shopify/orders/open</span> — Dispatch board feed.</li>
-              <li><span class="docsCode">POST /shopify/fulfill</span> — Fulfillment + tracking update.</li>
-              <li><span class="docsCode">GET /healthz</span> — Service health check.</li>
-            </ul>
-          </div>
-          <div class="docsCard">
-            <h3>Operator Tips</h3>
-            <ul>
-              <li>Use <strong>Emergency Stop</strong> to clear the session if the wrong order is scanned.</li>
-              <li>If an order is already booked, scans are blocked to prevent duplicates.</li>
-              <li>Keep labels flat in the printer; the preview matches the 100×150mm output.</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
+   
       </main>
     </div>
   </div>

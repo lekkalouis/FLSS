@@ -225,7 +225,7 @@
     "worcester sauce spice - tub": "WS",
     "red wine & garlic sprinkle": "RG",
     "chutney sprinkle": "CS",
-    "savoury herb mix": "SH",
+    "flippen lekka savoury herb mix": "SH",
     "salt & vinegar seasoning": "SV",
     "butter popcorn sprinkle": "BUT",
     "sour cream & chives popcorn sprinkle": "SCC",
