@@ -33,11 +33,86 @@
       font-family:var(--sans);
     }
 
+    .flocs-app {
+      min-height:100vh;
+      display:flex;
+      align-items:stretch;
+      gap:1rem;
+      padding:1rem 1.5rem 1.5rem;
+    }
+    @media (max-width:900px) {
+      .flocs-app {
+        flex-direction:column;
+        padding:1rem;
+      }
+    }
+
+    .flocs-side {
+      background:#fff;
+      border:1px solid var(--panel-strong);
+      border-radius:var(--radius-md);
+      box-shadow:0 12px 28px rgba(15,23,42,.08);
+      padding:.9rem .8rem;
+      display:flex;
+      flex-direction:column;
+      gap:1rem;
+      min-width:220px;
+      max-width:260px;
+    }
+    .flocs-sideHeader {
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+    }
+    .flocs-sideTitle {
+      font-weight:700;
+      font-size:.95rem;
+      letter-spacing:.02em;
+    }
+    .flocs-sideSub {
+      font-size:.72rem;
+      color:var(--muted);
+    }
+    .flocs-nav {
+      display:flex;
+      flex-direction:column;
+      gap:.65rem;
+    }
+    .flocs-navBtn {
+      border:1px solid var(--panel-strong);
+      background:#fff;
+      color:var(--text);
+      font-weight:600;
+      font-size:.82rem;
+      padding:.45rem .85rem;
+      border-radius:.5rem;
+      cursor:pointer;
+      transition:all .2s ease;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      width:100%;
+      justify-content:flex-start;
+      gap:.5rem;
+    }
+    .flocs-navBtn:hover {
+      border-color:rgba(56,189,248,.7);
+      color:#0c4a6e;
+    }
+    .flocs-navBtn.is-active {
+      background:var(--accent);
+      border-color:var(--accent);
+      color:#0f172a;
+      box-shadow:0 8px 20px rgba(56,189,248,.28);
+    }
+
     .flocs-shell {
       max-width:none;
       width:100%;
       margin:0 auto;
       padding:1.25rem 1.2rem 2.5rem;
+      flex:1;
+      min-width:0;
     }
 
     header.flocs-header {
@@ -74,13 +149,6 @@
       font-size:.75rem;
       border:1px solid var(--panel-strong);
       color:var(--text);
-    }
-    .flocs-headerActions {
-      display:flex;
-      align-items:center;
-      gap:.5rem;
-      flex-wrap:wrap;
-      justify-content:flex-end;
     }
     .flocs-linkBtn {
       display:inline-flex;
@@ -842,29 +910,41 @@
   </style>
 </head>
 <body>
-  <div class="flocs-shell" id="flocs-shell">
-    <header class="flocs-header">
-      <div class="flocs-titleBlock">
-        <div class="flocs-title">Flippen Lekka Order Capturing System</div>
-        <div class="flocs-sub">FLOCS · fast operator-friendly order entry into Shopify draft orders</div>
+  <div class="flocs-app">
+    <aside class="flocs-side">
+      <div class="flocs-sideHeader">
+        <div class="flocs-sideTitle">Scan Station</div>
+        <div class="flocs-sideSub">Operator tools & dashboards</div>
       </div>
-      <div class="flocs-headerActions">
-        <a class="flocs-linkBtn" href="/">
+      <nav class="flocs-nav">
+        <a class="flocs-navBtn" href="/">
           <span>⟵</span>
           <span>Scan station</span>
         </a>
-        <a class="flocs-linkBtn" href="/stock.html">
+        <a class="flocs-navBtn is-active" href="/flocs">
+          <span>🧾</span>
+          <span>FLOCS order capture</span>
+        </a>
+        <a class="flocs-navBtn" href="/stock.html">
           <span>📦</span>
           <span>Stock take</span>
         </a>
-        <div class="flocs-badge">
-          <span class="flocs-dot"></span>
-          <span>Backend: Scan Station Node/Express & SWE v28</span>
-        </div>
+      </nav>
+      <div class="flocs-badge">
+        <span class="flocs-dot"></span>
+        <span>Backend: Scan Station Node/Express & SWE v28</span>
       </div>
-    </header>
+    </aside>
 
-    <main class="flocs-layout">
+    <div class="flocs-shell" id="flocs-shell">
+      <header class="flocs-header">
+        <div class="flocs-titleBlock">
+          <div class="flocs-title">Flippen Lekka Order Capturing System</div>
+          <div class="flocs-sub">FLOCS · fast operator-friendly order entry into Shopify draft orders</div>
+        </div>
+      </header>
+
+      <main class="flocs-layout">
       <!-- LEFT: FORM -->
       <section class="flocs-panel form" id="flocs-formPanel">
         <!-- Customer -->
@@ -1058,6 +1138,7 @@
         </div>
       </section>
     </main>
+    </div>
   </div>
 
   <!-- Global toast -->
