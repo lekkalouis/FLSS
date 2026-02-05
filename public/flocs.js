@@ -82,6 +82,9 @@
   const productStatus    = document.getElementById("flocs-productStatus");
   const filterFlavour    = document.getElementById("flocs-filterFlavour");
   const filterSize       = document.getElementById("flocs-filterSize");
+  const sizeQuick        = document.getElementById("flocs-sizeQuick");
+  const quickEmpty       = document.getElementById("flocs-quickEmpty");
+  const productsTable    = document.getElementById("flocs-productsTable");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
@@ -116,8 +119,11 @@
     customerTags: [],
     filters: { flavour: "", size: "" },
     priceOverrides: {},
-    priceOverrideEnabled: {}
+    priceOverrideEnabled: {},
+    quickSize: ""
   };
+
+  const QUICK_QTY_OPTIONS = [1, 3, 5, 6, 10, 12, 18, 24, 36, 48, 72, 96, 100];
 
   // ===== HELPERS =====
   const money = (v) =>
@@ -205,6 +211,27 @@
     const override = priceOverrideForKey(key);
     if (override != null) return override;
     return priceForCustomer(product);
+  }
+
+  function setQuickSize(size) {
+    state.quickSize = size || "";
+    if (size && size !== "other") {
+      state.filters.size = size;
+      if (filterSize) {
+        filterSize.value = size;
+      }
+    } else if (size === "other") {
+      state.filters.size = "";
+      if (filterSize) {
+        filterSize.value = "";
+      }
+    }
+    if (sizeQuick) {
+      const buttons = sizeQuick.querySelectorAll("[data-size]");
+      buttons.forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.size === size);
+      });
+    }
   }
 
   function setShellReady(ready) {
@@ -334,12 +361,34 @@
     if (!productsBody) return;
     const flavourFilter = (state.filters.flavour || "").toLowerCase();
     const sizeFilter = (state.filters.size || "").toLowerCase();
+    const quickSize = (state.quickSize || "").toLowerCase();
+    const hasQuickSize = Boolean(quickSize);
+    const hasFilters = hasQuickSize || flavourFilter || sizeFilter;
+
+    if (quickEmpty) {
+      quickEmpty.hidden = hasFilters;
+    }
+    if (productsTable) {
+      productsTable.classList.toggle("is-empty", !hasFilters);
+    }
+
+    if (!hasFilters) {
+      productsBody.innerHTML = "";
+      return;
+    }
 
     const filtered = state.products.filter((p) => {
       const flavour = (p.flavour || "").toLowerCase();
       const size = (p.size || "").toLowerCase();
       if (flavourFilter && flavour !== flavourFilter) return false;
       if (sizeFilter && size !== sizeFilter) return false;
+      if (quickSize) {
+        if (quickSize === "other") {
+          if (["200ml", "500g", "1kg"].includes(size)) return false;
+        } else if (size !== quickSize) {
+          return false;
+        }
+      }
       return true;
     });
 
@@ -392,6 +441,12 @@
                      inputmode="numeric"
                      value="${value}" />
               <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+            </div>
+            <div class="flocs-quickQtys">
+              ${QUICK_QTY_OPTIONS.map(
+                (qty) =>
+                  `<button class="flocs-quickQtyBtn" type="button" data-action="quick-qty" data-key="${key}" data-qty="${qty}">${qty}</button>`
+              ).join("")}
             </div>
           </td>
         </tr>
@@ -1702,6 +1757,21 @@ ${state.customer.email || ""}${
           validate();
           return;
         }
+        if (action === "quick-qty") {
+          const qty = Number(btn.dataset.qty || 0);
+          if (qty > 0) {
+            state.items[key] = qty;
+          }
+          const input = productsBody.querySelector(
+            `.flocs-qtyInput[data-key="${CSS.escape(key)}"]`
+          );
+          if (input) {
+            input.value = qty > 0 ? String(qty) : "";
+          }
+          renderInvoice();
+          validate();
+          return;
+        }
         if (action === "inc") {
           state.items[key] = current + 1;
         } else if (action === "dec") {
@@ -1761,6 +1831,17 @@ ${state.customer.email || ""}${
     if (filterSize) {
       filterSize.addEventListener("change", () => {
         state.filters.size = filterSize.value || "";
+        setQuickSize(state.filters.size);
+        renderProductsTable();
+      });
+    }
+
+    if (sizeQuick) {
+      sizeQuick.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-size]");
+        if (!btn) return;
+        const next = btn.dataset.size || "";
+        setQuickSize(next);
         renderProductsTable();
       });
     }
