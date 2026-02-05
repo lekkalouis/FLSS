@@ -58,6 +58,11 @@ function normalizeCustomer(customer, deliveryMethod) {
   };
 }
 
+function isValidEmail(value) {
+  if (!value) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 function toKg(weight, unit) {
   const val = Number(weight || 0);
   if (!val) return 0;
@@ -140,34 +145,44 @@ router.post("/shopify/customers", async (req, res) => {
     const { firstName, lastName, email, phone, company, deliveryMethod, address } =
       req.body || {};
 
-    if (!firstName && !lastName && !email && !phone) {
+    const trimmedFirstName = String(firstName || "").trim();
+    const trimmedLastName = String(lastName || "").trim();
+    const trimmedEmail = String(email || "").trim();
+    const trimmedPhone = String(phone || "").trim();
+    const trimmedCompany = String(company || "").trim();
+
+    if (!trimmedFirstName && !trimmedLastName && !trimmedEmail && !trimmedPhone) {
       return badRequest(res, "Provide at least a name, email, or phone number");
+    }
+
+    if (trimmedEmail && !isValidEmail(trimmedEmail)) {
+      return badRequest(res, "Provide a valid email address");
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const payload = {
       customer: {
-        first_name: firstName || "",
-        last_name: lastName || "",
-        email: email || "",
-        phone: phone || "",
+        first_name: trimmedFirstName,
+        last_name: trimmedLastName,
+        ...(trimmedEmail ? { email: trimmedEmail } : {}),
+        ...(trimmedPhone ? { phone: trimmedPhone } : {}),
         addresses: address
           ? [
               {
-                address1: address.address1 || "",
-                address2: address.address2 || "",
-                city: address.city || "",
-                province: address.province || "",
-                zip: address.zip || "",
-                country: address.country || "",
-                company: company || "",
-                first_name: firstName || "",
-                last_name: lastName || "",
-                phone: phone || ""
+                address1: String(address.address1 || "").trim(),
+                address2: String(address.address2 || "").trim(),
+                city: String(address.city || "").trim(),
+                province: String(address.province || "").trim(),
+                zip: String(address.zip || "").trim(),
+                country: String(address.country || "").trim(),
+                company: trimmedCompany,
+                first_name: trimmedFirstName,
+                last_name: trimmedLastName,
+                ...(trimmedPhone ? { phone: trimmedPhone } : {})
               }
             ]
           : [],
-        note: company ? `Company: ${company}` : undefined,
+        note: trimmedCompany ? `Company: ${trimmedCompany}` : undefined,
         metafields: deliveryMethod
           ? [
               {
