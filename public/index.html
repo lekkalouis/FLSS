@@ -156,6 +156,134 @@
     flex-direction:column;
     gap:1rem;
   }
+  .scanDock{
+    border:1px solid var(--panel-strong);
+    background:var(--panel);
+    border-radius:var(--radius-md);
+    box-shadow:0 12px 28px rgba(15,23,42,.08);
+    overflow:hidden;
+  }
+  .scanDockHeader{
+    display:flex;
+    align-items:center;
+    gap:1rem;
+    padding:.6rem .9rem;
+    background:linear-gradient(90deg, rgba(37,99,235,.08), rgba(37,99,235,.02));
+    border-bottom:1px solid var(--panel-strong);
+  }
+  .scanDockTitle{
+    font-weight:700;
+    font-size:.9rem;
+    display:flex;
+    align-items:center;
+    gap:.45rem;
+  }
+  .scanDockBadge{
+    font-size:.7rem;
+    padding:.15rem .45rem;
+    border-radius:999px;
+    background:var(--accent-soft);
+    color:var(--accent);
+    font-weight:600;
+  }
+  .scanDockControls{
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+    flex:1;
+  }
+  .scanDockControls input{
+    flex:1;
+    min-width:160px;
+  }
+  .scanDockToggle{
+    border:1px solid var(--panel-strong);
+    background:#fff;
+    border-radius:.5rem;
+    padding:.4rem .7rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .scanDockBody{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height .3s ease;
+  }
+  .scanDock--expanded .scanDockBody{
+    max-height:2600px;
+  }
+  .scanDockStatus{
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+    font-size:.75rem;
+    color:var(--text-muted);
+    white-space:nowrap;
+  }
+  .scanDockMode{
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    font-size:.7rem;
+    color:var(--accent);
+  }
+  .embeddedView{
+    border:1px solid var(--panel-strong);
+    background:var(--panel);
+    border-radius:var(--radius-md);
+    overflow:hidden;
+    min-height:70dvh;
+    display:flex;
+    flex-direction:column;
+  }
+  .embeddedHeader{
+    padding:.75rem 1rem;
+    border-bottom:1px solid var(--panel-strong);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:.75rem;
+  }
+  .embeddedHeader h2{
+    margin:0;
+    font-size:1rem;
+  }
+  .embeddedFrame{
+    flex:1;
+    border:0;
+    width:100%;
+    min-height:60dvh;
+    background:#fff;
+  }
+  .posPanel{
+    margin-top:1rem;
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    background:var(--panel-muted);
+    padding:.75rem;
+  }
+  .posPanelHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:.6rem;
+  }
+  .posPanelHeader h4{
+    margin:0;
+    font-size:.9rem;
+  }
+  .posList{
+    display:flex;
+    flex-direction:column;
+    gap:.4rem;
+    max-height:220px;
+    overflow:auto;
+    font-size:.85rem;
+  }
+  .posEmpty{
+    color:var(--text-muted);
+    font-size:.8rem;
+  }
   body.flNavCollapsed .flSide{
     min-width:64px;
     max-width:64px;
@@ -465,6 +593,11 @@
     background:#0ea5e9;
     border-color:#0ea5e9;
     color:#fff;
+  }
+  .btnGhost{
+    background:#fff;
+    border-color:var(--panel-strong);
+    color:var(--text);
   }
   .btnToggle{
     background:#fff7ed;
@@ -1572,9 +1705,10 @@
             <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false"><span class="flNavBtnText">Scan Station</span></button>
             <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false"><span class="flNavBtnText">Dispatch Board</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false"><span class="flNavBtnText">Documentation</span></button>
-            <a class="flNavBtn" href="/flocs"><span class="flNavBtnText">Order capture (FLOCS)</span></a>
-            <a class="flNavBtn" href="/stock.html"><span class="flNavBtnText">Stock take</span></a>
-            <a class="flNavBtn" href="/price-manager.html"><span class="flNavBtnText">Price manager</span></a>
+            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false"><span class="flNavBtnText">Order capture (FLOCS)</span></button>
+            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false"><span class="flNavBtnText">Stock take</span></button>
+            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false"><span class="flNavBtnText">Price manager</span></button>
+            <button id="navSimulate" class="flNavBtn" type="button" role="tab" aria-controls="viewSimulate" aria-selected="false"><span class="flNavBtnText">Simulator</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -1589,197 +1723,269 @@
         </div>
 
         <div class="flView flView--active" id="viewDashboard">
-        <div class="dashboardShell">
-          <div class="dashboardHeader">
-            <div>
-              <h1>Operations Dashboard</h1>
-              <p>Launch an app module below. Add new modules in <strong>public/app.js</strong> when you build more tools.</p>
+          <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
+          <section id="scanDock" class="scanDock">
+            <div class="scanDockHeader">
+              <div class="scanDockTitle">Dispatch Scan Dock <span class="scanDockBadge">Scan Station</span></div>
+              <div class="scanDockControls">
+                <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan parcel sticker or product barcode…" />
+                <button id="multiShipToggle" class="btn btnToggle" type="button">Multi-shipment override: Off</button>
+                <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
+              </div>
+              <div class="scanDockStatus">
+                <span id="scanDockMode" class="scanDockMode">Dispatch</span>
+                <span id="scanDockStatus">Ready to scan parcels or products.</span>
+              </div>
+              <button id="scanDockToggle" class="scanDockToggle" type="button" aria-expanded="false">Expand</button>
+            </div>
+            <div id="scanDockBody" class="scanDockBody">
+              <div class="shell" role="application" aria-label="Flippen Lekka Scan Station">
+                <!-- LEFT -->
+                <section class="leftPane">
+                  <div class="headerRow">
+                    <div class="line1">Flippen Lekka Scan Station <span class="badge" aria-live="polite">v1.0</span></div>
+                    <div class="sessionInfo" aria-live="polite">
+                      <div>Order: <span id="uiOrderNo">--</span></div>
+                      <div>Bundled orders: <span id="uiBundleOrders">--</span></div>
+                      <div>Multi-ship: <span id="uiMultiShip">Off</span></div>
+                      <div>Session mode: <span id="uiSessionMode">Waiting</span></div>
+                      <div>Parcels: <span id="uiParcelCount">0</span> / <span id="uiExpectedCount">--</span></div>
+                      <div>Parcel source: <span id="uiParcelSource">--</span></div>
+                      <div>Auto-book: <span id="uiAutoBook">Idle</span></div>
+                    </div>
+                  </div>
+
+                  <!-- Address search/select (toggle display if needed) -->
+                  <div class="addrBox" id="addrBox" hidden>
+                    <label>Destination address <span class="addrHint" style="font-weight:400">(search & select)</span></label>
+                    <div class="row">
+                      <input id="addrSearch" type="text" placeholder="Type name, city, postal, street…" />
+                      <input id="placeCode" type="text" placeholder="place code" title="ParcelPerfect place code (optional)" />
+                    </div>
+                    <div class="addrList" id="addrResults" role="listbox" aria-label="Address results"></div>
+                    <div class="addrHint">Tip: selecting an item sets the destination and its place code (if present). You can paste a code too.</div>
+                  </div>
+
+                  <!-- Service override (toggle display if needed) -->
+                  <div class="card" id="svcBox" hidden>
+                    <div class="cardHeader">Service</div>
+                    <div class="svcRow">
+                      <label for="serviceOverride" class="addrHint" style="font-size:.8rem">Prefer:</label>
+                      <select id="serviceOverride" title="Choose a service or Auto">
+                        <option value="AUTO">Auto (RFX→ECO→RDF→first)</option>
+                        <option value="RFX">RFX (Road Express)</option>
+                        <option value="ECO">ECO (Economy Road)</option>
+                        <option value="RDF" selected>RDF (Roadfreight)</option>
+                        <option value="ONX">ONX (Overnight Air)</option>
+                        <option value="OVN">OVN (Overnight 2)</option>
+                        <option value="CSS">CSS (ChainStores)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Info cards -->
+                  <div class="minigrid">
+                    <div class="card"><div class="cardHeader">Scanned Parcel Details</div><div class="cardBody" id="parcelList">No parcels scanned yet.</div></div>
+                    <div class="card"><div class="cardHeader">Ship To</div><div class="cardBody" id="shipToCard">None yet.</div></div>
+
+                    <div id="last-booking" class="card">
+                      <div class="card-title">Last Booking Status</div>
+                      <div id="last-booking-body"></div>
+                    </div>
+                  </div>
+
+                  <div id="debugLog" aria-live="polite"></div>
+                </section>
+
+                <!-- RIGHT -->
+                <section class="rightPane">
+
+                  <div class="truckPanel" aria-live="polite">
+                    <div class="truckHeader">
+                      <div>
+                        <div class="truckTitle">Truck collection</div>
+                        <div class="truckMeta">Today's parcels: <span id="truckParcelCount">0</span></div>
+                      </div>
+                      <span id="truckStatus" class="truckStatus">Not booked</span>
+                    </div>
+                    <button id="truckBookBtn" class="truckBookBtn" type="button" aria-pressed="false">
+                      <span class="truckIcon" aria-hidden="true">🚚</span>
+                      <span class="truckLabel">Book Truck</span>
+                    </button>
+                    <div class="truckHint">Auto-books when today's parcels exceed 25.</div>
+                  </div>
+
+                  <div class="sectionTitle" style="margin-top:.8rem">
+                    <button id="modeToggle" type="button">MODE: AUTO</button>
+
+                  </div>
+                  <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
+                    <div class="dispatchStatusHeader">
+                      <h3>Booking progress</h3>
+                      <span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span>
+                    </div>
+                    <div class="dispatchProgressBar" id="scanProgressBar">
+                      <div id="scanProgressFill" class="dispatchProgressFill"></div>
+                      <div class="dispatchProgressSun" aria-hidden="true"></div>
+                    </div>
+                    <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
+                  </div>
+                  <div class="dispatchLogPanel dispatchLogPanel--compact">
+                    <div class="dispatchLogHeader">
+                      <span>Dispatch log</span>
+                      <span class="dispatchStamp">Latest activity</span>
+                    </div>
+                    <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
+                  </div>
+                  <div class="parcelNumbersPanel" aria-live="polite">
+                    <div class="parcelNumbersHeader">
+                      <span>Parcel Numbers</span>
+                      <span class="parcelNumbersSub">Large scan confirmation</span>
+                    </div>
+                    <div id="parcelNumbers" class="parcelNumbersGrid">
+                      <div class="parcelNumbersEmpty">Scan an order to show parcel numbers.</div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <div id="posPanel" class="posPanel" hidden>
+                <div class="posPanelHeader">
+                  <h4>POS Mode: product scans</h4>
+                  <div>
+                    <span>Total items: <strong id="posTotal">0</strong></span>
+                    <button id="posExit" class="btn btnGhost" type="button">Exit POS</button>
+                  </div>
+                </div>
+                <div class="posList" id="posList">
+                  <div class="posEmpty">Scan a product barcode to start a POS cart.</div>
+                </div>
+                <div class="addrHint" id="posLastScan">Last scan: --</div>
+              </div>
+            </div>
+          </section>
+
+          <div id="dispatchBoardContainer">
+            <div class="dispatchStatusPanel" aria-live="polite">
+              <div class="dispatchStatusHeader">
+                <h3>Booking progress</h3>
+                <span id="dispatchProgressLabel" class="dispatchStatusLabel">Idle</span>
+              </div>
+              <div class="dispatchProgressBar" id="dispatchProgressBar">
+                <div id="dispatchProgressFill" class="dispatchProgressFill"></div>
+                <div class="dispatchProgressSun" aria-hidden="true"></div>
+              </div>
+              <div class="dispatchProgressSteps" id="dispatchProgressSteps"></div>
+            </div>
+            <div class="dispatchLogPanel">
+              <div class="dispatchLogHeader">
+                <span>Dispatch log</span>
+                <span class="dispatchStamp">Latest activity</span>
+              </div>
+              <div id="dispatchLog" class="dispatchLog" aria-live="polite"></div>
+            </div>
+            <div class="dispatchBoardPanel">
+              <div class="sectionTitle" style="margin-top:.4rem">
+                <span>Dispatch Whiteboard</span>
+                <span id="dispatchStamp" class="dispatchStamp">–</span>
+              </div>
+              <div class="dispatchBoard" id="dispatchBoardGrid">
+                <div class="dispatchBoardEmpty">Loading open orders…</div>
+              </div>
+            </div>
           </div>
-          <span class="pill">Modular launcher</span>
         </div>
-        <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
-      </div>
-    </div>
 
         <div class="flView" id="viewScan" hidden>
-      <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
-      <div class="scanTopBar">
-        <div class="scanBox scanBox--centered">
-          <label for="scanInput"><span>Scan parcel sticker barcode</span><small>Example: 252051001</small></label>
-          <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." />
-          <button id="multiShipToggle" class="btn btnToggle" type="button">Multi-shipment override: Off</button>
-          <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
+          <div class="dashboardShell">
+            <div class="dashboardHeader">
+              <div>
+                <h1>Scan Station</h1>
+                <p>The scan station now lives inside the dashboard scan dock. Use the dashboard to scan parcels or products.</p>
+              </div>
+              <span class="pill">Dashboard native</span>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="shell" role="application" aria-label="Flippen Lekka Scan Station">
-  <!-- LEFT -->
-  <section class="leftPane">
-    <div class="headerRow">
-      <div class="line1">Flippen Lekka Scan Station <span class="badge" aria-live="polite">v1.0</span></div>
-      <div class="sessionInfo" aria-live="polite">
-        <div>Order: <span id="uiOrderNo">--</span></div>
-        <div>Bundled orders: <span id="uiBundleOrders">--</span></div>
-        <div>Multi-ship: <span id="uiMultiShip">Off</span></div>
-        <div>Session mode: <span id="uiSessionMode">Waiting</span></div>
-        <div>Parcels: <span id="uiParcelCount">0</span> / <span id="uiExpectedCount">--</span></div>
-        <div>Parcel source: <span id="uiParcelSource">--</span></div>
-        <div>Auto-book: <span id="uiAutoBook">Idle</span></div>
-      
-      </div>
-    </div>
-
-    <!-- Address search/select (toggle display if needed) -->
-    <div class="addrBox" id="addrBox" hidden>
-      <label>Destination address <span class="addrHint" style="font-weight:400">(search & select)</span></label>
-      <div class="row">
-        <input id="addrSearch" type="text" placeholder="Type name, city, postal, street…" />
-        <input id="placeCode" type="text" placeholder="place code" title="ParcelPerfect place code (optional)" />
-      </div>
-      <div class="addrList" id="addrResults" role="listbox" aria-label="Address results"></div>
-      <div class="addrHint">Tip: selecting an item sets the destination and its place code (if present). You can paste a code too.</div>
-    </div>
-
-    <!-- Service override (toggle display if needed) -->
-    <div class="card" id="svcBox" hidden>
-      <div class="cardHeader">Service</div>
-      <div class="svcRow">
-        <label for="serviceOverride" class="addrHint" style="font-size:.8rem">Prefer:</label>
-        <select id="serviceOverride" title="Choose a service or Auto">
-          <option value="AUTO">Auto (RFX→ECO→RDF→first)</option>
-          <option value="RFX">RFX (Road Express)</option>
-          <option value="ECO">ECO (Economy Road)</option>
-          <option value="RDF" selected>RDF (Roadfreight)</option>
-          <option value="ONX">ONX (Overnight Air)</option>
-          <option value="OVN">OVN (Overnight 2)</option>
-          <option value="CSS">CSS (ChainStores)</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Info cards -->
-    <div class="minigrid">
-      <div class="card"><div class="cardHeader">Scanned Parcel Details</div><div class="cardBody" id="parcelList">No parcels scanned yet.</div></div>
-      <div class="card"><div class="cardHeader">Ship To</div><div class="cardBody" id="shipToCard">None yet.</div></div>
-      
-        <div id="last-booking" class="card">
-  <div class="card-title">Last Booking Status</div>
-  <div id="last-booking-body"></div>
-      </div>
-    </div>
-
-    <div id="debugLog" aria-live="polite"></div>
-  </section>
-
-  <!-- RIGHT -->
-  <section class="rightPane">
-
-    <div class="truckPanel" aria-live="polite">
-      <div class="truckHeader">
-        <div>
-          <div class="truckTitle">Truck collection</div>
-          <div class="truckMeta">Today's parcels: <span id="truckParcelCount">0</span></div>
-        </div>
-        <span id="truckStatus" class="truckStatus">Not booked</span>
-      </div>
-      <button id="truckBookBtn" class="truckBookBtn" type="button" aria-pressed="false">
-        <span class="truckIcon" aria-hidden="true">🚚</span>
-        <span class="truckLabel">Book Truck</span>
-      </button>
-      <div class="truckHint">Auto-books when today's parcels exceed 25.</div>
-    </div>
-
-    <div class="sectionTitle" style="margin-top:.8rem">
-    <button id="modeToggle" type="button">MODE: AUTO</button>
-
-    </div>
-    <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
-      <div class="dispatchStatusHeader">
-        <h3>Booking progress</h3>
-        <span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span>
-      </div>
-      <div class="dispatchProgressBar" id="scanProgressBar">
-        <div id="scanProgressFill" class="dispatchProgressFill"></div>
-        <div class="dispatchProgressSun" aria-hidden="true"></div>
-      </div>
-      <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
-    </div>
-    <div class="dispatchLogPanel dispatchLogPanel--compact">
-      <div class="dispatchLogHeader">
-        <span>Dispatch log</span>
-        <span class="dispatchStamp">Latest activity</span>
-      </div>
-      <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
-    </div>
-    <div class="parcelNumbersPanel" aria-live="polite">
-      <div class="parcelNumbersHeader">
-        <span>Parcel Numbers</span>
-        <span class="parcelNumbersSub">Large scan confirmation</span>
-      </div>
-      <div id="parcelNumbers" class="parcelNumbersGrid">
-        <div class="parcelNumbersEmpty">Scan an order to show parcel numbers.</div>
-      </div>
-    </div>
-  </section>
-</div>
-    </div>
 
         <div class="flView" id="viewOps" hidden>
-      <div id="dispatchBoardContainer">
-        <div class="dispatchStatusPanel" aria-live="polite">
-          <div class="dispatchStatusHeader">
-            <h3>Booking progress</h3>
-            <span id="dispatchProgressLabel" class="dispatchStatusLabel">Idle</span>
-          </div>
-          <div class="dispatchProgressBar" id="dispatchProgressBar">
-            <div id="dispatchProgressFill" class="dispatchProgressFill"></div>
-            <div class="dispatchProgressSun" aria-hidden="true"></div>
-          </div>
-          <div class="dispatchProgressSteps" id="dispatchProgressSteps"></div>
-        </div>
-        <div class="dispatchLogPanel">
-          <div class="dispatchLogHeader">
-            <span>Dispatch log</span>
-            <span class="dispatchStamp">Latest activity</span>
-          </div>
-          <div id="dispatchLog" class="dispatchLog" aria-live="polite"></div>
-        </div>
-        <div class="dispatchBoardPanel">
-          <div class="sectionTitle" style="margin-top:.4rem">
-            <span>Dispatch Whiteboard</span>
-            <span id="dispatchStamp" class="dispatchStamp">–</span>
-          </div>
-          <div class="dispatchBoard" id="dispatchBoardGrid">
-            <div class="dispatchBoardEmpty">Loading open orders…</div>
-          </div>
-        </div>
-      </div>
-      <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
-        <div class="dispatchOrderModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
-        <div class="dispatchOrderModal__content" role="dialog" aria-modal="true" aria-labelledby="dispatchOrderModalTitle">
-          <div class="dispatchOrderModal__header">
-            <div>
-              <div class="dispatchOrderModal__title" id="dispatchOrderModalTitle">Order</div>
-              <div class="dispatchOrderModal__meta" id="dispatchOrderModalMeta"></div>
+          <div class="dashboardShell">
+            <div class="dashboardHeader">
+              <div>
+                <h1>Dispatch Board</h1>
+                <p>The dispatch whiteboard is now the main dashboard view.</p>
+              </div>
+              <button class="btn btnPrimary" type="button" id="goToDashboard">Go to dashboard</button>
             </div>
-            <button class="dispatchOrderModal__close" type="button" data-action="close-modal" aria-label="Close order details">✕</button>
           </div>
-          <div class="dispatchOrderModal__body" id="dispatchOrderModalBody"></div>
         </div>
-      </div>
-      <div class="dispatchShipmentModal" id="dispatchShipmentModal" aria-hidden="true">
-        <div class="dispatchShipmentModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
-        <div class="dispatchShipmentModal__content" role="dialog" aria-modal="true" aria-labelledby="dispatchShipmentModalTitle">
-          <div class="dispatchShipmentModal__header">
-            <div>
-              <div class="dispatchShipmentModal__title" id="dispatchShipmentModalTitle">Shipment</div>
-              <div class="dispatchShipmentModal__meta" id="dispatchShipmentModalMeta"></div>
+
+        <div class="flView" id="viewFlocs" hidden>
+          <div class="embeddedView">
+            <div class="embeddedHeader">
+              <h2>Order Capture (FLOCS)</h2>
+              <span class="pill">Embedded module</span>
             </div>
-            <button class="dispatchShipmentModal__close" type="button" data-action="close-modal" aria-label="Close shipment details">✕</button>
+            <iframe class="embeddedFrame" src="/flocs" title="Order capture (FLOCS)"></iframe>
           </div>
-          <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
         </div>
-      </div>
-    </div>
+
+        <div class="flView" id="viewStock" hidden>
+          <div class="embeddedView">
+            <div class="embeddedHeader">
+              <h2>Stock Take</h2>
+              <span class="pill">Embedded module</span>
+            </div>
+            <iframe class="embeddedFrame" src="/stock.html" title="Stock take"></iframe>
+          </div>
+        </div>
+
+        <div class="flView" id="viewPriceManager" hidden>
+          <div class="embeddedView">
+            <div class="embeddedHeader">
+              <h2>Price Manager</h2>
+              <span class="pill">Embedded module</span>
+            </div>
+            <iframe class="embeddedFrame" src="/price-manager.html" title="Price manager"></iframe>
+          </div>
+        </div>
+
+        <div class="flView" id="viewSimulate" hidden>
+          <div class="embeddedView">
+            <div class="embeddedHeader">
+              <h2>Simulator</h2>
+              <span class="pill">Embedded module</span>
+            </div>
+            <iframe class="embeddedFrame" src="/simulate.html" title="Simulator"></iframe>
+          </div>
+        </div>
+
+        <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
+          <div class="dispatchOrderModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
+          <div class="dispatchOrderModal__content" role="dialog" aria-modal="true" aria-labelledby="dispatchOrderModalTitle">
+            <div class="dispatchOrderModal__header">
+              <div>
+                <div class="dispatchOrderModal__title" id="dispatchOrderModalTitle">Order</div>
+                <div class="dispatchOrderModal__meta" id="dispatchOrderModalMeta"></div>
+              </div>
+              <button class="dispatchOrderModal__close" type="button" data-action="close-modal" aria-label="Close order details">✕</button>
+            </div>
+            <div class="dispatchOrderModal__body" id="dispatchOrderModalBody"></div>
+          </div>
+        </div>
+        <div class="dispatchShipmentModal" id="dispatchShipmentModal" aria-hidden="true">
+          <div class="dispatchShipmentModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
+          <div class="dispatchShipmentModal__content" role="dialog" aria-modal="true" aria-labelledby="dispatchShipmentModalTitle">
+            <div class="dispatchShipmentModal__header">
+              <div>
+                <div class="dispatchShipmentModal__title" id="dispatchShipmentModalTitle">Shipment</div>
+                <div class="dispatchShipmentModal__meta" id="dispatchShipmentModalMeta"></div>
+              </div>
+              <button class="dispatchShipmentModal__close" type="button" data-action="close-modal" aria-label="Close shipment details">✕</button>
+            </div>
+            <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
+          </div>
+        </div>
 
         <div class="flView" id="viewDocs" hidden>
       <div class="docsShell">
