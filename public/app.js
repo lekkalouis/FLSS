@@ -2566,26 +2566,17 @@ async function startOrder(orderNo) {
     return OPP_DOCUMENTS.find((doc) => doc.type === docType)?.label || "OPP document";
   }
 
-  function renderDispatchActions(order, laneId, orderNo, packingState) {
-    const actionBtn =
-      laneId === "delivery"
-        ? orderNo
-          ? `<button class="dispatchNoteBtn" type="button" data-action="print-note" data-order-no="${orderNo}">Print delivery note</button>`
-          : `<button class="dispatchNoteBtn" type="button" disabled>Print delivery note</button>`
-        : laneId === "pickup"
-        ? orderNo
-          ? `<button class="dispatchNotifyBtn" type="button" data-action="notify-ready" data-order-no="${orderNo}">Notify customer</button>`
-          : `<button class="dispatchNotifyBtn" type="button" disabled>Notify customer</button>`
-        : orderNo
-        ? `<button class="dispatchBookBtn" type="button" data-action="book-now" data-order-no="${orderNo}">Book Now</button>`
-        : `<button class="dispatchBookBtn" type="button" disabled>Book Now</button>`;
-
-    const flowBtn = orderNo
-      ? `<button class="dispatchFlowBtn" type="button" data-action="run-flow" data-order-no="${orderNo}">Run flow</button>`
-      : `<button class="dispatchFlowBtn" type="button" disabled>Run flow</button>`;
-    const oppBtns = renderOppDocButtons(orderNo);
-
-    return `${actionBtn}${flowBtn}${oppBtns}`;
+  function renderDispatchActions(order, laneId, orderNo) {
+    const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
+    const label = normalizedLane === "pickup" ? "Ready for collection" : "Fulfil";
+    const actionType =
+      normalizedLane === "delivery"
+        ? "fulfill-delivery"
+        : normalizedLane === "pickup"
+        ? "ready-collection"
+        : "fulfill-shipping";
+    const disabled = orderNo ? "" : "disabled";
+    return `<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
   }
 
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
@@ -2786,39 +2777,58 @@ async function startOrder(orderNo) {
     if (!orderNo) return;
     const order = dispatchOrderCache.get(orderNo);
     if (!order) return;
-    const packingState = dispatchPackingState.get(orderNo) || getPackingState(order);
-    const parcelCount = getPackingParcelCount(packingState);
-    const weightKg = Number(order.total_weight_kg || 0);
-    if (!order.email) {
-      statusExplain("Customer email missing.", "warn");
-      logDispatchEvent(`Notify failed for order ${orderNo}: missing email.`);
-      return;
-    }
     try {
-      setDispatchProgress(6, `Notifying ${orderNo}`);
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/notify-collection`, {
+      setDispatchProgress(6, `Marking ${orderNo} ready for collection`);
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/ready-for-pickup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderNo,
-          orderId: order.id,
-          email: order.email,
-          customerName: order.customer_name || "",
-          parcelCount,
-          weightKg
+          orderId: order.id
         })
       });
       if (!res.ok) {
         const text = await res.text();
-        statusExplain("Notify failed.", "warn");
-        logDispatchEvent(`Notify failed for order ${orderNo}: ${text}`);
+        statusExplain("Ready-for-collection failed.", "warn");
+        logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${text}`);
         return;
       }
-      statusExplain(`Customer notified for ${orderNo}.`, "ok");
-      logDispatchEvent(`Customer notified for order ${orderNo}.`);
+      statusExplain(`Order ${orderNo} marked ready for collection.`, "ok");
+      logDispatchEvent(`Order ${orderNo} marked ready for collection.`);
     } catch (err) {
-      statusExplain("Notify failed.", "warn");
-      logDispatchEvent(`Notify failed for order ${orderNo}: ${String(err)}`);
+      statusExplain("Ready-for-collection failed.", "warn");
+      logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${String(err)}`);
+    }
+  }
+
+  async function markDeliveryReady(orderNo) {
+    if (!orderNo) return;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return;
+    try {
+      setDispatchProgress(6, `Marking ${orderNo} ready for delivery`);
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          trackingNumber: "",
+          trackingUrl: "",
+          trackingCompany: "Local delivery",
+          message: "Ready for delivery."
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        statusExplain("Ready-for-delivery failed.", "warn");
+        logDispatchEvent(`Ready-for-delivery failed for order ${orderNo}: ${text}`);
+        return;
+      }
+      statusExplain(`Order ${orderNo} marked ready for delivery.`, "ok");
+      logDispatchEvent(`Order ${orderNo} marked ready for delivery.`);
+    } catch (err) {
+      statusExplain("Ready-for-delivery failed.", "warn");
+      logDispatchEvent(`Ready-for-delivery failed for order ${orderNo}: ${String(err)}`);
     }
   }
 
@@ -3781,6 +3791,38 @@ async function startOrder(orderNo) {
         statusExplain("Flow trigger failed.", "warn");
         logDispatchEvent(`Flow trigger failed for order ${orderNo}: ${String(err)}`);
       }
+      return true;
+    }
+    if (actionType === "fulfill-shipping") {
+      if (!orderNo) return true;
+      if (isBooked(orderNo)) {
+        statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
+        return true;
+      }
+      await startOrder(orderNo);
+      navigateTo("/scan", { replace: true });
+      statusExplain(`Scan station ready for ${orderNo}.`, "info");
+      return true;
+    }
+    if (actionType === "fulfill-delivery") {
+      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+      if (!orderNo || !order) {
+        statusExplain("Delivery note unavailable.", "warn");
+        logDispatchEvent("Delivery fulfil failed: order not found.");
+        return true;
+      }
+      setDispatchProgress(4, `Printing note ${orderNo}`);
+      logDispatchEvent(`Printing delivery note for order ${orderNo}.`);
+      const ok = printDeliveryNote(order);
+      if (!ok) {
+        statusExplain("Pop-up blocked for delivery note.", "warn");
+        logDispatchEvent("Delivery note blocked by popup settings.");
+      }
+      await markDeliveryReady(orderNo);
+      return true;
+    }
+    if (actionType === "ready-collection") {
+      await notifyPickupReady(orderNo);
       return true;
     }
     if (actionType === "print-opp") {

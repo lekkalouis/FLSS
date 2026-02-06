@@ -1465,7 +1465,7 @@ router.post("/shopify/fulfill", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
-    const { orderId, trackingNumber, trackingUrl, trackingCompany } = req.body || {};
+    const { orderId, trackingNumber, trackingUrl, trackingCompany, message } = req.body || {};
     if (!orderId) {
       return res.status(400).json({ error: "MISSING_ORDER_ID", body: req.body });
     }
@@ -1514,9 +1514,10 @@ router.post("/shopify/fulfill", async (req, res) => {
 
     const fulfillUrl = `${base}/fulfillments.json`;
     const trackingNote = trackingNumber ? ` Tracking: ${trackingNumber}` : "";
+    const fulfillmentMessage = message || `Shipped via Scan Station.${trackingNote}`;
     const fulfillmentPayload = {
       fulfillment: {
-        message: `Shipped via Scan Station.${trackingNote}`,
+        message: fulfillmentMessage,
         notify_customer: true,
         tracking_info: {
           number: trackingNumber || "",
@@ -1552,6 +1553,108 @@ router.post("/shopify/fulfill", async (req, res) => {
     return res.json({ ok: true, fulfillment: data });
   } catch (err) {
     console.error("Shopify fulfill error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.post("/shopify/ready-for-pickup", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { orderId } = req.body || {};
+    if (!orderId) {
+      return res.status(400).json({ error: "MISSING_ORDER_ID", body: req.body });
+    }
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const foUrl = `${base}/orders/${orderId}/fulfillment_orders.json`;
+    const foResp = await shopifyFetch(foUrl, { method: "GET" });
+
+    const foText = await foResp.text();
+    let foData;
+    try {
+      foData = JSON.parse(foText);
+    } catch {
+      foData = { raw: foText };
+    }
+
+    if (!foResp.ok) {
+      return res.status(foResp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: foResp.status,
+        statusText: foResp.statusText,
+        body: foData
+      });
+    }
+
+    const fulfillmentOrders = Array.isArray(foData.fulfillment_orders)
+      ? foData.fulfillment_orders
+      : [];
+
+    if (!fulfillmentOrders.length) {
+      return res.status(409).json({
+        error: "NO_FULFILLMENT_ORDERS",
+        message: "No fulfillment_orders found for this order (cannot mark ready)",
+        body: foData
+      });
+    }
+
+    const fo =
+      fulfillmentOrders.find((f) => f.status !== "closed" && f.status !== "cancelled") ||
+      fulfillmentOrders[0];
+
+    const fulfillmentOrderGid = `gid://shopify/FulfillmentOrder/${fo.id}`;
+    const gqlUrl = `${base}/graphql.json`;
+    const query = `
+      mutation MarkReadyForPickup($id: ID!, $notifyCustomer: Boolean!) {
+        fulfillmentOrderMarkReadyForPickup(id: $id, notifyCustomer: $notifyCustomer) {
+          fulfillmentOrder { id status }
+          userErrors { field message }
+        }
+      }
+    `;
+
+    const gqlResp = await shopifyFetch(gqlUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        query,
+        variables: { id: fulfillmentOrderGid, notifyCustomer: true }
+      })
+    });
+
+    const gqlText = await gqlResp.text();
+    let gqlData;
+    try {
+      gqlData = JSON.parse(gqlText);
+    } catch {
+      gqlData = { raw: gqlText };
+    }
+
+    if (!gqlResp.ok) {
+      return res.status(gqlResp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: gqlResp.status,
+        statusText: gqlResp.statusText,
+        body: gqlData
+      });
+    }
+
+    const mutationPayload = gqlData?.data?.fulfillmentOrderMarkReadyForPickup;
+    const userErrors = mutationPayload?.userErrors || [];
+    if (userErrors.length) {
+      return res.status(409).json({
+        error: "READY_FOR_PICKUP_FAILED",
+        message: "Shopify rejected ready-for-pickup request.",
+        userErrors
+      });
+    }
+
+    return res.json({ ok: true, fulfillmentOrder: mutationPayload?.fulfillmentOrder || null });
+  } catch (err) {
+    console.error("Shopify ready-for-pickup error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)

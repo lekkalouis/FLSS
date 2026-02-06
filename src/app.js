@@ -18,6 +18,17 @@ import configRouter from "./routes/config.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function isPrivateHostname(hostname) {
+  if (!hostname) return false;
+  if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+  const parts = hostname.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((num) => Number.isNaN(num))) return false;
+  if (parts[0] === 10) return true;
+  if (parts[0] === 192 && parts[1] === 168) return true;
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  return false;
+}
+
 export function createApp() {
   const app = express();
   const apiRouter = express.Router();
@@ -39,6 +50,14 @@ export function createApp() {
     cors({
       origin: (origin, cb) => {
         if (!origin || allowAllOrigins || allowedOrigins.has(origin)) return cb(null, true);
+        if (config.NODE_ENV !== "production") {
+          try {
+            const { hostname } = new URL(origin);
+            if (isPrivateHostname(hostname)) return cb(null, true);
+          } catch {
+            // ignore parsing errors
+          }
+        }
         return cb(new Error("CORS: origin not allowed"));
       },
       methods: ["GET", "POST", "OPTIONS"],
