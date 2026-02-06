@@ -1,31 +1,18 @@
 (() => {
   "use strict";
 
-  const CONFIG = {
-    COST_ALERT_THRESHOLD: 250.0,
-    BOOKING_IDLE_MS: 6000,
-    TRUCK_ALERT_THRESHOLD: 25,
-    BOX_DIM: { dim1: 40, dim2: 40, dim3: 30, massKg: 5 },
-    ORIGIN: {
-      origpers: "Flippen Lekka Holdings (Pty) Ltd",
-      origperadd1: "7 Papawer Street",
-      origperadd2: "Blomtuin, Bellville",
-      origperadd3: "Cape Town, Western Cape",
-      origperadd4: "ZA",
-      origperpcode: "7530",
-      origtown: "Cape Town",
-      origplace: 4663,
-      origpercontact: "Louis",
-      origperphone: "0730451885",
-      origpercell: "0730451885",
-      notifyorigpers: 1,
-      origperemail: "admin@flippenlekkaspices.co.za",
-      notes: "Louis 0730451885 / Michael 0783556277"
-    },
-    PP_ENDPOINT: "/pp",
-    SHOPIFY: { PROXY_BASE: "/shopify" },
-    PROGRESS_STEP_DELAY_MS: 450,
-    FLOW_TRIGGER_TAG: "dispatch_flow"
+  const UI_CONSTANTS = {
+    PROGRESS_STEP_DELAY_MS: 450
+  };
+  let CONFIG = null;
+
+  const loadConfig = async () => {
+    const res = await fetch("/config", { headers: { Accept: "application/json" } });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Config load failed (${res.status}): ${text}`);
+    }
+    return res.json();
   };
 
   const $ = (id) => document.getElementById(id);
@@ -894,7 +881,7 @@
   }
 
   function progressDelay() {
-    return new Promise((resolve) => setTimeout(resolve, CONFIG.PROGRESS_STEP_DELAY_MS));
+    return new Promise((resolve) => setTimeout(resolve, UI_CONSTANTS.PROGRESS_STEP_DELAY_MS));
   }
 
   async function stepDispatchProgress(stepIndex, label, options = {}) {
@@ -3604,6 +3591,11 @@ async function startOrder(orderNo) {
       return true;
     }
     if (actionType === "run-flow") {
+      if (CONFIG?.FEATURES && !CONFIG.FEATURES.flowTrigger) {
+        statusExplain("Flow trigger disabled.", "warn");
+        logDispatchEvent("Flow trigger disabled by feature flag.");
+        return true;
+      }
       const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
       if (!orderNo || !order) {
         statusExplain("Flow trigger unavailable.", "warn");
@@ -3830,37 +3822,49 @@ async function startOrder(orderNo) {
     }
   });
 
-  loadBookedOrders();
-  loadPackingState();
-  loadModePreference();
-  loadDailyParcelCount();
-  loadTruckBooking();
-  updateModeToggle();
-  updateMultiShipToggle();
-  renderSessionUI();
-  renderCountdown();
-  renderTruckPanel();
-  if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
-    requestTruckBooking("auto");
-  }
-  initDispatchProgress();
-  setDispatchProgress(0, "Idle", { silent: true });
-  initDispatchTodos();
-  initAddressSearch();
-  refreshDispatchData();
-  setInterval(refreshDispatchData, 30000);
-  refreshServerStatus();
-  setInterval(refreshServerStatus, 20000);
-  renderFactoryView();
-  renderModuleDashboard();
-  loadInvoiceTemplate();
-  renderInvoiceTable();
-  switchMainView("dashboard");
+  const boot = async () => {
+    try {
+      CONFIG = await loadConfig();
+    } catch (err) {
+      console.error(err);
+      alert("Unable to load configuration from the server.");
+      return;
+    }
 
-  if (location.protocol === "file:") {
-    alert("Open via http://localhost/... (not file://). Run a local server.");
-  }
+    loadBookedOrders();
+    loadPackingState();
+    loadModePreference();
+    loadDailyParcelCount();
+    loadTruckBooking();
+    updateModeToggle();
+    updateMultiShipToggle();
+    renderSessionUI();
+    renderCountdown();
+    renderTruckPanel();
+    if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
+      requestTruckBooking("auto");
+    }
+    initDispatchProgress();
+    setDispatchProgress(0, "Idle", { silent: true });
+    initDispatchTodos();
+    initAddressSearch();
+    refreshDispatchData();
+    setInterval(refreshDispatchData, 30000);
+    refreshServerStatus();
+    setInterval(refreshServerStatus, 20000);
+    renderFactoryView();
+    renderModuleDashboard();
+    loadInvoiceTemplate();
+    renderInvoiceTable();
+    switchMainView("dashboard");
 
-  window.__fl = window.__fl || {};
-  window.__fl.bookNow = doBookingNow;
+    if (location.protocol === "file:") {
+      alert("Open via http://localhost/... (not file://). Run a local server.");
+    }
+
+    window.__fl = window.__fl || {};
+    window.__fl.bookNow = doBookingNow;
+  };
+
+  boot();
 })();
