@@ -10,9 +10,10 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const CONFIG = {
     PROGRESS_STEP_DELAY_MS: 450
   };
+  const API_BASE = "/api/v1";
 
   const loadConfig = async () => {
-    const res = await fetch("/config", { headers: { Accept: "application/json" } });
+    const res = await fetch(`${API_BASE}/config`, { headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error(`Config fetch failed: ${res.status}`);
     const data = await res.json();
     Object.assign(CONFIG, data);
@@ -563,7 +564,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
       const params = new URLSearchParams({ limit: "200" });
       if (from) params.set("from", from.toISOString());
       if (to) params.set("to", to.toISOString());
-      const resp = await fetch(`/shopify/orders/list?${params.toString()}`);
+      const resp = await fetch(`${API_BASE}/shopify/orders/list?${params.toString()}`);
       if (!resp.ok) {
         throw new Error(`Order list failed (${resp.status})`);
       }
@@ -686,7 +687,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   async function refreshServerStatus() {
     if (!serverStatusBar) return;
     try {
-      const res = await fetch("/statusz");
+      const res = await fetch(`${API_BASE}/statusz`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Status error");
       renderServerStatusBar(data);
@@ -1274,7 +1275,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
     try {
       truckBookingInFlight = true;
       statusExplain("Requesting truck collection…", "info");
-      const resp = await fetch("/alerts/book-truck", {
+      const resp = await fetch(`${API_BASE}/alerts/book-truck`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ parcelCount: dailyParcelCount, reason })
@@ -1868,7 +1869,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     for (const q of queries) {
       try {
         appendDebug("PP getPlace query: " + q);
-        const res = await fetch(`/pp/place?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`${CONFIG.PP_ENDPOINT}/place?q=${encodeURIComponent(q)}`);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
 
@@ -2187,7 +2188,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       logDispatchEvent("Printing labels via PrintNode.");
 
       try {
-        await fetch("/printnode/print", {
+        await fetch(`${API_BASE}/printnode/print`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pdfBase64: labelsBase64, title: `Labels ${waybillNo}` })
@@ -2201,7 +2202,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
         await stepDispatchProgress(4, "Printing waybill");
         logDispatchEvent("Printing waybill via PrintNode.");
         try {
-          await fetch("/printnode/print", {
+          await fetch(`${API_BASE}/printnode/print`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ pdfBase64: waybillBase64, title: `Waybill ${waybillNo}` })
@@ -3596,7 +3597,7 @@ async function startOrder(orderNo) {
       }
       try {
         statusExplain(`Printing ${orderName}…`, "info");
-        const resp = await fetch("/printnode/print-url", {
+        const resp = await fetch(`${API_BASE}/printnode/print-url`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ invoiceUrl, title: `Invoice ${orderName}` })

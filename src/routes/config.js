@@ -3,6 +3,7 @@ import { Router } from "express";
 import { config } from "../config.js";
 
 const router = Router();
+const API_BASE = "/api/v1";
 
 const numberFrom = (value, fallback) => {
   const parsed = Number(value);
@@ -36,8 +37,8 @@ router.get("/config", (_req, res) => {
       origperemail: config.UI_ORIGIN_EMAIL || "admin@flippenlekkaspices.co.za",
       notes: config.UI_ORIGIN_NOTES || "Louis 0730451885 / Michael 0783556277"
     },
-    PP_ENDPOINT: "/pp",
-    SHOPIFY: { PROXY_BASE: "/shopify" },
+    PP_ENDPOINT: `${API_BASE}/pp`,
+    SHOPIFY: { PROXY_BASE: `${API_BASE}/shopify` },
     FLOW_TRIGGER_TAG: config.SHOPIFY_FLOW_TAG || "dispatch_flow",
     FEATURE_FLAGS: {
       MULTI_SHIP: config.UI_FEATURE_MULTI_SHIP

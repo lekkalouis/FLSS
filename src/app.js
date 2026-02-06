@@ -20,6 +20,7 @@ const __dirname = path.dirname(__filename);
 
 export function createApp() {
   const app = express();
+  const apiRouter = express.Router();
 
   app.disable("x-powered-by");
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
@@ -59,12 +60,14 @@ export function createApp() {
 
   app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
 
-  app.use(statusRouter);
-  app.use(configRouter);
-  app.use(parcelPerfectRouter);
-  app.use(shopifyRouter);
-  app.use(printnodeRouter);
-  app.use(alertsRouter);
+  apiRouter.use(statusRouter);
+  apiRouter.use(configRouter);
+  apiRouter.use(parcelPerfectRouter);
+  apiRouter.use(shopifyRouter);
+  apiRouter.use(printnodeRouter);
+  apiRouter.use(alertsRouter);
+  app.use("/api/v1", apiRouter);
+  app.use("/api/v1", (_req, res) => res.status(404).json({ error: "Not found" }));
 
   const publicDir = path.join(__dirname, "..", "public");
   app.use(express.static(publicDir));

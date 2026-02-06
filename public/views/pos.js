@@ -5,7 +5,7 @@ export function initPosView() {
   posInitialized = true;
   "use strict";
 
-  const CONFIG = { SHOPIFY: { PROXY_BASE: "/shopify" } };
+  const CONFIG = { SHOPIFY: { PROXY_BASE: "/api/v1/shopify" } };
 
   const scanInput = document.getElementById("pos-scan");
   const addBtn = document.getElementById("pos-addBtn");

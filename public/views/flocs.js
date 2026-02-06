@@ -7,8 +7,8 @@ export function initFlocsView() {
 
   // ===== CONFIG =====
   const CONFIG = {
-    SHOPIFY: { PROXY_BASE: "/shopify" }, // existing proxy base
-    PP_ENDPOINT: "/pp",
+    SHOPIFY: { PROXY_BASE: "/api/v1/shopify" },
+    PP_ENDPOINT: "/api/v1/pp",
     BOX_DIM: { dim1: 40, dim2: 40, dim3: 30, massKg: 5 }, // fallback parcel
     // Configure your real SKUs + variant IDs and optional weights/prices here.
    PRODUCTS: [
@@ -832,7 +832,7 @@ ${state.customer.email || ""}${
 
     for (const q of queries) {
       try {
-        const res = await fetch(`/pp/place?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`${CONFIG.PP_ENDPOINT}/place?q=${encodeURIComponent(q)}`);
         if (!res.ok) continue;
         const data = await res.json();
         if (data.errorcode && Number(data.errorcode) !== 0) continue;
