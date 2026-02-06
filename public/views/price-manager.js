@@ -3,16 +3,13 @@ let priceManagerInitialized = false;
 export function initPriceManagerView() {
   if (priceManagerInitialized) return;
   priceManagerInitialized = true;
-  const PRICE_TIERS = ["default", "agent", "retailer", "export", "private", "fkb"];
+  const PRICE_TIERS = ["agent", "retailer", "export", "private", "fkb"];
+  const DEFAULT_COLLECTION_HANDLE = "most-popular-products";
   const state = {
     products: [],
     loading: false
   };
 
-  const searchInput = document.getElementById("pmSearch");
-  const searchBtn = document.getElementById("pmSearchBtn");
-  const collectionInput = document.getElementById("pmCollection");
-  const collectionBtn = document.getElementById("pmCollectionBtn");
   const tableBody = document.getElementById("pmTableBody");
   const statusEl = document.getElementById("pmStatus");
   const toast = document.getElementById("pmToast");
@@ -40,13 +37,9 @@ export function initPriceManagerView() {
   }
 
   function normalizePriceTiers(product) {
-    const tiers = product.priceTiers && typeof product.priceTiers === "object"
+    return product.priceTiers && typeof product.priceTiers === "object"
       ? { ...product.priceTiers }
       : {};
-    if (tiers.default == null && product.price != null) {
-      tiers.default = product.price;
-    }
-    return tiers;
   }
 
   function renderTable() {
@@ -54,7 +47,7 @@ export function initPriceManagerView() {
     if (!state.products.length) {
       tableBody.innerHTML = `
         <tr>
-          <td colspan="10" class="pm-muted">No products found.</td>
+          <td colspan="9" class="pm-muted">No products found.</td>
         </tr>
       `;
       return;
@@ -157,7 +150,7 @@ export function initPriceManagerView() {
     setStatus(`Loading ${contextLabel}…`);
     tableBody.innerHTML = `
       <tr>
-        <td colspan="10" class="pm-muted">Loading…</td>
+        <td colspan="9" class="pm-muted">Loading…</td>
       </tr>
     `;
 
@@ -168,46 +161,25 @@ export function initPriceManagerView() {
       state.products = list;
       renderTable();
       setStatus(list.length ? `Loaded ${list.length} SKUs.` : "No products found.");
+      return list.length;
     } catch (err) {
       console.error("Load failed", err);
       setStatus("Error loading products.");
       showToast("Failed to load products.", "err");
+      return 0;
     } finally {
       state.loading = false;
     }
   }
 
-  function handleSearch() {
-    const q = (searchInput?.value || "").trim();
-    if (!q) {
-      showToast("Enter a search term.", "err");
-      return;
-    }
-    const url = `/api/v1/shopify/products/search?q=${encodeURIComponent(q)}&includePriceTiers=1`;
-    loadProducts(url, `search results for "${q}"`);
-  }
-
-  function handleCollection() {
-    const handle = (collectionInput?.value || "").trim();
-    if (!handle) {
-      showToast("Enter a collection handle.", "err");
-      return;
-    }
-    const url = `/api/v1/shopify/products/collection?handle=${encodeURIComponent(handle)}&includePriceTiers=1`;
-    loadProducts(url, `collection ${handle}`);
-  }
-
-  if (searchBtn) searchBtn.addEventListener("click", handleSearch);
-  if (collectionBtn) collectionBtn.addEventListener("click", handleCollection);
-  if (searchInput) {
-    searchInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") handleSearch();
-    });
-  }
-  if (collectionInput) {
-    collectionInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") handleCollection();
-    });
+  async function loadDefaultProducts() {
+    const collectionUrl = `/api/v1/shopify/products/collection?handle=${encodeURIComponent(
+      DEFAULT_COLLECTION_HANDLE
+    )}&includePriceTiers=1`;
+    const count = await loadProducts(collectionUrl, "product list");
+    if (count) return;
+    const fallbackUrl = `/api/v1/shopify/products/search?q=${encodeURIComponent("FL")}&includePriceTiers=1`;
+    await loadProducts(fallbackUrl, "product list");
   }
 
   if (tableBody) {
@@ -220,4 +192,6 @@ export function initPriceManagerView() {
       }
     });
   }
+
+  loadDefaultProducts();
 }

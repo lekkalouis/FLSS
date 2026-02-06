@@ -143,18 +143,24 @@
 
     .pm-muted { color:var(--muted); font-size:.8rem; }
 
-    table {
+    .pm-productsTable {
       width:100%;
       border-collapse:collapse;
       font-size:.8rem;
     }
-    th, td {
+    .pm-productsTable thead {
+      background:var(--panel-soft);
+    }
+    .pm-productsTable th, .pm-productsTable td {
       text-align:left;
       padding:.6rem .5rem;
       border-bottom:1px solid var(--panel-strong);
       vertical-align:middle;
     }
-    th { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+    .pm-productsTable th { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+    .pm-productsTable tbody tr:hover {
+      background:rgba(56,189,248,.08);
+    }
 
     .pm-sku { font-family:var(--mono); font-size:.75rem; }
 
@@ -215,35 +221,20 @@
         <div class="pm-title">Price Manager</div>
         <div class="pm-sub">Manage tier pricing per SKU and sync to Shopify metafields + storefront.</div>
       </div>
-      <div class="pm-headerActions">
-        <a class="pm-linkBtn" href="/">Dashboard</a>
-        <a class="pm-linkBtn" href="/flocs">Order Capture</a>
-      </div>
     </header>
 
     <section class="pm-panel">
       <div class="pm-row">
-        <div class="pm-field">
-          <label for="pmSearch">Search SKU or title</label>
-          <input id="pmSearch" type="text" placeholder="e.g. FL002" />
-        </div>
-        <button id="pmSearchBtn" class="pm-btn" type="button">Search</button>
-        <div class="pm-field">
-          <label for="pmCollection">Collection handle</label>
-          <input id="pmCollection" type="text" placeholder="e.g. wholesale" />
-        </div>
-        <button id="pmCollectionBtn" class="pm-btn" type="button">Load collection</button>
-        <span id="pmStatus" class="pm-muted">Search to load SKU pricing tiers.</span>
+        <span id="pmStatus" class="pm-muted">Loading product list…</span>
       </div>
 
       <div style="overflow:auto;">
-        <table>
+        <table class="pm-productsTable">
           <thead>
             <tr>
               <th>SKU</th>
               <th>Title</th>
               <th>Public</th>
-              <th>Default</th>
               <th>Agent</th>
               <th>Retailer</th>
               <th>Export</th>
@@ -254,7 +245,7 @@
           </thead>
           <tbody id="pmTableBody">
             <tr>
-              <td colspan="10" class="pm-muted">No data loaded yet.</td>
+              <td colspan="9" class="pm-muted">Loading products…</td>
             </tr>
           </tbody>
         </table>
