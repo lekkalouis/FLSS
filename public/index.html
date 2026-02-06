@@ -6,15 +6,15 @@
 <title>Flippen Lekka Scan Station — v5 (cleaned + 100×150 print lock)</title>
 <style>
   :root{
-    --bg:#0b0f1a;
-    --panel:#0f172a;
-    --panel-muted:#111827;
-    --panel-strong:#1f2937;
-    --text:#e2e8f0;
-    --text-muted:#94a3b8;
-    --accent:#22d3ee;
-    --accent-strong:#a855f7;
-    --accent-soft:rgba(34,211,238,.16);
+    --bg:#f5f7fb;
+    --panel:#ffffff;
+    --panel-muted:#f1f5f9;
+    --panel-strong:#e2e8f0;
+    --text:#0f172a;
+    --text-muted:#5b6b7f;
+    --accent:#38bdf8;
+    --accent-strong:#22c55e;
+    --accent-soft:rgba(56,189,248,.18);
     --radius-lg:.75rem;
     --radius-md:.5rem;
     --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
@@ -23,8 +23,8 @@
   }
   *{box-sizing:border-box}
   body{
-    background:radial-gradient(circle at 12% 12%, rgba(34,211,238,.18) 0%, rgba(11,15,26,0) 55%),
-               radial-gradient(circle at 88% 10%, rgba(168,85,247,.14) 0%, rgba(11,15,26,0) 60%),
+    background:radial-gradient(circle at 10% 10%, rgba(56,189,248,.15) 0%, rgba(245,247,251,0) 55%),
+               radial-gradient(circle at 90% 15%, rgba(236,72,153,.08) 0%, rgba(245,247,251,0) 55%),
                var(--bg);
     color:var(--text);
     font-family:var(--sans);
@@ -52,9 +52,9 @@
     .flLayout{ flex-direction:column; }
   }
   .flSide{
-    background:rgba(15,23,42,.85);
-    border:1px solid rgba(148,163,184,.2);
-    box-shadow:0 18px 40px rgba(3,7,18,.6);
+    background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,245,249,.9));
+    border:1px solid var(--panel-strong);
+    box-shadow:0 18px 40px rgba(15,23,42,.08);
     border-radius:var(--radius-md);
     padding:.85rem .75rem;
     display:flex;
@@ -74,7 +74,7 @@
     height:36px;
     border-radius:.5rem;
     border:1px solid var(--panel-strong);
-    background:rgba(15,23,42,.8);
+    background:var(--panel);
     display:inline-flex;
     align-items:center;
     justify-content:center;
@@ -122,7 +122,7 @@
   }
   .flNavBtn{
     border:1px solid var(--panel-strong);
-    background:rgba(15,23,42,.8);
+    background:var(--panel);
     color:var(--text);
     font-weight:600;
     font-size:.85rem;
@@ -264,11 +264,11 @@
     width:100%;
     max-width:1200px;
     margin:0 auto;
-    background:rgba(15,23,42,.8);
-    border:1px solid rgba(148,163,184,.2);
+    background:var(--panel);
+    border:1px solid var(--panel-strong);
     border-radius:var(--radius-lg);
     padding:1.75rem 2rem;
-    box-shadow:0 18px 48px rgba(3,7,18,.6);
+    box-shadow:0 18px 48px rgba(15,23,42,.08);
     display:flex;
     flex-direction:column;
     gap:1.5rem;
@@ -294,203 +294,49 @@
     grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));
     gap:1rem;
   }
-  .factoryShell{
-    border-radius:var(--radius-lg);
-    border:1px solid var(--panel-strong);
-    padding:1.5rem;
-    background:linear-gradient(135deg, rgba(15,23,42,.92), rgba(30,41,59,.92));
-    color:#e2e8f0;
-    position:relative;
-    overflow:hidden;
-    box-shadow:0 24px 46px rgba(15,23,42,.25);
-  }
-  .factoryShell::before{
-    content:"";
-    position:absolute;
-    inset:0;
-    background:
-      radial-gradient(circle at top left, rgba(56,189,248,.22), transparent 55%),
-      radial-gradient(circle at bottom right, rgba(59,130,246,.25), transparent 55%);
-    opacity:.9;
-    pointer-events:none;
-  }
-  .factoryHeader{
-    position:relative;
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:1rem;
-    flex-wrap:wrap;
-    z-index:1;
-  }
-  .factoryHeader h2{
-    margin:0 0 .35rem;
-    font-size:1.2rem;
-    color:#f8fafc;
-  }
-  .factoryHeader p{
-    margin:0;
-    color:rgba(226,232,240,.8);
-    font-size:.9rem;
-  }
-  .factoryMap{
-    position:relative;
-    margin-top:1.25rem;
+  .dashboardKpis{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
     gap:1rem;
-    z-index:1;
   }
-  .factoryArea{
-    position:relative;
-    border-radius:1rem;
-    padding:1rem 1rem 1.1rem;
-    border:1px solid rgba(148,163,184,.35);
-    background:rgba(15,23,42,.65);
-    color:#e2e8f0;
-    cursor:pointer;
+  .kpiCard{
+    background:linear-gradient(140deg, rgba(255,255,255,.98), rgba(241,245,249,.9));
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-lg);
+    padding:1rem 1.1rem;
     display:flex;
     flex-direction:column;
-    gap:.5rem;
-    transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-    overflow:hidden;
+    gap:.35rem;
+    box-shadow:0 10px 24px rgba(15,23,42,.08);
   }
-  .factoryArea::after{
-    content:"";
-    position:absolute;
-    inset:0;
-    background:linear-gradient(120deg, rgba(56,189,248,.22), rgba(59,130,246,.05));
-    opacity:0;
-    transition:opacity .2s ease;
-  }
-  .factoryArea:hover{
-    transform:translateY(-3px);
-    border-color:rgba(56,189,248,.65);
-    box-shadow:0 16px 28px rgba(14,116,144,.35);
-  }
-  .factoryArea:hover::after{
-    opacity:1;
-  }
-  .factoryAreaTitle{
-    font-weight:700;
-    font-size:.95rem;
-    margin:0;
-    position:relative;
-    z-index:1;
-  }
-  .factoryAreaMeta{
-    font-size:.72rem;
+  .kpiLabel{
+    font-size:.7rem;
     text-transform:uppercase;
     letter-spacing:.08em;
-    color:rgba(148,163,184,.9);
-    position:relative;
-    z-index:1;
+    color:var(--text-muted);
   }
-  .factoryAreaDetail{
-    font-size:.78rem;
-    color:rgba(226,232,240,.78);
-    line-height:1.4;
-    margin:0;
-    position:relative;
-    z-index:1;
+  .kpiValue{
+    font-size:1.6rem;
+    font-weight:700;
   }
-  .factoryArea--active{
-    border-color:rgba(56,189,248,.9);
-    box-shadow:0 18px 32px rgba(59,130,246,.4);
+  .kpiMeta{
+    font-size:.75rem;
+    color:var(--text-muted);
   }
-  .factoryAreaPulse{
-    position:absolute;
-    top:.65rem;
-    right:.65rem;
-    width:.55rem;
-    height:.55rem;
-    border-radius:999px;
-    background:#38bdf8;
-    box-shadow:0 0 12px rgba(56,189,248,.9);
-    animation:pulse 2.5s ease-in-out infinite;
-    z-index:1;
-  }
-  @keyframes pulse{
-    0%,100%{ transform:scale(.9); opacity:.6; }
-    50%{ transform:scale(1.3); opacity:1; }
-  }
-  .factoryDetail{
-    position:relative;
-    margin-top:1.4rem;
-    background:rgba(15,23,42,.8);
-    border:1px solid rgba(148,163,184,.35);
-    border-radius:1rem;
-    padding:1.1rem 1.2rem;
-    display:flex;
-    flex-direction:column;
-    gap:.9rem;
-    z-index:1;
-  }
-  .factoryDetailHeader{
+  .appsHeader{
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:.75rem;
     flex-wrap:wrap;
   }
-  .factoryDetailTitle{
-    font-size:1rem;
-    font-weight:700;
+  .appsHeader h2{
     margin:0;
-    color:#f8fafc;
+    font-size:1.05rem;
   }
-  .factoryDetailBadge{
-    font-size:.65rem;
-    font-weight:700;
-    letter-spacing:.08em;
-    text-transform:uppercase;
-    background:rgba(56,189,248,.18);
-    color:#7dd3fc;
-    padding:.25rem .6rem;
-    border-radius:999px;
-  }
-  .factoryTools{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-    gap:.75rem;
-  }
-  .factoryTool{
-    border-radius:.85rem;
-    padding:.75rem .85rem;
-    border:1px solid rgba(148,163,184,.35);
-    background:rgba(15,23,42,.7);
-    color:#e2e8f0;
-    display:flex;
-    flex-direction:column;
-    gap:.35rem;
-    position:relative;
-  }
-  .factoryToolTitle{
-    font-weight:700;
-    font-size:.85rem;
-    margin:0;
-  }
-  .factoryToolDesc{
-    margin:0;
-    font-size:.72rem;
-    color:rgba(226,232,240,.75);
-    line-height:1.4;
-  }
-  .factoryToolBtn{
-    align-self:flex-start;
-    margin-top:.35rem;
-    border:none;
-    border-radius:.6rem;
-    padding:.35rem .75rem;
-    font-size:.72rem;
-    font-weight:700;
-    color:#0f172a;
-    background:#38bdf8;
-    cursor:pointer;
-    box-shadow:0 8px 16px rgba(56,189,248,.3);
-  }
-  .factoryToolBtn:hover{
-    filter:brightness(1.05);
+  .appsMeta{
+    font-size:.75rem;
+    color:var(--text-muted);
   }
   .moduleCard{
     border:1px solid var(--panel-strong);
@@ -857,10 +703,53 @@
   gap:.85rem;
   padding:1.25rem 1.5rem;
   border-radius:var(--radius-lg);
-  background:rgba(15,23,42,.8);
-  border:1px solid rgba(148,163,184,.2);
-  box-shadow:0 18px 48px rgba(3,7,18,.6);
+  background:var(--panel);
+  border:1px solid var(--panel-strong);
+  box-shadow:0 18px 48px rgba(15,23,42,.08);
   min-height:calc(100dvh - 160px);
+}
+
+.dispatchBoardLayout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 320px;
+  gap:1rem;
+  align-items:start;
+}
+@media (max-width:1100px){
+  .dispatchBoardLayout{
+    grid-template-columns:1fr;
+  }
+}
+.dispatchBoardMain{
+  display:flex;
+  flex-direction:column;
+  gap:.85rem;
+}
+.dispatchBoardSidebar{
+  display:flex;
+  flex-direction:column;
+  gap:.85rem;
+}
+.dispatchShipmentsPanel{
+  border-radius:var(--radius-lg);
+  border:1px solid var(--panel-strong);
+  padding:1rem;
+  background:linear-gradient(140deg, rgba(255,255,255,.98), rgba(241,245,249,.9));
+  box-shadow:0 12px 30px rgba(15,23,42,.08);
+}
+.dispatchShipmentsHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+  margin-bottom:.75rem;
+  font-weight:700;
+  font-size:.85rem;
+}
+.dispatchShipmentsBody{
+  display:flex;
+  flex-direction:column;
+  gap:.6rem;
 }
 
 .dispatchStatusPanel {
@@ -869,9 +758,9 @@
   gap:.6rem;
   padding:.85rem 1rem;
   border-radius:var(--radius-lg);
-  border:1px solid rgba(148,163,184,.2);
-  background:linear-gradient(140deg, rgba(17,24,39,.95), rgba(15,23,42,.7));
-  box-shadow:0 18px 40px rgba(3,7,18,.55);
+  border:1px solid var(--panel-strong);
+  background:linear-gradient(140deg, rgba(255,255,255,.98), rgba(241,245,249,.9));
+  box-shadow:0 18px 40px rgba(15,23,42,.08);
 }
 .dispatchStatusPanel--compact{
   padding:.65rem .8rem;
@@ -950,7 +839,7 @@
   padding:.25rem .2rem;
   border-radius:.5rem;
   border:1px solid var(--panel-strong);
-  background:rgba(15,23,42,.75);
+  background:var(--panel-muted);
   flex:1 1 0;
   min-width:0;
   text-align:center;
@@ -986,96 +875,11 @@
 }
 
 .dispatchLogPanel{
-  border:1px solid rgba(148,163,184,.2);
-  border-radius:var(--radius-lg);
-  background:rgba(15,23,42,.8);
-  padding:.75rem 1rem;
-  box-shadow:0 14px 32px rgba(3,7,18,.55);
-}
-.dispatchTodoPanel{
-  border:1px solid rgba(148,163,184,.2);
-  border-radius:var(--radius-lg);
-  background:rgba(15,23,42,.8);
-  padding:.75rem 1rem;
-  display:flex;
-  flex-direction:column;
-  gap:.65rem;
-  box-shadow:0 14px 32px rgba(3,7,18,.55);
-}
-.dispatchTodoHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:.5rem;
-}
-.dispatchTodoHeader h3{
-  font-size:.95rem;
-  margin:0;
-  color:var(--text);
-}
-.dispatchTodoMeta{
-  font-size:.7rem;
-  text-transform:uppercase;
-  letter-spacing:.08em;
-  color:var(--text-muted);
-  font-weight:600;
-}
-.dispatchTodoForm{
-  display:flex;
-  gap:.5rem;
-}
-.dispatchTodoForm input{
-  flex:1;
   border:1px solid var(--panel-strong);
-  border-radius:var(--radius-md);
-  padding:.45rem .6rem;
-  font-size:.85rem;
-  background:rgba(15,23,42,.75);
-  color:var(--text);
-}
-.dispatchTodoForm button{
-  border:none;
-  border-radius:var(--radius-md);
-  padding:.45rem .8rem;
-  background:linear-gradient(120deg, var(--accent), var(--accent-strong));
-  color:#04121e;
-  font-weight:600;
-}
-.dispatchTodoList{
-  display:flex;
-  flex-direction:column;
-  gap:.4rem;
-}
-.dispatchTodoEmpty{
-  font-size:.8rem;
-  color:var(--text-muted);
-  padding:.35rem .2rem;
-}
-.dispatchTodoItem{
-  display:flex;
-  align-items:center;
-  gap:.5rem;
-  padding:.45rem .55rem;
-  border-radius:var(--radius-md);
-  border:1px solid var(--panel-strong);
-  background:rgba(15,23,42,.7);
-}
-.dispatchTodoItem input{
-  width:16px;
-  height:16px;
-}
-.dispatchTodoItem span{
-  flex:1;
-  font-size:.85rem;
-  color:var(--text);
-}
-.dispatchTodoItem.is-complete{
-  background:rgba(34,197,94,.1);
-  border-color:rgba(34,197,94,.4);
-}
-.dispatchTodoItem.is-complete span{
-  text-decoration:line-through;
-  color:var(--text-muted);
+  border-radius:var(--radius-lg);
+  background:var(--panel);
+  padding:.75rem 1rem;
+  box-shadow:0 14px 32px rgba(15,23,42,.08);
 }
 .dispatchLogPanel--compact{
   padding:.65rem .8rem;
@@ -1322,11 +1126,11 @@
   }
 
   .dispatchShipmentTable{
-    background:rgba(15,23,42,.8);
-    border:1px solid rgba(148,163,184,.2);
+    background:#ffffff;
+    border:1px solid var(--panel-strong);
     border-radius:10px;
     overflow:hidden;
-    box-shadow:0 2px 6px rgba(3,7,18,0.5);
+    box-shadow:0 2px 6px rgba(15,23,42,.08);
   }
 
   .dispatchShipmentRow{
@@ -1334,14 +1138,14 @@
     grid-template-columns: 1.2fr 1fr 1fr;
     gap:.5rem;
     padding:.55rem .6rem;
-    border-bottom:1px solid rgba(148,163,184,.2);
+    border-bottom:1px solid var(--panel-strong);
     font-size:.72rem;
     color:var(--text);
     cursor:pointer;
   }
 
   .dispatchShipmentRow--header{
-    background:rgba(15,23,42,.9);
+    background:var(--panel-muted);
     font-weight:700;
     text-transform:uppercase;
     letter-spacing:.6px;
@@ -1354,17 +1158,17 @@
 
   .dispatchShipmentCell--tracking{
     font-family:var(--mono);
-    color:#0f172a;
+    color:var(--text);
   }
 
   .dispatchShipmentCell--status{
-    color:#475569;
+    color:var(--text-muted);
   }
 
   .dispatchShipmentEmpty{
     padding:.75rem;
     font-size:.75rem;
-    color:#94a3b8;
+    color:var(--text-muted);
   }
 
   .dispatchShipmentInfo{
@@ -1913,128 +1717,6 @@
     font-size:.7rem;
     font-weight:600;
   }
-  .invoiceShell{
-    background:rgba(15,23,42,.8);
-    border:1px solid rgba(148,163,184,.2);
-    border-radius:var(--radius-lg);
-    padding:1.5rem;
-    box-shadow:0 10px 28px rgba(3,7,18,.6);
-    display:flex;
-    flex-direction:column;
-    gap:1.25rem;
-  }
-  .invoiceHeader{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:1rem;
-    flex-wrap:wrap;
-  }
-  .invoiceHeader h1{
-    margin:0;
-    font-size:1.35rem;
-  }
-  .invoiceHeader p{
-    margin:.3rem 0 0;
-    color:var(--text-muted);
-    font-size:.85rem;
-  }
-  .invoiceTemplateRow{
-    display:flex;
-    flex-direction:column;
-    gap:.5rem;
-  }
-  .invoiceTemplateRow label{
-    font-size:.8rem;
-    font-weight:700;
-    color:var(--text);
-  }
-  .invoiceTemplateInput{
-    display:flex;
-    gap:.6rem;
-    flex-wrap:wrap;
-  }
-  .invoiceTemplateInput input{
-    flex:1;
-    min-width:240px;
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-md);
-    padding:.5rem .65rem;
-    font-family:var(--mono);
-    font-size:.85rem;
-  }
-  .invoiceHint{
-    margin:0;
-    font-size:.72rem;
-    color:var(--text-muted);
-  }
-  .invoiceFilters{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
-    gap:.75rem;
-    align-items:end;
-  }
-  .invoiceField{
-    display:flex;
-    flex-direction:column;
-    gap:.35rem;
-  }
-  .invoiceField label{
-    font-size:.75rem;
-    font-weight:600;
-    color:var(--text-muted);
-  }
-  .invoiceField input{
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-md);
-    padding:.45rem .6rem;
-    font-size:.85rem;
-    font-family:var(--mono);
-    background:rgba(15,23,42,.75);
-    color:var(--text);
-  }
-  .invoiceTableWrap{
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-md);
-    overflow:hidden;
-    background:rgba(15,23,42,.8);
-  }
-  .invoiceTable{
-    width:100%;
-    border-collapse:collapse;
-    font-size:.82rem;
-  }
-  .invoiceTable thead{
-    background:var(--panel-muted);
-  }
-  .invoiceTable th,
-  .invoiceTable td{
-    padding:.6rem .75rem;
-    border-bottom:1px solid var(--panel-strong);
-    text-align:left;
-    vertical-align:middle;
-  }
-  .invoiceTable th{
-    font-size:.72rem;
-    text-transform:uppercase;
-    letter-spacing:.04em;
-    color:var(--text-muted);
-  }
-  .invoiceActions{
-    display:flex;
-    gap:.4rem;
-    flex-wrap:wrap;
-  }
-  .invoiceActions .btn{
-    padding:.4rem .6rem;
-    font-size:.72rem;
-  }
-  .invoiceEmpty{
-    padding:1.5rem;
-    text-align:center;
-    color:var(--text-muted);
-    font-size:.85rem;
-  }
   .parcelNumbersPanel{
     background:linear-gradient(145deg, rgba(15,23,42,.04), rgba(148,163,184,.1));
     border:1px solid var(--panel-strong);
@@ -2108,7 +1790,6 @@
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
             <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Scan Station</span></button>
             <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false" data-route="/ops"><span class="flNavBtnIcon" aria-hidden="true">🚚</span><span class="flNavBtnText">Dispatch Board</span></button>
-            <button id="navInvoices" class="flNavBtn" type="button" role="tab" aria-controls="viewInvoices" aria-selected="false" data-route="/invoices"><span class="flNavBtnIcon" aria-hidden="true">🧾</span><span class="flNavBtnText">Order invoices</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
@@ -2131,54 +1812,34 @@
           <div class="dashboardHeader">
             <div>
               <h1>Operations Dashboard</h1>
-              <p>Launch an app module below. Add new modules in <strong>public/app.js</strong> when you build more tools.</p>
+              <p>Quick status glance plus instant access to the core operations apps.</p>
           </div>
-          <span class="pill">Modular launcher</span>
+          <span class="pill">Apps floorplan</span>
         </div>
-        <section class="factoryShell" aria-labelledby="factoryTitle">
-          <div class="factoryHeader">
-            <div>
-              <h2 id="factoryTitle">Factory Command View</h2>
-              <p>Top-down operational map. Tap any department to reveal its live modules, tools, and playbooks.</p>
-            </div>
-            <span class="pill">Interactive floorplan</span>
+        <section class="dashboardKpis" aria-label="Key performance indicators">
+          <div class="kpiCard">
+            <div class="kpiLabel">Today's parcels</div>
+            <div class="kpiValue" id="kpiParcels">0</div>
+            <div class="kpiMeta">Auto + manual bookings</div>
           </div>
-          <div id="factoryMap" class="factoryMap" role="list">
-            <button class="factoryArea" type="button" data-dept="dispatch">
-              <span class="factoryAreaPulse"></span>
-              <span class="factoryAreaMeta">Dispatch</span>
-              <h3 class="factoryAreaTitle">Outbound Staging</h3>
-              <p class="factoryAreaDetail">Carrier bookings, load sequencing, and dock status.</p>
-            </button>
-            <button class="factoryArea" type="button" data-dept="packing">
-              <span class="factoryAreaPulse"></span>
-              <span class="factoryAreaMeta">Packing</span>
-              <h3 class="factoryAreaTitle">Packing Cells</h3>
-              <p class="factoryAreaDetail">Carton builds, label prints, and QA signoff.</p>
-            </button>
-            <button class="factoryArea" type="button" data-dept="finished">
-              <span class="factoryAreaPulse"></span>
-              <span class="factoryAreaMeta">Finished Goods</span>
-              <h3 class="factoryAreaTitle">Ready to Ship</h3>
-              <p class="factoryAreaDetail">Final checks, palletization, and pickup windows.</p>
-            </button>
-            <button class="factoryArea" type="button" data-dept="warehouse">
-              <span class="factoryAreaPulse"></span>
-              <span class="factoryAreaMeta">Warehouse</span>
-              <h3 class="factoryAreaTitle">Storage Grid</h3>
-              <p class="factoryAreaDetail">Inventory depth, replenishment, and inbound capture.</p>
-            </button>
+          <div class="kpiCard">
+            <div class="kpiLabel">Open dispatch orders</div>
+            <div class="kpiValue" id="kpiOpenOrders">0</div>
+            <div class="kpiMeta">Shipping, delivery, pickup</div>
           </div>
-          <div class="factoryDetail" aria-live="polite">
-            <div class="factoryDetailHeader">
-              <h3 class="factoryDetailTitle" id="factoryDetailTitle">Factory Command Stack</h3>
-              <span class="factoryDetailBadge" id="factoryDetailBadge">Live</span>
-            </div>
-            <p class="factoryAreaDetail" id="factoryDetailDesc">Select a department to surface its recommended module stack.</p>
-            <div id="factoryTools" class="factoryTools"></div>
+          <div class="kpiCard">
+            <div class="kpiLabel">Recently shipped</div>
+            <div class="kpiValue" id="kpiRecentShipments">0</div>
+            <div class="kpiMeta">Latest fulfillment events</div>
           </div>
         </section>
-        <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
+        <section>
+          <div class="appsHeader">
+            <h2>Apps</h2>
+            <span class="appsMeta">Interactive floor plan</span>
+          </div>
+          <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
+        </section>
       </div>
     </div>
 
@@ -2304,45 +1965,49 @@
 </div>
     </div>
 
-        <div class="flView" id="viewOps" hidden>
+    <div class="flView" id="viewOps" hidden>
       <div id="dispatchBoardContainer">
-        <div class="dispatchStatusPanel" aria-live="polite">
-          <div class="dispatchStatusHeader">
-            <h3>Booking progress</h3>
-            <span id="dispatchProgressLabel" class="dispatchStatusLabel">Idle</span>
+        <div class="dispatchBoardLayout">
+          <div class="dispatchBoardMain">
+            <div class="dispatchStatusPanel" aria-live="polite">
+              <div class="dispatchStatusHeader">
+                <h3>Booking progress</h3>
+                <span id="dispatchProgressLabel" class="dispatchStatusLabel">Idle</span>
+              </div>
+              <div class="dispatchProgressBar" id="dispatchProgressBar">
+                <div id="dispatchProgressFill" class="dispatchProgressFill"></div>
+                <div class="dispatchProgressSun" aria-hidden="true"></div>
+              </div>
+              <div class="dispatchProgressSteps" id="dispatchProgressSteps"></div>
+            </div>
+            <div class="dispatchLogPanel">
+              <div class="dispatchLogHeader">
+                <span>Dispatch log</span>
+                <span class="dispatchStamp">Latest activity</span>
+              </div>
+              <div id="dispatchLog" class="dispatchLog" aria-live="polite"></div>
+            </div>
+            <div class="dispatchBoardPanel">
+              <div class="sectionTitle" style="margin-top:.4rem">
+                <span>Dispatch Whiteboard</span>
+                <span id="dispatchStamp" class="dispatchStamp">–</span>
+              </div>
+              <div class="dispatchBoard" id="dispatchBoardGrid">
+                <div class="dispatchBoardEmpty">Loading open orders…</div>
+              </div>
+            </div>
           </div>
-          <div class="dispatchProgressBar" id="dispatchProgressBar">
-            <div id="dispatchProgressFill" class="dispatchProgressFill"></div>
-            <div class="dispatchProgressSun" aria-hidden="true"></div>
-          </div>
-          <div class="dispatchProgressSteps" id="dispatchProgressSteps"></div>
-        </div>
-        <div class="dispatchLogPanel">
-          <div class="dispatchLogHeader">
-            <span>Dispatch log</span>
-            <span class="dispatchStamp">Latest activity</span>
-          </div>
-          <div id="dispatchLog" class="dispatchLog" aria-live="polite"></div>
-        </div>
-        <div class="dispatchTodoPanel">
-          <div class="dispatchTodoHeader">
-            <h3>Dispatch todo</h3>
-            <span class="dispatchTodoMeta">Notes</span>
-          </div>
-          <form id="dispatchTodoForm" class="dispatchTodoForm">
-            <input id="dispatchTodoInput" type="text" placeholder="Add a dispatch note…" autocomplete="off" />
-            <button type="submit">Add</button>
-          </form>
-          <div id="dispatchTodoList" class="dispatchTodoList" role="list"></div>
-        </div>
-        <div class="dispatchBoardPanel">
-          <div class="sectionTitle" style="margin-top:.4rem">
-            <span>Dispatch Whiteboard</span>
-            <span id="dispatchStamp" class="dispatchStamp">–</span>
-          </div>
-          <div class="dispatchBoard" id="dispatchBoardGrid">
-            <div class="dispatchBoardEmpty">Loading open orders…</div>
-          </div>
+          <aside class="dispatchBoardSidebar" aria-label="Dispatch sidebar">
+            <div class="dispatchShipmentsPanel">
+              <div class="dispatchShipmentsHeader">
+                <span>Recently shipped</span>
+                <span class="dispatchStamp">Latest activity</span>
+              </div>
+              <div id="dispatchShipmentsSidebar" class="dispatchShipmentsBody">
+                <div class="dispatchShipmentEmpty">Loading recent shipments…</div>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
       <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
@@ -2369,63 +2034,6 @@
             <button class="dispatchShipmentModal__close" type="button" data-action="close-modal" aria-label="Close shipment details">✕</button>
           </div>
           <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
-        </div>
-      </div>
-    </div>
-
-        <div class="flView" id="viewInvoices" hidden>
-      <div class="invoiceShell">
-        <div class="invoiceHeader">
-          <div>
-            <h1>Order invoices</h1>
-            <p>Filter by order, customer, or date, then download, share, or print invoices.</p>
-          </div>
-          <span id="invoiceSyncStatus" class="pill">Not loaded</span>
-        </div>
-        <div class="invoiceTemplateRow">
-          <label for="invoiceTemplate">Invoice link template</label>
-          <div class="invoiceTemplateInput">
-            <input id="invoiceTemplate" type="text" placeholder="https://your-domain/invoice/{order_name}" />
-            <button id="invoiceTemplateSave" class="btn" type="button">Save template</button>
-          </div>
-          <p class="invoiceHint">Tokens: {order_name}, {order_number}, {order_id}, {customer_email}.</p>
-        </div>
-        <div class="invoiceFilters">
-          <div class="invoiceField">
-            <label for="invoiceFilterOrder">Order #</label>
-            <input id="invoiceFilterOrder" type="text" placeholder="#1001" />
-          </div>
-          <div class="invoiceField">
-            <label for="invoiceFilterCustomer">Customer</label>
-            <input id="invoiceFilterCustomer" type="text" placeholder="Customer name" />
-          </div>
-          <div class="invoiceField">
-            <label for="invoiceFilterFrom">Date from</label>
-            <input id="invoiceFilterFrom" type="date" />
-          </div>
-          <div class="invoiceField">
-            <label for="invoiceFilterTo">Date to</label>
-            <input id="invoiceFilterTo" type="date" />
-          </div>
-          <div class="invoiceField">
-            <label>&nbsp;</label>
-            <button id="invoiceRefresh" class="btn btnPrimary" type="button">Refresh orders</button>
-          </div>
-        </div>
-        <div class="invoiceTableWrap">
-          <table class="invoiceTable">
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Customer</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="invoiceTableBody">
-              <tr><td colspan="4" class="invoiceEmpty">Load orders to get started.</td></tr>
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
@@ -2809,35 +2417,20 @@
               <div class="pm-title">Price Manager</div>
               <div class="pm-sub">Manage tier pricing per SKU and sync to Shopify metafields + storefront.</div>
             </div>
-            <div class="pm-headerActions">
-              <a class="pm-linkBtn" href="/" data-route="/">Dashboard</a>
-              <a class="pm-linkBtn" href="/flocs" data-route="/flocs">Order Capture</a>
-            </div>
           </header>
 
           <section class="pm-panel">
             <div class="pm-row">
-              <div class="pm-field">
-                <label for="pmSearch">Search SKU or title</label>
-                <input id="pmSearch" type="text" placeholder="e.g. FL002" />
-              </div>
-              <button id="pmSearchBtn" class="pm-btn" type="button">Search</button>
-              <div class="pm-field">
-                <label for="pmCollection">Collection handle</label>
-                <input id="pmCollection" type="text" placeholder="e.g. wholesale" />
-              </div>
-              <button id="pmCollectionBtn" class="pm-btn" type="button">Load collection</button>
-              <span id="pmStatus" class="pm-muted">Search to load SKU pricing tiers.</span>
+              <span id="pmStatus" class="pm-muted">Loading product list…</span>
             </div>
 
             <div style="overflow:auto;">
-              <table>
+              <table class="pm-productsTable">
                 <thead>
                   <tr>
                     <th>SKU</th>
                     <th>Title</th>
                     <th>Public</th>
-                    <th>Default</th>
                     <th>Agent</th>
                     <th>Retailer</th>
                     <th>Export</th>
@@ -2848,7 +2441,7 @@
                 </thead>
                 <tbody id="pmTableBody">
                   <tr>
-                    <td colspan="10" class="pm-muted">No data loaded yet.</td>
+                    <td colspan="9" class="pm-muted">Loading products…</td>
                   </tr>
                 </tbody>
               </table>
