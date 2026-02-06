@@ -128,7 +128,8 @@ export function initFlocsView() {
     customerTags: [],
     filters: { flavour: "", size: "" },
     priceOverrides: {},
-    priceOverrideEnabled: {}
+    priceOverrideEnabled: {},
+    deliverySelected: false
   };
 
   const FLAVOUR_COLORS = {
@@ -293,6 +294,14 @@ export function initFlocsView() {
     if (visible && customerFirst) {
       customerFirst.focus();
     }
+  }
+
+  function syncDeliveryRadios() {
+    if (!deliveryGroup) return;
+    const radios = deliveryGroup.querySelectorAll("input[name='delivery']");
+    radios.forEach((r) => {
+      r.checked = r.value === state.delivery;
+    });
   }
 
   function currentDelivery() {
@@ -783,6 +792,10 @@ ${state.customer.email || ""}${
     const items = buildItemsArray();
     if (!items.length) {
       errs.push("Enter at least one item quantity.");
+    }
+
+    if (!state.deliverySelected) {
+      errs.push("Select a delivery type.");
     }
 
     if (currentDelivery() === "ship") {
@@ -1401,9 +1414,12 @@ ${state.customer.email || ""}${
 
     if (c.delivery_method) {
       state.delivery = c.delivery_method;
+      state.deliverySelected = true;
     } else {
       state.delivery = "ship";
+      state.deliverySelected = false;
     }
+    syncDeliveryRadios();
 
     const addrs = Array.isArray(c.addresses) ? c.addresses : [];
     const defaultIdx = resolveDefaultAddressIndex(addrs, c.default_address);
@@ -1500,6 +1516,8 @@ ${state.customer.email || ""}${
       customerId: state.customer.id,
       poNumber: state.po || null,
       shippingMethod: delivery,
+      customerDeliveryMethod: state.customer?.delivery_method || null,
+      setCustomerDeliveryMethod: !state.customer?.delivery_method,
       shippingPrice,
       shippingService,
       shippingQuoteNo,
@@ -1614,6 +1632,8 @@ ${state.customer.email || ""}${
       customerId: state.customer.id,
       poNumber: state.po || null,
       shippingMethod: delivery,
+      customerDeliveryMethod: state.customer?.delivery_method || null,
+      setCustomerDeliveryMethod: !state.customer?.delivery_method,
       shippingPrice,
       shippingService,
       shippingQuoteNo,
@@ -1693,6 +1713,7 @@ ${state.customer.email || ""}${
     state.filters = { flavour: "", size: "" };
     state.priceOverrides = {};
     state.priceOverrideEnabled = {};
+    state.deliverySelected = false;
 
     if (customerSearch) customerSearch.value = "";
     if (poInput) poInput.value = "";
@@ -1705,12 +1726,8 @@ ${state.customer.email || ""}${
         "Search by name, email, company, or phone";
     }
     if (deliveryGroup) {
-      const radios = deliveryGroup.querySelectorAll(
-        "input[name='delivery']"
-      );
-      radios.forEach((r) => {
-        r.checked = r.value === "ship";
-      });
+      state.delivery = "ship";
+      syncDeliveryRadios();
     }
     if (shippingSummary) {
       shippingSummary.textContent = "No shipping quote yet.";
@@ -1832,6 +1849,7 @@ ${state.customer.email || ""}${
         const t = e.target;
         if (!t || t.name !== "delivery") return;
         state.delivery = t.value;
+        state.deliverySelected = true;
         if (t.value !== "ship") {
           state.shippingQuote = null;
           shippingSummary.textContent =
@@ -1840,6 +1858,14 @@ ${state.customer.email || ""}${
         renderCustomerChips();
         renderInvoice();
         validate();
+      });
+      deliveryGroup.addEventListener("click", (e) => {
+        const t = e.target;
+        if (!t || t.name !== "delivery") return;
+        if (!state.deliverySelected) {
+          state.deliverySelected = true;
+          validate();
+        }
       });
     }
 
@@ -2060,6 +2086,13 @@ ${state.customer.email || ""}${
     if (createOrderBtn) {
       createOrderBtn.addEventListener("click", () => {
         createOrderNow();
+      });
+    }
+
+    const printInvoiceBtn = document.getElementById("flocs-printInvoiceBtn");
+    if (printInvoiceBtn) {
+      printInvoiceBtn.addEventListener("click", () => {
+        window.print();
       });
     }
   }

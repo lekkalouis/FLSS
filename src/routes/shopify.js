@@ -113,6 +113,52 @@ function parsePageInfo(linkHeader) {
   return info;
 }
 
+function resolveShippingLine(shippingMethod, shippingPrice, shippingService) {
+  if (!shippingMethod) return null;
+  if (shippingMethod === "ship") {
+    if (shippingPrice == null) return null;
+    return {
+      title: shippingService || "Courier",
+      price: String(shippingPrice)
+    };
+  }
+  const titles = {
+    pickup: "Pickup",
+    deliver: "Local delivery"
+  };
+  return {
+    title: titles[shippingMethod] || "Delivery",
+    price: "0.00"
+  };
+}
+
+async function ensureCustomerDeliveryMethod(base, customerId, deliveryMethod) {
+  if (!customerId || !deliveryMethod) return;
+  const payload = {
+    metafield: {
+      namespace: "custom",
+      key: "delivery_method",
+      type: "single_line_text_field",
+      value: deliveryMethod
+    }
+  };
+  try {
+    const resp = await shopifyFetch(
+      `${base}/customers/${customerId}/metafields.json`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload)
+      }
+    );
+    if (!resp.ok) {
+      const body = await resp.text();
+      console.warn("Customer delivery method update failed:", resp.status, body);
+    }
+  } catch (err) {
+    console.warn("Customer delivery method update error:", err);
+  }
+}
+
 router.get("/shopify/customers/search", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -679,6 +725,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
       customerId,
       poNumber,
       shippingMethod,
+      customerDeliveryMethod,
+      setCustomerDeliveryMethod,
       shippingPrice,
       shippingService,
       shippingQuoteNo,
@@ -734,7 +782,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
     if (config.SHOPIFY_FLOW_TAG) {
       tags.push(config.SHOPIFY_FLOW_TAG);
     }
-    if (shippingMethod && shippingMethod !== "ship") {
+    if (shippingMethod) {
       tags.push(`delivery_${shippingMethod}`);
     }
     const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
@@ -750,11 +798,9 @@ router.post("/shopify/draft-orders", async (req, res) => {
       payload.draft_order.tags = Array.from(new Set(tags)).join(", ");
     }
 
-    if (shippingPrice != null && shippingMethod === "ship") {
-      payload.draft_order.shipping_line = {
-        title: shippingService || "Courier",
-        price: String(shippingPrice)
-      };
+    const shippingLine = resolveShippingLine(shippingMethod, shippingPrice, shippingService);
+    if (shippingLine) {
+      payload.draft_order.shipping_line = shippingLine;
     }
 
     const resp = await shopifyFetch(`${base}/draft_orders.json`, {
@@ -777,6 +823,10 @@ router.post("/shopify/draft-orders", async (req, res) => {
         statusText: resp.statusText,
         body: data
       });
+    }
+
+    if (setCustomerDeliveryMethod && !customerDeliveryMethod && shippingMethod) {
+      await ensureCustomerDeliveryMethod(base, customerId, shippingMethod);
     }
 
     const d = data.draft_order || {};
@@ -854,6 +904,8 @@ router.post("/shopify/orders", async (req, res) => {
       customerId,
       poNumber,
       shippingMethod,
+      customerDeliveryMethod,
+      setCustomerDeliveryMethod,
       shippingPrice,
       shippingService,
       shippingQuoteNo,
@@ -907,7 +959,7 @@ router.post("/shopify/orders", async (req, res) => {
     };
 
     const orderTags = [];
-    if (shippingMethod && shippingMethod !== "ship") {
+    if (shippingMethod) {
       orderTags.push(`delivery_${shippingMethod}`);
     }
     const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
@@ -923,13 +975,9 @@ router.post("/shopify/orders", async (req, res) => {
       orderPayload.order.tags = Array.from(new Set(orderTags)).join(", ");
     }
 
-    if (shippingPrice != null && shippingMethod === "ship") {
-      orderPayload.order.shipping_lines = [
-        {
-          title: shippingService || "Courier",
-          price: String(shippingPrice)
-        }
-      ];
+    const shippingLine = resolveShippingLine(shippingMethod, shippingPrice, shippingService);
+    if (shippingLine) {
+      orderPayload.order.shipping_lines = [shippingLine];
     }
 
     const resp = await shopifyFetch(`${base}/orders.json`, {
@@ -952,6 +1000,10 @@ router.post("/shopify/orders", async (req, res) => {
         statusText: resp.statusText,
         body: data
       });
+    }
+
+    if (setCustomerDeliveryMethod && !customerDeliveryMethod && shippingMethod) {
+      await ensureCustomerDeliveryMethod(base, customerId, shippingMethod);
     }
 
     const order = data.order || {};
