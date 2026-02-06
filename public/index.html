@@ -137,6 +137,13 @@
     justify-content:flex-start;
     gap:.5rem;
   }
+  .flNavBtnIcon{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:1.2rem;
+    font-size:1rem;
+  }
   .flNavBtn:hover{
     border-color:rgba(34,211,238,.5);
     color:#7dd3fc;
@@ -2084,7 +2091,6 @@
 </style>
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
-  <link rel="stylesheet" href="/views/pos.css">
   <link rel="stylesheet" href="/views/simulate.css">
   <link rel="stylesheet" href="/views/price-manager.css">
 </head>
@@ -2100,16 +2106,15 @@
         </div>
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
-            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnText">Dashboard</span></button>
-            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnText">Scan Station</span></button>
-            <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false" data-route="/ops"><span class="flNavBtnText">Dispatch Board</span></button>
-            <button id="navInvoices" class="flNavBtn" type="button" role="tab" aria-controls="viewInvoices" aria-selected="false" data-route="/invoices"><span class="flNavBtnText">Order invoices</span></button>
-            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Documentation</span></button>
-            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnText">Order capture (FLOCS)</span></button>
-            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnText">Stock take</span></button>
-            <button id="navPos" class="flNavBtn" type="button" role="tab" aria-controls="viewPos" aria-selected="false" data-route="/pos"><span class="flNavBtnText">POS Walk-In</span></button>
-            <button id="navSimulate" class="flNavBtn" type="button" role="tab" aria-controls="viewSimulate" aria-selected="false" data-route="/simulate"><span class="flNavBtnText">Simulator</span></button>
-            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
+            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
+            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Scan Station</span></button>
+            <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false" data-route="/ops"><span class="flNavBtnIcon" aria-hidden="true">🚚</span><span class="flNavBtnText">Dispatch Board</span></button>
+            <button id="navInvoices" class="flNavBtn" type="button" role="tab" aria-controls="viewInvoices" aria-selected="false" data-route="/invoices"><span class="flNavBtnIcon" aria-hidden="true">🧾</span><span class="flNavBtnText">Order invoices</span></button>
+            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
+            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture (FLOCS)</span></button>
+            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
+            <button id="navSimulate" class="flNavBtn" type="button" role="tab" aria-controls="viewSimulate" aria-selected="false" data-route="/simulate"><span class="flNavBtnIcon" aria-hidden="true">🧪</span><span class="flNavBtnText">Simulator</span></button>
+            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -2141,12 +2146,6 @@
             <span class="pill">Interactive floorplan</span>
           </div>
           <div id="factoryMap" class="factoryMap" role="list">
-            <button class="factoryArea" type="button" data-dept="manufacturing">
-              <span class="factoryAreaPulse"></span>
-              <span class="factoryAreaMeta">Manufacturing</span>
-              <h3 class="factoryAreaTitle">Production Lines</h3>
-              <p class="factoryAreaDetail">Live batch progress, quality gates, and line cadence.</p>
-            </button>
             <button class="factoryArea" type="button" data-dept="dispatch">
               <span class="factoryAreaPulse"></span>
               <span class="factoryAreaMeta">Dispatch</span>
@@ -2174,7 +2173,7 @@
           </div>
           <div class="factoryDetail" aria-live="polite">
             <div class="factoryDetailHeader">
-              <h3 class="factoryDetailTitle" id="factoryDetailTitle">Manufacturing Command Stack</h3>
+              <h3 class="factoryDetailTitle" id="factoryDetailTitle">Factory Command Stack</h3>
               <span class="factoryDetailBadge" id="factoryDetailBadge">Live</span>
             </div>
             <p class="factoryAreaDetail" id="factoryDetailDesc">Select a department to surface its recommended module stack.</p>
@@ -2517,6 +2516,28 @@
           </header>
 
           <main class="flocs-layout">
+            <aside class="flocs-panel flocs-sidebar" aria-label="Invoice preview">
+              <div class="flocs-previewHeader">
+                <div>
+                  <div class="flocs-previewTitle">Invoice preview</div>
+                  <div class="flocs-hint">Compact customer-facing snapshot</div>
+                </div>
+                <div>
+                  <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
+                  <button id="flocs-armBtn" class="flocs-armBtn" type="button" hidden>Arm lock</button>
+                  <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>
+                    Convert draft to order
+                  </button>
+                  <button id="flocs-createOrderBtn" class="flocs-createOrderBtn" type="button" hidden>
+                    Create order now
+                  </button>
+                </div>
+              </div>
+
+              <div class="flocs-invoice" id="flocs-invoice">
+                <!-- Filled by JS -->
+              </div>
+            </aside>
             <!-- LEFT: FORM -->
             <section class="flocs-panel form" id="flocs-formPanel">
               <!-- Customer -->
@@ -2705,29 +2726,6 @@
               </div>
             </section>
 
-            <!-- RIGHT: PREVIEW -->
-            <section class="flocs-panel preview">
-              <div class="flocs-previewHeader">
-                <div>
-                <div class="flocs-previewTitle">Invoice-style preview</div>
-                <div class="flocs-hint">Live view of what the customer’s document will roughly look like</div>
-              </div>
-                <div>
-                  <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
-                  <button id="flocs-armBtn" class="flocs-armBtn" type="button" hidden>Arm lock</button>
-                  <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>
-                    Convert draft to order
-                  </button>
-                  <button id="flocs-createOrderBtn" class="flocs-createOrderBtn" type="button" hidden>
-                    Create order now
-                  </button>
-                </div>
-              </div>
-
-              <div class="flocs-invoice" id="flocs-invoice">
-                <!-- Filled by JS -->
-              </div>
-            </section>
           </main>
         </div>
 
@@ -2806,54 +2804,6 @@
             </aside>
           </div>
         </div>
-    </div>
-
-    <div class="flView" id="viewPos" hidden>
-      <header>
-          <h1>POS Walk-In</h1>
-          <p>Scan a product code or SKU to add items. A cash order will be sent to Shopify.</p>
-        </header>
-        <main>
-          <section class="panel">
-            <div class="total"><small>Total</small><span id="pos-total">R0.00</span></div>
-            <div class="scan-row">
-              <input id="pos-scan" type="text" placeholder="Scan or type SKU…" autocomplete="off" />
-              <button id="pos-addBtn" type="button">Add item</button>
-            </div>
-            <div class="scan-row">
-              <input id="pos-cashier" type="text" placeholder="Cashier name (optional)" autocomplete="off" />
-            </div>
-            <div class="status" id="pos-status">Waiting for scan.</div>
-
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:40%">Item</th>
-                  <th>SKU</th>
-                  <th>Qty</th>
-                  <th>Price</th>
-                  <th>Line</th>
-                </tr>
-              </thead>
-              <tbody id="pos-items">
-                <tr><td colspan="5" class="meta">No items yet.</td></tr>
-              </tbody>
-            </table>
-          </section>
-
-          <aside class="panel">
-            <div class="actions">
-              <button id="pos-submit" class="primary" type="button">Create cash order</button>
-              <button id="pos-print" class="secondary" type="button">Print receipt</button>
-              <button id="pos-clear" class="danger" type="button">Clear order</button>
-            </div>
-            <div style="margin-top:1.5rem">
-              <div class="meta">Receipt preview</div>
-              <div class="receipt" id="pos-receipt">Receipt will appear once items are added.</div>
-            </div>
-            <div class="status" id="pos-orderStatus"></div>
-          </aside>
-        </main>
     </div>
 
     <div class="flView" id="viewSimulate" hidden>
