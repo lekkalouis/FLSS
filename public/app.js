@@ -1,6 +1,5 @@
 import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
-import { initPosView } from "./views/pos.js";
 import { initSimulateView } from "./views/simulate.js";
 import { initPriceManagerView } from "./views/price-manager.js";
 
@@ -80,7 +79,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const navDocs = $("navDocs");
   const navFlocs = $("navFlocs");
   const navStock = $("navStock");
-  const navPos = $("navPos");
   const navSimulate = $("navSimulate");
   const navPriceManager = $("navPriceManager");
   const navToggle = $("navToggle");
@@ -91,7 +89,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const viewDocs = $("viewDocs");
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
-  const viewPos = $("viewPos");
   const viewSimulate = $("viewSimulate");
   const viewPriceManager = $("viewPriceManager");
   const actionFlash = $("actionFlash");
@@ -169,15 +166,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
       tag: "Module"
     },
     {
-      id: "pos",
-      title: "POS Walk-In",
-      description: "Scan walk-in items, show a large total, and close cash orders.",
-      type: "route",
-      target: "/pos",
-      meta: "Retail module",
-      tag: "Module"
-    },
-    {
       id: "simulate",
       title: "Simulator",
       description: "Test scan/booking flows without live orders.",
@@ -198,32 +186,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
   ];
 
   const FACTORY_AREAS = [
-    {
-      id: "manufacturing",
-      title: "Manufacturing Command Stack",
-      badge: "Live",
-      description: "Monitor live batch builds, quality gates, and line cadence.",
-      tools: [
-        {
-          title: "Line Scan Station",
-          description: "Scan line output and auto-book production lots.",
-          type: "view",
-          target: "scan"
-        },
-        {
-          title: "Process Simulator",
-          description: "Run a sandbox pass for new formulations or batches.",
-          type: "route",
-          target: "/simulate"
-        },
-        {
-          title: "SOP Quick Guide",
-          description: "Open the operator playbook for line start-up.",
-          type: "view",
-          target: "docs"
-        }
-      ]
-    },
     {
       id: "dispatch",
       title: "Dispatch Command Stack",
@@ -3208,7 +3170,7 @@ async function startOrder(orderNo) {
     });
   }
 
-  function renderFactoryView(activeId = "manufacturing") {
+  function renderFactoryView(activeId = "dispatch") {
     if (!factoryMap || !factoryTools) return;
     const targetArea = FACTORY_AREAS.find((area) => area.id === activeId) || FACTORY_AREAS[0];
 
@@ -3318,7 +3280,6 @@ async function startOrder(orderNo) {
     const showDocs = view === "docs";
     const showFlocs = view === "flocs";
     const showStock = view === "stock";
-    const showPos = view === "pos";
     const showSimulate = view === "simulate";
     const showPriceManager = view === "price-manager";
 
@@ -3350,10 +3311,6 @@ async function startOrder(orderNo) {
       viewStock.hidden = !showStock;
       viewStock.classList.toggle("flView--active", showStock);
     }
-    if (viewPos) {
-      viewPos.hidden = !showPos;
-      viewPos.classList.toggle("flView--active", showPos);
-    }
     if (viewSimulate) {
       viewSimulate.hidden = !showSimulate;
       viewSimulate.classList.toggle("flView--active", showSimulate);
@@ -3370,7 +3327,6 @@ async function startOrder(orderNo) {
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
-    navPos?.classList.toggle("flNavBtn--active", showPos);
     navSimulate?.classList.toggle("flNavBtn--active", showSimulate);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
@@ -3380,7 +3336,6 @@ async function startOrder(orderNo) {
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
-    navPos?.setAttribute("aria-selected", showPos ? "true" : "false");
     navSimulate?.setAttribute("aria-selected", showSimulate ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
 
@@ -3400,8 +3355,6 @@ async function startOrder(orderNo) {
       statusExplain("Order capture ready.", "info");
     } else if (showStock) {
       statusExplain("Stock take ready.", "info");
-    } else if (showPos) {
-      statusExplain("POS walk-in ready.", "info");
     } else if (showSimulate) {
       statusExplain("Simulator ready.", "info");
     } else if (showPriceManager) {
@@ -3420,7 +3373,6 @@ async function startOrder(orderNo) {
     ["/docs", "docs"],
     ["/flocs", "flocs"],
     ["/stock", "stock"],
-    ["/pos", "pos"],
     ["/simulate", "simulate"],
     ["/price-manager", "price-manager"]
   ]);
@@ -3433,7 +3385,6 @@ async function startOrder(orderNo) {
     docs: "/docs",
     flocs: "/flocs",
     stock: "/stock",
-    pos: "/pos",
     simulate: "/simulate",
     "price-manager": "/price-manager"
   };
@@ -3441,7 +3392,6 @@ async function startOrder(orderNo) {
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
-    pos: initPosView,
     simulate: initSimulateView,
     "price-manager": initPriceManagerView
   };
