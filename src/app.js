@@ -19,9 +19,20 @@ const __dirname = path.dirname(__filename);
 
 export function createApp() {
   const app = express();
+  const isProduction = config.NODE_ENV === "production";
 
   app.disable("x-powered-by");
-  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          ...(isProduction ? {} : { "upgrade-insecure-requests": null })
+        }
+      }
+    })
+  );
   app.use(express.json({ limit: "1mb" }));
 
   const frontendOrigin = getFrontendOrigin();
