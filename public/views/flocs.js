@@ -189,6 +189,7 @@ export function initFlocsView() {
     String(p.variantId || p.sku || p.title || "").trim();
 
   const PRICE_TAGS = ["agent", "retailer", "export", "private", "fkb"];
+  const QUICK_QTY = [1, 3, 6, 5, 10, 12, 24, 48, 96, 100];
 
   function normalizeTags(tags) {
     if (!tags) return [];
@@ -418,10 +419,14 @@ export function initFlocsView() {
           state.priceOverrides[key] != null ? state.priceOverrides[key] : "";
         const overridePrice = priceOverrideForKey(key);
         const rowStyle = p.flavour ? ` style="--flavour-color:${flavourColor(p.flavour)}"` : "";
+        const quickButtons = QUICK_QTY.map(
+          (qty) =>
+            `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
+        ).join("");
         return `
         <tr${rowStyle}>
           <td><code>${p.sku}</code></td>
-          <td>${name}</td>
+          <td><span class="flocs-productName" title="${name}">${name}</span></td>
           <td>${flavourTag(p.flavour)}</td>
           <td>${p.size || "—"}</td>
           <td>${price != null ? money(price) : "—"}</td>
@@ -446,17 +451,22 @@ export function initFlocsView() {
             </div>
           </td>
           <td>
-            <div class="flocs-qtyWrap">
-              <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
-              <input class="flocs-qtyInput"
-                     type="number"
-                     min="0"
-                     step="1"
-                     data-key="${key}"
-                     data-sku="${p.sku || ""}"
-                     inputmode="numeric"
-                     value="${value}" />
-              <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+            <div class="flocs-qtyArea">
+              <div class="flocs-qtyWrap">
+                <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
+                <input class="flocs-qtyInput"
+                       type="number"
+                       min="0"
+                       step="1"
+                       data-key="${key}"
+                       data-sku="${p.sku || ""}"
+                       inputmode="numeric"
+                       value="${value}" />
+                <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+              </div>
+              <div class="flocs-qtyQuick">
+                ${quickButtons}
+              </div>
             </div>
           </td>
         </tr>
@@ -709,7 +719,7 @@ ${state.customer.email || ""}${
       <div class="flocs-invoiceHeader">
         <div>
           <div class="flocs-invoiceBrand">Flippen Lekka Holdings (Pty) Ltd</div>
-          <div class="flocs-invoiceSub">Draft order preview (FLOCS)</div>
+          <div class="flocs-invoiceSub">Draft order preview</div>
         </div>
         <div class="flocs-invoiceSub" style="text-align:right">
           PO: <strong>${po}</strong><br/>
@@ -758,7 +768,7 @@ ${state.customer.email || ""}${
       </div>
 
       <div class="flocs-invoiceNote">
-        ${pricingNote}${overrideNote}. Final pricing and tax are still controlled in Shopify. FLOCS only seeds the draft order.
+        ${pricingNote}${overrideNote}. Final pricing and tax are still controlled in Shopify.
       </div>
     `;
   }
@@ -946,7 +956,7 @@ ${state.customer.email || ""}${
       origpercell: "0730451885",
       notifyorigpers: 1,
       origperemail: "admin@flippenlekkaspices.co.za",
-      notes: `FLOCS draft pre-quote`,
+      notes: `Draft pre-quote`,
 
       destpers:
         `${addr.first_name || ""} ${addr.last_name || ""}`.trim() ||
@@ -1495,6 +1505,7 @@ ${state.customer.email || ""}${
       shippingQuoteNo,
       billingAddress,
       shippingAddress,
+      customerTags: state.customerTags,
       lineItems: items.map((li) => ({
         sku: li.sku,
         title: li.title,
@@ -1608,6 +1619,7 @@ ${state.customer.email || ""}${
       shippingQuoteNo,
       billingAddress,
       shippingAddress,
+      customerTags: state.customerTags,
       lineItems: items.map((li) => ({
         sku: li.sku,
         title: li.title,
@@ -1915,7 +1927,12 @@ ${state.customer.email || ""}${
           validate();
           return;
         }
-        if (action === "inc") {
+        if (action === "quick-add") {
+          const amount = Number(btn.dataset.amount || 0);
+          if (Number.isFinite(amount) && amount > 0) {
+            state.items[key] = current + amount;
+          }
+        } else if (action === "inc") {
           state.items[key] = current + 1;
         } else if (action === "dec") {
           const next = Math.max(0, current - 1);

@@ -1,6 +1,5 @@
 import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
-import { initSimulateView } from "./views/simulate.js";
 import { initPriceManagerView } from "./views/price-manager.js";
 
 (() => {
@@ -79,7 +78,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const navDocs = $("navDocs");
   const navFlocs = $("navFlocs");
   const navStock = $("navStock");
-  const navSimulate = $("navSimulate");
   const navPriceManager = $("navPriceManager");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
@@ -89,7 +87,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const viewDocs = $("viewDocs");
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
-  const viewSimulate = $("viewSimulate");
   const viewPriceManager = $("viewPriceManager");
   const actionFlash = $("actionFlash");
   const screenFlash = $("screenFlash");
@@ -149,8 +146,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
     },
     {
       id: "flocs",
-      title: "Order Capture (FLOCS)",
-      description: "Create and manage incoming orders from the capture module.",
+      title: "Order Capture",
+      description: "Create and manage incoming orders for Shopify.",
       type: "route",
       target: "/flocs",
       meta: "Capture module",
@@ -164,15 +161,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
       target: "/stock",
       meta: "Inventory module",
       tag: "Module"
-    },
-    {
-      id: "simulate",
-      title: "Simulator",
-      description: "Test scan/booking flows without live orders.",
-      type: "route",
-      target: "/simulate",
-      meta: "Sandbox",
-      tag: "Sandbox"
     },
     {
       id: "price-manager",
@@ -203,12 +191,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
           description: "Scan and book parcels with SLA tracking.",
           type: "view",
           target: "scan"
-        },
-        {
-          title: "Manifest Simulator",
-          description: "Preview truck loads and pickup windows.",
-          type: "route",
-          target: "/simulate"
         }
       ]
     },
@@ -3280,7 +3262,6 @@ async function startOrder(orderNo) {
     const showDocs = view === "docs";
     const showFlocs = view === "flocs";
     const showStock = view === "stock";
-    const showSimulate = view === "simulate";
     const showPriceManager = view === "price-manager";
 
     if (viewDashboard) {
@@ -3311,10 +3292,6 @@ async function startOrder(orderNo) {
       viewStock.hidden = !showStock;
       viewStock.classList.toggle("flView--active", showStock);
     }
-    if (viewSimulate) {
-      viewSimulate.hidden = !showSimulate;
-      viewSimulate.classList.toggle("flView--active", showSimulate);
-    }
     if (viewPriceManager) {
       viewPriceManager.hidden = !showPriceManager;
       viewPriceManager.classList.toggle("flView--active", showPriceManager);
@@ -3327,7 +3304,6 @@ async function startOrder(orderNo) {
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
-    navSimulate?.classList.toggle("flNavBtn--active", showSimulate);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
@@ -3336,7 +3312,6 @@ async function startOrder(orderNo) {
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
-    navSimulate?.setAttribute("aria-selected", showSimulate ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
 
     if (showDashboard) {
@@ -3355,8 +3330,6 @@ async function startOrder(orderNo) {
       statusExplain("Order capture ready.", "info");
     } else if (showStock) {
       statusExplain("Stock take ready.", "info");
-    } else if (showSimulate) {
-      statusExplain("Simulator ready.", "info");
     } else if (showPriceManager) {
       statusExplain("Price manager ready.", "info");
     } else {
@@ -3373,7 +3346,6 @@ async function startOrder(orderNo) {
     ["/docs", "docs"],
     ["/flocs", "flocs"],
     ["/stock", "stock"],
-    ["/simulate", "simulate"],
     ["/price-manager", "price-manager"]
   ]);
 
@@ -3385,14 +3357,12 @@ async function startOrder(orderNo) {
     docs: "/docs",
     flocs: "/flocs",
     stock: "/stock",
-    simulate: "/simulate",
     "price-manager": "/price-manager"
   };
 
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
-    simulate: initSimulateView,
     "price-manager": initPriceManagerView
   };
 

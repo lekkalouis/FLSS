@@ -12,6 +12,20 @@ import { badRequest } from "../utils/http.js";
 
 const router = Router();
 
+function normalizeTagList(tags) {
+  if (!tags) return [];
+  if (Array.isArray(tags)) {
+    return tags.map((tag) => String(tag).trim()).filter(Boolean);
+  }
+  if (typeof tags === "string") {
+    return tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
 function requireShopifyConfigured(res) {
   if (!config.SHOPIFY_STORE || !config.SHOPIFY_CLIENT_ID || !config.SHOPIFY_CLIENT_SECRET) {
     res.status(501).json({
@@ -670,7 +684,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
       shippingQuoteNo,
       billingAddress,
       shippingAddress,
-      lineItems
+      lineItems,
+      customerTags
     } = req.body || {};
 
     if (!customerId) {
@@ -722,8 +737,17 @@ router.post("/shopify/draft-orders", async (req, res) => {
     if (shippingMethod && shippingMethod !== "ship") {
       tags.push(`delivery_${shippingMethod}`);
     }
+    const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
+      tag.toLowerCase()
+    );
+    if (normalizedCustomerTags.includes("local")) {
+      tags.push("local");
+    }
+    if (normalizedCustomerTags.includes("export")) {
+      tags.push("export");
+    }
     if (tags.length) {
-      payload.draft_order.tags = tags.join(", ");
+      payload.draft_order.tags = Array.from(new Set(tags)).join(", ");
     }
 
     if (shippingPrice != null && shippingMethod === "ship") {
@@ -835,7 +859,8 @@ router.post("/shopify/orders", async (req, res) => {
       shippingQuoteNo,
       billingAddress,
       shippingAddress,
-      lineItems
+      lineItems,
+      customerTags
     } = req.body || {};
 
     if (!customerId) {
@@ -881,8 +906,21 @@ router.post("/shopify/orders", async (req, res) => {
       }
     };
 
+    const orderTags = [];
     if (shippingMethod && shippingMethod !== "ship") {
-      orderPayload.order.tags = `delivery_${shippingMethod}`;
+      orderTags.push(`delivery_${shippingMethod}`);
+    }
+    const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
+      tag.toLowerCase()
+    );
+    if (normalizedCustomerTags.includes("local")) {
+      orderTags.push("local");
+    }
+    if (normalizedCustomerTags.includes("export")) {
+      orderTags.push("export");
+    }
+    if (orderTags.length) {
+      orderPayload.order.tags = Array.from(new Set(orderTags)).join(", ");
     }
 
     if (shippingPrice != null && shippingMethod === "ship") {

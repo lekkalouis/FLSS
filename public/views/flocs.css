@@ -27,7 +27,7 @@
     }
 
     #viewFlocs .flocs-shell{
-      max-width:1200px;
+      max-width:1120px;
       margin:0 auto;
       padding:1.25rem .9rem 2.5rem;
     }
@@ -100,11 +100,9 @@
 
     #viewFlocs .flocs-layout{
       display:flex;
+      flex-direction:column;
       gap:1rem;
       align-items:flex-start;
-    }
-    @media (max-width:900px) {
-      #viewFlocs .flocs-layout{ flex-direction:column; }
     }
 
     #viewFlocs .flocs-panel{
@@ -120,38 +118,48 @@
       flex:1.15;
       min-width:0;
     }
-    #viewFlocs .flocs-sidebar{
-      flex:0 0 260px;
-      max-width:260px;
-      min-width:220px;
+    #viewFlocs .flocs-topGrid{
+      display:flex;
+      gap:1rem;
+      align-items:flex-start;
+      flex-wrap:wrap;
+    }
+    #viewFlocs .flocs-topFields{
+      flex:1 1 520px;
+      min-width:0;
+    }
+    #viewFlocs .flocs-previewPanel{
+      flex:0 0 320px;
+      max-width:360px;
+      min-width:240px;
       padding:.75rem;
       background:radial-gradient(circle at 0 0,rgba(34,211,238,.2),transparent 70%),
                  linear-gradient(140deg, rgba(17,24,39,.96), rgba(15,23,42,.75));
     }
-    #viewFlocs .flocs-sidebar .flocs-previewHeader{
+    #viewFlocs .flocs-previewPanel .flocs-previewHeader{
       flex-direction:column;
       align-items:flex-start;
       gap:.5rem;
     }
-    #viewFlocs .flocs-sidebar .flocs-previewTag{
+    #viewFlocs .flocs-previewPanel .flocs-previewTag{
       align-self:flex-start;
     }
-    #viewFlocs .flocs-sidebar .flocs-invoice{
+    #viewFlocs .flocs-previewPanel .flocs-invoice{
       font-size:.7rem;
       line-height:1.2;
-      max-height:70vh;
+      max-height:60vh;
       overflow:auto;
     }
-    #viewFlocs .flocs-sidebar .flocs-invoiceTable th,
-    #viewFlocs .flocs-sidebar .flocs-invoiceTable td{
+    #viewFlocs .flocs-previewPanel .flocs-invoiceTable th,
+    #viewFlocs .flocs-previewPanel .flocs-invoiceTable td{
       font-size:.65rem;
       padding:.35rem .4rem;
     }
-    #viewFlocs .flocs-sidebar .flocs-invoiceTotalsRow{
+    #viewFlocs .flocs-previewPanel .flocs-invoiceTotalsRow{
       font-size:.65rem;
     }
     @media (max-width:900px) {
-      #viewFlocs .flocs-sidebar{
+      #viewFlocs .flocs-previewPanel{
         width:100%;
         max-width:none;
         min-width:0;
@@ -190,6 +198,7 @@
 
     #viewFlocs .flocs-input, #viewFlocs .flocs-select{
       width:100%;
+      max-width:420px;
       border-radius:.55rem;
       border:1px solid var(--panel-strong);
       background:rgba(15,23,42,.75);
@@ -207,8 +216,12 @@
     #viewFlocs .flocs-row{
       display:flex;
       gap:.5rem;
+      flex-wrap:wrap;
     }
-    #viewFlocs .flocs-row > *{ flex:1; }
+    #viewFlocs .flocs-row > *{
+      flex:1 1 220px;
+      max-width:360px;
+    }
     @media (max-width:700px) {
       #viewFlocs .flocs-row{ flex-direction:column; }
     }
@@ -348,6 +361,7 @@
     #viewFlocs .flocs-productsTable th, #viewFlocs .flocs-productsTable td{
       padding:.3rem .45rem;
       border-bottom:1px solid rgba(148,163,184,.2);
+      vertical-align:top;
     }
     #viewFlocs .flocs-productsTable th{
       text-align:left;
@@ -369,6 +383,13 @@
     #viewFlocs .flocs-productsTable code{
       font-family:var(--mono);
       font-size:.78rem;
+    }
+    #viewFlocs .flocs-productName{
+      display:block;
+      max-width:220px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
     #viewFlocs .flocs-flavourTag{
       --flavour-color:#22d3ee;
@@ -430,6 +451,34 @@
       align-items:center;
       gap:.25rem;
       justify-content:flex-end;
+    }
+    #viewFlocs .flocs-qtyArea{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:.35rem;
+    }
+    #viewFlocs .flocs-qtyQuick{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.2rem;
+      justify-content:flex-end;
+      max-width:160px;
+    }
+    #viewFlocs .flocs-qtyQuickBtn{
+      border-radius:.35rem;
+      border:1px solid var(--panel-strong);
+      background:rgba(15,23,42,.7);
+      color:var(--text);
+      font-size:.65rem;
+      padding:.15rem .35rem;
+      cursor:pointer;
+      min-width:1.6rem;
+      text-align:center;
+    }
+    #viewFlocs .flocs-qtyQuickBtn:hover{
+      border-color:var(--accent);
+      color:var(--accent);
     }
     #viewFlocs .flocs-qtyBtn{
       width:1.8rem;
