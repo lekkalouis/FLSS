@@ -9,6 +9,7 @@ import rateLimit from "express-rate-limit";
 
 import { config, getFrontendOrigin } from "./config.js";
 import alertsRouter from "./routes/alerts.js";
+import configRouter from "./routes/config.js";
 import parcelPerfectRouter from "./routes/parcelperfect.js";
 import printnodeRouter from "./routes/printnode.js";
 import shopifyRouter from "./routes/shopify.js";
@@ -59,6 +60,7 @@ export function createApp() {
   app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
 
   app.use(statusRouter);
+  app.use(configRouter);
   app.use(parcelPerfectRouter);
   app.use(shopifyRouter);
   app.use(printnodeRouter);

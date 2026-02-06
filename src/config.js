@@ -30,7 +30,31 @@ export const config = {
   SMTP_FROM: process.env.SMTP_FROM,
   TRUCK_EMAIL_TO: process.env.TRUCK_EMAIL_TO,
 
-  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN
+  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
+  UI_COST_ALERT_THRESHOLD: Number(process.env.UI_COST_ALERT_THRESHOLD ?? 250),
+  UI_BOOKING_IDLE_MS: Number(process.env.UI_BOOKING_IDLE_MS ?? 6000),
+  UI_TRUCK_ALERT_THRESHOLD: Number(process.env.UI_TRUCK_ALERT_THRESHOLD ?? 25),
+  UI_BOX_DIM1: Number(process.env.UI_BOX_DIM1 ?? 40),
+  UI_BOX_DIM2: Number(process.env.UI_BOX_DIM2 ?? 40),
+  UI_BOX_DIM3: Number(process.env.UI_BOX_DIM3 ?? 30),
+  UI_BOX_MASS_KG: Number(process.env.UI_BOX_MASS_KG ?? 5),
+  UI_PP_ENDPOINT: process.env.UI_PP_ENDPOINT || "/pp",
+  UI_SHOPIFY_PROXY_BASE: process.env.UI_SHOPIFY_PROXY_BASE || "/shopify",
+  UI_FEATURE_FLOW_TRIGGER: process.env.UI_FEATURE_FLOW_TRIGGER || "true",
+  UI_ORIG_PERS: process.env.UI_ORIG_PERS || "Flippen Lekka Holdings (Pty) Ltd",
+  UI_ORIG_PER_ADD1: process.env.UI_ORIG_PER_ADD1 || "7 Papawer Street",
+  UI_ORIG_PER_ADD2: process.env.UI_ORIG_PER_ADD2 || "Blomtuin, Bellville",
+  UI_ORIG_PER_ADD3: process.env.UI_ORIG_PER_ADD3 || "Cape Town, Western Cape",
+  UI_ORIG_PER_ADD4: process.env.UI_ORIG_PER_ADD4 || "ZA",
+  UI_ORIG_PER_PCODE: process.env.UI_ORIG_PER_PCODE || "7530",
+  UI_ORIG_TOWN: process.env.UI_ORIG_TOWN || "Cape Town",
+  UI_ORIG_PLACE: Number(process.env.UI_ORIG_PLACE ?? 4663),
+  UI_ORIG_PER_CONTACT: process.env.UI_ORIG_PER_CONTACT || "Louis",
+  UI_ORIG_PER_PHONE: process.env.UI_ORIG_PER_PHONE || "0730451885",
+  UI_ORIG_PER_CELL: process.env.UI_ORIG_PER_CELL || "0730451885",
+  UI_ORIG_NOTIFY_PERS: Number(process.env.UI_ORIG_NOTIFY_PERS ?? 1),
+  UI_ORIG_PER_EMAIL: process.env.UI_ORIG_PER_EMAIL || "admin@flippenlekkaspices.co.za",
+  UI_ORIG_NOTES: process.env.UI_ORIG_NOTES || "Louis 0730451885 / Michael 0783556277"
 };
 
 export function getFrontendOrigin() {
