@@ -130,6 +130,29 @@ export function initFlocsView() {
     priceOverrides: {},
     priceOverrideEnabled: {}
   };
+
+  const FLAVOUR_COLORS = {
+    "hot & spicy": "#DA291C",
+    "chutney": "#7340B2",
+    "original": "#8BAF84",
+    "worcester sauce": "#FF8200",
+    "red wine & garlic": "#904066",
+    "savoury herb": "#A1C935",
+    "savoury herbs": "#A1C935",
+    "salt & vinegar": "#40B2FF",
+    "curry": "#FFC72C",
+    "butter": "#FFE66D",
+    "sour cream & chives": "#7BC96F",
+    "parmesan cheese": "#FACC15",
+    "cheese & onion": "#C4E36A"
+  };
+
+  const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
+  const flavourColor = (flavour) => FLAVOUR_COLORS[flavourKey(flavour)] || "#22d3ee";
+  const flavourTag = (flavour) =>
+    flavour
+      ? `<span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span>`
+      : "—";
   let productPageInfo = { products: {}, variants: {} };
   let productPagingCursor = { products: null, variants: null };
   let priceTierLoading = false;
@@ -394,11 +417,12 @@ export function initFlocsView() {
         const overrideValue =
           state.priceOverrides[key] != null ? state.priceOverrides[key] : "";
         const overridePrice = priceOverrideForKey(key);
+        const rowStyle = p.flavour ? ` style="--flavour-color:${flavourColor(p.flavour)}"` : "";
         return `
-        <tr>
+        <tr${rowStyle}>
           <td><code>${p.sku}</code></td>
           <td>${name}</td>
-          <td>${p.flavour || "—"}</td>
+          <td>${flavourTag(p.flavour)}</td>
           <td>${p.size || "—"}</td>
           <td>${price != null ? money(price) : "—"}</td>
           <td>
@@ -1137,21 +1161,22 @@ ${state.customer.email || ""}${
       }
 
       productResults.innerHTML = list
-        .map(
-          (p, idx) => `
+        .map((p, idx) => {
+          const flavour = p.flavour || p.flavor || p.productType || "";
+          return `
         <div class="flocs-productItem" data-idx="${idx}">
           <div>
             <strong>${p.title || p.sku || "Untitled item"}</strong>
             <div class="flocs-productMeta">
               ${p.sku || "no sku"} · ${
                 p.price != null ? money(p.price) : "price n/a"
-              }
+              }${flavour ? ` · ${flavourTag(flavour)}` : ""}
             </div>
           </div>
           <button class="flocs-miniBtn" type="button" data-action="add">Add</button>
         </div>
-      `
-        )
+      `;
+        })
         .join("");
       productResults._data = list;
       productStatus.textContent = "Click add to include in the order.";

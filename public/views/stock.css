@@ -1,12 +1,12 @@
 #viewStock{
-      --bg:#f5f7fb;
-      --panel:#ffffff;
-      --panel-muted:#f1f5f9;
-      --panel-strong:#e2e8f0;
-      --text:#0f172a;
-      --text-muted:#5b6b7f;
-      --accent:#38bdf8;
-      --accent-soft:rgba(56,189,248,.18);
+      --bg:#0b0f1a;
+      --panel:#0f172a;
+      --panel-muted:#111827;
+      --panel-strong:#1f2937;
+      --text:#e2e8f0;
+      --text-muted:#94a3b8;
+      --accent:#22d3ee;
+      --accent-soft:rgba(34,211,238,.18);
       --success:#22c55e;
       --warning:#f59e0b;
       --radius-lg:.85rem;
@@ -18,8 +18,8 @@
     #viewStock{
       margin:0;
       min-height:100vh;
-      background:radial-gradient(circle at 10% 10%, rgba(56,189,248,.15) 0%, rgba(245,247,251,0) 55%),
-                 radial-gradient(circle at 90% 15%, rgba(236,72,153,.08) 0%, rgba(245,247,251,0) 55%),
+      background:radial-gradient(circle at 12% 12%, rgba(34,211,238,.18) 0%, rgba(11,15,26,0) 55%),
+                 radial-gradient(circle at 88% 10%, rgba(168,85,247,.14) 0%, rgba(11,15,26,0) 60%),
                  var(--bg);
       color:var(--text);
       font-family:var(--sans);
@@ -38,11 +38,11 @@
       align-items:flex-start;
       justify-content:space-between;
       gap:.75rem;
-      background:rgba(255,255,255,.9);
-      border:1px solid var(--panel-strong);
+      background:rgba(15,23,42,.8);
+      border:1px solid rgba(148,163,184,.2);
       border-radius:var(--radius-lg);
       padding:1rem 1.25rem;
-      box-shadow:0 16px 40px rgba(15,23,42,.08);
+      box-shadow:0 16px 40px rgba(3,7,18,.6);
     }
     #viewStock .stock-title{
       display:flex;
@@ -79,8 +79,8 @@
       font-weight:600;
     }
     #viewStock .stock-link:hover{
-      border-color:rgba(56,189,248,.7);
-      color:#0c4a6e;
+      border-color:rgba(34,211,238,.7);
+      color:#7dd3fc;
     }
 
     #viewStock .stock-grid{
@@ -93,11 +93,11 @@
     }
 
     #viewStock .stock-card{
-      background:var(--panel);
-      border:1px solid var(--panel-strong);
+      background:linear-gradient(140deg, rgba(17,24,39,.95), rgba(15,23,42,.75));
+      border:1px solid rgba(148,163,184,.2);
       border-radius:var(--radius-lg);
       padding:1rem;
-      box-shadow:0 12px 30px rgba(15,23,42,.08);
+      box-shadow:0 12px 30px rgba(3,7,18,.55);
     }
     #viewStock .stock-card h2{
       font-size:.9rem;
@@ -113,7 +113,7 @@
     #viewStock .stock-input, #viewStock .stock-select{
       border-radius:.55rem;
       border:1px solid var(--panel-strong);
-      background:#fff;
+      background:rgba(15,23,42,.75);
       color:var(--text);
       padding:.45rem .6rem;
       font-size:.85rem;
@@ -141,10 +141,10 @@
       cursor:pointer;
     }
     #viewStock .stock-modeBtn.is-active{
-      border-color:rgba(56,189,248,.8);
+      border-color:rgba(34,211,238,.8);
       background:var(--accent-soft);
-      color:#0c4a6e;
-      box-shadow:0 0 0 2px rgba(56,189,248,.2);
+      color:var(--text);
+      box-shadow:0 0 0 2px rgba(34,211,238,.2);
     }
 
     #viewStock .stock-table{
@@ -154,10 +154,11 @@
       border:1px solid var(--panel-strong);
       border-radius:.6rem;
       overflow:hidden;
+      background:rgba(15,23,42,.75);
     }
     #viewStock .stock-table th, #viewStock .stock-table td{
       padding:.4rem .5rem;
-      border-bottom:1px solid rgba(226,232,240,.9);
+      border-bottom:1px solid rgba(148,163,184,.2);
       text-align:left;
     }
     #viewStock .stock-table th{
@@ -168,7 +169,7 @@
       color:var(--text-muted);
     }
     #viewStock .stock-table tbody tr:hover{
-      background:rgba(56,189,248,.08);
+      background:rgba(34,211,238,.08);
     }
     #viewStock .stock-qtyInput{
       width:4.5rem;
@@ -177,12 +178,14 @@
       padding:.2rem .35rem;
       text-align:right;
       font-size:.78rem;
+      background:rgba(15,23,42,.8);
+      color:var(--text);
     }
     #viewStock .stock-actionBtn{
       border-radius:999px;
       border:1px solid rgba(34,197,94,.6);
       background:rgba(34,197,94,.15);
-      color:#065f46;
+      color:#bbf7d0;
       font-size:.7rem;
       font-weight:700;
       padding:.25rem .7rem;
@@ -218,7 +221,7 @@
     }
     #viewStock .stock-focusMeta{
       font-size:.75rem;
-      color:#475569;
+      color:var(--text-muted);
     }
     #viewStock .stock-focusActions{
       display:flex;
@@ -229,25 +232,26 @@
     }
     #viewStock .stock-stepBtn{
       border:1px solid var(--panel-strong);
-      background:#fff;
+      background:rgba(15,23,42,.75);
       border-radius:999px;
       padding:.25rem .7rem;
       font-size:.7rem;
       cursor:pointer;
+      color:var(--text);
     }
 
     #viewStock .stock-log{
       max-height:220px;
       overflow:auto;
       font-size:.72rem;
-      color:#1f2937;
+      color:var(--text);
       border:1px solid var(--panel-strong);
       border-radius:var(--radius-md);
       padding:.5rem .75rem;
-      background:#fff;
+      background:rgba(15,23,42,.8);
     }
     #viewStock .stock-logEntry{
-      border-bottom:1px dashed rgba(226,232,240,.9);
+      border-bottom:1px dashed rgba(148,163,184,.25);
       padding:.35rem 0;
     }
     #viewStock .stock-logEntry:last-child{
@@ -255,7 +259,7 @@
     }
     #viewStock .stock-logEntry span{
       font-family:var(--mono);
-      color:#64748b;
+      color:var(--text-muted);
       margin-right:.4rem;
     }
     #viewStock .stock-pill{
