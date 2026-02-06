@@ -8,30 +8,14 @@ import { initPriceManagerView } from "./views/price-manager.js";
   "use strict";
 
   const CONFIG = {
-    COST_ALERT_THRESHOLD: 250.0,
-    BOOKING_IDLE_MS: 6000,
-    TRUCK_ALERT_THRESHOLD: 25,
-    BOX_DIM: { dim1: 40, dim2: 40, dim3: 30, massKg: 5 },
-    ORIGIN: {
-      origpers: "Flippen Lekka Holdings (Pty) Ltd",
-      origperadd1: "7 Papawer Street",
-      origperadd2: "Blomtuin, Bellville",
-      origperadd3: "Cape Town, Western Cape",
-      origperadd4: "ZA",
-      origperpcode: "7530",
-      origtown: "Cape Town",
-      origplace: 4663,
-      origpercontact: "Louis",
-      origperphone: "0730451885",
-      origpercell: "0730451885",
-      notifyorigpers: 1,
-      origperemail: "admin@flippenlekkaspices.co.za",
-      notes: "Louis 0730451885 / Michael 0783556277"
-    },
-    PP_ENDPOINT: "/pp",
-    SHOPIFY: { PROXY_BASE: "/shopify" },
-    PROGRESS_STEP_DELAY_MS: 450,
-    FLOW_TRIGGER_TAG: "dispatch_flow"
+    PROGRESS_STEP_DELAY_MS: 450
+  };
+
+  const loadConfig = async () => {
+    const res = await fetch("/config", { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Config fetch failed: ${res.status}`);
+    const data = await res.json();
+    Object.assign(CONFIG, data);
   };
 
   const $ = (id) => document.getElementById(id);
@@ -3993,41 +3977,53 @@ async function startOrder(orderNo) {
     }
   });
 
-  loadBookedOrders();
-  loadPackingState();
-  loadModePreference();
-  loadDailyParcelCount();
-  loadTruckBooking();
-  updateModeToggle();
-  updateMultiShipToggle();
-  renderSessionUI();
-  renderCountdown();
-  renderTruckPanel();
-  if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
-    requestTruckBooking("auto");
-  }
-  initDispatchProgress();
-  setDispatchProgress(0, "Idle", { silent: true });
-  initDispatchTodos();
-  initAddressSearch();
-  refreshDispatchData();
-  setInterval(refreshDispatchData, 30000);
-  refreshServerStatus();
-  setInterval(refreshServerStatus, 20000);
-  renderFactoryView();
-  renderModuleDashboard();
-  loadInvoiceTemplate();
-  renderInvoiceTable();
-  renderRoute(window.location.pathname);
+  const boot = async () => {
+    try {
+      await loadConfig();
+    } catch (err) {
+      console.error(err);
+      alert("Unable to load configuration from the server. Please refresh or contact support.");
+      return;
+    }
 
-  window.addEventListener("popstate", () => {
+    loadBookedOrders();
+    loadPackingState();
+    loadModePreference();
+    loadDailyParcelCount();
+    loadTruckBooking();
+    updateModeToggle();
+    updateMultiShipToggle();
+    renderSessionUI();
+    renderCountdown();
+    renderTruckPanel();
+    if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
+      requestTruckBooking("auto");
+    }
+    initDispatchProgress();
+    setDispatchProgress(0, "Idle", { silent: true });
+    initDispatchTodos();
+    initAddressSearch();
+    refreshDispatchData();
+    setInterval(refreshDispatchData, 30000);
+    refreshServerStatus();
+    setInterval(refreshServerStatus, 20000);
+    renderFactoryView();
+    renderModuleDashboard();
+    loadInvoiceTemplate();
+    renderInvoiceTable();
     renderRoute(window.location.pathname);
-  });
 
-  if (location.protocol === "file:") {
-    alert("Open via http://localhost/... (not file://). Run a local server.");
-  }
+    window.addEventListener("popstate", () => {
+      renderRoute(window.location.pathname);
+    });
 
-  window.__fl = window.__fl || {};
-  window.__fl.bookNow = doBookingNow;
+    if (location.protocol === "file:") {
+      alert("Open via http://localhost/... (not file://). Run a local server.");
+    }
+
+    window.__fl = window.__fl || {};
+    window.__fl.bookNow = doBookingNow;
+  };
+
+  boot();
 })();

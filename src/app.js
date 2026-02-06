@@ -13,6 +13,7 @@ import parcelPerfectRouter from "./routes/parcelperfect.js";
 import printnodeRouter from "./routes/printnode.js";
 import shopifyRouter from "./routes/shopify.js";
 import statusRouter from "./routes/status.js";
+import configRouter from "./routes/config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,6 +60,7 @@ export function createApp() {
   app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
 
   app.use(statusRouter);
+  app.use(configRouter);
   app.use(parcelPerfectRouter);
   app.use(shopifyRouter);
   app.use(printnodeRouter);
