@@ -10,7 +10,6 @@ export function initStockView() {
     { sku: "FL003", title: "Original Multi-Purpose Spice 500g" },
     { sku: "FL004", title: "Original Multi-Purpose Spice 1kg" },
     { sku: "FL005", title: "Original Multi-Purpose Spice Bag 750g" },
-    { sku: "FL005-1", title: "Original Multi-Purpose Spice Tub 750g" },
     { sku: "FL008", title: "Hot & Spicy Multi-Purpose Spice 200ml" },
     { sku: "FL009", title: "Hot & Spicy Multi-Purpose Spice 500g" },
     { sku: "FL010", title: "Hot & Spicy Multi-Purpose Spice 1kg" },
@@ -18,7 +17,6 @@ export function initStockView() {
     { sku: "FL015", title: "Worcester Sauce Spice 500g" },
     { sku: "FL016", title: "Worcester Sauce Spice 1kg" },
     { sku: "FL017", title: "Worcester Sauce Spice Bag 750g" },
-    { sku: "FL017-1", title: "Worcester Sauce Spice Tub 750g" },
     { sku: "FL026", title: "Red Wine & Garlic Sprinkle 200ml" },
     { sku: "FL027", title: "Red Wine & Garlic Sprinkle 500g" },
     { sku: "FL028", title: "Red Wine & Garlic Sprinkle 1kg" },
@@ -39,28 +37,16 @@ export function initStockView() {
     { sku: "FL062", title: "Cheese & Onion Popcorn Sprinkle 100ml" },
     { sku: "FL065", title: "Salt & Vinegar Popcorn Sprinkle 100ml" },
     { sku: "FLBS001", title: "Original Multi-Purpose Basting Sauce 375ml" },
-    { sku: "FLBS002", title: "Original Multi-Purpose Basting Sauce 12x375ml" }
+    { sku: "GBOX", title: "Gift Box" }
   ];
 
   const STORAGE_KEY = "fl_stock_levels_v1";
 
   const searchInput = document.getElementById("stock-search");
   const tableBody = document.getElementById("stock-tableBody");
-  const modeButtons = document.querySelectorAll(".stock-modeBtn");
-  const modeLabel = document.getElementById("stock-modeLabel");
-  const adjustLabel = document.getElementById("stock-adjustLabel");
-  const focusTitle = document.getElementById("stock-focusTitle");
-  const focusMeta = document.getElementById("stock-focusMeta");
-  const focusInput = document.getElementById("stock-focusInput");
-  const focusApply = document.getElementById("stock-focusApply");
-  const focusPrev = document.getElementById("stock-focusPrev");
-  const focusNext = document.getElementById("stock-focusNext");
-  const logBox = document.getElementById("stock-log");
 
-  let mode = "take";
   let items = [...DEFAULT_ITEMS];
   let stockLevels = {};
-  let focusIndex = 0;
 
   function loadStockLevels() {
     try {
@@ -91,19 +77,6 @@ export function initStockView() {
     saveStockLevels();
   }
 
-  function addStock(sku, delta) {
-    const next = getStock(sku) + Math.floor(delta);
-    setStock(sku, next);
-  }
-
-  function logEvent(message) {
-    if (!logBox) return;
-    const entry = document.createElement("div");
-    entry.className = "stock-logEntry";
-    entry.innerHTML = `<span>${new Date().toLocaleTimeString()}</span>${message}`;
-    logBox.prepend(entry);
-  }
-
   function filteredItems() {
     const q = (searchInput?.value || "").trim().toLowerCase();
     if (!q) return items;
@@ -114,24 +87,71 @@ export function initStockView() {
     );
   }
 
+  function crateUnitsForItem(item) {
+    const title = item.title.toLowerCase();
+    if (title.includes("100ml")) return 180;
+    if (title.includes("200ml")) return 102;
+    if (title.includes("500g")) return 40;
+    if (title.includes("1kg")) return 20;
+    return 0;
+  }
+
+  function sumRowCounts(row) {
+    const inputs = row.querySelectorAll("input[data-count]");
+    return Array.from(inputs).reduce((sum, input) => {
+      const val = Number(input.value);
+      return Number.isFinite(val) ? sum + val : sum;
+    }, 0);
+  }
+
+  function updateRowTotal(row) {
+    const crateClicks = Number(row.dataset.crateClicks || 0);
+    const crateUnits = Number(row.dataset.crateUnits || 0);
+    const total = sumRowCounts(row) + crateClicks * crateUnits;
+    const totalInput = row.querySelector("input[data-total]");
+    if (totalInput) totalInput.value = String(Math.max(0, Math.floor(total)));
+  }
+
+  function resetRowCounts(row) {
+    row.querySelectorAll("input[data-count]").forEach((input) => {
+      input.value = "";
+    });
+    row.dataset.crateClicks = "0";
+    const crateCount = row.querySelector("[data-crate-count]");
+    if (crateCount) crateCount.textContent = "0";
+    updateRowTotal(row);
+  }
+
   function renderTable() {
     if (!tableBody) return;
     const list = filteredItems();
     tableBody.innerHTML = list
       .map((item) => {
         const current = getStock(item.sku);
-        const actionLabel = mode === "take" ? "Set" : "Add";
-        const btnClass = mode === "take" ? "stock-actionBtn" : "stock-actionBtn receive";
+        const crateUnits = crateUnitsForItem(item);
         return `
-          <tr>
+          <tr data-sku="${item.sku}" data-crate-units="${crateUnits}" data-crate-clicks="0">
             <td><strong>${item.sku}</strong></td>
             <td>${item.title}</td>
             <td>${current}</td>
             <td>
-              <input class="stock-qtyInput" type="number" min="0" step="1" data-sku="${item.sku}" />
+              <input class="stock-qtyInput" type="number" min="0" step="1" data-sku="${item.sku}" data-count="1" />
             </td>
             <td>
-              <button class="${btnClass}" type="button" data-action="apply" data-sku="${item.sku}">${actionLabel}</button>
+              <input class="stock-qtyInput" type="number" min="0" step="1" data-sku="${item.sku}" data-count="2" />
+            </td>
+            <td>
+              <input class="stock-qtyInput" type="number" min="0" step="1" data-sku="${item.sku}" data-count="3" />
+            </td>
+            <td>
+              <input class="stock-qtyInput stock-totalInput" type="number" min="0" step="1" data-total="true" readonly value="0" />
+            </td>
+            <td>
+              <button class="stock-crateBtn" type="button" data-action="crate" data-sku="${item.sku}" ${crateUnits ? "" : "disabled"} title="Add crate">📦</button>
+              <span class="stock-crateCount" data-crate-count="${item.sku}">0</span>
+            </td>
+            <td>
+              <button class="stock-actionBtn" type="button" data-action="apply" data-sku="${item.sku}">Set</button>
             </td>
           </tr>
         `;
@@ -139,96 +159,52 @@ export function initStockView() {
       .join("");
   }
 
-  function renderFocus() {
-    const list = filteredItems();
-    if (!list.length) {
-      focusTitle.textContent = "No items found";
-      focusMeta.textContent = "Adjust search to continue.";
-      focusInput.value = "";
-      focusApply.disabled = true;
-      return;
-    }
-    focusApply.disabled = false;
-    focusIndex = Math.min(focusIndex, list.length - 1);
-    const item = list[focusIndex];
-    focusTitle.textContent = item.title;
-    focusMeta.textContent = `${item.sku} • Current stock: ${getStock(item.sku)}`;
-    focusInput.value = "";
-  }
-
-  function updateMode(nextMode) {
-    mode = nextMode;
-    modeButtons.forEach((btn) => {
-      btn.classList.toggle("is-active", btn.dataset.mode === mode);
-    });
-    modeLabel.textContent = mode === "take" ? "Mode: Stock take" : "Mode: Stock received";
-    adjustLabel.textContent = mode === "take" ? "New count" : "Add qty";
-    focusApply.textContent = mode === "take" ? "Apply" : "Receive";
-    renderTable();
-    renderFocus();
-  }
-
-  function handleApply(sku, rawValue, source = "table") {
-    const val = Number(rawValue);
+  function handleApply(sku, totalValue) {
+    const val = Number(totalValue);
     if (!Number.isFinite(val)) {
-      logEvent(`Skipped ${sku}: invalid number.`);
       return;
     }
-    if (mode === "take") {
-      setStock(sku, val);
-      logEvent(`${sku} set to ${Math.floor(val)} (${source}).`);
-    } else {
-      addStock(sku, val);
-      logEvent(`${sku} received +${Math.floor(val)} (${source}).`);
-    }
+    setStock(sku, val);
     renderTable();
-    renderFocus();
-  }
-
-  function stepFocus(delta) {
-    const list = filteredItems();
-    if (!list.length) return;
-    focusIndex = (focusIndex + delta + list.length) % list.length;
-    renderFocus();
   }
 
   function initEvents() {
     searchInput?.addEventListener("input", () => {
-      focusIndex = 0;
       renderTable();
-      renderFocus();
-    });
-
-    modeButtons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        updateMode(btn.dataset.mode || "take");
-      });
     });
 
     tableBody?.addEventListener("click", (event) => {
       const btn = event.target.closest("button[data-action='apply']");
+      const crateBtn = event.target.closest("button[data-action='crate']");
+      if (crateBtn) {
+        const row = crateBtn.closest("tr");
+        if (!row) return;
+        const crateClicks = Number(row.dataset.crateClicks || 0) + 1;
+        row.dataset.crateClicks = String(crateClicks);
+        const crateCount = row.querySelector("[data-crate-count]");
+        if (crateCount) crateCount.textContent = String(crateClicks);
+        updateRowTotal(row);
+        return;
+      }
       if (!btn) return;
+      const row = btn.closest("tr");
       const sku = btn.dataset.sku;
-      const input = tableBody.querySelector(`input[data-sku='${CSS.escape(sku)}']`);
-      if (!sku || !input) return;
-      handleApply(sku, input.value, "table");
-      input.value = "";
+      if (!sku || !row) return;
+      const totalInput = row.querySelector("input[data-total]");
+      handleApply(sku, totalInput?.value || "0");
+      resetRowCounts(row);
     });
 
-    focusApply?.addEventListener("click", () => {
-      const list = filteredItems();
-      const item = list[focusIndex];
-      if (!item) return;
-      handleApply(item.sku, focusInput.value, "quick take");
-      focusInput.focus();
+    tableBody?.addEventListener("input", (event) => {
+      const input = event.target.closest("input[data-count]");
+      if (!input) return;
+      const row = input.closest("tr");
+      if (!row) return;
+      updateRowTotal(row);
     });
-
-    focusPrev?.addEventListener("click", () => stepFocus(-1));
-    focusNext?.addEventListener("click", () => stepFocus(1));
   }
 
   loadStockLevels();
   renderTable();
-  renderFocus();
   initEvents();
 }
