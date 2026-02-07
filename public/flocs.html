@@ -774,6 +774,44 @@
       letter-spacing:.08em;
       cursor:pointer;
     }
+    .flocs-printBtn {
+      border-radius:999px;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--text);
+      padding:.35rem .9rem;
+      font-size:.7rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      cursor:pointer;
+    }
+    .flocs-printBtn:hover {
+      border-color:rgba(56,189,248,.7);
+      color:#0c4a6e;
+    }
+    @media print {
+      body {
+        background:#fff;
+      }
+      body * {
+        visibility:hidden !important;
+      }
+      #flocs-invoice,
+      #flocs-invoice * {
+        visibility:visible !important;
+      }
+      #flocs-invoice {
+        position:absolute;
+        left:0;
+        top:0;
+        width:100%;
+        max-height:none;
+        overflow:visible;
+        box-shadow:none;
+        padding:1rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -809,6 +847,9 @@
             </button>
             <button id="flocs-createOrderBtn" class="flocs-createOrderBtn" type="button" hidden>
               Create order now
+            </button>
+            <button id="flocs-printInvoiceBtn" class="flocs-printBtn" type="button">
+              Print invoice
             </button>
           </div>
         </div>
