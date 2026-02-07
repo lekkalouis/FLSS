@@ -1061,7 +1061,7 @@
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
   padding: .35rem;
   min-height: 65vh;
@@ -1971,7 +1971,6 @@
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
             <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch</span></button>
-            <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false" data-route="/ops"><span class="flNavBtnIcon" aria-hidden="true">🚚</span><span class="flNavBtnText">Dispatch Board</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
@@ -1989,38 +1988,38 @@
         </div>
 
         <div class="flView flView--active" id="viewDashboard">
-        <div class="dashboardShell">
-          <div class="dashboardHeader">
-            <div>
-              <h1>Operations Dashboard</h1>
-              <p>Quick status glance plus instant access to the core operations apps.</p>
+          <div class="dashboardShell">
+            <div class="dashboardHeader">
+              <div>
+                <h1>Operations Dashboard</h1>
+                <p>Quick status glance plus instant access to the core operations apps.</p>
+              </div>
+            </div>
+            <section class="dashboardKpis" aria-label="Key performance indicators">
+              <div class="kpiCard">
+                <div class="kpiLabel">Today's parcels</div>
+                <div class="kpiValue" id="kpiParcels">0</div>
+                <div class="kpiMeta">Auto + manual bookings</div>
+              </div>
+              <div class="kpiCard">
+                <div class="kpiLabel">Open dispatch orders</div>
+                <div class="kpiValue" id="kpiOpenOrders">0</div>
+                <div class="kpiMeta">Shipping, delivery, pickup</div>
+              </div>
+              <div class="kpiCard">
+                <div class="kpiLabel">Recently shipped</div>
+                <div class="kpiValue" id="kpiRecentShipments">0</div>
+                <div class="kpiMeta">Latest fulfillment events</div>
+              </div>
+            </section>
+            <section>
+              <div class="appsHeader">
+                <h2>Apps</h2>
+              </div>
+              <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
+            </section>
           </div>
         </div>
-        <section class="dashboardKpis" aria-label="Key performance indicators">
-          <div class="kpiCard">
-            <div class="kpiLabel">Today's parcels</div>
-            <div class="kpiValue" id="kpiParcels">0</div>
-            <div class="kpiMeta">Auto + manual bookings</div>
-          </div>
-          <div class="kpiCard">
-            <div class="kpiLabel">Open dispatch orders</div>
-            <div class="kpiValue" id="kpiOpenOrders">0</div>
-            <div class="kpiMeta">Shipping, delivery, pickup</div>
-          </div>
-          <div class="kpiCard">
-            <div class="kpiLabel">Recently shipped</div>
-            <div class="kpiValue" id="kpiRecentShipments">0</div>
-            <div class="kpiMeta">Latest fulfillment events</div>
-          </div>
-        </section>
-        <section>
-          <div class="appsHeader">
-            <h2>Apps</h2>
-          </div>
-          <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
-        </section>
-      </div>
-    </div>
 
         <div class="flView" id="viewScan" hidden>
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
@@ -2095,27 +2094,9 @@
       <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">
-            <div class="dispatchStatusPanel" aria-live="polite">
-              <div class="dispatchStatusHeader">
-                <h3>Booking progress</h3>
-                <span id="dispatchProgressLabel" class="dispatchStatusLabel">Idle</span>
-              </div>
-              <div class="dispatchProgressBar" id="dispatchProgressBar">
-                <div id="dispatchProgressFill" class="dispatchProgressFill"></div>
-                <div class="dispatchProgressSun" aria-hidden="true"></div>
-              </div>
-              <div class="dispatchProgressSteps" id="dispatchProgressSteps"></div>
-            </div>
-            <div class="dispatchLogPanel">
-              <div class="dispatchLogHeader">
-                <span>Dispatch log</span>
-                <span class="dispatchStamp">Latest activity</span>
-              </div>
-              <div id="dispatchLog" class="dispatchLog" aria-live="polite"></div>
-            </div>
             <div class="dispatchBoardPanel">
               <div class="sectionTitle" style="margin-top:.4rem">
-                <span>Dispatch Whiteboard</span>
+                <span>Whiteboard</span>
                 <span id="dispatchStamp" class="dispatchStamp">–</span>
               </div>
               <div class="dispatchBoard" id="dispatchBoardGrid">
@@ -2136,9 +2117,6 @@
           </aside>
         </div>
       </div>
-    </div>
-
-    <div class="flView" id="viewOps" hidden></div>
       <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
         <div class="dispatchOrderModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
         <div class="dispatchOrderModal__content" role="dialog" aria-modal="true" aria-labelledby="dispatchOrderModalTitle">
@@ -2166,6 +2144,8 @@
         </div>
       </div>
     </div>
+
+        <div class="flView" id="viewOps" hidden></div>
 
         <div class="flView" id="viewDocs" hidden>
       <div class="docsShell">
