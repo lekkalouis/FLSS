@@ -26,6 +26,24 @@ function normalizeTagList(tags) {
   return [];
 }
 
+function resolveTierPrice(tiers, tier) {
+  if (!tiers || typeof tiers !== "object") return null;
+  const normalizedTier = tier ? String(tier).toLowerCase() : null;
+  if (normalizedTier && tiers[normalizedTier] != null) {
+    const tierPrice = Number(tiers[normalizedTier]);
+    return Number.isFinite(tierPrice) ? tierPrice : null;
+  }
+  const fallback =
+    tiers.default != null
+      ? tiers.default
+      : tiers.standard != null
+      ? tiers.standard
+      : null;
+  if (fallback == null) return null;
+  const fallbackPrice = Number(fallback);
+  return Number.isFinite(fallbackPrice) ? fallbackPrice : null;
+}
+
 function requireShopifyConfigured(res) {
   if (!config.SHOPIFY_STORE || !config.SHOPIFY_CLIENT_ID || !config.SHOPIFY_CLIENT_SECRET) {
     res.status(501).json({
@@ -689,7 +707,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
       billingAddress,
       shippingAddress,
       lineItems,
-      customerTags
+      customerTags,
+      priceTier
     } = req.body || {};
 
     if (!customerId) {
@@ -705,11 +724,30 @@ router.post("/shopify/draft-orders", async (req, res) => {
     if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
     if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
 
+    const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
+    const tierCache = new Map();
+    const lineItemsWithPrice = await Promise.all(
+      lineItems.map(async (li) => {
+        if (!normalizedTier || li.price != null || !li.variantId) {
+          return li;
+        }
+        const variantId = String(li.variantId);
+        if (!tierCache.has(variantId)) {
+          const tierData = await fetchVariantPriceTiers(variantId);
+          tierCache.set(variantId, tierData?.value || null);
+        }
+        const tiers = tierCache.get(variantId);
+        const resolved = resolveTierPrice(tiers, normalizedTier);
+        if (resolved == null) return li;
+        return { ...li, price: resolved };
+      })
+    );
+
     const payload = {
       draft_order: {
         customer: { id: customerId },
         note: noteParts.join(" | "),
-        line_items: lineItems.map((li) => {
+        line_items: lineItemsWithPrice.map((li) => {
           const entry = {
             quantity: li.quantity || 1
           };
@@ -727,6 +765,9 @@ router.post("/shopify/draft-orders", async (req, res) => {
         shipping_address: shippingAddress || undefined,
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
+          ...(normalizedTier
+            ? [{ name: "price_tier", value: normalizedTier }]
+            : []),
           ...(shippingQuoteNo
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : [])
