@@ -125,7 +125,8 @@ router.get("/shopify/customers/search", async (req, res) => {
     const url =
       `${base}/customers/search.json?limit=${limit}` +
       `&query=${encodeURIComponent(q)}` +
-      `&fields=id,first_name,last_name,email,phone,addresses,default_address,tags`;
+      `&order=orders_count desc` +
+      `&fields=id,first_name,last_name,email,phone,addresses,default_address,tags,orders_count`;
 
     const resp = await shopifyFetch(url, { method: "GET" });
     if (!resp.ok) {
@@ -140,6 +141,9 @@ router.get("/shopify/customers/search", async (req, res) => {
 
     const data = await resp.json();
     const customers = Array.isArray(data.customers) ? data.customers : [];
+    customers.sort(
+      (a, b) => Number(b.orders_count || 0) - Number(a.orders_count || 0)
+    );
 
     const metafieldsByCustomer = await Promise.all(
       customers.map(async (cust) => {
