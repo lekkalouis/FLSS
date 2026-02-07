@@ -26,8 +26,17 @@ export function initMrpView() {
       }
     ],
     orders: [
-      { id: "po-1001", productSku: "FL-ORG-200", qty: 120, dueDate: "", status: "planned" }
-    ]
+      {
+        id: "po-1001",
+        productSku: "FL-ORG-200",
+        qty: 120,
+        dueDate: "",
+        status: "planned",
+        batch: "B-ORG-001",
+        fulfilled: false
+      }
+    ],
+    batches: []
   };
 
   const summaryItems = document.getElementById("mrp-summaryItems");
@@ -50,11 +59,13 @@ export function initMrpView() {
   const orderProduct = document.getElementById("mrp-orderProduct");
   const orderQty = document.getElementById("mrp-orderQty");
   const orderDue = document.getElementById("mrp-orderDue");
+  const orderBatch = document.getElementById("mrp-orderBatch");
   const orderStatus = document.getElementById("mrp-orderStatus");
 
   const itemsBody = document.getElementById("mrp-itemsBody");
   const bomsBody = document.getElementById("mrp-bomsBody");
   const ordersBody = document.getElementById("mrp-ordersBody");
+  const batchesBody = document.getElementById("mrp-batchesBody");
   const requirementsBody = document.getElementById("mrp-requirementsBody");
 
   let state = loadState();
@@ -64,9 +75,15 @@ export function initMrpView() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed?.items && parsed?.boms && parsed?.orders) {
-          return parsed;
-        }
+    if (parsed?.items && parsed?.boms && parsed?.orders) {
+      if (!Array.isArray(parsed.batches)) parsed.batches = [];
+      parsed.orders = parsed.orders.map((order) => ({
+        ...order,
+        batch: order.batch || "",
+        fulfilled: Boolean(order.fulfilled)
+      }));
+      return parsed;
+    }
       }
     } catch {}
     return JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -167,6 +184,7 @@ export function initMrpView() {
             <td>${order.productSku}</td>
             <td>${formatQty(order.qty)}</td>
             <td>${order.dueDate || "—"}</td>
+            <td>${order.batch || "—"}</td>
             <td>
               <span class="mrp-pill ${statusClass}">
                 <select class="mrp-select" data-action="status" data-id="${order.id}">
@@ -176,6 +194,35 @@ export function initMrpView() {
                 </select>
               </span>
             </td>
+            <td>
+              <button class="mrp-btn" type="button" data-action="complete-order" data-id="${order.id}">
+                Complete
+              </button>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
+  function renderBatches() {
+    if (!batchesBody) return;
+    if (!state.batches.length) {
+      batchesBody.innerHTML = `
+        <tr>
+          <td colspan="4">No batches completed yet.</td>
+        </tr>
+      `;
+      return;
+    }
+    batchesBody.innerHTML = state.batches
+      .map((batch) => {
+        return `
+          <tr>
+            <td><strong>${batch.batch}</strong></td>
+            <td>${batch.productSku}</td>
+            <td>${formatQty(batch.qty)}</td>
+            <td>${batch.completedAt}</td>
           </tr>
         `;
       })
@@ -247,6 +294,7 @@ export function initMrpView() {
     renderItems();
     renderBoms();
     renderOrders();
+    renderBatches();
     renderRequirements(requirements);
   }
 
@@ -320,19 +368,49 @@ export function initMrpView() {
     if (!productSku || !Number.isFinite(qtyVal) || qtyVal <= 0) return;
     const dueDate = orderDue?.value || "";
     const status = orderStatus?.value || "planned";
+    const batch = String(orderBatch?.value || "").trim();
 
     const nextOrder = {
       id: `PO-${Date.now()}`,
       productSku,
       qty: qtyVal,
       dueDate,
-      status
+      status,
+      batch,
+      fulfilled: false
     };
 
     state.orders.unshift(nextOrder);
     if (orderQty) orderQty.value = "";
     if (orderDue) orderDue.value = "";
+    if (orderBatch) orderBatch.value = "";
     setState({ ...state });
+  }
+
+  function applyCompletion(order) {
+    if (order.fulfilled) return;
+    const bom = state.boms.find((entry) => entry.productSku === order.productSku);
+    const product = state.items.find((entry) => entry.sku === order.productSku);
+    if (product) {
+      product.stock = (product.stock || 0) + order.qty;
+    }
+    if (bom) {
+      bom.components.forEach((component) => {
+        const item = state.items.find((entry) => entry.sku === component.sku);
+        if (!item) return;
+        const usage = component.qty * order.qty;
+        item.stock = Math.max(0, (item.stock || 0) - usage);
+      });
+    }
+    order.fulfilled = true;
+    if (order.batch) {
+      state.batches.unshift({
+        batch: order.batch,
+        productSku: order.productSku,
+        qty: order.qty,
+        completedAt: new Date().toLocaleString()
+      });
+    }
   }
 
   function handleStockAdjust(event) {
@@ -360,6 +438,21 @@ export function initMrpView() {
     const order = state.orders.find((entry) => entry.id === id);
     if (!order) return;
     order.status = target.value;
+    if (order.status === "done") {
+      applyCompletion(order);
+    }
+    setState({ ...state });
+  }
+
+  function handleOrderActions(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.dataset.action !== "complete-order") return;
+    const id = target.dataset.id;
+    const order = state.orders.find((entry) => entry.id === id);
+    if (!order) return;
+    order.status = "done";
+    applyCompletion(order);
     setState({ ...state });
   }
 
@@ -368,6 +461,7 @@ export function initMrpView() {
   orderForm?.addEventListener("submit", addOrder);
   itemsBody?.addEventListener("click", handleStockAdjust);
   ordersBody?.addEventListener("change", handleOrderStatus);
+  ordersBody?.addEventListener("click", handleOrderActions);
 
   renderAll();
 }

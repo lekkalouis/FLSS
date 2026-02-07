@@ -2445,6 +2445,7 @@
               <select id="mrp-orderProduct" class="mrp-select"></select>
               <input id="mrp-orderQty" class="mrp-input" type="number" min="1" step="1" placeholder="Qty" required />
               <input id="mrp-orderDue" class="mrp-input" type="date" />
+              <input id="mrp-orderBatch" class="mrp-input" type="text" placeholder="Batch / lot" />
               <select id="mrp-orderStatus" class="mrp-select">
                 <option value="planned">Planned</option>
                 <option value="in-progress">In progress</option>
@@ -2459,10 +2460,28 @@
                   <th>Product</th>
                   <th>Qty</th>
                   <th>Due</th>
+                  <th>Batch</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="mrp-ordersBody"></tbody>
+            </table>
+          </section>
+
+          <section class="mrp-card">
+            <h2>Batch traceability</h2>
+            <p class="mrp-note">Completed production orders add a batch record for traceability.</p>
+            <table class="mrp-table">
+              <thead>
+                <tr>
+                  <th>Batch</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Completed</th>
+                </tr>
+              </thead>
+              <tbody id="mrp-batchesBody"></tbody>
             </table>
           </section>
 

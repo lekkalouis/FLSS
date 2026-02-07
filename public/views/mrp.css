@@ -185,6 +185,11 @@
   vertical-align:top;
 }
 
+.mrp-table td .mrp-btn{
+  padding:.25rem .7rem;
+  font-size:.65rem;
+}
+
 .mrp-table th{
   background:var(--mrp-panel-muted);
   text-transform:uppercase;
