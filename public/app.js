@@ -84,7 +84,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
-  const actionFlash = $("actionFlash");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -224,40 +223,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
 
   const statusExplain = (msg, tone = "info") => {
     if (statusChip) statusChip.textContent = msg;
-    if (!actionFlash) return;
-    actionFlash.textContent = msg;
-
-    actionFlash.classList.remove(
-      "actionFlash--info",
-      "actionFlash--ok",
-      "actionFlash--warn",
-      "actionFlash--err",
-      "actionFlash--booked"
-    );
-
-    const cls =
-      tone === "ok"
-        ? "actionFlash--ok"
-        : tone === "warn"
-        ? "actionFlash--warn"
-        : tone === "err"
-        ? "actionFlash--err"
-        : "actionFlash--info";
-
-    actionFlash.classList.add(cls);
-
-    actionFlash.style.opacity = "1";
-    clearTimeout(actionFlash._fadeTimer);
-    actionFlash._fadeTimer = setTimeout(() => {
-      actionFlash.style.opacity = "0.4";
-    }, 2000);
   };
-  const triggerBookedFlash = () => {
-    if (!actionFlash) return;
-    actionFlash.classList.remove("actionFlash--booked");
-    void actionFlash.offsetWidth;
-    actionFlash.classList.add("actionFlash--booked");
-  };
+  const triggerBookedFlash = () => {};
 
   const appendDebug = (msg) => {
     if (!dbgOn || !debugLog) return;
