@@ -5,6 +5,75 @@ export function initPriceManagerView() {
   priceManagerInitialized = true;
   const PRICE_TIERS = ["agent", "retailer", "export", "private", "fkb"];
   const DEFAULT_COLLECTION_HANDLE = "most-popular-products";
+  const SKU_ALLOWLIST = [
+    "FL002",
+    "FL003",
+    "FL004",
+    "FL005",
+    "FL006",
+    "FL007",
+    "FL008",
+    "FL009",
+    "FL010",
+    "FL011",
+    "FL012",
+    "FL013",
+    "FL014",
+    "FL015",
+    "FL016",
+    "FL017",
+    "FL018",
+    "FL019",
+    "FL020",
+    "FL021",
+    "FL022",
+    "FL023",
+    "FL024",
+    "FL025",
+    "FL026",
+    "FL027",
+    "FL028",
+    "FL029",
+    "FL030",
+    "FL031",
+    "FL032",
+    "FL033",
+    "FL034",
+    "FL035",
+    "FL036",
+    "FL037",
+    "FL038",
+    "FL039",
+    "FL040",
+    "FL041",
+    "FL042",
+    "FL043",
+    "FL044",
+    "FL045",
+    "FL046",
+    "FL047",
+    "FL048",
+    "FL049",
+    "FL050",
+    "FL051",
+    "FL052",
+    "FL053",
+    "FL054",
+    "FL055",
+    "FL056",
+    "FL057",
+    "FL058",
+    "FL059",
+    "FL060",
+    "FL061",
+    "FL062",
+    "FL063",
+    "FL064",
+    "FL065",
+    "FLBS001",
+    "GBOX"
+  ];
+  const skuOrder = new Map(SKU_ALLOWLIST.map((sku, index) => [sku, index]));
   const state = {
     products: [],
     loading: false
@@ -158,10 +227,17 @@ export function initPriceManagerView() {
       const resp = await fetch(url);
       const payload = await resp.json();
       const list = Array.isArray(payload.products) ? payload.products : [];
-      state.products = list;
+      const filteredList = list
+        .filter((product) => skuOrder.has(product.sku))
+        .sort(
+          (a, b) => skuOrder.get(a.sku) - skuOrder.get(b.sku)
+        );
+      state.products = filteredList;
       renderTable();
-      setStatus(list.length ? `Loaded ${list.length} SKUs.` : "No products found.");
-      return list.length;
+      setStatus(
+        filteredList.length ? `Loaded ${filteredList.length} SKUs.` : "No products found."
+      );
+      return filteredList.length;
     } catch (err) {
       console.error("Load failed", err);
       setStatus("Error loading products.");
