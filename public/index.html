@@ -2760,63 +2760,28 @@ npm run dev</code></pre>
 
     <div class="flView" id="viewStock" hidden>
       <div class="stock-shell">
-          <header class="stock-header">
-            <div class="stock-title">
-              <h1>Stock Take & Inventory Levels</h1>
-              <p>Review live counts, adjust during stock take, and log stock received.</p>
-            </div>
-            <nav class="stock-nav">
-          <a class="stock-link" href="/scan" data-route="/scan">⟵ Scan Station</a>
-              <a class="stock-link" href="/flocs" data-route="/flocs">Order Capture</a>
-            </nav>
-          </header>
-
-          <div class="stock-grid">
-            <section class="stock-card">
-              <h2>Stock overview</h2>
-              <div class="stock-toolbar">
-                <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
-                <div class="stock-modeToggle">
-                  <button class="stock-modeBtn is-active" type="button" data-mode="take">Stock take</button>
-                  <button class="stock-modeBtn" type="button" data-mode="receive">Stock received</button>
-                </div>
-                <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
-              </div>
-              <table class="stock-table">
-                <thead>
-                  <tr>
-                    <th>SKU</th>
-                    <th>Product</th>
-                    <th>Current</th>
-                    <th id="stock-adjustLabel">New count</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody id="stock-tableBody"></tbody>
-              </table>
-            </section>
-
-            <aside class="stock-card">
-              <h2>Quick stock take</h2>
-              <div class="stock-focus">
-                <div class="stock-focusCard">
-                  <div class="stock-focusLabel">Now counting</div>
-                  <div id="stock-focusTitle" class="stock-focusTitle">–</div>
-                  <div id="stock-focusMeta" class="stock-focusMeta">–</div>
-                  <div class="stock-focusActions">
-                    <input id="stock-focusInput" class="stock-input" type="number" step="1" min="0" placeholder="Enter count..." />
-                    <button id="stock-focusApply" class="stock-actionBtn" type="button">Apply</button>
-                    <button id="stock-focusPrev" class="stock-stepBtn" type="button">◀ Prev</button>
-                    <button id="stock-focusNext" class="stock-stepBtn" type="button">Next ▶</button>
-                  </div>
-                </div>
-                <div>
-                  <div class="stock-focusLabel">Activity log</div>
-                  <div id="stock-log" class="stock-log"></div>
-                </div>
-              </div>
-            </aside>
+        <section class="stock-card">
+          <h2>Stock overview</h2>
+          <div class="stock-toolbar">
+            <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
           </div>
+          <table class="stock-table">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Product</th>
+                <th>Current</th>
+                <th>Count 1</th>
+                <th>Count 2</th>
+                <th>Count 3</th>
+                <th>Total</th>
+                <th>Crates</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="stock-tableBody"></tbody>
+          </table>
+        </section>
         </div>
     </div>
 
