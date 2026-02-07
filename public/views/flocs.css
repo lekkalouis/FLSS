@@ -91,6 +91,34 @@
       border-color:rgba(56,189,248,.7);
       color:#0c4a6e;
     }
+    #viewFlocs .flocs-actionBtn{
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      padding:.4rem .85rem;
+      border-radius:999px;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--text);
+      font-size:.78rem;
+      font-weight:600;
+      cursor:pointer;
+      transition:all .2s ease;
+    }
+    #viewFlocs .flocs-actionBtn:hover{
+      border-color:rgba(56,189,248,.7);
+      color:#0c4a6e;
+    }
+    #viewFlocs .flocs-actionBtn:disabled{
+      cursor:not-allowed;
+      opacity:.6;
+    }
+    #viewFlocs .flocs-actionBtn.is-ready{
+      background:var(--accent-strong);
+      border-color:transparent;
+      color:#052e16;
+      box-shadow:0 10px 20px rgba(34,197,94,.2);
+    }
     #viewFlocs .flocs-dot{
       width:.45rem; height:.45rem;
       border-radius:999px;
@@ -123,15 +151,17 @@
       gap:1rem;
       align-items:flex-start;
       flex-wrap:wrap;
+      flex-direction:column;
     }
     #viewFlocs .flocs-topFields{
-      flex:1 1 520px;
+      flex:1 1 auto;
       min-width:0;
     }
     #viewFlocs .flocs-previewPanel{
-      flex:0 0 320px;
-      max-width:360px;
-      min-width:240px;
+      flex:1 1 auto;
+      width:100%;
+      max-width:none;
+      min-width:0;
       padding:.75rem;
       background:radial-gradient(circle at 0 0,rgba(56,189,248,.12),transparent 70%),
                  linear-gradient(140deg, rgba(255,255,255,.98), rgba(241,245,249,.9));
@@ -240,6 +270,60 @@
       border-radius:.6rem;
       border:1px dashed rgba(148,163,184,.55);
       background:var(--panel-muted);
+    }
+    #viewFlocs .flocs-azBar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.35rem;
+      margin-bottom:.65rem;
+    }
+    #viewFlocs .flocs-azBar button{
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--muted);
+      font-size:.7rem;
+      border-radius:.6rem;
+      padding:.25rem .45rem;
+      cursor:pointer;
+      transition:all .2s ease;
+    }
+    #viewFlocs .flocs-azBar button:hover,
+    #viewFlocs .flocs-azBar button.is-active{
+      border-color:rgba(56,189,248,.7);
+      color:#0c4a6e;
+      background:var(--accent-soft);
+    }
+    #viewFlocs .flocs-chipRowTop{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.4rem;
+      margin-bottom:.5rem;
+    }
+    #viewFlocs .flocs-chipAddresses{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+      gap:.6rem;
+    }
+    #viewFlocs .flocs-chipAddress{
+      border:1px solid var(--panel-strong);
+      border-radius:.6rem;
+      padding:.5rem .6rem;
+      background:rgba(255,255,255,.85);
+      font-size:.75rem;
+      color:var(--muted);
+    }
+    #viewFlocs .flocs-chipLabel{
+      display:block;
+      font-size:.7rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      font-weight:600;
+      margin-bottom:.25rem;
+      color:var(--text);
+    }
+    #viewFlocs .flocs-chipAddressText{
+      line-height:1.2;
+      white-space:normal;
     }
     #viewFlocs .flocs-customerItem{
       padding:.4rem .55rem;
@@ -417,18 +501,42 @@
     }
     #viewFlocs .flocs-filterRow{
       display:flex;
-      flex-wrap:wrap;
-      gap:.5rem;
+      flex-direction:column;
+      gap:.6rem;
       margin-top:.4rem;
-      align-items:center;
     }
-    #viewFlocs .flocs-filterRow .flocs-select{
-      min-width:170px;
-      flex:1;
+    #viewFlocs .flocs-filterGroup{
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
     }
-    #viewFlocs .flocs-filterHint{
+    #viewFlocs .flocs-filterLabel{
       font-size:.7rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      font-weight:600;
       color:var(--muted);
+    }
+    #viewFlocs .flocs-filterButtons{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.4rem;
+    }
+    #viewFlocs .flocs-filterBtn{
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--muted);
+      padding:.3rem .7rem;
+      border-radius:999px;
+      font-size:.75rem;
+      cursor:pointer;
+      transition:all .2s ease;
+    }
+    #viewFlocs .flocs-filterBtn:hover,
+    #viewFlocs .flocs-filterBtn.is-active{
+      border-color:rgba(56,189,248,.7);
+      color:#0c4a6e;
+      background:var(--accent-soft);
     }
     #viewFlocs .flocs-qtyInput{
       width:4.2rem;
@@ -454,6 +562,7 @@
     }
     #viewFlocs .flocs-qtyArea{
       display:flex;
+      flex-wrap:wrap;
       align-items:center;
       justify-content:flex-end;
       gap:.35rem;
@@ -735,90 +844,6 @@
       display:none;
     }
 
-    /* === Ready glow & central confirm CTA === */
-    #viewFlocs .flocs-shell.flocs-ready .flocs-panel.form, #viewFlocs .flocs-shell.flocs-ready .flocs-panel.flocs-sidebar{
-      box-shadow:
-        0 0 0 1px rgba(34,197,94,.65),
-        0 0 0 5px rgba(22,163,74,.45),
-        0 24px 70px rgba(22,163,74,.5);
-      border-color:rgba(74,222,128,.7);
-    }
-
-    #viewFlocs .flocs-confirmOverlay{
-      position:fixed;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      pointer-events:none;
-      z-index:30;
-      transition:opacity .15s ease;
-      opacity:0;
-    }
-    #viewFlocs .flocs-shell.flocs-ready .flocs-confirmOverlay{
-      opacity:1;
-      pointer-events:auto;
-    }
-    #viewFlocs .flocs-shell.flocs-ready ~ .flocs-confirmOverlay{
-      opacity:1;
-      pointer-events:auto;
-    }
-
-    #viewFlocs .flocs-confirmBtn{
-      min-width:220px;
-      border-radius:999px;
-      border:none;
-      padding:.7rem 1.4rem;
-      font-size:.9rem;
-      font-weight:700;
-      text-transform:uppercase;
-      letter-spacing:.12em;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:.6rem;
-      background:var(--accent-strong);
-      color:#022c22;
-      box-shadow:0 0 0 2px rgba(187,247,208,.7),
-                 0 24px 70px rgba(22,163,74,.7);
-      cursor:pointer;
-    }
-    #viewFlocs .flocs-confirmBtn span.icon{
-      font-size:1.1rem;
-    }
-    #viewFlocs .flocs-confirmBtn:disabled{
-      opacity:.6;
-      cursor:default;
-      box-shadow:0 0 0 2px rgba(148,163,184,.7),
-                 0 18px 45px rgba(15,23,42,.2);
-    }
-    #viewFlocs .flocs-confirmActions{
-      display:flex;
-      align-items:center;
-      gap:.75rem;
-    }
-    #viewFlocs .flocs-disarmBtn{
-      border-radius:999px;
-      border:1px solid rgba(248,113,113,.8);
-      background:rgba(248,113,113,.15);
-      color:#991b1b;
-      padding:.55rem 1rem;
-      font-size:.8rem;
-      font-weight:600;
-      text-transform:uppercase;
-      letter-spacing:.08em;
-      cursor:pointer;
-    }
-    #viewFlocs .flocs-armBtn{
-      border-radius:999px;
-      border:1px solid rgba(56,189,248,.7);
-      background:rgba(56,189,248,.16);
-      color:#0c4a6e;
-      padding:.35rem .9rem;
-      font-size:.7rem;
-      font-weight:600;
-      text-transform:uppercase;
-      letter-spacing:.08em;
       cursor:pointer;
     }
     #viewFlocs .flocs-convertBtn{

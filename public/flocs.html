@@ -81,22 +81,33 @@
       flex-wrap:wrap;
       justify-content:flex-end;
     }
-    .flocs-linkBtn {
+    .flocs-actionBtn {
       display:inline-flex;
       align-items:center;
       gap:.4rem;
-      padding:.3rem .75rem;
+      padding:.4rem .85rem;
       border-radius:999px;
       border:1px solid var(--panel-strong);
       background:var(--panel);
       color:var(--text);
-      font-size:.75rem;
-      text-decoration:none;
+      font-size:.78rem;
+      font-weight:600;
+      cursor:pointer;
       transition:all .2s ease;
     }
-    .flocs-linkBtn:hover {
+    .flocs-actionBtn:hover {
       border-color:rgba(56,189,248,.7);
       color:#0c4a6e;
+    }
+    .flocs-actionBtn:disabled {
+      cursor:not-allowed;
+      opacity:.6;
+    }
+    .flocs-actionBtn.is-ready {
+      background:var(--accent-strong);
+      border-color:transparent;
+      color:#052e16;
+      box-shadow:0 10px 20px rgba(34,197,94,.2);
     }
     .flocs-dot {
       width:.45rem; height:.45rem;
@@ -109,6 +120,7 @@
       display:flex;
       gap:1rem;
       align-items:flex-start;
+      flex-direction:column;
     }
     @media (max-width:900px) {
       .flocs-layout { flex-direction:column; }
@@ -124,45 +136,8 @@
     }
 
     .flocs-panel.form {
-      flex:1.15;
+      flex:1;
       min-width:0;
-    }
-    .flocs-panel.flocs-sidebar {
-      flex:0 0 260px;
-      max-width:260px;
-      min-width:220px;
-      padding:.75rem;
-      background:radial-gradient(circle at 0 0,rgba(56,189,248,.15),transparent 70%),
-                 linear-gradient(to bottom right,rgba(255,255,255,.98),rgba(241,245,249,.92));
-    }
-    .flocs-panel.flocs-sidebar .flocs-previewHeader {
-      flex-direction:column;
-      align-items:flex-start;
-      gap:.5rem;
-    }
-    .flocs-panel.flocs-sidebar .flocs-previewTag {
-      align-self:flex-start;
-    }
-    .flocs-panel.flocs-sidebar .flocs-invoice {
-      font-size:.7rem;
-      line-height:1.2;
-      max-height:70vh;
-      overflow:auto;
-    }
-    .flocs-panel.flocs-sidebar .flocs-invoiceTable th,
-    .flocs-panel.flocs-sidebar .flocs-invoiceTable td {
-      font-size:.65rem;
-      padding:.35rem .4rem;
-    }
-    .flocs-panel.flocs-sidebar .flocs-invoiceTotalsRow {
-      font-size:.65rem;
-    }
-    @media (max-width:900px) {
-      .flocs-panel.flocs-sidebar {
-        width:100%;
-        max-width:none;
-        min-width:0;
-      }
     }
 
     .flocs-formSection {
@@ -236,6 +211,60 @@
       border-radius:.6rem;
       border:1px dashed rgba(148,163,184,.55);
       background:rgba(248,250,252,.9);
+    }
+    .flocs-azBar {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.35rem;
+      margin-bottom:.65rem;
+    }
+    .flocs-azBar button {
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--muted);
+      font-size:.7rem;
+      border-radius:.6rem;
+      padding:.25rem .45rem;
+      cursor:pointer;
+      transition:all .2s ease;
+    }
+    .flocs-azBar button:hover,
+    .flocs-azBar button.is-active {
+      border-color:rgba(56,189,248,.7);
+      color:#0c4a6e;
+      background:var(--accent-soft);
+    }
+    .flocs-chipRowTop {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.4rem;
+      margin-bottom:.5rem;
+    }
+    .flocs-chipAddresses {
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+      gap:.6rem;
+    }
+    .flocs-chipAddress {
+      border:1px solid var(--panel-strong);
+      border-radius:.6rem;
+      padding:.5rem .6rem;
+      background:rgba(255,255,255,.85);
+      font-size:.75rem;
+      color:var(--muted);
+    }
+    .flocs-chipLabel {
+      display:block;
+      font-size:.7rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      font-weight:600;
+      margin-bottom:.25rem;
+      color:var(--text);
+    }
+    .flocs-chipAddressText {
+      line-height:1.2;
+      white-space:normal;
     }
     .flocs-customerItem {
       padding:.4rem .55rem;
@@ -376,18 +405,42 @@
     }
     .flocs-filterRow {
       display:flex;
-      flex-wrap:wrap;
-      gap:.5rem;
+      flex-direction:column;
+      gap:.6rem;
       margin-top:.4rem;
-      align-items:center;
     }
-    .flocs-filterRow .flocs-select {
-      min-width:170px;
-      flex:1;
+    .flocs-filterGroup {
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
     }
-    .flocs-filterHint {
+    .flocs-filterLabel {
       font-size:.7rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      font-weight:600;
       color:var(--muted);
+    }
+    .flocs-filterButtons {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.4rem;
+    }
+    .flocs-filterBtn {
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--muted);
+      padding:.3rem .7rem;
+      border-radius:999px;
+      font-size:.75rem;
+      cursor:pointer;
+      transition:all .2s ease;
+    }
+    .flocs-filterBtn:hover,
+    .flocs-filterBtn.is-active {
+      border-color:rgba(56,189,248,.7);
+      color:#0c4a6e;
+      background:var(--accent-soft);
     }
     .flocs-qtyInput {
       width:4.2rem;
@@ -405,11 +458,37 @@
       border-color:var(--accent);
       box-shadow:0 0 0 1px rgba(56,189,248,.45);
     }
+    .flocs-qtyArea {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.35rem;
+      align-items:center;
+    }
     .flocs-qtyWrap {
       display:flex;
       align-items:center;
       gap:.25rem;
       justify-content:flex-end;
+    }
+    .flocs-qtyQuick {
+      display:flex;
+      flex-wrap:wrap;
+      gap:.25rem;
+    }
+    .flocs-qtyQuickBtn {
+      border-radius:.35rem;
+      border:1px solid var(--panel-strong);
+      background:var(--panel-soft);
+      color:var(--text);
+      font-size:.65rem;
+      padding:.15rem .35rem;
+      cursor:pointer;
+      min-width:1.6rem;
+      text-align:center;
+    }
+    .flocs-qtyQuickBtn:hover {
+      border-color:var(--accent);
+      color:var(--accent);
     }
     .flocs-qtyBtn {
       width:1.8rem;
@@ -663,93 +742,6 @@
       display:none;
     }
 
-    /* === Ready glow & central confirm CTA === */
-    .flocs-shell.flocs-ready .flocs-panel.form,
-    .flocs-shell.flocs-ready .flocs-panel.flocs-sidebar {
-      box-shadow:
-        0 0 0 1px rgba(34,197,94,.65),
-        0 0 0 5px rgba(22,163,74,.45),
-        0 24px 70px rgba(22,163,74,.5);
-      border-color:rgba(74,222,128,.7);
-    }
-
-    .flocs-confirmOverlay {
-      position:fixed;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      pointer-events:none;
-      z-index:30;
-      transition:opacity .15s ease;
-      opacity:0;
-    }
-    .flocs-shell.flocs-ready .flocs-confirmOverlay {
-      opacity:1;
-      pointer-events:auto;
-    }
-    .flocs-shell.flocs-ready ~ .flocs-confirmOverlay {
-      opacity:1;
-      pointer-events:auto;
-    }
-
-    .flocs-confirmBtn {
-      min-width:220px;
-      border-radius:999px;
-      border:none;
-      padding:.7rem 1.4rem;
-      font-size:.9rem;
-      font-weight:700;
-      text-transform:uppercase;
-      letter-spacing:.12em;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:.6rem;
-      background:var(--accent-strong);
-      color:#022c22;
-      box-shadow:0 0 0 2px rgba(187,247,208,.7),
-                 0 24px 70px rgba(22,163,74,.7);
-      cursor:pointer;
-    }
-    .flocs-confirmBtn span.icon {
-      font-size:1.1rem;
-    }
-    .flocs-confirmBtn:disabled {
-      opacity:.6;
-      cursor:default;
-      box-shadow:0 0 0 2px rgba(148,163,184,.7),
-                 0 18px 45px rgba(15,23,42,.9);
-    }
-    .flocs-confirmActions {
-      display:flex;
-      align-items:center;
-      gap:.75rem;
-    }
-    .flocs-disarmBtn {
-      border-radius:999px;
-      border:1px solid rgba(248,113,113,.8);
-      background:rgba(248,113,113,.15);
-      color:#fecaca;
-      padding:.55rem 1rem;
-      font-size:.8rem;
-      font-weight:600;
-      text-transform:uppercase;
-      letter-spacing:.08em;
-      cursor:pointer;
-    }
-    .flocs-armBtn {
-      border-radius:999px;
-      border:1px solid rgba(56,189,248,.7);
-      background:rgba(56,189,248,.16);
-      color:#e0f2fe;
-      padding:.35rem .9rem;
-      font-size:.7rem;
-      font-weight:600;
-      text-transform:uppercase;
-      letter-spacing:.08em;
-      cursor:pointer;
-    }
     .flocs-convertBtn {
       border-radius:999px;
       border:1px solid rgba(14,165,233,.85);
@@ -783,19 +775,23 @@
         <div class="flocs-title">Order Capture</div>
       </div>
       <div class="flocs-headerActions">
-        <a class="flocs-linkBtn" href="/">
-          <span>⟵</span>
-          <span>Scan station</span>
-        </a>
-        <a class="flocs-linkBtn" href="/stock.html">
-          <span>📦</span>
-          <span>Stock take</span>
-        </a>
+        <button id="flocs-createDraftBtn" class="flocs-actionBtn" type="button">
+          <span>📝</span>
+          <span>Create draft order</span>
+        </button>
+        <button id="flocs-calcShip" class="flocs-actionBtn" type="button">
+          <span>⛟</span>
+          <span>Calculate shipping</span>
+        </button>
+        <button id="flocs-createOrderBtn" class="flocs-actionBtn" type="button">
+          <span>✅</span>
+          <span>Create live order</span>
+        </button>
       </div>
     </header>
 
     <main class="flocs-layout">
-      <aside class="flocs-panel flocs-sidebar" aria-label="Invoice preview">
+      <aside class="flocs-panel" aria-label="Invoice preview">
         <div class="flocs-previewHeader">
           <div>
             <div class="flocs-previewTitle">Invoice preview</div>
@@ -803,12 +799,8 @@
           </div>
           <div>
             <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
-            <button id="flocs-armBtn" class="flocs-armBtn" type="button" hidden>Arm lock</button>
             <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>
               Convert draft to order
-            </button>
-            <button id="flocs-createOrderBtn" class="flocs-createOrderBtn" type="button" hidden>
-              Create order now
             </button>
           </div>
         </div>
@@ -821,6 +813,34 @@
       <section class="flocs-panel form" id="flocs-formPanel">
         <!-- Customer -->
         <div class="flocs-formSection">
+          <div class="flocs-azBar" id="flocs-azBar">
+            <button type="button" data-letter="A">A</button>
+            <button type="button" data-letter="B">B</button>
+            <button type="button" data-letter="C">C</button>
+            <button type="button" data-letter="D">D</button>
+            <button type="button" data-letter="E">E</button>
+            <button type="button" data-letter="F">F</button>
+            <button type="button" data-letter="G">G</button>
+            <button type="button" data-letter="H">H</button>
+            <button type="button" data-letter="I">I</button>
+            <button type="button" data-letter="J">J</button>
+            <button type="button" data-letter="K">K</button>
+            <button type="button" data-letter="L">L</button>
+            <button type="button" data-letter="M">M</button>
+            <button type="button" data-letter="N">N</button>
+            <button type="button" data-letter="O">O</button>
+            <button type="button" data-letter="P">P</button>
+            <button type="button" data-letter="Q">Q</button>
+            <button type="button" data-letter="R">R</button>
+            <button type="button" data-letter="S">S</button>
+            <button type="button" data-letter="T">T</button>
+            <button type="button" data-letter="U">U</button>
+            <button type="button" data-letter="V">V</button>
+            <button type="button" data-letter="W">W</button>
+            <button type="button" data-letter="X">X</button>
+            <button type="button" data-letter="Y">Y</button>
+            <button type="button" data-letter="Z">Z</button>
+          </div>
           <div class="flocs-labelRow">
             <span>Customer</span>
             <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
@@ -944,40 +964,16 @@
         <div class="flocs-formSection">
         <div class="flocs-labelRow">
           <span>Items</span>
-          <span class="flocs-hint" id="flocs-productStatus">Search by SKU or product title</span>
         </div>
-          <div class="flocs-row" style="margin-bottom:.5rem">
-            <select id="flocs-collectionSelect" class="flocs-select">
-              <option value="">Load a collection…</option>
-              <option value="most-popular-products">Most popular products (public)</option>
-            </select>
-            <button id="flocs-collectionLoadBtn" class="flocs-btn" type="button">
-              <span class="icon">⭐</span><span>Load collection</span>
-            </button>
-          </div>
-          <div class="flocs-row" style="margin-bottom:.5rem">
-            <input id="flocs-productSearch" class="flocs-input" type="text"
-                   placeholder="Search Shopify products (SKU/title)..." autocomplete="off" />
-            <input id="flocs-productCode" class="flocs-input" type="text"
-                   placeholder="Filter by product code (exact SKU)..." autocomplete="off" />
-          </div>
-          <div id="flocs-productResults" class="flocs-productResults" hidden></div>
-          <div class="flocs-actionsRow" id="flocs-productPager" hidden>
-            <button id="flocs-productPrev" class="flocs-btn" type="button">
-              <span class="icon">⬅</span><span>Previous</span>
-            </button>
-            <button id="flocs-productNext" class="flocs-btn" type="button">
-              <span class="icon">➡</span><span>Next</span>
-            </button>
-          </div>
           <div class="flocs-filterRow">
-            <select id="flocs-filterFlavour" class="flocs-select">
-              <option value="">All flavours</option>
-            </select>
-            <select id="flocs-filterSize" class="flocs-select">
-              <option value="">All sizes</option>
-            </select>
-            <span class="flocs-filterHint">Filter the quick order list by flavour & size.</span>
+            <div class="flocs-filterGroup">
+              <span class="flocs-filterLabel">Flavour</span>
+              <div id="flocs-filterFlavour" class="flocs-filterButtons"></div>
+            </div>
+            <div class="flocs-filterGroup">
+              <span class="flocs-filterLabel">Size</span>
+              <div id="flocs-filterSize" class="flocs-filterButtons"></div>
+            </div>
           </div>
           <table class="flocs-productsTable">
             <thead>
@@ -996,9 +992,6 @@
             </tbody>
           </table>
           <div class="flocs-actionsRow">
-            <button id="flocs-calcShip" class="flocs-btn" type="button">
-              <span class="icon">⛟</span><span>Calculate shipping (SWE quote)</span>
-            </button>
             <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
           </div>
           <div id="flocs-errors" class="flocs-errors"></div>
@@ -1010,17 +1003,6 @@
 
   <!-- Global toast -->
   <div id="flocs-toast" class="flocs-toast"></div>
-
-  <!-- Ready/confirm overlay -->
-  <div id="flocs-confirmOverlay" class="flocs-confirmOverlay">
-    <div class="flocs-confirmActions">
-      <button id="flocs-confirmBtn" class="flocs-confirmBtn" type="button">
-        <span class="icon">✅</span>
-        <span>Lock order & create Shopify draft</span>
-      </button>
-      <button id="flocs-disarmBtn" class="flocs-disarmBtn" type="button">Disarm</button>
-    </div>
-  </div>
 
   <script src="/flocs.js"></script>
 </body>

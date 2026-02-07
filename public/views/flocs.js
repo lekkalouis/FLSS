@@ -84,31 +84,20 @@ export function initFlocsView() {
   const billingAddrPreview = document.getElementById("flocs-billingAddressPreview");
 
   const productsBody     = document.getElementById("flocs-productsBody");
-  const productSearch    = document.getElementById("flocs-productSearch");
-  const productResults   = document.getElementById("flocs-productResults");
-  const productStatus    = document.getElementById("flocs-productStatus");
-  const productCodeInput = document.getElementById("flocs-productCode");
-  const productPager     = document.getElementById("flocs-productPager");
-  const productPrevBtn   = document.getElementById("flocs-productPrev");
-  const productNextBtn   = document.getElementById("flocs-productNext");
   const filterFlavour    = document.getElementById("flocs-filterFlavour");
   const filterSize       = document.getElementById("flocs-filterSize");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
-  const collectionSelect = document.getElementById("flocs-collectionSelect");
-  const collectionLoadBtn = document.getElementById("flocs-collectionLoadBtn");
 
   const invoice          = document.getElementById("flocs-invoice");
   const previewTag       = document.getElementById("flocs-previewTag");
-  const armBtn           = document.getElementById("flocs-armBtn");
   const convertBtn       = document.getElementById("flocs-convertBtn");
   const createOrderBtn   = document.getElementById("flocs-createOrderBtn");
+  const createDraftBtn   = document.getElementById("flocs-createDraftBtn");
+  const azBar            = document.getElementById("flocs-azBar");
 
   const toast            = document.getElementById("flocs-toast");
-  const confirmOverlay   = document.getElementById("flocs-confirmOverlay");
-  const confirmBtn       = document.getElementById("flocs-confirmBtn");
-  const disarmBtn        = document.getElementById("flocs-disarmBtn");
 
   // ===== STATE =====
   const state = {
@@ -122,7 +111,6 @@ export function initFlocsView() {
     shippingQuote: null,     // { service, total, quoteno, raw }
     errors: [],
     isSubmitting: false,
-    lockArmed: true,
     lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
@@ -153,8 +141,6 @@ export function initFlocsView() {
     flavour
       ? `<span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span>`
       : "—";
-  let productPageInfo = { products: {}, variants: {} };
-  let productPagingCursor = { products: null, variants: null };
   let priceTierLoading = false;
 
   // ===== HELPERS =====
@@ -265,9 +251,21 @@ export function initFlocsView() {
     return priceForCustomer(product);
   }
 
+  function displayProductTitle(product) {
+    if (!product) return "";
+    const sku = String(product.sku || "").trim();
+    let title = String(product.title || "").trim();
+    if (!title) return sku;
+    if (sku) {
+      const escaped = sku.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      title = title.replace(new RegExp(`^${escaped}\\s*[–-]\\s*`, "i"), "");
+    }
+    return title || sku;
+  }
+
   function setShellReady(ready) {
     if (!shell) return;
-    if (ready && state.lockArmed) shell.classList.add("flocs-ready");
+    if (ready) shell.classList.add("flocs-ready");
     else shell.classList.remove("flocs-ready");
   }
 
@@ -278,7 +276,8 @@ export function initFlocsView() {
 
   function renderCreateOrderButton(ready) {
     if (!createOrderBtn) return;
-    createOrderBtn.hidden = !ready || state.isSubmitting;
+    createOrderBtn.disabled = !ready || state.isSubmitting;
+    createOrderBtn.classList.toggle("is-ready", ready && !state.isSubmitting);
   }
 
   function setCustomerCreateVisible(visible) {
@@ -337,7 +336,7 @@ export function initFlocsView() {
       if (!qty || qty <= 0) continue;
       out.push({
         sku: p.sku,
-        title: p.title,
+        title: displayProductTitle(p),
         variantId: p.variantId,
         quantity: qty,
         weightKg: p.weightKg || 0,
@@ -404,13 +403,19 @@ export function initFlocsView() {
       const flavour = (p.flavour || "").toLowerCase();
       const size = (p.size || "").toLowerCase();
       if (flavourFilter && flavour !== flavourFilter) return false;
-      if (sizeFilter && size !== sizeFilter) return false;
+      if (sizeFilter) {
+        if (sizeFilter === "other") {
+          if (size === "100ml" || size === "200ml") return false;
+        } else if (size !== sizeFilter) {
+          return false;
+        }
+      }
       return true;
     });
 
     productsBody.innerHTML = filtered
       .map((p) => {
-        const name = (p.title || p.sku || "").trim();
+        const name = displayProductTitle(p);
         const key = productKey(p);
         const value = state.items[key] || "";
         const price = priceForCustomer(p);
@@ -537,52 +542,38 @@ export function initFlocsView() {
     const c = state.customer;
     const shipAddr = currentShippingAddress();
     const billAddr = currentBillingAddress();
-
-    const deliveryLabel =
-      currentDelivery() === "pickup"
-        ? "Pickup"
-        : currentDelivery() === "deliver"
-        ? "Deliver"
-        : "Ship";
-
-    const tagChips = state.customerTags.length
-      ? state.customerTags
-          .map((t) => `<span class="flocs-chip">Tag: ${t}</span>`)
-          .join("")
-      : `<span class="flocs-chip">Tags: none</span>`;
-
     const tierLabel = state.priceTier
       ? `Pricing: ${state.priceTier}`
       : "Pricing: default";
-
-    const companyLabel = state.customer?.companyName
-      ? `<span class="flocs-chip">Company: ${state.customer.companyName}</span>`
-      : "";
-    const vatLabel = state.customer?.vatNumber
-      ? `<span class="flocs-chip">VAT: ${state.customer.vatNumber}</span>`
-      : "";
-    const deliveryNotesLabel = state.customer?.deliveryInstructions
-      ? `<span class="flocs-chip">Delivery notes set</span>`
-      : "";
+    const typeTag =
+      state.customerTags.find((tag) =>
+        PRICE_TAGS.includes(String(tag || "").toLowerCase())
+      ) || "standard";
+    const typeLabel = `Type: ${
+      typeTag.charAt(0).toUpperCase() + typeTag.slice(1)
+    }`;
+    const billText = billAddr
+      ? formatAddress(billAddr).replace(/\n/g, "<br/>")
+      : "—";
+    const shipText = shipAddr
+      ? formatAddress(shipAddr).replace(/\n/g, "<br/>")
+      : "—";
 
     customerChips.innerHTML = `
-      <span class="flocs-chip">Customer: ${c.name}</span>
-      <span class="flocs-chip">Delivery: ${deliveryLabel}</span>
-      <span class="flocs-chip">${tierLabel}</span>
-      ${companyLabel}
-      ${vatLabel}
-      ${deliveryNotesLabel}
-      ${
-        billAddr
-          ? `<span class="flocs-chip">Bill-to: ${billAddr.city || ""} ${billAddr.zip || ""}</span>`
-          : ""
-      }
-      ${
-        shipAddr
-          ? `<span class="flocs-chip">Ship-to: ${shipAddr.city || ""} ${shipAddr.zip || ""}</span>`
-          : ""
-      }
-      ${tagChips}
+      <div class="flocs-chipRowTop">
+        <span class="flocs-chip">${tierLabel}</span>
+        <span class="flocs-chip">${typeLabel}</span>
+      </div>
+      <div class="flocs-chipAddresses">
+        <div class="flocs-chipAddress">
+          <span class="flocs-chipLabel">Billing address</span>
+          <div class="flocs-chipAddressText">${billText}</div>
+        </div>
+        <div class="flocs-chipAddress">
+          <span class="flocs-chipLabel">Shipping address</span>
+          <div class="flocs-chipAddressText">${shipText}</div>
+        </div>
+      </div>
     `;
   }
 
@@ -790,7 +781,7 @@ ${state.customer.email || ""}${
         errs.push("Select a ship-to address.");
       }
       if (!state.shippingQuote) {
-        errs.push("Calculate shipping (SWE quote) before locking the order.");
+        errs.push("Calculate shipping (SWE quote) before creating the order.");
       }
     }
 
@@ -808,20 +799,21 @@ ${state.customer.email || ""}${
         previewTag.textContent = "Add item quantities…";
       } else if (currentDelivery() === "ship" && !state.shippingQuote) {
         previewTag.textContent = "Awaiting SWE shipping quote…";
-      } else if (ready && state.lockArmed) {
-        previewTag.textContent = "Ready to lock in (green)";
       } else if (ready) {
-        previewTag.textContent = "Ready (lock disarmed)";
+        previewTag.textContent = "Ready to create order";
       } else {
         previewTag.textContent = "Incomplete order";
       }
     }
 
-    if (armBtn) {
-      armBtn.hidden = !(ready && !state.lockArmed);
+    if (createDraftBtn) {
+      createDraftBtn.disabled = !ready || state.isSubmitting;
+      createDraftBtn.classList.toggle(
+        "is-ready",
+        ready && !state.isSubmitting
+      );
     }
 
-    confirmBtn.disabled = !ready || !state.lockArmed;
     renderConvertButton();
     renderCreateOrderButton(ready);
   }
@@ -1069,7 +1061,6 @@ ${state.customer.email || ""}${
 
   // ===== Shopify calls =====
   const searchCustomersDebounced = debounce(searchCustomersNow, 320);
-  const searchProductsDebounced = debounce(searchProductsNow, 320);
 
   async function searchCustomersNow() {
     const q = (customerSearch.value || "").trim();
@@ -1129,149 +1120,6 @@ ${state.customer.email || ""}${
     }
   }
 
-  async function searchProductsNow() {
-    const q = (productSearch?.value || "").trim();
-    if (!productResults || !productStatus) return;
-    if (!q) {
-      productResults.hidden = true;
-      productResults.innerHTML = "";
-      productStatus.textContent = "Search by SKU or product title";
-      resetProductPaging();
-      return;
-    }
-
-    productStatus.textContent = "Searching products…";
-    productResults.hidden = false;
-    productResults.innerHTML =
-      `<div class="flocs-customerEmpty">Searching…</div>`;
-    if (productPager) productPager.hidden = true;
-
-    try {
-      const productCode = (productCodeInput?.value || "").trim();
-      const params = new URLSearchParams({ q, includePriceTiers: "1" });
-      if (productCode) params.set("productCode", productCode);
-      if (productPagingCursor.products) {
-        params.set("productPageInfo", productPagingCursor.products);
-      }
-      if (productPagingCursor.variants) {
-        params.set("variantPageInfo", productPagingCursor.variants);
-      }
-      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/search?${params.toString()}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const list = Array.isArray(data.products) ? data.products : [];
-      productPageInfo = data.pageInfo || { products: {}, variants: {} };
-
-      if (!list.length) {
-        productResults.innerHTML =
-          `<div class="flocs-customerEmpty">No products found.</div>`;
-        productStatus.textContent = "No products found. Refine search.";
-        if (productPager) productPager.hidden = true;
-        return;
-      }
-
-      productResults.innerHTML = list
-        .map((p, idx) => {
-          const flavour = p.flavour || p.flavor || p.productType || "";
-          return `
-        <div class="flocs-productItem" data-idx="${idx}">
-          <div>
-            <strong>${p.title || p.sku || "Untitled item"}</strong>
-            <div class="flocs-productMeta">
-              ${p.sku || "no sku"} · ${
-                p.price != null ? money(p.price) : "price n/a"
-              }${flavour ? ` · ${flavourTag(flavour)}` : ""}
-            </div>
-          </div>
-          <button class="flocs-miniBtn" type="button" data-action="add">Add</button>
-        </div>
-      `;
-        })
-        .join("");
-      productResults._data = list;
-      productStatus.textContent = "Click add to include in the order.";
-      updateProductPager();
-    } catch (e) {
-      console.error("Product search error:", e);
-      productResults.innerHTML =
-        `<div class="flocs-customerEmpty">Error searching: ${String(
-          e?.message || e
-      )}</div>`;
-      productStatus.textContent = "Error searching products.";
-      if (productPager) productPager.hidden = true;
-    }
-  }
-
-  function updateProductPager() {
-    if (!productPager || !productPrevBtn || !productNextBtn) return;
-    const hasPrev =
-      Boolean(productPageInfo?.products?.previous) ||
-      Boolean(productPageInfo?.variants?.previous);
-    const hasNext =
-      Boolean(productPageInfo?.products?.next) || Boolean(productPageInfo?.variants?.next);
-    productPrevBtn.disabled = !hasPrev;
-    productNextBtn.disabled = !hasNext;
-    productPager.hidden = !(hasPrev || hasNext);
-  }
-
-  function resetProductPaging() {
-    productPageInfo = { products: {}, variants: {} };
-    productPagingCursor = { products: null, variants: null };
-    if (productPager) productPager.hidden = true;
-  }
-
-  async function loadCollectionProducts() {
-    if (!collectionSelect || !collectionLoadBtn) return;
-    const handle = (collectionSelect.value || "").trim();
-    if (!handle) {
-      showToast("Select a collection to load.", "err");
-      return;
-    }
-
-    collectionLoadBtn.disabled = true;
-    productStatus.textContent = "Loading collection products…";
-
-    try {
-      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/collection?handle=${encodeURIComponent(
-        handle
-      )}&includePriceTiers=1`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const list = Array.isArray(data.products) ? data.products : [];
-      if (!list.length) {
-        showToast("No products found in that collection.", "err");
-        productStatus.textContent = "No collection products found.";
-        return;
-      }
-
-      let added = 0;
-      list.forEach((p) => {
-        const key = productKey(p);
-        if (!key) return;
-        const exists = state.products.some((sp) => productKey(sp) === key);
-        if (!exists) {
-          state.products.push(p);
-          added += 1;
-        }
-      });
-
-      updateFiltersFromProducts();
-      renderProductsTable();
-      renderInvoice();
-      validate();
-      showToast(
-        `Loaded ${list.length} collection products (${added} new).`,
-        "ok"
-      );
-      productStatus.textContent = "Collection products loaded.";
-    } catch (e) {
-      console.error("Collection load error:", e);
-      productStatus.textContent = "Error loading collection products.";
-      showToast("Collection load failed.", "err");
-    } finally {
-      collectionLoadBtn.disabled = false;
-    }
-  }
 
   async function createCustomer() {
     if (!customerCreateBtn) return;
@@ -1446,22 +1294,37 @@ ${state.customer.email || ""}${
       if (p.size) sizes.add(p.size);
     });
     const flavourOptions = ["", ...Array.from(flavours).sort()];
-    const sizeOptions = ["", ...Array.from(sizes).sort()];
+    const sizeOptions = ["", "100ml", "200ml", "Other"].filter((s) => {
+      if (!s) return true;
+      if (s === "Other") {
+        return Array.from(sizes).some(
+          (size) => !["100ml", "200ml"].includes(String(size).toLowerCase())
+        );
+      }
+      return Array.from(sizes).some(
+        (size) => String(size).toLowerCase() === s.toLowerCase()
+      );
+    });
 
     filterFlavour.innerHTML = flavourOptions
-      .map((f) => `<option value="${f}">${f || "All flavours"}</option>`)
+      .map((f) => {
+        const label = f || "All flavours";
+        const active = (state.filters.flavour || "") === f;
+        return `<button class="flocs-filterBtn ${active ? "is-active" : ""}" type="button" data-filter="flavour" data-value="${f}">${label}</button>`;
+      })
       .join("");
     filterSize.innerHTML = sizeOptions
-      .map((s) => `<option value="${s}">${s || "All sizes"}</option>`)
+      .map((s) => {
+        const label = s || "All sizes";
+        const active = (state.filters.size || "") === s;
+        return `<button class="flocs-filterBtn ${active ? "is-active" : ""}" type="button" data-filter="size" data-value="${s}">${label}</button>`;
+      })
       .join("");
-
-    filterFlavour.value = state.filters.flavour || "";
-    filterSize.value = state.filters.size || "";
   }
 
   async function createDraftOrder() {
     if (state.errors.length) {
-      showToast("Fix errors before locking order.", "err");
+      showToast("Fix errors before creating draft order.", "err");
       return;
     }
 
@@ -1473,8 +1336,10 @@ ${state.customer.email || ""}${
 
     state.isSubmitting = true;
     validate();
-    confirmBtn.disabled = true;
-    confirmBtn.textContent = "Creating draft order…";
+    if (createDraftBtn) {
+      createDraftBtn.disabled = true;
+      createDraftBtn.textContent = "Creating draft order…";
+    }
 
     const delivery = currentDelivery();
     const addr = currentShippingAddress();
@@ -1567,7 +1432,9 @@ ${state.customer.email || ""}${
       showToast("Draft order error: " + String(e?.message || e), "err");
     } finally {
       state.isSubmitting = false;
-      confirmBtn.textContent = "Lock order & create Shopify draft";
+      if (createDraftBtn) {
+        createDraftBtn.textContent = "Create draft order";
+      }
       validate();
     }
   }
@@ -1684,7 +1551,6 @@ ${state.customer.email || ""}${
     state.shippingQuote = null;
     state.errors = [];
     state.isSubmitting = false;
-    state.lockArmed = true;
     if (!keepDraftOrder) {
       state.lastDraftOrderId = null;
     }
@@ -1717,6 +1583,9 @@ ${state.customer.email || ""}${
     }
     if (errorsBox) {
       errorsBox.textContent = "";
+    }
+    if (createDraftBtn) {
+      createDraftBtn.textContent = "Create draft order";
     }
     setCustomerCreateVisible(false);
     // reset qty inputs
@@ -1955,73 +1824,37 @@ ${state.customer.email || ""}${
       });
     }
 
-    if (productSearch) {
-      productSearch.addEventListener("input", () => {
-        resetProductPaging();
-        searchProductsDebounced();
-      });
-    }
-
-    if (productCodeInput) {
-      productCodeInput.addEventListener("input", () => {
-        resetProductPaging();
-        searchProductsDebounced();
-      });
-    }
-
-    if (productPrevBtn) {
-      productPrevBtn.addEventListener("click", () => {
-        if (!productPageInfo) return;
-        productPagingCursor = {
-          products: productPageInfo.products?.previous || null,
-          variants: productPageInfo.variants?.previous || null
-        };
-        searchProductsNow();
-      });
-    }
-
-    if (productNextBtn) {
-      productNextBtn.addEventListener("click", () => {
-        if (!productPageInfo) return;
-        productPagingCursor = {
-          products: productPageInfo.products?.next || null,
-          variants: productPageInfo.variants?.next || null
-        };
-        searchProductsNow();
-      });
-    }
-
-    if (collectionLoadBtn) {
-      collectionLoadBtn.addEventListener("click", () => {
-        loadCollectionProducts();
-      });
-    }
-
-    if (productResults) {
-      productResults.addEventListener("click", (e) => {
-        const row = e.target.closest(".flocs-productItem");
-        if (!row || !productResults._data) return;
-        const action = e.target.closest("[data-action]");
-        if (!action) return;
-        const idx = Number(row.dataset.idx);
-        const list = productResults._data;
-        const p = list[idx];
-        if (!p) return;
-        addProductToOrder(p);
-      });
-    }
-
     if (filterFlavour) {
-      filterFlavour.addEventListener("change", () => {
-        state.filters.flavour = filterFlavour.value || "";
+      filterFlavour.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-filter='flavour']");
+        if (!btn) return;
+        state.filters.flavour = btn.dataset.value || "";
+        updateFiltersFromProducts();
         renderProductsTable();
       });
     }
 
     if (filterSize) {
-      filterSize.addEventListener("change", () => {
-        state.filters.size = filterSize.value || "";
+      filterSize.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-filter='size']");
+        if (!btn) return;
+        state.filters.size = btn.dataset.value || "";
+        updateFiltersFromProducts();
         renderProductsTable();
+      });
+    }
+
+    if (azBar && customerSearch) {
+      azBar.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-letter]");
+        if (!btn) return;
+        const letter = btn.dataset.letter || "";
+        customerSearch.value = letter;
+        searchCustomersNow();
+        azBar.querySelectorAll(".is-active").forEach((el) => {
+          el.classList.remove("is-active");
+        });
+        btn.classList.add("is-active");
       });
     }
 
@@ -2031,23 +1864,9 @@ ${state.customer.email || ""}${
       });
     }
 
-    if (confirmBtn) {
-      confirmBtn.addEventListener("click", () => {
+    if (createDraftBtn) {
+      createDraftBtn.addEventListener("click", () => {
         createDraftOrder();
-      });
-    }
-
-    if (armBtn) {
-      armBtn.addEventListener("click", () => {
-        state.lockArmed = true;
-        validate();
-      });
-    }
-
-    if (disarmBtn) {
-      disarmBtn.addEventListener("click", () => {
-        state.lockArmed = false;
-        validate();
       });
     }
 
