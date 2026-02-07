@@ -1371,6 +1371,7 @@ ${state.customer.email || ""}${
       billingAddress,
       shippingAddress,
       customerTags: state.customerTags,
+      priceTier: state.priceTier,
       lineItems: items.map((li) => ({
         sku: li.sku,
         title: li.title,
