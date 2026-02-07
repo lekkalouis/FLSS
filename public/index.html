@@ -492,23 +492,149 @@
   .badge{ background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.5); color:#0e7490; font-size:1.1rem; border-radius:var(--radius-md); padding:.2rem .45rem; }
   .sessionInfo{ font-size:.8rem; color:var(--text-muted); line-height:1.4; font-family:var(--mono);} 
   .scanBox,.addrBox,.card{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.85rem; }
-  .scanBox{ margin-bottom:1rem; }
-  .scanTopBar{
+  .dispatchTopBar{
     display:flex;
-    justify-content:center;
-    padding:1rem 1.5rem 0;
+    flex-direction:column;
+    gap:1rem;
+    background:var(--panel);
+    border-radius:var(--radius-lg);
+    border:1px solid var(--panel-strong);
+    padding:1rem 1.25rem;
+    box-shadow:var(--shadow-soft);
   }
-  .scanBox--centered{
-    width:min(520px, 100%);
-    margin-bottom:1.25rem;
-    text-align:center;
+  .dispatchTopRow{
+    display:flex;
+    align-items:center;
+    gap:1rem;
+    flex-wrap:wrap;
   }
-  .scanBox--centered label{ justify-content:center; gap:.5rem; }
-  .scanBox--centered #scanInput{ text-align:center; font-size:1.1rem; }
-  .scanBox label{ display:flex; justify-content:space-between; align-items:baseline; font-size:.75rem; color:var(--text-muted); margin-bottom:.5rem; }
-  .scanBox label small{ color:#94a3b8; font-weight:400; font-size:.7rem; }
+  .dispatchHeading{
+    font-weight:800;
+    font-size:1.05rem;
+    letter-spacing:.01em;
+  }
+  .dispatchScanField{
+    display:flex;
+    flex-direction:column;
+    gap:.35rem;
+    min-width:280px;
+    flex:1;
+  }
+  .dispatchScanField label{
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--text-muted);
+  }
   #scanInput{ width:100%; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:1rem; outline:none; padding:.55rem .7rem; }
   #scanInput:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(34,211,238,.2); }
+  .dispatchTopActions{
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+    flex-wrap:wrap;
+  }
+  .btn--compact{
+    font-size:.7rem;
+    padding:.35rem .6rem;
+  }
+  .dispatchExpandToggle{
+    border:1px solid rgba(99,102,241,.4);
+    background:rgba(99,102,241,.12);
+    color:#312e81;
+  }
+  .dispatchTopDetails{
+    display:none;
+    border-top:1px solid var(--panel-strong);
+    padding-top:1rem;
+    gap:1rem;
+  }
+  #viewScan.dispatchExpanded .dispatchTopDetails{
+    display:grid;
+  }
+  .dispatchDetailGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+    gap:.85rem;
+  }
+  .dispatchDetailCard{
+    background:var(--panel-muted);
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    padding:.75rem .85rem;
+    display:flex;
+    flex-direction:column;
+    gap:.35rem;
+  }
+  .dispatchDetailLabel{
+    font-size:.7rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--text-muted);
+    font-weight:700;
+  }
+  .dispatchDetailValue{
+    font-size:.9rem;
+    font-weight:700;
+  }
+  .dispatchDetailAddress{
+    grid-column:1/-1;
+  }
+  .dispatchDetailAddress .dispatchDetailValue{
+    font-weight:500;
+    white-space:pre-line;
+    font-size:.85rem;
+  }
+  .dispatchTopPanels{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+    gap:.85rem;
+  }
+  .dispatchTruckIndicator{
+    margin-left:auto;
+    display:flex;
+    align-items:center;
+    gap:.75rem;
+  }
+  .dispatchTruckButton{
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+    border:1px solid rgba(239,68,68,.6);
+    background:rgba(239,68,68,.08);
+    color:#b91c1c;
+    border-radius:999px;
+    padding:.4rem .75rem;
+    font-weight:700;
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    cursor:pointer;
+  }
+  .dispatchTruckButton.is-booked{
+    border-color:rgba(34,197,94,.6);
+    background:rgba(34,197,94,.12);
+    color:#047857;
+  }
+  .dispatchTruckIcon{
+    width:18px;
+    height:18px;
+    display:inline-flex;
+  }
+  .dispatchTruckMeta{
+    display:flex;
+    align-items:center;
+    gap:.35rem;
+    font-size:.72rem;
+    color:var(--text-muted);
+  }
+  .dispatchTruckBox{
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    font-weight:700;
+    color:var(--text);
+  }
   .btn{
     border:1px solid rgba(99,102,241,.45);
     background:rgba(99,102,241,.12);
@@ -707,7 +833,7 @@
   display:flex;
   flex-direction:column;
   gap:.85rem;
-  padding:1.25rem 1.5rem;
+  padding:1.25rem 0 1.25rem 1.5rem;
   border-radius:var(--radius-lg);
   background:var(--panel);
   border:1px solid var(--panel-strong);
@@ -719,7 +845,8 @@
   display:grid;
   grid-template-columns:minmax(0,1fr) 320px;
   gap:1rem;
-  align-items:start;
+  align-items:stretch;
+  min-height:100%;
 }
 @media (max-width:1100px){
   .dispatchBoardLayout{
@@ -735,6 +862,8 @@
   display:flex;
   flex-direction:column;
   gap:.85rem;
+  height:100%;
+  padding-right:1.5rem;
 }
 .dispatchShipmentsPanel{
   border-radius:var(--radius-lg);
@@ -742,6 +871,9 @@
   padding:1rem;
   background:var(--panel);
   box-shadow:0 12px 28px rgba(15,23,42,.08);
+  display:flex;
+  flex-direction:column;
+  flex:1;
 }
 .dispatchShipmentsHeader{
   display:flex;
@@ -756,6 +888,7 @@
   display:flex;
   flex-direction:column;
   gap:.6rem;
+  flex:1;
 }
 
 .dispatchStatusPanel {
@@ -1837,7 +1970,7 @@
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
-            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Scan Station</span></button>
+            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch</span></button>
             <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false" data-route="/ops"><span class="flNavBtnIcon" aria-hidden="true">🚚</span><span class="flNavBtnText">Dispatch Board</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
@@ -1891,128 +2024,75 @@
 
         <div class="flView" id="viewScan" hidden>
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
-      <div class="scanTopBar">
-        <div class="scanBox scanBox--centered">
-          <label for="scanInput"><span>Scan parcel sticker barcode</span><small>Example: 252051001</small></label>
-          <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." />
-          <button id="multiShipToggle" class="btn btnToggle" type="button">Multi-shipment override: Off</button>
-          <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
+      <div class="dispatchTopBar" aria-label="Dispatch controls">
+        <div class="dispatchTopRow">
+          <div class="dispatchHeading">Dispatch</div>
+          <div class="dispatchScanField">
+            <label for="scanInput">Scan barcode</label>
+            <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." autofocus />
+          </div>
+          <div class="dispatchTopActions">
+            <button id="dispatchExpandToggle" class="btn dispatchExpandToggle btn--compact" type="button" aria-expanded="false">Expand</button>
+            <button id="multiShipToggle" class="btn btnToggle btn--compact" type="button">Multi-shipment override: Off</button>
+            <button id="modeToggle" class="btn btn--compact" type="button">MODE: AUTO</button>
+            <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
+          </div>
+          <div class="dispatchTruckIndicator">
+            <button id="truckBookBtn" class="dispatchTruckButton is-unbooked" type="button" aria-pressed="false">
+              <span class="dispatchTruckIcon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h9.5A1.75 1.75 0 0 1 16 6.75V14h1.25c.41 0 .8.18 1.06.49l2.5 3a1.75 1.75 0 0 1 .44 1.13v1.13A1.25 1.25 0 0 1 20 21h-1.1a2.5 2.5 0 0 1-4.9 0H9a2.5 2.5 0 0 1-4.9 0H3.75A.75.75 0 0 1 3 20.25zM16 14V6.75a.25.25 0 0 0-.25-.25h-9.5a.25.25 0 0 0-.25.25V14zm1.8 0h2.25l-2-2.4zm-11.4 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2m10.4-1a1 1 0 1 0-2 0 1 1 0 0 0 2 0"/>
+                </svg>
+              </span>
+              <span id="truckStatus">Not booked</span>
+            </button>
+            <div class="dispatchTruckMeta">
+              <span class="dispatchTruckBox"><span aria-hidden="true">📦</span>Truck:<span id="truckParcelCount">0</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="dispatchTopDetails">
+          <div class="dispatchDetailGrid">
+            <div class="dispatchDetailCard">
+              <span class="dispatchDetailLabel">Customer</span>
+              <span id="uiCustomerName" class="dispatchDetailValue">--</span>
+            </div>
+            <div class="dispatchDetailCard">
+              <span class="dispatchDetailLabel">Order</span>
+              <span id="uiOrderNo" class="dispatchDetailValue">--</span>
+            </div>
+            <div class="dispatchDetailCard">
+              <span class="dispatchDetailLabel">Order weight</span>
+              <span id="uiOrderWeight" class="dispatchDetailValue">--</span>
+            </div>
+            <div class="dispatchDetailCard dispatchDetailAddress">
+              <span class="dispatchDetailLabel">Shipping address</span>
+              <span id="shipToCard" class="dispatchDetailValue">None yet.</span>
+            </div>
+          </div>
+          <div class="dispatchTopPanels">
+            <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
+              <div class="dispatchStatusHeader">
+                <h3>Booking progress</h3>
+                <span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span>
+              </div>
+              <div class="dispatchProgressBar" id="scanProgressBar">
+                <div id="scanProgressFill" class="dispatchProgressFill"></div>
+                <div class="dispatchProgressSun" aria-hidden="true"></div>
+              </div>
+              <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
+            </div>
+            <div class="dispatchLogPanel dispatchLogPanel--compact">
+              <div class="dispatchLogHeader">
+                <span>Dispatch log</span>
+                <span class="dispatchStamp">Latest activity</span>
+              </div>
+              <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="shell" role="application" aria-label="Flippen Lekka Scan Station">
-  <!-- LEFT -->
-  <section class="leftPane">
-    <div class="headerRow">
-      <div class="line1">Flippen Lekka Scan Station <span class="badge" aria-live="polite">v1.0</span></div>
-      <div class="sessionInfo" aria-live="polite">
-        <div>Order: <span id="uiOrderNo">--</span></div>
-        <div>Bundled orders: <span id="uiBundleOrders">--</span></div>
-        <div>Multi-ship: <span id="uiMultiShip">Off</span></div>
-        <div>Session mode: <span id="uiSessionMode">Waiting</span></div>
-        <div>Parcels: <span id="uiParcelCount">0</span> / <span id="uiExpectedCount">--</span></div>
-        <div>Parcel source: <span id="uiParcelSource">--</span></div>
-        <div>Auto-book: <span id="uiAutoBook">Idle</span></div>
-      
-      </div>
-    </div>
-
-    <!-- Address search/select (toggle display if needed) -->
-    <div class="addrBox" id="addrBox" hidden>
-      <label>Destination address <span class="addrHint" style="font-weight:400">(search & select)</span></label>
-      <div class="row">
-        <input id="addrSearch" type="text" placeholder="Type name, city, postal, street…" />
-        <input id="placeCode" type="text" placeholder="place code" title="ParcelPerfect place code (optional)" />
-      </div>
-      <div class="addrList" id="addrResults" role="listbox" aria-label="Address results"></div>
-      <div class="addrHint">Tip: selecting an item sets the destination and its place code (if present). You can paste a code too.</div>
-    </div>
-
-    <!-- Service override (toggle display if needed) -->
-    <div class="card" id="svcBox" hidden>
-      <div class="cardHeader">Service</div>
-      <div class="svcRow">
-        <label for="serviceOverride" class="addrHint" style="font-size:.8rem">Prefer:</label>
-        <select id="serviceOverride" title="Choose a service or Auto">
-          <option value="AUTO">Auto (RFX→ECO→RDF→first)</option>
-          <option value="RFX">RFX (Road Express)</option>
-          <option value="ECO">ECO (Economy Road)</option>
-          <option value="RDF" selected>RDF (Roadfreight)</option>
-          <option value="ONX">ONX (Overnight Air)</option>
-          <option value="OVN">OVN (Overnight 2)</option>
-          <option value="CSS">CSS (ChainStores)</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Info cards -->
-    <div class="minigrid">
-      <div class="card"><div class="cardHeader">Scanned Parcel Details</div><div class="cardBody" id="parcelList">No parcels scanned yet.</div></div>
-      <div class="card"><div class="cardHeader">Ship To</div><div class="cardBody" id="shipToCard">None yet.</div></div>
-      
-        <div id="last-booking" class="card">
-  <div class="card-title">Last Booking Status</div>
-  <div id="last-booking-body"></div>
-      </div>
-    </div>
-
-    <div id="debugLog" aria-live="polite"></div>
-  </section>
-
-  <!-- RIGHT -->
-  <section class="rightPane">
-
-    <div class="truckPanel" aria-live="polite">
-      <div class="truckHeader">
-        <div>
-          <div class="truckTitle">Truck collection</div>
-          <div class="truckMeta">Today's parcels: <span id="truckParcelCount">0</span></div>
-        </div>
-        <span id="truckStatus" class="truckStatus">Not booked</span>
-      </div>
-      <button id="truckBookBtn" class="truckBookBtn" type="button" aria-pressed="false">
-        <span class="truckIcon" aria-hidden="true">🚚</span>
-        <span class="truckLabel">Book Truck</span>
-      </button>
-      <div class="truckHint">Auto-books when today's parcels exceed 25.</div>
-    </div>
-
-    <div class="sectionTitle" style="margin-top:.8rem">
-    <button id="modeToggle" type="button">MODE: AUTO</button>
-
-    </div>
-    <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
-      <div class="dispatchStatusHeader">
-        <h3>Booking progress</h3>
-        <span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span>
-      </div>
-      <div class="dispatchProgressBar" id="scanProgressBar">
-        <div id="scanProgressFill" class="dispatchProgressFill"></div>
-        <div class="dispatchProgressSun" aria-hidden="true"></div>
-      </div>
-      <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
-    </div>
-    <div class="dispatchLogPanel dispatchLogPanel--compact">
-      <div class="dispatchLogHeader">
-        <span>Dispatch log</span>
-        <span class="dispatchStamp">Latest activity</span>
-      </div>
-      <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
-    </div>
-    <div class="parcelNumbersPanel" aria-live="polite">
-      <div class="parcelNumbersHeader">
-        <span>Parcel Numbers</span>
-        <span class="parcelNumbersSub">Large scan confirmation</span>
-      </div>
-      <div id="parcelNumbers" class="parcelNumbersGrid">
-        <div class="parcelNumbersEmpty">Scan an order to show parcel numbers.</div>
-      </div>
-    </div>
-  </section>
-</div>
-    </div>
-
-    <div class="flView" id="viewOps" hidden>
-      <div id="dispatchBoardContainer">
+      <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">
             <div class="dispatchStatusPanel" aria-live="polite">
@@ -2056,6 +2136,9 @@
           </aside>
         </div>
       </div>
+    </div>
+
+    <div class="flView" id="viewOps" hidden></div>
       <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
         <div class="dispatchOrderModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
         <div class="dispatchOrderModal__content" role="dialog" aria-modal="true" aria-labelledby="dispatchOrderModalTitle">
