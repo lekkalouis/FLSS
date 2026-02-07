@@ -27,6 +27,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const uiAutoBook = $("uiAutoBook");
   const uiCountdown = $("uiCountdown");
   const shipToCard = $("shipToCard");
+  const uiCustomerName = $("uiCustomerName");
+  const uiOrderWeight = $("uiOrderWeight");
   const parcelList = $("parcelList");
   const parcelNumbers = $("parcelNumbers");
   const bookingSummary = $("bookingSummary");
@@ -44,6 +46,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const truckStatus = $("truckStatus");
   const truckParcelCount = $("truckParcelCount");
   const multiShipToggle = $("multiShipToggle");
+  const dispatchExpandToggle = $("dispatchExpandToggle");
   const uiBundleOrders = $("uiBundleOrders");
   const uiMultiShip = $("uiMultiShip");
 
@@ -99,7 +102,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const MODULES = [
     {
       id: "scan",
-      title: "Scan Station",
+      title: "Dispatch",
       description: "Scan parcels and auto-book shipments with live booking progress.",
       type: "route",
       target: "/scan",
@@ -1247,17 +1250,23 @@ function scheduleIdleAutoBook() {
       }
     }
 
+    if (uiCustomerName) {
+      uiCustomerName.textContent = orderDetails?.name ? orderDetails.name : "--";
+    }
+
+    if (uiOrderWeight) {
+      uiOrderWeight.textContent =
+        orderDetails && Number.isFinite(orderDetails.totalWeightKg)
+          ? `${orderDetails.totalWeightKg.toFixed(2)} kg`
+          : "--";
+    }
+
     if (shipToCard) {
       shipToCard.textContent = !orderDetails
         ? "None yet."
-        : `${orderDetails.name}
-${orderDetails.address1}
+        : `${orderDetails.address1}
 ${orderDetails.address2 ? orderDetails.address2 + "\n" : ""}${orderDetails.city}
-${orderDetails.province} ${orderDetails.postal}
-Tel: ${orderDetails.phone || ""}
-Email: ${orderDetails.email || ""}${
-  linkedOrders.size ? `\nBundled orders: ${getBundleOrderNos().join(", ")}` : ""
-}`.trim();
+${orderDetails.province} ${orderDetails.postal}`.trim();
     }
 
     if (totalExpected && totalScanned) {
@@ -2878,7 +2887,7 @@ async function startOrder(orderNo) {
     ["/", "dashboard"],
     ["/dashboard", "dashboard"],
     ["/scan", "scan"],
-    ["/ops", "ops"],
+    ["/ops", "scan"],
     ["/docs", "docs"],
     ["/flocs", "flocs"],
     ["/stock", "stock"],
@@ -2888,7 +2897,7 @@ async function startOrder(orderNo) {
   const VIEW_ROUTE_MAP = {
     dashboard: "/",
     scan: "/scan",
-    ops: "/ops",
+    ops: "/scan",
     docs: "/docs",
     flocs: "/flocs",
     stock: "/stock",
@@ -2953,6 +2962,24 @@ async function startOrder(orderNo) {
       const next = !document.body.classList.contains("flNavCollapsed");
       setNavCollapsed(next);
       localStorage.setItem(NAV_COLLAPSE_KEY, String(next));
+    });
+  }
+
+  let dispatchExpanded = false;
+
+  function setDispatchExpanded(expanded) {
+    dispatchExpanded = expanded;
+    viewScan?.classList.toggle("dispatchExpanded", dispatchExpanded);
+    if (dispatchExpandToggle) {
+      dispatchExpandToggle.setAttribute("aria-expanded", dispatchExpanded ? "true" : "false");
+      dispatchExpandToggle.textContent = dispatchExpanded ? "Collapse" : "Expand";
+    }
+  }
+
+  if (dispatchExpandToggle) {
+    setDispatchExpanded(false);
+    dispatchExpandToggle.addEventListener("click", () => {
+      setDispatchExpanded(!dispatchExpanded);
     });
   }
 
