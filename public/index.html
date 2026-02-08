@@ -2599,10 +2599,6 @@ npm run dev</code></pre>
                 <span>📝</span>
                 <span>Create draft order</span>
               </button>
-              <button id="flocs-calcShip" class="flocs-actionBtn" type="button">
-                <span>⛟</span>
-                <span>Calculate shipping</span>
-              </button>
               <button id="flocs-createOrderBtn" class="flocs-actionBtn" type="button">
                 <span>✅</span>
                 <span>Create live order</span>
@@ -2718,7 +2714,6 @@ npm run dev</code></pre>
                     <select id="flocs-billingAddressSelect" class="flocs-select">
                       <option value="">Select a customer first…</option>
                     </select>
-                    <div id="flocs-billingAddressPreview" class="flocs-addressPreview" hidden></div>
                   </div>
 
                   <!-- Shipping address selector -->
@@ -2730,7 +2725,6 @@ npm run dev</code></pre>
                     <select id="flocs-addressSelect" class="flocs-select">
                       <option value="">Select a customer first…</option>
                     </select>
-                    <div id="flocs-addressPreview" class="flocs-addressPreview" hidden></div>
                   </div>
                 </div>
 
@@ -2781,7 +2775,13 @@ npm run dev</code></pre>
                       <span>Shipping quote summary</span>
                       <span class="flocs-hint">Updated after calculating shipping.</span>
                     </div>
-                    <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
+                    <div class="flocs-actionsRow">
+                      <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
+                      <button id="flocs-calcShip" class="flocs-actionBtn" type="button">
+                        <span>⛟</span>
+                        <span>Calculate shipping</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 

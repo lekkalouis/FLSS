@@ -541,22 +541,22 @@
     #viewFlocs .flocs-filterButtons{
       display:flex;
       flex-wrap:wrap;
-      gap:.4rem;
+      gap:.3rem;
     }
     #viewFlocs .flocs-filterBtn{
       border:1px solid var(--panel-strong);
       background:var(--panel);
       color:var(--muted);
-      padding:.3rem .7rem;
+      padding:.2rem .55rem;
       border-radius:999px;
-      font-size:.75rem;
+      font-size:.68rem;
       cursor:pointer;
       transition:all .2s ease;
     }
     #viewFlocs .flocs-filterBtn--flavour{
       --flavour-color:transparent;
       position:relative;
-      padding:.3rem .9rem .35rem 1.5rem;
+      padding:.2rem .7rem .25rem 1.15rem;
       border-color:var(--flavour-color);
       background:var(--panel-soft);
       color:var(--text);
@@ -567,10 +567,10 @@
     #viewFlocs .flocs-filterBtn--flavour::before{
       content:"";
       position:absolute;
-      left:.55rem;
+      left:.4rem;
       top:50%;
-      width:.45rem;
-      height:.45rem;
+      width:.35rem;
+      height:.35rem;
       border-radius:999px;
       transform:translateY(-50%);
       background:var(--flavour-color);
@@ -579,9 +579,9 @@
     #viewFlocs .flocs-filterBtn--flavour::after{
       content:"";
       position:absolute;
-      left:.6rem;
-      right:.6rem;
-      bottom:.25rem;
+      left:.45rem;
+      right:.45rem;
+      bottom:.18rem;
       height:2px;
       border-radius:999px;
       background:var(--flavour-color);
