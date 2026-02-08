@@ -1707,9 +1707,14 @@ router.post("/shopify/ready-for-pickup", async (req, res) => {
       });
     }
 
-    const fo =
+    const pickupFulfillmentOrder = fulfillmentOrders.find((f) => {
+      const methodType = String(f?.delivery_method?.method_type || "").toLowerCase();
+      return methodType === "pickup";
+    });
+    const openFulfillmentOrder =
       fulfillmentOrders.find((f) => f.status !== "closed" && f.status !== "cancelled") ||
       fulfillmentOrders[0];
+    const fo = pickupFulfillmentOrder || openFulfillmentOrder;
 
     const fulfillmentOrderGid = `gid://shopify/FulfillmentOrder/${fo.id}`;
     const gqlUrl = `${base}/graphql.json`;
@@ -1747,6 +1752,14 @@ router.post("/shopify/ready-for-pickup", async (req, res) => {
       });
     }
 
+    if (Array.isArray(gqlData?.errors) && gqlData.errors.length) {
+      return res.status(409).json({
+        error: "READY_FOR_PICKUP_FAILED",
+        message: "Shopify returned GraphQL errors for ready-for-pickup.",
+        errors: gqlData.errors
+      });
+    }
+
     const mutationPayload = gqlData?.data?.fulfillmentOrderMarkReadyForPickup;
     const userErrors = mutationPayload?.userErrors || [];
     if (userErrors.length) {
@@ -1757,7 +1770,15 @@ router.post("/shopify/ready-for-pickup", async (req, res) => {
       });
     }
 
-    return res.json({ ok: true, fulfillmentOrder: mutationPayload?.fulfillmentOrder || null });
+    if (!mutationPayload?.fulfillmentOrder) {
+      return res.status(409).json({
+        error: "READY_FOR_PICKUP_FAILED",
+        message: "Shopify returned no fulfillment order for ready-for-pickup.",
+        response: gqlData
+      });
+    }
+
+    return res.json({ ok: true, fulfillmentOrder: mutationPayload.fulfillmentOrder });
   } catch (err) {
     console.error("Shopify ready-for-pickup error:", err);
     return res.status(502).json({
