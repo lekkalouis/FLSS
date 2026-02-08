@@ -78,6 +78,7 @@ export function initFlocsView() {
   const customerResetBtn = document.getElementById("flocs-customerResetBtn");
 
   const poInput          = document.getElementById("flocs-po");
+  const deliveryDateInput = document.getElementById("flocs-deliveryDate");
   const deliveryGroup    = document.getElementById("flocs-deliveryGroup");
   const addrSelect       = document.getElementById("flocs-addressSelect");
   const addrPreview      = document.getElementById("flocs-addressPreview");
@@ -104,6 +105,7 @@ export function initFlocsView() {
   const state = {
     customer: null,
     po: "",
+    deliveryDate: "",
     delivery: "ship",        // ship | pickup | deliver
     shippingAddressIndex: null,      // index in customer.addresses
     billingAddressIndex: null,       // index in customer.addresses
@@ -1386,6 +1388,7 @@ ${state.customer.email || ""}${
     const payload = {
       customerId: state.customer.id,
       poNumber: state.po || null,
+      deliveryDate: state.deliveryDate || null,
       shippingMethod: delivery,
       shippingPrice,
       shippingService,
@@ -1503,6 +1506,7 @@ ${state.customer.email || ""}${
     const payload = {
       customerId: state.customer.id,
       poNumber: state.po || null,
+      deliveryDate: state.deliveryDate || null,
       shippingMethod: delivery,
       shippingPrice,
       shippingService,
@@ -1567,6 +1571,7 @@ ${state.customer.email || ""}${
     const { keepDraftOrder = false } = options;
     state.customer = null;
     state.po = "";
+    state.deliveryDate = "";
     state.delivery = "ship";
     state.shippingAddressIndex = null;
     state.billingAddressIndex = null;
@@ -1587,6 +1592,7 @@ ${state.customer.email || ""}${
     if (customerSearch) customerSearch.value = "";
     updateAzBarActive([]);
     if (poInput) poInput.value = "";
+    if (deliveryDateInput) deliveryDateInput.value = "";
     if (customerResults) {
       customerResults.hidden = true;
       customerResults.innerHTML = "";
@@ -1718,6 +1724,12 @@ ${state.customer.email || ""}${
         state.po = poInput.value || "";
         renderInvoice();
         validate();
+      });
+    }
+
+    if (deliveryDateInput) {
+      deliveryDateInput.addEventListener("input", () => {
+        state.deliveryDate = deliveryDateInput.value || "";
       });
     }
 

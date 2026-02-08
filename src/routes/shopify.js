@@ -700,6 +700,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
     const {
       customerId,
       poNumber,
+      deliveryDate,
       shippingMethod,
       shippingPrice,
       shippingService,
@@ -771,7 +772,17 @@ router.post("/shopify/draft-orders", async (req, res) => {
           ...(shippingQuoteNo
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : [])
-        ]
+        ],
+        metafields: deliveryDate
+          ? [
+              {
+                namespace: "custom",
+                key: "delivery_date",
+                type: "single_line_text_field",
+                value: String(deliveryDate)
+              }
+            ]
+          : undefined
       }
     };
 
@@ -898,6 +909,7 @@ router.post("/shopify/orders", async (req, res) => {
     const {
       customerId,
       poNumber,
+      deliveryDate,
       shippingMethod,
       shippingPrice,
       shippingService,
@@ -947,6 +959,16 @@ router.post("/shopify/orders", async (req, res) => {
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : [])
         ],
+        metafields: deliveryDate
+          ? [
+              {
+                namespace: "custom",
+                key: "delivery_date",
+                type: "single_line_text_field",
+                value: String(deliveryDate)
+              }
+            ]
+          : undefined,
         financial_status: "pending"
       }
     };
