@@ -1174,7 +1174,7 @@ router.get("/shopify/orders/open", async (req, res) => {
     if (!requireShopifyConfigured(res)) return;
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const limit = 250;
+    const limit = 100;
     const maxPages = Math.min(Math.max(Number(req.query.max_pages || 5), 1), 10);
 
     const firstPath =
