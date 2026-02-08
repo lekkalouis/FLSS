@@ -566,16 +566,6 @@ export function initFlocsView() {
     const c = state.customer;
     const shipAddr = currentShippingAddress();
     const billAddr = currentBillingAddress();
-    const tierLabel = state.priceTier
-      ? `Pricing: ${state.priceTier}`
-      : "Pricing: default";
-    const typeTag =
-      state.customerTags.find((tag) =>
-        PRICE_TAGS.includes(String(tag || "").toLowerCase())
-      ) || "standard";
-    const typeLabel = `Type: ${
-      typeTag.charAt(0).toUpperCase() + typeTag.slice(1)
-    }`;
     const billText = billAddr
       ? formatAddress(billAddr).replace(/\n/g, "<br/>")
       : "—";
@@ -584,10 +574,6 @@ export function initFlocsView() {
       : "—";
 
     customerChips.innerHTML = `
-      <div class="flocs-chipRowTop">
-        <span class="flocs-chip">${tierLabel}</span>
-        <span class="flocs-chip">${typeLabel}</span>
-      </div>
       <div class="flocs-chipAddresses">
         <div class="flocs-chipAddress">
           <span class="flocs-chipLabel">Billing address</span>
