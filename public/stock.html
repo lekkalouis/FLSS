@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Flippen Lekka Stock Take</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
   <style>
     :root{
       --bg:#f5f7fb;
@@ -180,6 +181,9 @@
     .stock-table tbody tr:hover{
       background:rgba(56,189,248,.08);
     }
+    .stock-row{
+      border-left:4px solid transparent;
+    }
     .stock-qtyInput{
       width:4.5rem;
       border-radius:.45rem;
@@ -305,6 +309,7 @@
             <button class="stock-modeBtn" type="button" data-mode="receive">Stock received</button>
           </div>
           <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
+          <span class="stock-pill" id="stock-status">Loading inventory…</span>
         </div>
         <table class="stock-table">
           <thead>
@@ -343,6 +348,7 @@
     </div>
   </div>
 
+  <script src="/products.js"></script>
   <script src="/stock.js"></script>
 </body>
 </html>

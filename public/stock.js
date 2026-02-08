@@ -1,44 +1,11 @@
 (() => {
   "use strict";
 
-  const DEFAULT_ITEMS = [
-    { sku: "FL002", title: "Original Multi-Purpose Spice 200ml" },
-    { sku: "FL003", title: "Original Multi-Purpose Spice 500g" },
-    { sku: "FL004", title: "Original Multi-Purpose Spice 1kg" },
-    { sku: "FL005", title: "Original Multi-Purpose Spice Bag 750g" },
-    { sku: "FL005-1", title: "Original Multi-Purpose Spice Tub 750g" },
-    { sku: "FL008", title: "Hot & Spicy Multi-Purpose Spice 200ml" },
-    { sku: "FL009", title: "Hot & Spicy Multi-Purpose Spice 500g" },
-    { sku: "FL010", title: "Hot & Spicy Multi-Purpose Spice 1kg" },
-    { sku: "FL014", title: "Worcester Sauce Spice 200ml" },
-    { sku: "FL015", title: "Worcester Sauce Spice 500g" },
-    { sku: "FL016", title: "Worcester Sauce Spice 1kg" },
-    { sku: "FL017", title: "Worcester Sauce Spice Bag 750g" },
-    { sku: "FL017-1", title: "Worcester Sauce Spice Tub 750g" },
-    { sku: "FL026", title: "Red Wine & Garlic Sprinkle 200ml" },
-    { sku: "FL027", title: "Red Wine & Garlic Sprinkle 500g" },
-    { sku: "FL028", title: "Red Wine & Garlic Sprinkle 1kg" },
-    { sku: "FL031", title: "Flippen Lekka Curry Mix 250ml" },
-    { sku: "FL032", title: "Flippen Lekka Curry Mix 500g" },
-    { sku: "FL033", title: "Flippen Lekka Curry Mix 1kg" },
-    { sku: "FL035", title: "Chutney Sprinkle 200ml" },
-    { sku: "FL037", title: "Chutney Sprinkle 1kg" },
-    { sku: "FL038", title: "Savoury Herb Mix 200ml" },
-    { sku: "FL039", title: "Savoury Herb Mix 500g" },
-    { sku: "FL041", title: "Salt & Vinegar Seasoning 200ml" },
-    { sku: "FL042", title: "Salt & Vinegar Seasoning 500g" },
-    { sku: "FL043", title: "Salt & Vinegar Seasoning 1kg" },
-    { sku: "FL050", title: "Butter Popcorn Sprinkle 100ml" },
-    { sku: "FL053", title: "Sour Cream & Chives Popcorn Sprinkle 100ml" },
-    { sku: "FL056", title: "Chutney Popcorn Sprinkle 100ml" },
-    { sku: "FL059", title: "Parmesan Cheese Popcorn Sprinkle 100ml" },
-    { sku: "FL062", title: "Cheese & Onion Popcorn Sprinkle 100ml" },
-    { sku: "FL065", title: "Salt & Vinegar Popcorn Sprinkle 100ml" },
-    { sku: "FLBS001", title: "Original Multi-Purpose Basting Sauce 375ml" },
-    { sku: "FLBS002", title: "Original Multi-Purpose Basting Sauce 12x375ml" }
-  ];
+  const PRODUCT_UTILS = window.FLSS_PRODUCT_UTILS || { products: [] };
+  const DEFAULT_ITEMS = PRODUCT_UTILS.products || [];
 
-  const STORAGE_KEY = "fl_stock_levels_v1";
+  const CONFIG = { SHOPIFY: { PROXY_BASE: "/shopify" } };
+  const LOG_STORAGE_KEY = "fl_stock_update_log_v1";
 
   const searchInput = document.getElementById("stock-search");
   const tableBody = document.getElementById("stock-tableBody");
@@ -52,28 +19,42 @@
   const focusPrev = document.getElementById("stock-focusPrev");
   const focusNext = document.getElementById("stock-focusNext");
   const logBox = document.getElementById("stock-log");
+  const statusEl = document.getElementById("stock-status");
 
   let mode = "take";
   let items = [...DEFAULT_ITEMS];
   let stockLevels = {};
   let focusIndex = 0;
 
-  function loadStockLevels() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        stockLevels = JSON.parse(raw) || {};
-        return;
-      }
-    } catch {}
-    stockLevels = Object.fromEntries(
-      DEFAULT_ITEMS.map((item) => [item.sku, 0])
-    );
+  function setStatus(message, tone = "muted") {
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.style.color = tone === "err" ? "#dc2626" : "#475569";
   }
 
-  function saveStockLevels() {
+  function loadStockLog() {
+    if (!logBox) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stockLevels));
+      const raw = localStorage.getItem(LOG_STORAGE_KEY);
+      if (!raw) return;
+      const entries = JSON.parse(raw);
+      if (!Array.isArray(entries)) return;
+      entries.forEach((entry) => {
+        const line = document.createElement("div");
+        line.className = "stock-logEntry";
+        line.innerHTML = `<span>${entry.time}</span>${entry.message}`;
+        logBox.appendChild(line);
+      });
+    } catch {}
+  }
+
+  function persistLogEntry(message) {
+    try {
+      const raw = localStorage.getItem(LOG_STORAGE_KEY);
+      const entries = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(entries)) return;
+      entries.unshift({ time: new Date().toLocaleTimeString(), message });
+      localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(entries.slice(0, 200)));
     } catch {}
   }
 
@@ -84,13 +65,8 @@
 
   function setStock(sku, value) {
     stockLevels[sku] = Math.max(0, Math.floor(value));
-    saveStockLevels();
   }
 
-  function addStock(sku, delta) {
-    const next = getStock(sku) + Math.floor(delta);
-    setStock(sku, next);
-  }
 
   function logEvent(message) {
     if (!logBox) return;
@@ -98,6 +74,42 @@
     entry.className = "stock-logEntry";
     entry.innerHTML = `<span>${new Date().toLocaleTimeString()}</span>${message}`;
     logBox.prepend(entry);
+    persistLogEntry(message);
+  }
+
+  async function fetchInventoryLevels() {
+    const variantIds = items.map((item) => item.variantId).filter(Boolean);
+    if (!variantIds.length) return;
+    const resp = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/inventory/levels/fetch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ variantIds })
+    });
+    if (!resp.ok) {
+      throw new Error("Unable to fetch inventory levels.");
+    }
+    const data = await resp.json();
+    const levels = data?.levelsByVariantId || {};
+    items.forEach((item) => {
+      if (!item.variantId) return;
+      const key = String(item.variantId);
+      if (levels[key] != null) {
+        stockLevels[item.sku] = Number(levels[key]) || 0;
+      }
+    });
+  }
+
+  async function updateInventoryLevel(variantId, available) {
+    const resp = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/inventory/levels/set`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ variantId, available })
+    });
+    if (!resp.ok) {
+      const payload = await resp.json().catch(() => ({}));
+      throw new Error(payload?.message || "Inventory update failed.");
+    }
+    return resp.json();
   }
 
   function filteredItems() {
@@ -118,8 +130,9 @@
         const current = getStock(item.sku);
         const actionLabel = mode === "take" ? "Set" : "Add";
         const btnClass = mode === "take" ? "stock-actionBtn" : "stock-actionBtn receive";
+        const colour = item.flavourColor || "#cbd5f5";
         return `
-          <tr>
+          <tr class="stock-row" style="border-left:4px solid ${colour};">
             <td><strong>${item.sku}</strong></td>
             <td>${item.title}</td>
             <td>${current}</td>
@@ -164,21 +177,38 @@
     renderFocus();
   }
 
-  function handleApply(sku, rawValue, source = "table") {
+  async function handleApply(sku, rawValue, source = "table") {
     const val = Number(rawValue);
     if (!Number.isFinite(val)) {
       logEvent(`Skipped ${sku}: invalid number.`);
       return;
     }
+    const item = items.find((entry) => entry.sku === sku);
+    if (!item?.variantId) {
+      logEvent(`Skipped ${sku}: missing variantId.`);
+      return;
+    }
+    const current = getStock(sku);
+    const nextValue = mode === "take" ? Math.floor(val) : current + Math.floor(val);
     if (mode === "take") {
-      setStock(sku, val);
-      logEvent(`${sku} set to ${Math.floor(val)} (${source}).`);
+      setStock(sku, nextValue);
+      logEvent(`${sku} set to ${nextValue} (${source}).`);
     } else {
-      addStock(sku, val);
+      setStock(sku, nextValue);
       logEvent(`${sku} received +${Math.floor(val)} (${source}).`);
     }
-    renderTable();
-    renderFocus();
+    try {
+      const update = await updateInventoryLevel(item.variantId, nextValue);
+      if (update?.available != null) {
+        setStock(sku, update.available);
+      }
+      setStatus(`Updated ${sku} to ${getStock(sku)}.`, "ok");
+    } catch (err) {
+      setStatus(err?.message || "Inventory update failed.", "err");
+    } finally {
+      renderTable();
+      renderFocus();
+    }
   }
 
   function stepFocus(delta) {
@@ -201,21 +231,22 @@
       });
     });
 
-    tableBody?.addEventListener("click", (event) => {
+    tableBody?.addEventListener("click", async (event) => {
       const btn = event.target.closest("button[data-action='apply']");
       if (!btn) return;
       const sku = btn.dataset.sku;
       const input = tableBody.querySelector(`input[data-sku='${CSS.escape(sku)}']`);
       if (!sku || !input) return;
-      handleApply(sku, input.value, "table");
+      await handleApply(sku, input.value, "table");
       input.value = "";
     });
 
-    focusApply?.addEventListener("click", () => {
+    focusApply?.addEventListener("click", async () => {
       const list = filteredItems();
       const item = list[focusIndex];
       if (!item) return;
-      handleApply(item.sku, focusInput.value, "quick take");
+      await handleApply(item.sku, focusInput.value, "quick take");
+      focusInput.value = "";
       focusInput.focus();
     });
 
@@ -223,8 +254,19 @@
     focusNext?.addEventListener("click", () => stepFocus(1));
   }
 
-  loadStockLevels();
-  renderTable();
-  renderFocus();
+  loadStockLog();
+  setStatus("Loading live inventory…");
+  fetchInventoryLevels()
+    .then(() => {
+      setStatus("Inventory synced.");
+    })
+    .catch((err) => {
+      console.error(err);
+      setStatus("Unable to load inventory.", "err");
+    })
+    .finally(() => {
+      renderTable();
+      renderFocus();
+    });
   initEvents();
 })();

@@ -78,6 +78,61 @@ function toKg(weight, unit) {
   }
 }
 
+const PRICE_TAGS = ["agent", "retailer", "export", "private", "fkb"];
+
+function normalizeTags(tags) {
+  if (!tags) return [];
+  if (Array.isArray(tags)) {
+    return tags.map((t) => String(t).trim()).filter(Boolean);
+  }
+  if (typeof tags === "string") {
+    return tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function resolvePriceTier(tags) {
+  const normalized = tags.map((t) => t.toLowerCase());
+  return PRICE_TAGS.find((tag) => normalized.includes(tag)) || null;
+}
+
+let cachedLocationId = null;
+
+async function getPrimaryLocationId() {
+  if (cachedLocationId) return cachedLocationId;
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const resp = await shopifyFetch(`${base}/locations.json?limit=5`, { method: "GET" });
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  const locations = Array.isArray(data.locations) ? data.locations : [];
+  const primary = locations.find((loc) => loc.active) || locations[0];
+  cachedLocationId = primary?.id || null;
+  return cachedLocationId;
+}
+
+async function fetchInventoryItemIds(variantIds) {
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const map = new Map();
+  const chunkSize = 50;
+  for (let i = 0; i < variantIds.length; i += chunkSize) {
+    const chunk = variantIds.slice(i, i + chunkSize);
+    const url = `${base}/variants.json?ids=${chunk.join(",")}&fields=id,inventory_item_id`;
+    const resp = await shopifyFetch(url, { method: "GET" });
+    if (!resp.ok) continue;
+    const data = await resp.json();
+    const variants = Array.isArray(data.variants) ? data.variants : [];
+    variants.forEach((variant) => {
+      if (variant?.id && variant?.inventory_item_id) {
+        map.set(String(variant.id), variant.inventory_item_id);
+      }
+    });
+  }
+  return map;
+}
+
 function parsePageInfo(linkHeader) {
   if (!linkHeader) return { next: null, previous: null };
   const parts = linkHeader.split(",").map((part) => part.trim());
@@ -657,6 +712,107 @@ router.post("/shopify/variants/price-tiers/fetch", async (req, res) => {
   }
 });
 
+router.post("/shopify/inventory/levels/fetch", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const body = req.body || {};
+    const variantIds = Array.isArray(body.variantIds) ? body.variantIds : [];
+    if (!variantIds.length) {
+      return badRequest(res, "Missing variantIds");
+    }
+
+    const locationId = await getPrimaryLocationId();
+    if (!locationId) {
+      return res.status(502).json({ error: "NO_LOCATION", message: "No Shopify locations found." });
+    }
+
+    const uniqueIds = Array.from(new Set(variantIds.map((id) => String(id).trim()).filter(Boolean)));
+    const inventoryItemMap = await fetchInventoryItemIds(uniqueIds);
+
+    const inventoryItemIds = Array.from(new Set(Array.from(inventoryItemMap.values())));
+    const levelsByVariantId = {};
+    if (inventoryItemIds.length) {
+      const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+      const url = `${base}/inventory_levels.json?location_ids=${locationId}&inventory_item_ids=${inventoryItemIds.join(",")}`;
+      const resp = await shopifyFetch(url, { method: "GET" });
+      if (resp.ok) {
+        const data = await resp.json();
+        const levels = Array.isArray(data.inventory_levels) ? data.inventory_levels : [];
+        const availableByItemId = new Map();
+        levels.forEach((level) => {
+          if (level?.inventory_item_id != null) {
+            availableByItemId.set(String(level.inventory_item_id), level.available ?? 0);
+          }
+        });
+        inventoryItemMap.forEach((itemId, variantId) => {
+          if (availableByItemId.has(String(itemId))) {
+            levelsByVariantId[String(variantId)] = availableByItemId.get(String(itemId));
+          }
+        });
+      }
+    }
+
+    return res.json({ locationId, levelsByVariantId });
+  } catch (err) {
+    console.error("Shopify inventory fetch error:", err);
+    return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+router.post("/shopify/inventory/levels/set", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { variantId, available } = req.body || {};
+    if (!variantId) {
+      return badRequest(res, "Missing variantId");
+    }
+    const availableQty = Number(available);
+    if (!Number.isFinite(availableQty)) {
+      return badRequest(res, "Missing available quantity");
+    }
+
+    const locationId = await getPrimaryLocationId();
+    if (!locationId) {
+      return res.status(502).json({ error: "NO_LOCATION", message: "No Shopify locations found." });
+    }
+
+    const inventoryItemMap = await fetchInventoryItemIds([String(variantId)]);
+    const inventoryItemId = inventoryItemMap.get(String(variantId));
+    if (!inventoryItemId) {
+      return res.status(404).json({ error: "NOT_FOUND", message: "Inventory item not found." });
+    }
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const payload = {
+      inventory_level: {
+        inventory_item_id: inventoryItemId,
+        location_id: locationId,
+        available: Math.max(0, Math.floor(availableQty))
+      }
+    };
+    const resp = await shopifyFetch(`${base}/inventory_levels/set.json`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body: data
+      });
+    }
+    const level = data?.inventory_level || {};
+    return res.json({ ok: true, available: level.available ?? payload.inventory_level.available });
+  } catch (err) {
+    console.error("Shopify inventory update error:", err);
+    return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 router.post("/shopify/draft-orders", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -681,6 +837,36 @@ router.post("/shopify/draft-orders", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    let priceTier = null;
+    try {
+      const customerResp = await shopifyFetch(
+        `${base}/customers/${customerId}.json?fields=id,tags`,
+        { method: "GET" }
+      );
+      if (customerResp.ok) {
+        const customerData = await customerResp.json();
+        const tags = normalizeTags(customerData?.customer?.tags || "");
+        priceTier = resolvePriceTier(tags);
+      }
+    } catch (err) {
+      console.warn("Customer tier lookup failed:", err);
+    }
+
+    const variantIds = Array.from(
+      new Set(lineItems.map((li) => li.variantId).filter(Boolean).map((id) => String(id)))
+    );
+    const tiersByVariantId = {};
+    if (variantIds.length) {
+      await Promise.all(
+        variantIds.map(async (variantId) => {
+          const tierData = await fetchVariantPriceTiers(variantId);
+          if (tierData?.value && typeof tierData.value === "object") {
+            tiersByVariantId[String(variantId)] = tierData.value;
+          }
+        })
+      );
+    }
+
     const noteParts = [];
     if (poNumber) noteParts.push(`PO: ${poNumber}`);
     if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
@@ -691,6 +877,11 @@ router.post("/shopify/draft-orders", async (req, res) => {
         customer: { id: customerId },
         note: noteParts.join(" | "),
         line_items: lineItems.map((li) => {
+          const tiers = li.variantId ? tiersByVariantId[String(li.variantId)] : null;
+          const tierPrice =
+            tiers && priceTier && tiers[priceTier] != null
+              ? tiers[priceTier]
+              : tiers?.default ?? tiers?.standard ?? null;
           const entry = {
             quantity: li.quantity || 1
           };
@@ -701,7 +892,11 @@ router.post("/shopify/draft-orders", async (req, res) => {
             if (li.price != null) entry.price = String(li.price);
           }
           if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
+          const resolvedPrice =
+            tierPrice != null ? tierPrice : li.price != null ? li.price : null;
+          if (resolvedPrice != null && !entry.price) {
+            entry.price = String(resolvedPrice);
+          }
           return entry;
         }),
         billing_address: billingAddress || undefined,
