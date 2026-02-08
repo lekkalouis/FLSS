@@ -2631,8 +2631,11 @@ npm run dev</code></pre>
                   <span>Customer</span>
                   <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
                 </div>
-                <input id="flocs-customerSearch" class="flocs-input" type="text"
-                       placeholder="Type to search Shopify customers…" autocomplete="off" />
+                <div class="flocs-searchRow">
+                  <input id="flocs-customerSearch" class="flocs-input" type="text"
+                         placeholder="Type to search Shopify customers…" autocomplete="off" />
+                  <button id="flocs-customerSearchClear" class="flocs-miniBtn flocs-clearBtn" type="button">Clear</button>
+                </div>
                 <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
                 <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
                 <div class="flocs-inlineActions" style="margin-top:.5rem">

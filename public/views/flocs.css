@@ -264,6 +264,18 @@
       border:1px solid var(--panel-strong);
       background:var(--panel);
     }
+    #viewFlocs .flocs-searchRow{
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+    }
+    #viewFlocs .flocs-searchRow .flocs-input{
+      flex:1;
+      min-width:0;
+    }
+    #viewFlocs .flocs-clearBtn{
+      white-space:nowrap;
+    }
     #viewFlocs .flocs-subSection{
       margin-top:.6rem;
       padding:.6rem;

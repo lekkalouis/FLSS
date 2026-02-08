@@ -53,6 +53,7 @@ export function initFlocsView() {
   // ===== DOM =====
   const shell            = document.getElementById("flocs-shell");
   const customerSearch   = document.getElementById("flocs-customerSearch");
+  const customerSearchClear = document.getElementById("flocs-customerSearchClear");
   const customerResults  = document.getElementById("flocs-customerResults");
   const customerStatus   = document.getElementById("flocs-customerStatus");
   const customerChips    = document.getElementById("flocs-selectedCustomerChips");
@@ -116,7 +117,8 @@ export function initFlocsView() {
     customerTags: [],
     filters: { flavour: "", size: "" },
     priceOverrides: {},
-    priceOverrideEnabled: {}
+    priceOverrideEnabled: {},
+    azLetters: []
   };
 
   const FLAVOUR_COLORS = {
@@ -153,6 +155,26 @@ export function initFlocsView() {
       clearTimeout(t);
       t = setTimeout(() => fn(...args), ms);
     };
+  };
+
+  const normalizeAzLetters = (value) =>
+    String(value || "")
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "")
+      .slice(0, 2)
+      .split("");
+
+  const updateAzBarActive = (letters = []) => {
+    if (!azBar) return;
+    azBar.querySelectorAll(".is-active").forEach((el) => {
+      el.classList.remove("is-active");
+    });
+    letters.forEach((char) => {
+      const target = azBar.querySelector(
+        `[data-letter="${CSS.escape(char)}"]`
+      );
+      if (target) target.classList.add("is-active");
+    });
   };
 
   function showToast(msg, tone = "ok") {
@@ -1560,8 +1582,10 @@ ${state.customer.email || ""}${
     state.filters = { flavour: "", size: "" };
     state.priceOverrides = {};
     state.priceOverrideEnabled = {};
+    state.azLetters = [];
 
     if (customerSearch) customerSearch.value = "";
+    updateAzBarActive([]);
     if (poInput) poInput.value = "";
     if (customerResults) {
       customerResults.hidden = true;
@@ -1849,13 +1873,43 @@ ${state.customer.email || ""}${
       azBar.addEventListener("click", (e) => {
         const btn = e.target.closest("[data-letter]");
         if (!btn) return;
-        const letter = btn.dataset.letter || "";
-        customerSearch.value = letter;
+        const letter = String(btn.dataset.letter || "")
+          .toUpperCase()
+          .trim();
+        if (!letter) return;
+        const currentValue = customerSearch.value || "";
+        let currentLetters =
+          state.azLetters && state.azLetters.length
+            ? [...state.azLetters]
+            : normalizeAzLetters(currentValue);
+        const normalizedValue = normalizeAzLetters(currentValue);
+        let nextLetters = [];
+
+        if (
+          currentLetters.length === 1 &&
+          currentLetters[0] === letter &&
+          normalizedValue.length === 1
+        ) {
+          nextLetters = [];
+        } else if (currentLetters.length === 1) {
+          nextLetters = [currentLetters[0], letter];
+        } else {
+          nextLetters = [letter];
+        }
+
+        state.azLetters = nextLetters;
+        customerSearch.value = nextLetters.join("");
+        updateAzBarActive(nextLetters);
         searchCustomersNow();
-        azBar.querySelectorAll(".is-active").forEach((el) => {
-          el.classList.remove("is-active");
-        });
-        btn.classList.add("is-active");
+      });
+    }
+
+    if (customerSearchClear && customerSearch) {
+      customerSearchClear.addEventListener("click", () => {
+        customerSearch.value = "";
+        state.azLetters = [];
+        updateAzBarActive([]);
+        searchCustomersNow();
       });
     }
 
