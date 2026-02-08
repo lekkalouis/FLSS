@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Price Manager — FLSS</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
   <style>
     :root {
       --bg:#f5f7fb;
@@ -159,8 +160,12 @@
     .pm-sku { font-family:var(--mono); font-size:.75rem; }
 
     .pm-input {
-      width:92px;
+      width:86px;
       text-align:right;
+    }
+
+    .pm-rowAccent {
+      border-left:4px solid transparent;
     }
 
     .pm-actions {
@@ -206,6 +211,49 @@
       z-index:40;
       box-shadow:0 15px 30px rgba(15,23,42,.3);
     }
+    .pm-priceBoard {
+      margin-top:1.25rem;
+      background:linear-gradient(120deg,rgba(15,23,42,.04),rgba(56,189,248,.08));
+      border-radius:var(--radius-lg);
+      padding:1rem;
+      border:1px solid var(--panel-strong);
+    }
+    .pm-priceBoard h3{
+      margin:0 0 .75rem 0;
+      font-size:1rem;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+    .pm-priceGrid{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+      gap:.75rem;
+    }
+    .pm-priceCard{
+      background:white;
+      border-radius:.75rem;
+      border:1px solid var(--panel-strong);
+      padding:.75rem;
+      box-shadow:0 10px 20px rgba(15,23,42,.08);
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+      border-left:6px solid var(--accent);
+    }
+    .pm-priceCard .pm-priceSku{
+      font-family:var(--mono);
+      font-size:.7rem;
+      color:var(--muted);
+    }
+    .pm-priceCard .pm-priceTitle{
+      font-weight:700;
+      font-size:.9rem;
+    }
+    .pm-priceCard .pm-priceValue{
+      font-size:1.35rem;
+      font-weight:800;
+      color:#0c4a6e;
+    }
   </style>
 </head>
 <body>
@@ -224,16 +272,11 @@
     <section class="pm-panel">
       <div class="pm-row">
         <div class="pm-field">
-          <label for="pmSearch">Search SKU or title</label>
-          <input id="pmSearch" type="text" placeholder="e.g. FL002" />
+          <label for="pmSearch">Filter SKU or title</label>
+          <input id="pmSearch" type="text" placeholder="Start typing..." />
         </div>
-        <button id="pmSearchBtn" class="pm-btn" type="button">Search</button>
-        <div class="pm-field">
-          <label for="pmCollection">Collection handle</label>
-          <input id="pmCollection" type="text" placeholder="e.g. wholesale" />
-        </div>
-        <button id="pmCollectionBtn" class="pm-btn" type="button">Load collection</button>
-        <span id="pmStatus" class="pm-muted">Search to load SKU pricing tiers.</span>
+        <button id="pmRefreshBtn" class="pm-btn" type="button">Refresh prices</button>
+        <span id="pmStatus" class="pm-muted">Loaded local catalogue.</span>
       </div>
 
       <div style="overflow:auto;">
@@ -242,7 +285,6 @@
             <tr>
               <th>SKU</th>
               <th>Title</th>
-              <th>Public</th>
               <th>Default</th>
               <th>Agent</th>
               <th>Retailer</th>
@@ -254,14 +296,20 @@
           </thead>
           <tbody id="pmTableBody">
             <tr>
-              <td colspan="10" class="pm-muted">No data loaded yet.</td>
+              <td colspan="9" class="pm-muted">No data loaded yet.</td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <div class="pm-priceBoard">
+        <h3>Price Board — Private Customers</h3>
+        <div id="pmPriceBoard" class="pm-priceGrid"></div>
+      </div>
     </section>
   </div>
   <div id="pmToast" class="pm-toast"></div>
+  <script src="/products.js"></script>
   <script src="/price-manager.js"></script>
 </body>
 </html>

@@ -1,17 +1,18 @@
 (() => {
   const PRICE_TIERS = ["default", "agent", "retailer", "export", "private", "fkb"];
+  const PRODUCT_UTILS = window.FLSS_PRODUCT_UTILS || { products: [] };
   const state = {
     products: [],
+    allProducts: [],
     loading: false
   };
 
   const searchInput = document.getElementById("pmSearch");
-  const searchBtn = document.getElementById("pmSearchBtn");
-  const collectionInput = document.getElementById("pmCollection");
-  const collectionBtn = document.getElementById("pmCollectionBtn");
+  const refreshBtn = document.getElementById("pmRefreshBtn");
   const tableBody = document.getElementById("pmTableBody");
   const statusEl = document.getElementById("pmStatus");
   const toast = document.getElementById("pmToast");
+  const priceBoard = document.getElementById("pmPriceBoard");
 
   function showToast(message, tone = "ok") {
     if (!toast) return;
@@ -50,7 +51,7 @@
     if (!state.products.length) {
       tableBody.innerHTML = `
         <tr>
-          <td colspan="10" class="pm-muted">No products found.</td>
+          <td colspan="9" class="pm-muted">No products found.</td>
         </tr>
       `;
       return;
@@ -60,13 +61,11 @@
       .map((product, idx) => {
         const tiers = normalizePriceTiers(product);
         const rowId = `pm-row-${idx}`;
+        const flavourColor = product.flavourColor || "#cbd5f5";
         return `
-        <tr data-row="${idx}" data-variant-id="${product.variantId}">
+        <tr class="pm-rowAccent" style="border-left:4px solid ${flavourColor};" data-row="${idx}" data-variant-id="${product.variantId}">
           <td class="pm-sku">${product.sku || "—"}</td>
           <td>${product.title || "Untitled"}</td>
-          <td>
-            <input class="pm-input" type="number" step="0.01" data-field="public" value="${formatInputValue(product.price)}" />
-          </td>
           ${PRICE_TIERS.map((tier) => `
             <td>
               <input class="pm-input" type="number" step="0.01" data-field="${tier}" value="${formatInputValue(tiers[tier])}" />
@@ -74,9 +73,6 @@
           `).join("")}
           <td>
             <div class="pm-actions" id="${rowId}">
-              <label class="pm-sync">
-                <input type="checkbox" data-field="sync" checked /> Sync public price
-              </label>
               <button class="pm-saveBtn" type="button" data-action="save">Save</button>
               <span class="pm-muted" data-field="row-status"></span>
             </div>
@@ -114,9 +110,6 @@
       if (Number.isFinite(num)) priceTiers[tier] = num;
     });
 
-    const publicPrice = data.public !== "" ? Number(data.public) : null;
-    const updatePublicPrice = Boolean(data.sync);
-
     row.querySelector("[data-field='row-status']").textContent = "Saving…";
 
     try {
@@ -125,9 +118,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           variantId: Number(variantId),
-          priceTiers,
-          updatePublicPrice,
-          publicPrice: Number.isFinite(publicPrice) ? publicPrice : undefined
+          priceTiers
         })
       });
       const payload = await resp.json();
@@ -147,64 +138,81 @@
     }
   }
 
-  async function loadProducts(url, contextLabel) {
-    if (state.loading) return;
-    state.loading = true;
-    setStatus(`Loading ${contextLabel}…`);
-    tableBody.innerHTML = `
-      <tr>
-        <td colspan="10" class="pm-muted">Loading…</td>
-      </tr>
-    `;
+  function applyFilter() {
+    const q = (searchInput?.value || "").trim().toLowerCase();
+    state.products = state.allProducts.filter((product) => {
+      if (!q) return true;
+      return (
+        String(product.sku || "").toLowerCase().includes(q) ||
+        String(product.title || "").toLowerCase().includes(q)
+      );
+    });
+    renderTable();
+    renderPriceBoard();
+    setStatus(state.products.length ? `Showing ${state.products.length} SKUs.` : "No products found.");
+  }
 
+  async function hydratePriceTiers() {
+    if (state.loading) return;
+    const variantIds = Array.from(
+      new Set(state.allProducts.map((p) => p.variantId).filter(Boolean))
+    );
+    if (!variantIds.length) return;
+    state.loading = true;
+    setStatus("Refreshing price tiers…");
     try {
-      const resp = await fetch(url);
+      const resp = await fetch("/shopify/variants/price-tiers/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variantIds })
+      });
+      if (!resp.ok) {
+        throw new Error("Unable to refresh price tiers.");
+      }
       const payload = await resp.json();
-      const list = Array.isArray(payload.products) ? payload.products : [];
-      state.products = list;
-      renderTable();
-      setStatus(list.length ? `Loaded ${list.length} SKUs.` : "No products found.");
+      const tiersByVariantId = payload?.priceTiersByVariantId || {};
+      state.allProducts = state.allProducts.map((product) => {
+        const tiers = tiersByVariantId[String(product.variantId)];
+        return tiers ? { ...product, priceTiers: tiers } : product;
+      });
+      applyFilter();
+      showToast("Price tiers refreshed.", "ok");
     } catch (err) {
       console.error("Load failed", err);
-      setStatus("Error loading products.");
-      showToast("Failed to load products.", "err");
+      setStatus("Error loading price tiers.");
+      showToast("Failed to load price tiers.", "err");
     } finally {
       state.loading = false;
     }
   }
 
-  function handleSearch() {
-    const q = (searchInput?.value || "").trim();
-    if (!q) {
-      showToast("Enter a search term.", "err");
+  function renderPriceBoard() {
+    if (!priceBoard) return;
+    const list = state.products;
+    if (!list.length) {
+      priceBoard.innerHTML = `<div class="pm-muted">No private prices available yet.</div>`;
       return;
     }
-    const url = `/shopify/products/search?q=${encodeURIComponent(q)}&includePriceTiers=1`;
-    loadProducts(url, `search results for "${q}"`);
+    priceBoard.innerHTML = list
+      .map((product) => {
+        const tiers = normalizePriceTiers(product);
+        const privatePrice = tiers.private ?? tiers.default ?? tiers.standard ?? product.price ?? null;
+        const colour = product.flavourColor || "#38bdf8";
+        return `
+          <div class="pm-priceCard" style="border-left-color:${colour}">
+            <div class="pm-priceSku">${product.sku || "—"}</div>
+            <div class="pm-priceTitle">${product.title || "Untitled"}</div>
+            <div class="pm-priceValue">${privatePrice != null ? `R${Number(privatePrice).toFixed(2)}` : "—"}</div>
+          </div>
+        `;
+      })
+      .join("");
   }
 
-  function handleCollection() {
-    const handle = (collectionInput?.value || "").trim();
-    if (!handle) {
-      showToast("Enter a collection handle.", "err");
-      return;
-    }
-    const url = `/shopify/products/collection?handle=${encodeURIComponent(handle)}&includePriceTiers=1`;
-    loadProducts(url, `collection ${handle}`);
-  }
-
-  if (searchBtn) searchBtn.addEventListener("click", handleSearch);
-  if (collectionBtn) collectionBtn.addEventListener("click", handleCollection);
   if (searchInput) {
-    searchInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") handleSearch();
-    });
+    searchInput.addEventListener("input", () => applyFilter());
   }
-  if (collectionInput) {
-    collectionInput.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") handleCollection();
-    });
-  }
+  if (refreshBtn) refreshBtn.addEventListener("click", hydratePriceTiers);
 
   if (tableBody) {
     tableBody.addEventListener("click", (event) => {
@@ -216,4 +224,8 @@
       }
     });
   }
+
+  state.allProducts = PRODUCT_UTILS.products || [];
+  applyFilter();
+  hydratePriceTiers();
 })();
