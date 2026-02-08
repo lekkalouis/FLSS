@@ -163,7 +163,7 @@ export function initFlocsView() {
     String(value || "")
       .toUpperCase()
       .replace(/[^A-Z]/g, "")
-      .slice(0, 2)
+      .slice(0, 4)
       .split("");
 
   const updateAzBarActive = (letters = []) => {
@@ -564,27 +564,17 @@ export function initFlocsView() {
       return;
     }
     const c = state.customer;
-    const shipAddr = currentShippingAddress();
-    const billAddr = currentBillingAddress();
-    const billText = billAddr
-      ? formatAddress(billAddr).replace(/\n/g, "<br/>")
-      : "—";
-    const shipText = shipAddr
-      ? formatAddress(shipAddr).replace(/\n/g, "<br/>")
-      : "—";
+    const chips = [
+      c.name,
+      c.email,
+      c.phone,
+      c.companyName,
+      state.priceTier ? `Tier: ${state.priceTier}` : null
+    ].filter(Boolean);
 
-    customerChips.innerHTML = `
-      <div class="flocs-chipAddresses">
-        <div class="flocs-chipAddress">
-          <span class="flocs-chipLabel">Billing address</span>
-          <div class="flocs-chipAddressText">${billText}</div>
-        </div>
-        <div class="flocs-chipAddress">
-          <span class="flocs-chipLabel">Shipping address</span>
-          <div class="flocs-chipAddressText">${shipText}</div>
-        </div>
-      </div>
-    `;
+    customerChips.innerHTML = chips
+      .map((chip) => `<span class="flocs-chip">${chip}</span>`)
+      .join("");
   }
 
   function renderAddressSelect(selectEl, previewEl, addressIndexKey) {
@@ -623,12 +613,9 @@ export function initFlocsView() {
       state[addressIndexKey] != null ? state[addressIndexKey] : 0;
     selectEl.value = String(Math.min(idx, addrs.length - 1));
     state[addressIndexKey] = Number(selectEl.value);
-    const addr = addrs[state[addressIndexKey]];
-    if (addr && previewEl) {
-      previewEl.textContent = formatAddress(addr);
-      previewEl.hidden = false;
-    } else if (previewEl) {
+    if (previewEl) {
       previewEl.hidden = true;
+      previewEl.textContent = "";
     }
   }
 
@@ -1299,11 +1286,35 @@ ${state.customer.email || ""}${
     if (!filterFlavour || !filterSize) return;
     const flavours = new Set();
     const sizes = new Set();
+    const flavourStats = new Map();
     state.products.forEach((p) => {
-      if (p.flavour) flavours.add(p.flavour);
+      if (p.flavour) {
+        flavours.add(p.flavour);
+        const stats = flavourStats.get(p.flavour) || {
+          hasPopcorn: false,
+          hasNonPopcorn: false
+        };
+        const isPopcorn = String(p.title || "")
+          .toLowerCase()
+          .includes("popcorn sprinkle");
+        if (isPopcorn) {
+          stats.hasPopcorn = true;
+        } else {
+          stats.hasNonPopcorn = true;
+        }
+        flavourStats.set(p.flavour, stats);
+      }
       if (p.size) sizes.add(p.size);
     });
-    const flavourOptions = ["", ...Array.from(flavours).sort()];
+    const flavourOptions = [
+      "",
+      ...Array.from(flavours)
+        .filter((flavour) => {
+          const stats = flavourStats.get(flavour);
+          return !(stats?.hasPopcorn && !stats.hasNonPopcorn);
+        })
+        .sort()
+    ];
     const sizeOptions = ["", "100ml", "200ml", "Other"].filter((s) => {
       if (!s) return true;
       if (s === "Other") {
@@ -1576,7 +1587,7 @@ ${state.customer.email || ""}${
     }
     state.customerTags = [];
     state.priceTier = null;
-    state.filters = { flavour: "", size: "" };
+    state.filters = { flavour: "", size: "200ml" };
     state.priceOverrides = {};
     state.priceOverrideEnabled = {};
     state.azLetters = [];
@@ -1748,11 +1759,9 @@ ${state.customer.email || ""}${
         state.shippingAddressIndex =
           v === "" ? null : Number(v);
         const addr = currentShippingAddress();
-        if (addr) {
-          addrPreview.textContent = formatAddress(addr);
-          addrPreview.hidden = false;
-        } else {
+        if (addrPreview) {
           addrPreview.hidden = true;
+          addrPreview.textContent = "";
         }
         renderCustomerChips();
         renderInvoice();
@@ -1766,12 +1775,9 @@ ${state.customer.email || ""}${
         if (!state.customer) return;
         state.billingAddressIndex =
           v === "" ? null : Number(v);
-        const addr = currentBillingAddress();
-        if (addr && billingAddrPreview) {
-          billingAddrPreview.textContent = formatAddress(addr);
-          billingAddrPreview.hidden = false;
-        } else if (billingAddrPreview) {
+        if (billingAddrPreview) {
           billingAddrPreview.hidden = true;
+          billingAddrPreview.textContent = "";
         }
         renderCustomerChips();
         renderInvoice();
@@ -1889,16 +1895,17 @@ ${state.customer.email || ""}${
         const normalizedValue = normalizeAzLetters(currentValue);
         let nextLetters = [];
 
+        const maxLetters = 4;
         if (
           currentLetters.length === 1 &&
           currentLetters[0] === letter &&
           normalizedValue.length === 1
         ) {
           nextLetters = [];
-        } else if (currentLetters.length === 1) {
-          nextLetters = [currentLetters[0], letter];
+        } else if (currentLetters.length < maxLetters) {
+          nextLetters = [...currentLetters, letter];
         } else {
-          nextLetters = [letter];
+          nextLetters = [...currentLetters.slice(1), letter];
         }
 
         state.azLetters = nextLetters;

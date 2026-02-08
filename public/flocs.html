@@ -418,15 +418,15 @@
     .flocs-filterButtons {
       display:flex;
       flex-wrap:wrap;
-      gap:.4rem;
+      gap:.3rem;
     }
     .flocs-filterBtn {
       border:1px solid var(--panel-strong);
       background:var(--panel);
       color:var(--muted);
-      padding:.3rem .7rem;
+      padding:.2rem .55rem;
       border-radius:999px;
-      font-size:.75rem;
+      font-size:.68rem;
       cursor:pointer;
       transition:all .2s ease;
     }
@@ -773,10 +773,6 @@
           <span>📝</span>
           <span>Create draft order</span>
         </button>
-        <button id="flocs-calcShip" class="flocs-actionBtn" type="button">
-          <span>⛟</span>
-          <span>Calculate shipping</span>
-        </button>
         <button id="flocs-createOrderBtn" class="flocs-actionBtn" type="button">
           <span>✅</span>
           <span>Create live order</span>
@@ -939,7 +935,6 @@
           <select id="flocs-billingAddressSelect" class="flocs-select">
             <option value="">Select a customer first…</option>
           </select>
-          <div id="flocs-billingAddressPreview" class="flocs-addressPreview" hidden></div>
         </div>
 
         <!-- Shipping address selector -->
@@ -951,7 +946,6 @@
           <select id="flocs-addressSelect" class="flocs-select">
             <option value="">Select a customer first…</option>
           </select>
-          <div id="flocs-addressPreview" class="flocs-addressPreview" hidden></div>
         </div>
 
         <!-- Product grid -->
@@ -987,6 +981,10 @@
           </table>
           <div class="flocs-actionsRow">
             <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
+            <button id="flocs-calcShip" class="flocs-actionBtn" type="button">
+              <span>⛟</span>
+              <span>Calculate shipping</span>
+            </button>
           </div>
           <div id="flocs-errors" class="flocs-errors"></div>
         </div>
