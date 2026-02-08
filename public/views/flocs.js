@@ -32,6 +32,7 @@ export function initFlocsView() {
   { sku: "FL032", title: "FL032 – Flippen Lekka Curry Mix 500g", flavour: "Curry", size: "500g", variantId: 42912372097071, weightKg: 0.51, prices: { standard: 110.0 } },
   { sku: "FL033", title: "FL033 – Flippen Lekka Curry Mix 1kg", flavour: "Curry", size: "1kg", variantId: 42912372129839, weightKg: 1.007, prices: { standard: 220.0 } },
   { sku: "FL035", title: "FL035 – Chutney Sprinkle 200ml", flavour: "Chutney", size: "200ml", variantId: 42873122291759, weightKg: 0.22, prices: { standard: 45.0 } },
+  { sku: "FL036", title: "FL036 – Chutney Sprinkle 500g", flavour: "Chutney", size: "500g", variantId: 42873122324527, weightKg: 0.51, prices: { standard: 100.0 } },
   { sku: "FL037", title: "FL037 – Chutney Sprinkle 1kg", flavour: "Chutney", size: "1kg", variantId: 42873122357295, weightKg: 1.007, prices: { standard: 200.0 } },
   { sku: "FL038", title: "FL038 – Flippen Lekka Savoury Herb Mix 200ml", flavour: "Savoury Herb", size: "200ml", variantId: 43582507352111, weightKg: 0.12, prices: { standard: 45.0 } },
   { sku: "FL039", title: "FL039 – Flippen Lekka Savoury Herb Mix 500g", flavour: "Savoury Herb", size: "500g", variantId: 43582507384879, weightKg: 0.51, prices: { standard: 130.0 } },
@@ -45,7 +46,7 @@ export function initFlocsView() {
   { sku: "FL062", title: "FL062 – Cheese & Onion Popcorn Sprinkle 100ml", flavour: "Cheese & Onion", size: "100ml", variantId: 43610218037295, weightKg: 0.12, prices: { standard: 25.0 } },
   { sku: "FL065", title: "FL065 – Salt & Vinegar Popcorn Sprinkle 100ml", flavour: "Salt & Vinegar", size: "100ml", variantId: 43610218659887, weightKg: 0.15, prices: { standard: 25.0 } },
   { sku: "FLBS001", title: "FLBS001 – Original Multi Purpose Basting Sauce 375ml", flavour: "Original", size: "375ml", variantId: 43610234912815, weightKg: 0.42, prices: { standard: 30.0 } },
-  { sku: "FLBS002", title: "FLBS002 – Original Multi Purpose Basting Sauce 12x375ml", flavour: "Original", size: "12 x 375ml", variantId: 43610234945583, weightKg: 5.0, prices: { standard: 360.0 } },
+ 
   // ... continues for all 54 variants
 ]
   };
