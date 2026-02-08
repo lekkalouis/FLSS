@@ -2171,6 +2171,201 @@ async function startOrder(orderNo) {
     return `<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
   }
 
+  const PACKING_SIZE_ORDER = ["250ml", "500g", "1kg"];
+  const PACKING_BOX_LIMITS = {
+    default: { "250ml": 24, "500g": 12, "1kg": 6 },
+    curryMix: { "250ml": 30, "500g": 15, "1kg": 8 }
+  };
+  const PACKING_SIZE_WEIGHT_KG = { "250ml": 0.18, "500g": 0.51, "1kg": 1.007 };
+
+  function normalizePackingSize(raw) {
+    if (!raw) return "";
+    const match = String(raw)
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .match(/(\d+(?:\.\d+)?(?:ml|g|kg))/);
+    return match ? match[1] : "";
+  }
+
+  function getSizeFromOptions(lineItem) {
+    const candidates = [];
+    const optionSets = [
+      lineItem?.options_with_values,
+      lineItem?.options,
+      lineItem?.variant_options
+    ];
+    optionSets.forEach((set) => {
+      if (!Array.isArray(set)) return;
+      set.forEach((option) => {
+        if (option == null) return;
+        if (typeof option === "string") {
+          candidates.push(option);
+          return;
+        }
+        if (typeof option === "object") {
+          if (option.name && /size/i.test(option.name) && option.value) {
+            candidates.push(option.value);
+          } else if (option.value) {
+            candidates.push(option.value);
+          }
+        }
+      });
+    });
+    for (const value of candidates) {
+      const normalized = normalizePackingSize(value);
+      if (normalized) return normalized;
+    }
+    return "";
+  }
+
+  function getLineItemSize(lineItem) {
+    const explicit = getSizeFromOptions(lineItem);
+    if (explicit) return explicit;
+    const variantTitle = (lineItem?.variant_title || "").trim();
+    if (variantTitle && variantTitle.toLowerCase() !== "default title") {
+      const parts = variantTitle.split("/").map((part) => part.trim());
+      for (const part of parts) {
+        const normalized = normalizePackingSize(part);
+        if (normalized) return normalized;
+      }
+    }
+    return "";
+  }
+
+  function getPackingLimit(sizeKey, isCurryMix) {
+    if (!sizeKey) return 0;
+    const limits = isCurryMix ? PACKING_BOX_LIMITS.curryMix : PACKING_BOX_LIMITS.default;
+    return Number(limits[sizeKey]) || 0;
+  }
+
+  function getLineItemWeightKg(lineItem, sizeKey) {
+    const grams = Number(lineItem?.grams);
+    if (!Number.isNaN(grams) && grams > 0) return grams / 1000;
+    return PACKING_SIZE_WEIGHT_KG[sizeKey] || 0;
+  }
+
+  function buildDispatchPackingPlan(order) {
+    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const items = lineItems
+      .map((lineItem) => {
+        const quantity = Number(lineItem?.quantity) || 0;
+        if (quantity <= 0) return null;
+        const sizeKey = getLineItemSize(lineItem);
+        const isCurryMix = /curry\s*mix/i.test(lineItem?.title || "");
+        const weightKg = getLineItemWeightKg(lineItem, sizeKey);
+        return {
+          title: lineItem?.title || "Item",
+          sizeKey: sizeKey || "unknown",
+          sizeLabel: sizeKey || "Unspecified",
+          quantity,
+          isCurryMix,
+          weightKg
+        };
+      })
+      .filter(Boolean);
+
+    const totalsBySize = {};
+    const groupTotals = new Map();
+    let totalWeightKg = 0;
+
+    items.forEach((item) => {
+      totalsBySize[item.sizeLabel] = (totalsBySize[item.sizeLabel] || 0) + item.quantity;
+      totalWeightKg += item.quantity * (item.weightKg || 0);
+      const groupKey = `${item.sizeKey}::${item.isCurryMix ? "curry" : "default"}`;
+      const existing = groupTotals.get(groupKey) || {
+        sizeKey: item.sizeKey,
+        sizeLabel: item.sizeLabel,
+        isCurryMix: item.isCurryMix,
+        total: 0
+      };
+      existing.total += item.quantity;
+      groupTotals.set(groupKey, existing);
+    });
+
+    const sizeOrderLookup = new Map(
+      PACKING_SIZE_ORDER.map((size, index) => [size, index])
+    );
+    const orderedGroups = Array.from(groupTotals.values()).sort((a, b) => {
+      const aIndex = sizeOrderLookup.has(a.sizeKey) ? sizeOrderLookup.get(a.sizeKey) : 99;
+      const bIndex = sizeOrderLookup.has(b.sizeKey) ? sizeOrderLookup.get(b.sizeKey) : 99;
+      if (aIndex !== bIndex) return aIndex - bIndex;
+      if (a.isCurryMix !== b.isCurryMix) return a.isCurryMix ? -1 : 1;
+      return a.sizeLabel.localeCompare(b.sizeLabel);
+    });
+
+    const boxes = [];
+    orderedGroups.forEach((group) => {
+      const limit = getPackingLimit(group.sizeKey, group.isCurryMix);
+      const perBox = limit > 0 ? limit : group.total;
+      let remaining = group.total;
+      while (remaining > 0) {
+        const count = Math.min(perBox, remaining);
+        boxes.push({
+          index: boxes.length + 1,
+          label: `Box ${boxes.length + 1}`,
+          sizeLabel: group.sizeLabel,
+          sizeKey: group.sizeKey,
+          count,
+          isCurryMix: group.isCurryMix,
+          limit: perBox
+        });
+        remaining -= count;
+      }
+    });
+
+    return {
+      items,
+      boxes,
+      totalsBySize,
+      totalWeightKg,
+      estimatedBoxes: boxes.length
+    };
+  }
+
+  function renderDispatchPackingPlanBoxes(plan, options = {}) {
+    if (!plan || !plan.boxes.length) {
+      return `<div class="${options.forPrint ? "packingPlanEmpty" : "dispatchPackingPlanEmpty"}">No packing plan available.</div>`;
+    }
+    return plan.boxes
+      .map((box) => {
+        const curryTag = box.isCurryMix ? " · Curry Mix" : "";
+        return `
+          <div class="${options.forPrint ? "packingPlanBox" : "dispatchPackingPlanBox"}">
+            <div class="${options.forPrint ? "packingPlanBoxTitle" : "dispatchPackingPlanBoxTitle"}">${box.label}</div>
+            <div class="${options.forPrint ? "packingPlanBoxLine" : "dispatchPackingPlanBoxLine"}">
+              ${box.count} × ${box.sizeLabel}${curryTag}
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function renderDispatchPackingPlanSummary(plan, options = {}) {
+    if (!plan) return "";
+    const sizeKeys = Object.keys(plan.totalsBySize || {});
+    const sizeOrderLookup = new Map(
+      PACKING_SIZE_ORDER.map((size, index) => [size, index])
+    );
+    const sizeList = sizeKeys
+      .sort((a, b) => {
+        const aIndex = sizeOrderLookup.has(a) ? sizeOrderLookup.get(a) : 99;
+        const bIndex = sizeOrderLookup.has(b) ? sizeOrderLookup.get(b) : 99;
+        if (aIndex !== bIndex) return aIndex - bIndex;
+        return a.localeCompare(b);
+      })
+      .map((size) => `${size}: ${plan.totalsBySize[size]}`)
+      .join(" · ");
+    const weightLabel = plan.totalWeightKg ? `${plan.totalWeightKg.toFixed(2)}kg` : "—";
+    return `
+      <div class="${options.forPrint ? "packingPlanSummary" : "dispatchPackingPlanSummary"}">
+        <div class="${options.forPrint ? "packingPlanSummaryRow" : "dispatchPackingPlanSummaryRow"}"><strong>Totals:</strong> ${sizeList || "No size breakdown"}</div>
+        <div class="${options.forPrint ? "packingPlanSummaryRow" : "dispatchPackingPlanSummaryRow"}">Estimated boxes: ${plan.estimatedBoxes || 0}</div>
+        <div class="${options.forPrint ? "packingPlanSummaryRow" : "dispatchPackingPlanSummaryRow"}">Total weight: ${weightLabel}</div>
+      </div>
+    `;
+  }
+
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
     if (!packingState) return "";
     const isActive = packingState.active || options.forceOpen;
@@ -2251,6 +2446,7 @@ async function startOrder(orderNo) {
     const order = dispatchOrderCache.get(orderNo);
     if (!order) return;
     const packingState = getPackingState(order);
+    const packingPlan = buildDispatchPackingPlan(order);
     const laneId = laneFromOrder(order);
     const title = order.customer_name || order.name || `Order ${order.id}`;
     const city = order.shipping_city || "";
@@ -2264,6 +2460,18 @@ async function startOrder(orderNo) {
       <div class="dispatchCardLines">${lines || "No line items listed."}</div>
       <div class="dispatchCardActions">
         ${renderDispatchActions(order, laneId, orderNo, packingState)}
+      </div>
+      <div class="dispatchPackingPlan">
+        <div class="dispatchPackingPlanHeader">
+          <div class="dispatchPackingPlanTitle">Packing plan</div>
+          <button class="dispatchPackingPlanPrint" type="button" data-action="print-packing-plan" data-order-no="${orderNo}" aria-label="Print packing plan">
+            <span aria-hidden="true">🧾</span>
+          </button>
+        </div>
+        <div class="dispatchPackingPlanBoxes">
+          ${renderDispatchPackingPlanBoxes(packingPlan)}
+        </div>
+        ${renderDispatchPackingPlanSummary(packingPlan)}
       </div>
       ${renderDispatchPackingPanel(packingState, orderNo, { forceOpen: true })}
     `;
@@ -2673,7 +2881,52 @@ async function startOrder(orderNo) {
     return true;
   }
 
-  async function printDeliveryNote(order) {
+  function printPackingPlan(orderNo) {
+    const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+    if (!order || !orderNo) return false;
+    const title = order.customer_name || order.name || `Order ${order.id}`;
+    const created = order.created_at ? new Date(order.created_at).toLocaleString() : "";
+    const plan = buildDispatchPackingPlan(order);
+    const boxesHtml = renderDispatchPackingPlanBoxes(plan, { forPrint: true });
+    const summaryHtml = renderDispatchPackingPlanSummary(plan, { forPrint: true });
+    const doc = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Packing plan ${orderNo}</title>
+        <style>
+          body{ font-family:Arial, sans-serif; padding:24px; color:#0f172a; }
+          h1{ font-size:18px; margin-bottom:6px; }
+          .meta{ font-size:12px; color:#475569; margin-bottom:16px; }
+          .packingPlanGrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px; margin-bottom:16px; }
+          .packingPlanBox{ border:1px solid #cbd5f5; border-radius:6px; padding:10px; }
+          .packingPlanBoxTitle{ font-weight:600; margin-bottom:4px; }
+          .packingPlanBoxLine{ font-size:12px; color:#1f2937; }
+          .packingPlanSummary{ font-size:12px; color:#0f172a; }
+          .packingPlanSummaryRow{ margin-bottom:4px; }
+          .packingPlanEmpty{ font-size:12px; color:#64748b; }
+        </style>
+      </head>
+      <body>
+        <h1>Packing plan • Order ${orderNo}</h1>
+        <div class="meta">${title}${created ? ` · ${created}` : ""}</div>
+        <div class="packingPlanGrid">${boxesHtml}</div>
+        ${summaryHtml}
+      </body>
+      </html>
+    `;
+    const win = window.open("", "_blank", "width=820,height=900");
+    if (!win) return false;
+    win.document.open();
+    win.document.write(doc);
+    win.document.close();
+    win.focus();
+    win.print();
+    return true;
+  }
+
+  function printDeliveryNote(order) {
     if (!order) return false;
     const orderNo = String(order.name || "").replace("#", "").trim();
     let orderData = order;
@@ -3516,6 +3769,17 @@ async function startOrder(orderNo) {
         return true;
       }
       statusExplain(`${docLabel} printed for ${orderNo}.`, "ok");
+      return true;
+    }
+    if (actionType === "print-packing-plan") {
+      if (!orderNo) return true;
+      const ok = printPackingPlan(orderNo);
+      if (!ok) {
+        statusExplain("Packing plan blocked by popup settings.", "warn");
+        logDispatchEvent("Packing plan blocked by popup settings.");
+        return true;
+      }
+      statusExplain(`Packing plan printed for ${orderNo}.`, "ok");
       return true;
     }
     if (actionType === "print-note") {
