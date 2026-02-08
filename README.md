@@ -9,7 +9,7 @@ FLSS is a single-page operations console for Flippen Lekka that combines three o
 - **FLOCS (Order Capture)** for creating Shopify customers, searching products, quoting shipping, and creating draft orders/orders.
 - **Stock Take** for offline/local stock adjustments stored in browser storage.
 
-The server acts as a secure proxy to ParcelPerfect, Shopify Admin APIs (OAuth client credentials), and PrintNode. It also serves the static frontend pages from `/public`.【F:server.js†L1-L453】【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】【F:public/flocs.html†L1-L200】【F:public/flocs.js†L1-L200】【F:public/stock.js†L1-L200】
+The server acts as a secure proxy to ParcelPerfect, Shopify Admin APIs (OAuth client credentials), and PrintNode. It also serves the static frontend pages from `/public`.【F:server.js†L1-L453】【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】【F:public/views/flocs.js†L1-L200】【F:public/stock.js†L1-L200】
 
 ---
 
@@ -120,12 +120,12 @@ Ops dashboard that lists open Shopify orders in lanes (delivery/shipping/pickup)
 
 ### 3) FLOCS (Order Capture)
 
-A standalone page (`/flocs`) to capture a new order:
+Order capture is a single-page app view (`/flocs`) to capture a new order:
 
-- Search/select Shopify customers, create new customers, and store a preferred delivery method as a metafield (`custom.delivery_method`).【F:public/flocs.js†L1-L260】【F:server.js†L273-L374】
-- Search products by title/SKU, load collection items, or use a local SKU/variant catalog (`CONFIG.PRODUCTS`).【F:public/flocs.js†L1-L200】【F:server.js†L376-L564】
-- Calculate shipping quotes via ParcelPerfect (`/pp`) and embed shipping cost/services into draft orders or orders.【F:public/flocs.js†L1-L200】
-- Create draft orders, complete them to orders, or create orders directly via Shopify endpoints.【F:public/flocs.js†L1-L200】【F:server.js†L566-L799】
+- Search/select Shopify customers, create new customers, and store a preferred delivery method as a metafield (`custom.delivery_method`).【F:public/views/flocs.js†L1-L260】【F:server.js†L273-L374】
+- Search products by title/SKU, load collection items, or use a local SKU/variant catalog (`CONFIG.PRODUCTS`).【F:public/views/flocs.js†L1-L200】【F:server.js†L376-L564】
+- Calculate shipping quotes via ParcelPerfect (`/pp`) and embed shipping cost/services into draft orders or orders.【F:public/views/flocs.js†L1-L200】
+- Create draft orders, complete them to orders, or create orders directly via Shopify endpoints.【F:public/views/flocs.js†L1-L200】【F:server.js†L566-L799】
 
 ### 4) Stock Take
 
@@ -148,7 +148,7 @@ A standalone page (`/flocs`) to capture a new order:
 | `orderDetails` | Normalized Shopify order data used for bookings: name, contact details, address, line items, weights, parcel counts, and place code. | `/shopify/orders/by-name/:name` + ParcelPerfect place lookup.【F:public/app.js†L1224-L1318】 |
 | `parcel` | Parsed scan information: `{ orderNo, parcelSeq }`. | Scan input parsing logic.【F:public/app.js†L1160-L1197】 |
 | `dispatchOrder` | Open order card data: customer name, shipping address, line items, status. | `/shopify/orders/open` response transformed by backend.【F:server.js†L756-L873】【F:public/app.js†L1341-L1460】 |
-| `flocs state` | Current order capture state including customer, address, items, shipping quote, and price tier. | `state` object in FLOCS JS.【F:public/flocs.js†L116-L180】 |
+| `flocs state` | Current order capture state including customer, address, items, shipping quote, and price tier. | `state` object in FLOCS JS.【F:public/views/flocs.js†L116-L180】 |
 | `stockLevels` | Local map of SKU → count. | `localStorage` in stock tool.【F:public/stock.js†L34-L112】 |
 
 ### Shopify entities (backend normalization)
@@ -196,8 +196,8 @@ A standalone page (`/flocs`) to capture a new order:
 
 ### FLOCS (Order Capture)
 
-- **Customer/product search debounce** and local SKU catalog enable faster entry even if Shopify search is slow or limited.【F:public/flocs.js†L1-L200】
-- **Price tiers** are derived from Shopify customer tags to automatically apply price lists (agent/retailer/export/private/fkb).【F:public/flocs.js†L146-L200】
+- **Customer/product search debounce** and local SKU catalog enable faster entry even if Shopify search is slow or limited.【F:public/views/flocs.js†L1-L200】
+- **Price tiers** are derived from Shopify customer tags to automatically apply price lists (agent/retailer/export/private/fkb).【F:public/views/flocs.js†L146-L200】
 
 ### Stock Take
 
@@ -296,7 +296,7 @@ This allows warehouse/ops to book shipments from a dispatch overview without swi
 3. Optionally quote shipping (ParcelPerfect) to fill the shipping line.
 4. Create draft orders or orders in Shopify, optionally completing drafts.
 
-FLOCS embeds pricing logic (customer tag-based tiers) and supports collection-based product loading to speed order creation.【F:public/flocs.js†L116-L200】【F:server.js†L566-L799】
+FLOCS embeds pricing logic (customer tag-based tiers) and supports collection-based product loading to speed order creation.【F:public/views/flocs.js†L116-L200】【F:server.js†L566-L799】
 
 ### Stock Take flow
 
@@ -363,7 +363,7 @@ The root `server.js` is a thin entrypoint that imports the app and starts the li
 - `src/services/` — Shopify token cache + SMTP transport helpers. 【F:src/services/shopify.js†L1-L115】【F:src/services/email.js†L1-L21】
 - `src/utils/http.js` — Shared HTTP helpers (bad request, status). 【F:src/utils/http.js†L1-L6】
 - `public/index.html` + `public/app.js` — Scan Station + Dispatch Board + embedded docs. 【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】
-- `public/flocs.html` + `public/flocs.js` — FLOCS order capture tool. 【F:public/flocs.html†L1-L200】【F:public/flocs.js†L1-L200】
+- `public/views/flocs.js` — FLOCS order capture logic (SPA view). 【F:public/views/flocs.js†L1-L200】
 - `public/price-manager.html` + `public/price-manager.js` — Price manager for tier pricing and storefront sync. 【F:public/price-manager.html†L1-L200】【F:public/price-manager.js†L1-L201】
 - `public/stock.html` + `public/stock.js` — Stock take tool. 【F:public/stock.js†L1-L200】
 - `.env.example` — Example environment config. 【F:.env.example†L1-L18】

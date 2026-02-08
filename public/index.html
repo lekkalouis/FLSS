@@ -2177,7 +2177,7 @@
           <li><strong>FLOCS (Order Capture)</strong> for creating Shopify customers, searching products, quoting shipping, and creating draft orders/orders.</li>
           <li><strong>Stock Take</strong> for offline/local stock adjustments stored in browser storage.</li>
         </ul>
-        <p>The server acts as a secure proxy to ParcelPerfect, Shopify Admin APIs (OAuth client credentials), and PrintNode. It also serves the static frontend pages from <span class="docsCode">/public</span>.【F:server.js†L1-L453】【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】【F:public/flocs.html†L1-L200】【F:public/flocs.js†L1-L200】【F:public/stock.js†L1-L200】</p>
+        <p>The server acts as a secure proxy to ParcelPerfect, Shopify Admin APIs (OAuth client credentials), and PrintNode. It also serves the static frontend pages from <span class="docsCode">/public</span>.【F:server.js†L1-L453】【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】【F:public/views/flocs.js†L1-L200】【F:public/stock.js†L1-L200】</p>
 
         <hr class="docsDivider" />
 
@@ -2279,12 +2279,12 @@
           <li>“Print delivery note” opens a printable HTML document with line items and shipping address details.【F:public/app.js†L1462-L1533】</li>
         </ul>
         <h4>3) FLOCS (Order Capture)</h4>
-        <p>A standalone page (<span class="docsCode">/flocs</span>) to capture a new order:</p>
+        <p>A single-page app view (<span class="docsCode">/flocs</span>) to capture a new order:</p>
         <ul>
-          <li>Search/select Shopify customers, create new customers, and store a preferred delivery method as a metafield (<span class="docsCode">custom.delivery_method</span>).【F:public/flocs.js†L1-L260】【F:server.js†L273-L374】</li>
-          <li>Search products by title/SKU, load collection items, or use a local SKU/variant catalog (<span class="docsCode">CONFIG.PRODUCTS</span>).【F:public/flocs.js†L1-L200】【F:server.js†L376-L564】</li>
-          <li>Calculate shipping quotes via ParcelPerfect (<span class="docsCode">/pp</span>) and embed shipping cost/services into draft orders or orders.【F:public/flocs.js†L1-L200】</li>
-          <li>Create draft orders, complete them to orders, or create orders directly via Shopify endpoints.【F:public/flocs.js†L1-L200】【F:server.js†L566-L799】</li>
+          <li>Search/select Shopify customers, create new customers, and store a preferred delivery method as a metafield (<span class="docsCode">custom.delivery_method</span>).【F:public/views/flocs.js†L1-L260】【F:server.js†L273-L374】</li>
+          <li>Search products by title/SKU, load collection items, or use a local SKU/variant catalog (<span class="docsCode">CONFIG.PRODUCTS</span>).【F:public/views/flocs.js†L1-L200】【F:server.js†L376-L564】</li>
+          <li>Calculate shipping quotes via ParcelPerfect (<span class="docsCode">/pp</span>) and embed shipping cost/services into draft orders or orders.【F:public/views/flocs.js†L1-L200】</li>
+          <li>Create draft orders, complete them to orders, or create orders directly via Shopify endpoints.【F:public/views/flocs.js†L1-L200】【F:server.js†L566-L799】</li>
         </ul>
         <h4>4) Stock Take</h4>
         <ul>
@@ -2328,7 +2328,7 @@
             <tr>
               <td>flocs state</td>
               <td>Current order capture state including customer, address, items, shipping quote, and price tier.</td>
-              <td><span class="docsCode">state</span> object in FLOCS JS.【F:public/flocs.js†L116-L180】</td>
+              <td><span class="docsCode">state</span> object in FLOCS JS.【F:public/views/flocs.js†L116-L180】</td>
             </tr>
             <tr>
               <td><span class="docsCode">stockLevels</span></td>
@@ -2427,8 +2427,8 @@
         </ul>
         <h4>FLOCS (Order Capture)</h4>
         <ul>
-          <li><strong>Customer/product search debounce</strong> and local SKU catalog enable faster entry even if Shopify search is slow or limited.【F:public/flocs.js†L1-L200】</li>
-          <li><strong>Price tiers</strong> are derived from Shopify customer tags to automatically apply price lists (agent/retailer/export/private/fkb).【F:public/flocs.js†L146-L200】</li>
+          <li><strong>Customer/product search debounce</strong> and local SKU catalog enable faster entry even if Shopify search is slow or limited.【F:public/views/flocs.js†L1-L200】</li>
+          <li><strong>Price tiers</strong> are derived from Shopify customer tags to automatically apply price lists (agent/retailer/export/private/fkb).【F:public/views/flocs.js†L146-L200】</li>
         </ul>
         <h4>Stock Take</h4>
         <ul>
@@ -2519,7 +2519,7 @@ PRINTNODE_PRINTER_ID=123456</code></pre>
           <li>Optionally quote shipping (ParcelPerfect) to fill the shipping line.</li>
           <li>Create draft orders or orders in Shopify, optionally completing drafts.</li>
         </ol>
-        <p>FLOCS embeds pricing logic (customer tag-based tiers) and supports collection-based product loading to speed order creation.【F:public/flocs.js†L116-L200】【F:server.js†L566-L799】</p>
+        <p>FLOCS embeds pricing logic (customer tag-based tiers) and supports collection-based product loading to speed order creation.【F:public/views/flocs.js†L116-L200】【F:server.js†L566-L799】</p>
         <h4>Stock Take flow</h4>
         <ol>
           <li>Choose mode (stock take vs received).</li>
@@ -2580,7 +2580,7 @@ npm run dev</code></pre>
           <li><span class="docsCode">src/services/</span> — Shopify token cache + SMTP transport helpers. 【F:src/services/shopify.js†L1-L115】【F:src/services/email.js†L1-L21】</li>
           <li><span class="docsCode">src/utils/http.js</span> — Shared HTTP helpers (bad request, status). 【F:src/utils/http.js†L1-L6】</li>
           <li><span class="docsCode">public/index.html</span> + <span class="docsCode">public/app.js</span> — Scan Station + Dispatch Board + embedded docs. 【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】</li>
-          <li><span class="docsCode">public/flocs.html</span> + <span class="docsCode">public/flocs.js</span> — FLOCS order capture tool. 【F:public/flocs.html†L1-L200】【F:public/flocs.js†L1-L200】</li>
+          <li><span class="docsCode">public/views/flocs.js</span> — FLOCS order capture logic (SPA view). 【F:public/views/flocs.js†L1-L200】</li>
           <li><span class="docsCode">public/price-manager.html</span> + <span class="docsCode">public/price-manager.js</span> — Price manager for tier pricing and storefront sync. 【F:public/price-manager.html†L1-L200】【F:public/price-manager.js†L1-L201】</li>
           <li><span class="docsCode">public/stock.html</span> + <span class="docsCode">public/stock.js</span> — Stock take tool. 【F:public/stock.js†L1-L200】</li>
           <li><span class="docsCode">.env.example</span> — Example environment config. 【F:.env.example†L1-L18】</li>
