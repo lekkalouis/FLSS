@@ -141,7 +141,7 @@ export function initPriceManagerView() {
           <td>
             <div class="pm-actions" id="${rowId}">
               <label class="pm-sync">
-                <input type="checkbox" data-field="sync" checked /> Sync public price
+                <input type="checkbox" data-field="sync" checked /> SPP
               </label>
               <button class="pm-saveBtn" type="button" data-action="save">Save</button>
               <span class="pm-muted" data-field="row-status"></span>
