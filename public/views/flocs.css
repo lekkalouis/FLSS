@@ -644,20 +644,21 @@
       align-items:center;
       gap:.25rem;
       justify-content:flex-end;
+      margin-left:auto;
     }
     #viewFlocs .flocs-qtyArea{
       display:flex;
-      flex-wrap:wrap;
+      flex-wrap:nowrap;
       align-items:center;
       justify-content:flex-end;
       gap:.35rem;
     }
     #viewFlocs .flocs-qtyQuick{
       display:flex;
-      flex-wrap:wrap;
+      flex-wrap:nowrap;
       gap:.2rem;
       justify-content:flex-end;
-      max-width:160px;
+      white-space:nowrap;
     }
     #viewFlocs .flocs-qtyQuickBtn{
       border-radius:.35rem;
