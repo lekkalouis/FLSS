@@ -199,7 +199,7 @@ export function initFlocsView() {
     String(p.variantId || p.sku || p.title || "").trim();
 
   const PRICE_TAGS = ["agent", "retailer", "export", "private", "fkb"];
-  const QUICK_QTY = [1, 3, 6, 5, 10, 12, 24, 48, 96, 100];
+  const QUICK_QTY = [1, 3, 6, 10, 12, 24, 50, 100];
 
   function normalizeTags(tags) {
     if (!tags) return [];
@@ -481,6 +481,9 @@ export function initFlocsView() {
           </td>
           <td>
             <div class="flocs-qtyArea">
+              <div class="flocs-qtyQuick">
+                ${quickButtons}
+              </div>
               <div class="flocs-qtyWrap">
                 <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
                 <input class="flocs-qtyInput"
@@ -492,9 +495,6 @@ export function initFlocsView() {
                        inputmode="numeric"
                        value="${value}" />
                 <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
-              </div>
-              <div class="flocs-qtyQuick">
-                ${quickButtons}
               </div>
             </div>
           </td>
