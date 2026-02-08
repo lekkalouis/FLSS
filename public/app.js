@@ -96,6 +96,9 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const kpiParcels = $("kpiParcels");
   const kpiOpenOrders = $("kpiOpenOrders");
   const kpiRecentShipments = $("kpiRecentShipments");
+  const kpiMode = $("kpiMode");
+  const kpiTruckStatus = $("kpiTruckStatus");
+  const kpiLastScan = $("kpiLastScan");
 
   const MAX_ORDER_AGE_HOURS = 180;
 
@@ -833,6 +836,13 @@ import { initPriceManagerView } from "./views/price-manager.js";
     if (kpiParcels) kpiParcels.textContent = String(dailyParcelCount || 0);
     if (kpiOpenOrders) kpiOpenOrders.textContent = String(dispatchOrdersLatest.length || 0);
     if (kpiRecentShipments) kpiRecentShipments.textContent = String(dispatchShipmentsLatest.length || 0);
+    if (kpiMode) kpiMode.textContent = isAutoMode ? "Auto" : "Manual";
+    if (kpiTruckStatus) kpiTruckStatus.textContent = truckBooked ? "Booked" : "Not booked";
+    if (kpiLastScan) {
+      kpiLastScan.textContent = lastScanAt
+        ? new Date(lastScanAt).toLocaleTimeString()
+        : "--";
+    }
   }
 
   function updateTruckBookingState({ booked, bookedBy }) {
@@ -841,6 +851,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
     truckBookedAt = booked ? new Date().toISOString() : null;
     saveTruckBooking();
     renderTruckPanel();
+    updateDashboardKpis();
   }
 
   async function requestTruckBooking(reason) {
@@ -1965,6 +1976,7 @@ async function startOrder(orderNo) {
     lastScanAt = Date.now();
     lastScanCode = code;
     armedForBooking = false;
+    updateDashboardKpis();
 
     confirmScanFeedback(crossOrderScan ? "warn" : "success");
 
@@ -3055,6 +3067,7 @@ async function startOrder(orderNo) {
     cancelAutoBookTimer();
     saveModePreference();
     updateModeToggle();
+    updateDashboardKpis();
     renderSessionUI();
     statusExplain(isAutoMode ? "Auto mode enabled." : "Manual mode enabled.", "info");
   });
