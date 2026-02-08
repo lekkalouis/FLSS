@@ -559,8 +559,66 @@
       cursor:pointer;
       transition:all .2s ease;
     }
+    #viewFlocs .flocs-filterBtn--flavour{
+      --flavour-color:transparent;
+      position:relative;
+      padding:.3rem .9rem .35rem 1.5rem;
+      border-color:var(--flavour-color);
+      background:var(--panel-soft);
+      color:var(--text);
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+    #viewFlocs .flocs-filterBtn--flavour::before{
+      content:"";
+      position:absolute;
+      left:.55rem;
+      top:50%;
+      width:.45rem;
+      height:.45rem;
+      border-radius:999px;
+      transform:translateY(-50%);
+      background:var(--flavour-color);
+      box-shadow:0 0 10px var(--flavour-color);
+    }
+    #viewFlocs .flocs-filterBtn--flavour::after{
+      content:"";
+      position:absolute;
+      left:.6rem;
+      right:.6rem;
+      bottom:.25rem;
+      height:2px;
+      border-radius:999px;
+      background:var(--flavour-color);
+      opacity:.6;
+    }
+    #viewFlocs .flocs-filterBtn--flavour.is-neutral{
+      border-color:var(--panel-strong);
+      color:var(--muted);
+      text-transform:none;
+      letter-spacing:0;
+      font-weight:500;
+    }
+    #viewFlocs .flocs-filterBtn--flavour.is-neutral::before,
+    #viewFlocs .flocs-filterBtn--flavour.is-neutral::after{
+      background:transparent;
+      box-shadow:none;
+    }
     #viewFlocs .flocs-filterBtn:hover,
     #viewFlocs .flocs-filterBtn.is-active{
+      border-color:rgba(56,189,248,.7);
+      color:#0c4a6e;
+      background:var(--accent-soft);
+    }
+    #viewFlocs .flocs-filterBtn--flavour:hover,
+    #viewFlocs .flocs-filterBtn--flavour.is-active{
+      border-color:var(--flavour-color, rgba(56,189,248,.7));
+      color:var(--text);
+      background:rgba(34,211,238,.08);
+    }
+    #viewFlocs .flocs-filterBtn--flavour.is-neutral:hover,
+    #viewFlocs .flocs-filterBtn--flavour.is-neutral.is-active{
       border-color:rgba(56,189,248,.7);
       color:#0c4a6e;
       background:var(--accent-soft);
