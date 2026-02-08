@@ -1954,6 +1954,7 @@
 
 </style>
   <link rel="stylesheet" href="/views/flocs.css">
+  <link rel="stylesheet" href="/views/mrp.css">
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
 </head>
@@ -1973,6 +1974,7 @@
             <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
+            <button id="navMrp" class="flNavBtn" type="button" role="tab" aria-controls="viewMrp" aria-selected="false" data-route="/mrp"><span class="flNavBtnIcon" aria-hidden="true">🏭</span><span class="flNavBtnText">MRP planner</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
           </div>
@@ -2811,6 +2813,151 @@ npm run dev</code></pre>
         <div id="flocs-toast" class="flocs-toast"></div>
 
         
+    </div>
+
+    <div class="flView" id="viewMrp" hidden>
+      <div class="mrp-shell">
+        <header class="mrp-header">
+          <div class="mrp-title">
+            <h1>MRP Planner</h1>
+            <p>Clone Katana-style material planning with live BOMs, production orders, and shortages.</p>
+          </div>
+          <nav class="mrp-nav">
+            <a class="mrp-link" href="/scan" data-route="/scan">⟵ Scan Station</a>
+            <a class="mrp-link" href="/stock" data-route="/stock">Stock take</a>
+          </nav>
+        </header>
+
+        <section class="mrp-summary">
+          <article class="mrp-summaryCard">
+            <span class="mrp-summaryLabel">Items</span>
+            <strong id="mrp-summaryItems">0</strong>
+          </article>
+          <article class="mrp-summaryCard">
+            <span class="mrp-summaryLabel">BOMs</span>
+            <strong id="mrp-summaryBoms">0</strong>
+          </article>
+          <article class="mrp-summaryCard">
+            <span class="mrp-summaryLabel">Open orders</span>
+            <strong id="mrp-summaryOrders">0</strong>
+          </article>
+          <article class="mrp-summaryCard">
+            <span class="mrp-summaryLabel">Shortages</span>
+            <strong id="mrp-summaryShortages">0</strong>
+          </article>
+        </section>
+
+        <div class="mrp-grid">
+          <section class="mrp-card">
+            <h2>Items & stock</h2>
+            <form id="mrp-itemForm" class="mrp-form">
+              <input id="mrp-itemSku" class="mrp-input" type="text" placeholder="SKU" required />
+              <input id="mrp-itemName" class="mrp-input" type="text" placeholder="Item name" required />
+              <select id="mrp-itemType" class="mrp-select">
+                <option value="product">Finished product</option>
+                <option value="raw">Raw material</option>
+                <option value="packaging">Packaging</option>
+                <option value="consumable">Consumable</option>
+              </select>
+              <input id="mrp-itemUnit" class="mrp-input" type="text" placeholder="Unit (kg, unit)" />
+              <input id="mrp-itemStock" class="mrp-input" type="number" min="0" step="1" placeholder="On hand" />
+              <button class="mrp-btn" type="submit">Add item</button>
+            </form>
+            <table class="mrp-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Item</th>
+                  <th>Type</th>
+                  <th>On hand</th>
+                  <th>Adjust</th>
+                </tr>
+              </thead>
+              <tbody id="mrp-itemsBody"></tbody>
+            </table>
+          </section>
+
+          <section class="mrp-card">
+            <h2>Bill of materials</h2>
+            <form id="mrp-bomForm" class="mrp-form">
+              <select id="mrp-bomProduct" class="mrp-select"></select>
+              <input id="mrp-bomComponents" class="mrp-input mrp-input--wide" type="text" placeholder="Components (SKU:qty, SKU:qty)" required />
+              <button class="mrp-btn" type="submit">Save BOM</button>
+            </form>
+            <table class="mrp-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Components</th>
+                </tr>
+              </thead>
+              <tbody id="mrp-bomsBody"></tbody>
+            </table>
+          </section>
+
+          <section class="mrp-card">
+            <h2>Production orders</h2>
+            <form id="mrp-orderForm" class="mrp-form">
+              <select id="mrp-orderProduct" class="mrp-select"></select>
+              <input id="mrp-orderQty" class="mrp-input" type="number" min="1" step="1" placeholder="Qty" required />
+              <input id="mrp-orderDue" class="mrp-input" type="date" />
+              <input id="mrp-orderBatch" class="mrp-input" type="text" placeholder="Batch / lot" />
+              <select id="mrp-orderStatus" class="mrp-select">
+                <option value="planned">Planned</option>
+                <option value="in-progress">In progress</option>
+                <option value="done">Done</option>
+              </select>
+              <button class="mrp-btn" type="submit">Add order</button>
+            </form>
+            <table class="mrp-table">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Due</th>
+                  <th>Batch</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="mrp-ordersBody"></tbody>
+            </table>
+          </section>
+
+          <section class="mrp-card">
+            <h2>Batch traceability</h2>
+            <p class="mrp-note">Completed production orders add a batch record for traceability.</p>
+            <table class="mrp-table">
+              <thead>
+                <tr>
+                  <th>Batch</th>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Completed</th>
+                </tr>
+              </thead>
+              <tbody id="mrp-batchesBody"></tbody>
+            </table>
+          </section>
+
+          <section class="mrp-card">
+            <h2>Material requirements</h2>
+            <p class="mrp-note">Open orders drive component demand. Shortages highlight what needs purchasing.</p>
+            <table class="mrp-table">
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th>Required</th>
+                  <th>On hand</th>
+                  <th>Short</th>
+                </tr>
+              </thead>
+              <tbody id="mrp-requirementsBody"></tbody>
+            </table>
+          </section>
+        </div>
+      </div>
     </div>
 
     <div class="flView" id="viewStock" hidden>

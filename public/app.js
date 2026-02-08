@@ -1,4 +1,5 @@
 import { initFlocsView } from "./views/flocs.js";
+import { initMrpView } from "./views/mrp.js";
 import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
 
@@ -77,6 +78,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const navOps = $("navOps");
   const navDocs = $("navDocs");
   const navFlocs = $("navFlocs");
+  const navMrp = $("navMrp");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
   const navToggle = $("navToggle");
@@ -85,6 +87,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
   const viewFlocs = $("viewFlocs");
+  const viewMrp = $("viewMrp");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
   const screenFlash = $("screenFlash");
@@ -126,6 +129,15 @@ import { initPriceManagerView } from "./views/price-manager.js";
       target: "/docs",
       meta: "Internal module",
       tag: "Guide"
+    },
+    {
+      id: "mrp",
+      title: "MRP Planner",
+      description: "Plan materials, review BOMs, and track production orders.",
+      type: "route",
+      target: "/mrp",
+      meta: "Planning workspace",
+      tag: "Operations"
     },
     {
       id: "flocs",
@@ -2818,6 +2830,7 @@ async function startOrder(orderNo) {
     const showOps = view === "ops";
     const showDocs = view === "docs";
     const showFlocs = view === "flocs";
+    const showMrp = view === "mrp";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
 
@@ -2841,6 +2854,10 @@ async function startOrder(orderNo) {
       viewFlocs.hidden = !showFlocs;
       viewFlocs.classList.toggle("flView--active", showFlocs);
     }
+    if (viewMrp) {
+      viewMrp.hidden = !showMrp;
+      viewMrp.classList.toggle("flView--active", showMrp);
+    }
     if (viewStock) {
       viewStock.hidden = !showStock;
       viewStock.classList.toggle("flView--active", showStock);
@@ -2855,6 +2872,7 @@ async function startOrder(orderNo) {
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
+    navMrp?.classList.toggle("flNavBtn--active", showMrp);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
@@ -2862,6 +2880,7 @@ async function startOrder(orderNo) {
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
+    navMrp?.setAttribute("aria-selected", showMrp ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
 
@@ -2874,6 +2893,8 @@ async function startOrder(orderNo) {
       statusExplain("Viewing operator documentation", "info");
     } else if (showFlocs) {
       statusExplain("Order capture ready.", "info");
+    } else if (showMrp) {
+      statusExplain("MRP planner ready.", "info");
     } else if (showStock) {
       statusExplain("Stock take ready.", "info");
     } else if (showPriceManager) {
@@ -2890,6 +2911,7 @@ async function startOrder(orderNo) {
     ["/ops", "scan"],
     ["/docs", "docs"],
     ["/flocs", "flocs"],
+    ["/mrp", "mrp"],
     ["/stock", "stock"],
     ["/price-manager", "price-manager"]
   ]);
@@ -2900,12 +2922,14 @@ async function startOrder(orderNo) {
     ops: "/scan",
     docs: "/docs",
     flocs: "/flocs",
+    mrp: "/mrp",
     stock: "/stock",
     "price-manager": "/price-manager"
   };
 
   const viewInitializers = {
     flocs: initFlocsView,
+    mrp: initMrpView,
     stock: initStockView,
     "price-manager": initPriceManagerView
   };

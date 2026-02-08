@@ -127,11 +127,15 @@ A standalone page (`/flocs`) to capture a new order:
 - Calculate shipping quotes via ParcelPerfect (`/pp`) and embed shipping cost/services into draft orders or orders.【F:public/flocs.js†L1-L200】
 - Create draft orders, complete them to orders, or create orders directly via Shopify endpoints.【F:public/flocs.js†L1-L200】【F:server.js†L566-L799】
 
-### 4) Stock Take
+### 4) MRP Planner
+
+- Katana-style MRP planner (`/mrp`) for items, BOMs, production orders, batch traceability, and material shortages stored in `localStorage` under `fl_mrp_v1`.【F:public/views/mrp.js†L1-L418】【F:public/index.html†L2359-L2501】
+
+### 5) Stock Take
 
 - Local-only stock counts stored in `localStorage` under `fl_stock_levels_v1` with “stock take” and “stock received” modes; no backend calls required.【F:public/stock.js†L1-L200】
 
-### 5) Price Manager
+### 6) Price Manager
 
 - Dedicated price-tier editor (`/price-manager.html`) to review SKU pricing tiers and sync tiers into Shopify variant metafields (`custom.price_tiers`).
 - Supports optional public price sync to update storefront pricing by writing the variant price through the Admin API.【F:public/price-manager.js†L1-L201】【F:server.js†L289-L366】
@@ -149,6 +153,7 @@ A standalone page (`/flocs`) to capture a new order:
 | `parcel` | Parsed scan information: `{ orderNo, parcelSeq }`. | Scan input parsing logic.【F:public/app.js†L1160-L1197】 |
 | `dispatchOrder` | Open order card data: customer name, shipping address, line items, status. | `/shopify/orders/open` response transformed by backend.【F:server.js†L756-L873】【F:public/app.js†L1341-L1460】 |
 | `flocs state` | Current order capture state including customer, address, items, shipping quote, and price tier. | `state` object in FLOCS JS.【F:public/flocs.js†L116-L180】 |
+| `mrp state` | Items, BOMs, production orders, and batch records used to compute material requirements locally. | `localStorage` in MRP planner.【F:public/views/mrp.js†L1-L418】 |
 | `stockLevels` | Local map of SKU → count. | `localStorage` in stock tool.【F:public/stock.js†L34-L112】 |
 
 ### Shopify entities (backend normalization)
