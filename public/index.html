@@ -4,6 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Flippen Lekka Scan Station — v5 (cleaned + 100×150 print lock)</title>
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+  integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+  crossorigin="anonymous"
+/>
 <style>
   :root{
     --bg:#f5f7fb;
@@ -49,6 +55,13 @@
   }
   @media (max-width:900px){
     .flLayout{ flex-direction:column; }
+    .flSide{
+      width:100%;
+      min-width:0;
+      max-width:none;
+      border-right:0;
+      border-bottom:1px solid var(--panel-strong);
+    }
   }
   .flSide{
     background:var(--panel);
@@ -509,6 +522,20 @@
     align-items:center;
     gap:1rem;
     flex-wrap:wrap;
+  }
+  @media (max-width:900px){
+    .dispatchTopRow{
+      flex-direction:column;
+      align-items:stretch;
+    }
+    .dispatchTopActions{
+      width:100%;
+    }
+    .dispatchTruckIndicator{
+      width:100%;
+      justify-content:space-between;
+      margin-left:0;
+    }
   }
   .dispatchHeading{
     font-weight:800;
@@ -1959,10 +1986,10 @@
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
 </head>
- <body>
-  <div class="flApp">
-    <div class="flLayout">
-      <aside class="flSide">
+ <body class="bg-light">
+  <div class="flApp container-fluid px-0">
+    <div class="flLayout d-flex flex-column flex-lg-row">
+      <aside class="flSide flex-shrink-0">
         <div class="flSideHeader">
           <div class="flNavTitle">Flippen Lekka Operations</div>
           <button id="navToggle" class="flHamburger" type="button" aria-label="Toggle navigation" aria-expanded="true">
@@ -1983,7 +2010,7 @@
           </div>
         </nav>
       </aside>
-      <main class="flMain">
+      <main class="flMain flex-grow-1">
         <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite">
           <span class="statusBarLabel">Connections</span>
           <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
@@ -1991,7 +2018,7 @@
 
         <div class="flView flView--active" id="viewDashboard">
           <div class="dashboardShell">
-            <div class="dashboardHeader">
+            <div class="dashboardHeader d-flex flex-column flex-md-row align-items-start align-items-md-center">
               <div>
                 <h1>Operations Dashboard</h1>
                 <p>Quick status glance plus instant access to the core operations apps.</p>
