@@ -522,7 +522,7 @@ router.get("/shopify/products/collection", async (req, res) => {
       return res.status(404).json({ error: "NOT_FOUND", message: "Collection not found" });
     }
 
-    const productUrl = `${base}/collections/${collectionId}/products.json?limit=250&fields=id,title,variants`;
+    const productUrl = `${base}/collections/${collectionId}/products.json?limit=50&fields=id,title,variants`;
     const prodResp = await shopifyFetch(productUrl, { method: "GET" });
     if (!prodResp.ok) {
       const body = await prodResp.text();
