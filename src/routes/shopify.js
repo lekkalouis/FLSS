@@ -12,6 +12,38 @@ import { badRequest } from "../utils/http.js";
 
 const router = Router();
 
+function normalizeTagList(tags) {
+  if (!tags) return [];
+  if (Array.isArray(tags)) {
+    return tags.map((tag) => String(tag).trim()).filter(Boolean);
+  }
+  if (typeof tags === "string") {
+    return tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function resolveTierPrice(tiers, tier) {
+  if (!tiers || typeof tiers !== "object") return null;
+  const normalizedTier = tier ? String(tier).toLowerCase() : null;
+  if (normalizedTier && tiers[normalizedTier] != null) {
+    const tierPrice = Number(tiers[normalizedTier]);
+    return Number.isFinite(tierPrice) ? tierPrice : null;
+  }
+  const fallback =
+    tiers.default != null
+      ? tiers.default
+      : tiers.standard != null
+      ? tiers.standard
+      : null;
+  if (fallback == null) return null;
+  const fallbackPrice = Number(fallback);
+  return Number.isFinite(fallbackPrice) ? fallbackPrice : null;
+}
+
 function requireShopifyConfigured(res) {
   if (!config.SHOPIFY_STORE || !config.SHOPIFY_CLIENT_ID || !config.SHOPIFY_CLIENT_SECRET) {
     res.status(501).json({
@@ -35,7 +67,7 @@ function requireCustomerEmailConfigured(res) {
   return true;
 }
 
-function normalizeCustomer(customer, deliveryMethod) {
+function normalizeCustomer(customer, metafields = {}) {
   if (!customer) return null;
   const first = (customer.first_name || "").trim();
   const last = (customer.last_name || "").trim();
@@ -54,7 +86,10 @@ function normalizeCustomer(customer, deliveryMethod) {
     tags: customer.tags || "",
     addresses: Array.isArray(customer.addresses) ? customer.addresses : [],
     default_address: customer.default_address || null,
-    delivery_method: deliveryMethod || null
+    delivery_method: metafields.delivery_method || null,
+    deliveryInstructions: metafields.delivery_instructions || null,
+    companyName: metafields.company_name || null,
+    vatNumber: metafields.vat_number || null
   };
 }
 
@@ -108,7 +143,8 @@ router.get("/shopify/customers/search", async (req, res) => {
     const url =
       `${base}/customers/search.json?limit=${limit}` +
       `&query=${encodeURIComponent(q)}` +
-      `&fields=id,first_name,last_name,email,phone,addresses,default_address,tags`;
+      `&order=orders_count desc` +
+      `&fields=id,first_name,last_name,email,phone,addresses,default_address,tags,orders_count`;
 
     const resp = await shopifyFetch(url, { method: "GET" });
     if (!resp.ok) {
@@ -123,18 +159,26 @@ router.get("/shopify/customers/search", async (req, res) => {
 
     const data = await resp.json();
     const customers = Array.isArray(data.customers) ? data.customers : [];
+    customers.sort(
+      (a, b) => Number(b.orders_count || 0) - Number(a.orders_count || 0)
+    );
 
-    const deliveries = await Promise.all(
+    const metafieldsByCustomer = await Promise.all(
       customers.map(async (cust) => {
         try {
           const metaUrl = `${base}/customers/${cust.id}/metafields.json`;
           const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
           if (!metaResp.ok) return null;
           const metaData = await metaResp.json();
-          const m = (metaData.metafields || []).find(
-            (mf) => mf.namespace === "custom" && mf.key === "delivery_method"
-          );
-          return m?.value || null;
+          const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
+          const getValue = (key) =>
+            metafields.find((mf) => mf.namespace === "custom" && mf.key === key)?.value || null;
+          return {
+            delivery_method: getValue("delivery_method"),
+            delivery_instructions: getValue("delivery_instructions"),
+            company_name: getValue("company_name"),
+            vat_number: getValue("vat_number")
+          };
         } catch {
           return null;
         }
@@ -142,7 +186,7 @@ router.get("/shopify/customers/search", async (req, res) => {
     );
 
     const normalized = customers
-      .map((cust, idx) => normalizeCustomer(cust, deliveries[idx]))
+      .map((cust, idx) => normalizeCustomer(cust, metafieldsByCustomer[idx] || {}))
       .filter(Boolean);
 
     return res.json({ customers: normalized });
@@ -158,7 +202,17 @@ router.post("/shopify/customers", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
-    const { firstName, lastName, email, phone, company, deliveryMethod, address } =
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      company,
+      vatNumber,
+      deliveryInstructions,
+      deliveryMethod,
+      address
+    } =
       req.body || {};
 
     if (!firstName && !lastName && !email && !phone) {
@@ -166,6 +220,40 @@ router.post("/shopify/customers", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const metafields = [];
+    if (deliveryMethod) {
+      metafields.push({
+        namespace: "custom",
+        key: "delivery_method",
+        type: "single_line_text_field",
+        value: deliveryMethod
+      });
+    }
+    if (deliveryInstructions) {
+      metafields.push({
+        namespace: "custom",
+        key: "delivery_instructions",
+        type: "multi_line_text_field",
+        value: deliveryInstructions
+      });
+    }
+    if (company) {
+      metafields.push({
+        namespace: "custom",
+        key: "company_name",
+        type: "single_line_text_field",
+        value: company
+      });
+    }
+    if (vatNumber) {
+      metafields.push({
+        namespace: "custom",
+        key: "vat_number",
+        type: "single_line_text_field",
+        value: vatNumber
+      });
+    }
+
     const payload = {
       customer: {
         first_name: firstName || "",
@@ -189,16 +277,7 @@ router.post("/shopify/customers", async (req, res) => {
             ]
           : [],
         note: company ? `Company: ${company}` : undefined,
-        metafields: deliveryMethod
-          ? [
-              {
-                namespace: "custom",
-                key: "delivery_method",
-                type: "single_line_text_field",
-                value: deliveryMethod
-              }
-            ]
-          : []
+        metafields
       }
     };
 
@@ -224,7 +303,12 @@ router.post("/shopify/customers", async (req, res) => {
       });
     }
 
-    const customer = normalizeCustomer(data.customer, deliveryMethod || null);
+    const customer = normalizeCustomer(data.customer, {
+      delivery_method: deliveryMethod || null,
+      delivery_instructions: deliveryInstructions || null,
+      company_name: company || null,
+      vat_number: vatNumber || null
+    });
     return res.json({ ok: true, customer });
   } catch (err) {
     console.error("Shopify customer create error:", err);
@@ -438,7 +522,7 @@ router.get("/shopify/products/collection", async (req, res) => {
       return res.status(404).json({ error: "NOT_FOUND", message: "Collection not found" });
     }
 
-    const productUrl = `${base}/collections/${collectionId}/products.json?limit=250&fields=id,title,variants`;
+    const productUrl = `${base}/collections/${collectionId}/products.json?limit=100&fields=id,title,variants`;
     const prodResp = await shopifyFetch(productUrl, { method: "GET" });
     if (!prodResp.ok) {
       const body = await prodResp.text();
@@ -572,6 +656,43 @@ router.post("/shopify/variants/price-tiers", async (req, res) => {
   }
 });
 
+router.post("/shopify/variants/price-tiers/fetch", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const body = req.body || {};
+    const variantIds = Array.isArray(body.variantIds) ? body.variantIds : [];
+    if (!variantIds.length) {
+      return badRequest(res, "Missing variantIds");
+    }
+
+    const uniqueIds = Array.from(
+      new Set(
+        variantIds
+          .map((id) => String(id || "").trim())
+          .filter(Boolean)
+      )
+    ).slice(0, 250);
+
+    const tiersByVariantId = {};
+    await Promise.all(
+      uniqueIds.map(async (variantId) => {
+        const tierData = await fetchVariantPriceTiers(variantId);
+        if (tierData?.value && typeof tierData.value === "object") {
+          tiersByVariantId[String(variantId)] = tierData.value;
+        }
+      })
+    );
+
+    return res.json({ priceTiersByVariantId: tiersByVariantId });
+  } catch (err) {
+    console.error("Shopify price tier fetch error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 router.post("/shopify/draft-orders", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -579,13 +700,16 @@ router.post("/shopify/draft-orders", async (req, res) => {
     const {
       customerId,
       poNumber,
+      deliveryDate,
       shippingMethod,
       shippingPrice,
       shippingService,
       shippingQuoteNo,
       billingAddress,
       shippingAddress,
-      lineItems
+      lineItems,
+      customerTags,
+      priceTier
     } = req.body || {};
 
     if (!customerId) {
@@ -601,11 +725,30 @@ router.post("/shopify/draft-orders", async (req, res) => {
     if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
     if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
 
+    const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
+    const tierCache = new Map();
+    const lineItemsWithPrice = await Promise.all(
+      lineItems.map(async (li) => {
+        if (!normalizedTier || li.price != null || !li.variantId) {
+          return li;
+        }
+        const variantId = String(li.variantId);
+        if (!tierCache.has(variantId)) {
+          const tierData = await fetchVariantPriceTiers(variantId);
+          tierCache.set(variantId, tierData?.value || null);
+        }
+        const tiers = tierCache.get(variantId);
+        const resolved = resolveTierPrice(tiers, normalizedTier);
+        if (resolved == null) return li;
+        return { ...li, price: resolved };
+      })
+    );
+
     const payload = {
       draft_order: {
         customer: { id: customerId },
         note: noteParts.join(" | "),
-        line_items: lineItems.map((li) => {
+        line_items: lineItemsWithPrice.map((li) => {
           const entry = {
             quantity: li.quantity || 1
           };
@@ -623,15 +766,44 @@ router.post("/shopify/draft-orders", async (req, res) => {
         shipping_address: shippingAddress || undefined,
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
+          ...(normalizedTier
+            ? [{ name: "price_tier", value: normalizedTier }]
+            : []),
           ...(shippingQuoteNo
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : [])
-        ]
+        ],
+        metafields: deliveryDate
+          ? [
+              {
+                namespace: "custom",
+                key: "delivery_date",
+                type: "single_line_text_field",
+                value: String(deliveryDate)
+              }
+            ]
+          : undefined
       }
     };
 
+    const tags = [];
+    if (config.SHOPIFY_FLOW_TAG) {
+      tags.push(config.SHOPIFY_FLOW_TAG);
+    }
     if (shippingMethod && shippingMethod !== "ship") {
-      payload.draft_order.tags = `delivery_${shippingMethod}`;
+      tags.push(`delivery_${shippingMethod}`);
+    }
+    const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
+      tag.toLowerCase()
+    );
+    if (normalizedCustomerTags.includes("local")) {
+      tags.push("local");
+    }
+    if (normalizedCustomerTags.includes("export")) {
+      tags.push("export");
+    }
+    if (tags.length) {
+      payload.draft_order.tags = Array.from(new Set(tags)).join(", ");
     }
 
     if (shippingPrice != null && shippingMethod === "ship") {
@@ -737,13 +909,15 @@ router.post("/shopify/orders", async (req, res) => {
     const {
       customerId,
       poNumber,
+      deliveryDate,
       shippingMethod,
       shippingPrice,
       shippingService,
       shippingQuoteNo,
       billingAddress,
       shippingAddress,
-      lineItems
+      lineItems,
+      customerTags
     } = req.body || {};
 
     if (!customerId) {
@@ -785,12 +959,35 @@ router.post("/shopify/orders", async (req, res) => {
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : [])
         ],
+        metafields: deliveryDate
+          ? [
+              {
+                namespace: "custom",
+                key: "delivery_date",
+                type: "single_line_text_field",
+                value: String(deliveryDate)
+              }
+            ]
+          : undefined,
         financial_status: "pending"
       }
     };
 
+    const orderTags = [];
     if (shippingMethod && shippingMethod !== "ship") {
-      orderPayload.order.tags = `delivery_${shippingMethod}`;
+      orderTags.push(`delivery_${shippingMethod}`);
+    }
+    const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
+      tag.toLowerCase()
+    );
+    if (normalizedCustomerTags.includes("local")) {
+      orderTags.push("local");
+    }
+    if (normalizedCustomerTags.includes("export")) {
+      orderTags.push("export");
+    }
+    if (orderTags.length) {
+      orderPayload.order.tags = Array.from(new Set(orderTags)).join(", ");
     }
 
     if (shippingPrice != null && shippingMethod === "ship") {
@@ -977,7 +1174,7 @@ router.get("/shopify/orders/open", async (req, res) => {
     if (!requireShopifyConfigured(res)) return;
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const limit = 250;
+    const limit = 100;
     const maxPages = Math.min(Math.max(Number(req.query.max_pages || 5), 1), 10);
 
     const firstPath =
@@ -997,7 +1194,7 @@ router.get("/shopify/orders/open", async (req, res) => {
         const url = new URL(match[1]);
         return `${url.pathname}${url.search}`;
       } catch (err) {
-        return match[1].replace(/^https?:\\/\\/[^/]+/, "");
+        return match[1].replace(/^https?:\/\/[^/]+/, "");
       }
     };
 
@@ -1373,7 +1570,7 @@ router.post("/shopify/fulfill", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
-    const { orderId, trackingNumber, trackingUrl, trackingCompany } = req.body || {};
+    const { orderId, trackingNumber, trackingUrl, trackingCompany, message } = req.body || {};
     if (!orderId) {
       return res.status(400).json({ error: "MISSING_ORDER_ID", body: req.body });
     }
@@ -1422,9 +1619,10 @@ router.post("/shopify/fulfill", async (req, res) => {
 
     const fulfillUrl = `${base}/fulfillments.json`;
     const trackingNote = trackingNumber ? ` Tracking: ${trackingNumber}` : "";
+    const fulfillmentMessage = message || `Shipped via Scan Station.${trackingNote}`;
     const fulfillmentPayload = {
       fulfillment: {
-        message: `Shipped via Scan Station.${trackingNote}`,
+        message: fulfillmentMessage,
         notify_customer: true,
         tracking_info: {
           number: trackingNumber || "",
@@ -1460,6 +1658,129 @@ router.post("/shopify/fulfill", async (req, res) => {
     return res.json({ ok: true, fulfillment: data });
   } catch (err) {
     console.error("Shopify fulfill error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.post("/shopify/ready-for-pickup", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { orderId } = req.body || {};
+    if (!orderId) {
+      return res.status(400).json({ error: "MISSING_ORDER_ID", body: req.body });
+    }
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const foUrl = `${base}/orders/${orderId}/fulfillment_orders.json`;
+    const foResp = await shopifyFetch(foUrl, { method: "GET" });
+
+    const foText = await foResp.text();
+    let foData;
+    try {
+      foData = JSON.parse(foText);
+    } catch {
+      foData = { raw: foText };
+    }
+
+    if (!foResp.ok) {
+      return res.status(foResp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: foResp.status,
+        statusText: foResp.statusText,
+        body: foData
+      });
+    }
+
+    const fulfillmentOrders = Array.isArray(foData.fulfillment_orders)
+      ? foData.fulfillment_orders
+      : [];
+
+    if (!fulfillmentOrders.length) {
+      return res.status(409).json({
+        error: "NO_FULFILLMENT_ORDERS",
+        message: "No fulfillment_orders found for this order (cannot mark ready)",
+        body: foData
+      });
+    }
+
+    const pickupFulfillmentOrder = fulfillmentOrders.find((f) => {
+      const methodType = String(f?.delivery_method?.method_type || "").toLowerCase();
+      return methodType === "pickup";
+    });
+    const openFulfillmentOrder =
+      fulfillmentOrders.find((f) => f.status !== "closed" && f.status !== "cancelled") ||
+      fulfillmentOrders[0];
+    const fo = pickupFulfillmentOrder || openFulfillmentOrder;
+
+    const fulfillmentOrderGid = `gid://shopify/FulfillmentOrder/${fo.id}`;
+    const gqlUrl = `${base}/graphql.json`;
+    const query = `
+      mutation MarkReadyForPickup($id: ID!, $notifyCustomer: Boolean!) {
+        fulfillmentOrderMarkReadyForPickup(id: $id, notifyCustomer: $notifyCustomer) {
+          fulfillmentOrder { id status }
+          userErrors { field message }
+        }
+      }
+    `;
+
+    const gqlResp = await shopifyFetch(gqlUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        query,
+        variables: { id: fulfillmentOrderGid, notifyCustomer: true }
+      })
+    });
+
+    const gqlText = await gqlResp.text();
+    let gqlData;
+    try {
+      gqlData = JSON.parse(gqlText);
+    } catch {
+      gqlData = { raw: gqlText };
+    }
+
+    if (!gqlResp.ok) {
+      return res.status(gqlResp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: gqlResp.status,
+        statusText: gqlResp.statusText,
+        body: gqlData
+      });
+    }
+
+    if (Array.isArray(gqlData?.errors) && gqlData.errors.length) {
+      return res.status(409).json({
+        error: "READY_FOR_PICKUP_FAILED",
+        message: "Shopify returned GraphQL errors for ready-for-pickup.",
+        errors: gqlData.errors
+      });
+    }
+
+    const mutationPayload = gqlData?.data?.fulfillmentOrderMarkReadyForPickup;
+    const userErrors = mutationPayload?.userErrors || [];
+    if (userErrors.length) {
+      return res.status(409).json({
+        error: "READY_FOR_PICKUP_FAILED",
+        message: "Shopify rejected ready-for-pickup request.",
+        userErrors
+      });
+    }
+
+    if (!mutationPayload?.fulfillmentOrder) {
+      return res.status(409).json({
+        error: "READY_FOR_PICKUP_FAILED",
+        message: "Shopify returned no fulfillment order for ready-for-pickup.",
+        response: gqlData
+      });
+    }
+
+    return res.json({ ok: true, fulfillmentOrder: mutationPayload.fulfillmentOrder });
+  } catch (err) {
+    console.error("Shopify ready-for-pickup error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)

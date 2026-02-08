@@ -1,18 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Price Manager — FLSS</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root {
+#viewPriceManager{
       --bg:#f5f7fb;
       --panel:#ffffff;
       --panel-soft:#f1f5f9;
       --panel-strong:#e2e8f0;
       --accent:#38bdf8;
       --accent-soft:rgba(56,189,248,.18);
-      --accent-strong:rgba(34,197,94,.9);
+      --accent-strong:#22c55e;
       --danger:#ef4444;
       --text:#0f172a;
       --muted:#5b6b7f;
@@ -21,9 +14,9 @@
       --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
       --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     }
-    * { box-sizing:border-box; }
+    #viewPriceManager *{ box-sizing:border-box; }
 
-    body {
+    #viewPriceManager{
       margin:0;
       min-height:100vh;
       background:radial-gradient(circle at 10% 10%, rgba(56,189,248,.15) 0%, rgba(245,247,251,0) 55%),
@@ -33,13 +26,13 @@
       font-family:var(--sans);
     }
 
-    .pm-shell {
+    #viewPriceManager .pm-shell{
       max-width:1400px;
       margin:0 auto;
       padding:1.25rem .9rem 2.5rem;
     }
 
-    header.pm-header {
+    #viewPriceManager header.pm-header{
       display:flex;
       flex-wrap:wrap;
       align-items:flex-start;
@@ -48,23 +41,23 @@
       margin-bottom:1rem;
     }
 
-    .pm-titleBlock {
+    #viewPriceManager .pm-titleBlock{
       display:flex;
       flex-direction:column;
       gap:.35rem;
     }
-    .pm-title {
+    #viewPriceManager .pm-title{
       font-size:1.15rem;
       font-weight:700;
       letter-spacing:.04em;
       text-transform:uppercase;
     }
-    .pm-sub {
+    #viewPriceManager .pm-sub{
       font-size:.8rem;
       color:var(--muted);
     }
 
-    .pm-headerActions {
+    #viewPriceManager .pm-headerActions{
       display:flex;
       align-items:center;
       gap:.5rem;
@@ -72,7 +65,7 @@
       justify-content:flex-end;
     }
 
-    .pm-linkBtn {
+    #viewPriceManager .pm-linkBtn{
       display:inline-flex;
       align-items:center;
       gap:.4rem;
@@ -85,20 +78,20 @@
       text-decoration:none;
       transition:all .2s ease;
     }
-    .pm-linkBtn:hover {
-      border-color:rgba(56,189,248,.7);
-      color:#0c4a6e;
+    #viewPriceManager .pm-linkBtn:hover{
+      border-color:rgba(34,211,238,.7);
+      color:#7dd3fc;
     }
 
-    .pm-panel {
+    #viewPriceManager .pm-panel{
       background:linear-gradient(to bottom right,rgba(255,255,255,.98),rgba(241,245,249,.9));
       border-radius:var(--radius-lg);
       border:1px solid var(--panel-strong);
-      box-shadow:0 18px 40px rgba(15,23,42,.1);
+      box-shadow:0 18px 40px rgba(15,23,42,.08);
       padding:1rem;
     }
 
-    .pm-row {
+    #viewPriceManager .pm-row{
       display:flex;
       flex-wrap:wrap;
       gap:.75rem;
@@ -106,21 +99,21 @@
       margin-bottom:1rem;
     }
 
-    .pm-field {
+    #viewPriceManager .pm-field{
       display:flex;
       flex-direction:column;
       gap:.35rem;
       min-width:200px;
     }
 
-    label {
+    #viewPriceManager label{
       font-size:.7rem;
       text-transform:uppercase;
       letter-spacing:.08em;
       color:var(--muted);
     }
 
-    input, select {
+    #viewPriceManager input, #viewPriceManager select{
       border-radius:.65rem;
       border:1px solid var(--panel-strong);
       background:white;
@@ -129,56 +122,62 @@
       color:var(--text);
     }
 
-    .pm-btn {
-      background:var(--accent);
+    #viewPriceManager .pm-btn{
+      background:linear-gradient(120deg, var(--accent), var(--accent-strong));
       border:none;
-      color:white;
+      color:#0f172a;
       border-radius:999px;
       padding:.55rem 1rem;
       font-weight:600;
       cursor:pointer;
       font-size:.85rem;
+      box-shadow:0 12px 24px rgba(56,189,248,.2);
     }
-    .pm-btn:disabled { opacity:.6; cursor:not-allowed; }
+    #viewPriceManager .pm-btn:disabled{ opacity:.6; cursor:not-allowed; }
 
-    .pm-muted { color:var(--muted); font-size:.8rem; }
+    #viewPriceManager .pm-muted{ color:var(--muted); font-size:.8rem; }
 
-    .pm-productsTable {
+    #viewPriceManager .pm-productsTable{
       width:100%;
       border-collapse:collapse;
       font-size:.8rem;
     }
-    .pm-productsTable thead {
+    #viewPriceManager .pm-productsTable thead{
       background:var(--panel-soft);
     }
-    .pm-productsTable th, .pm-productsTable td {
+    #viewPriceManager .pm-productsTable th, #viewPriceManager .pm-productsTable td{
       text-align:left;
       padding:.6rem .5rem;
       border-bottom:1px solid var(--panel-strong);
       vertical-align:middle;
     }
-    .pm-productsTable th { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
-    .pm-productsTable tbody tr:hover {
+    #viewPriceManager .pm-productsTable th{
+      font-size:.7rem;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+    }
+    #viewPriceManager .pm-productsTable tbody tr:hover{
       background:rgba(56,189,248,.08);
     }
 
-    .pm-sku { font-family:var(--mono); font-size:.75rem; }
+    #viewPriceManager .pm-sku{ font-family:var(--mono); font-size:.75rem; }
 
-    .pm-input {
+    #viewPriceManager .pm-input{
       width:92px;
       text-align:right;
     }
 
-    .pm-actions {
+    #viewPriceManager .pm-actions{
       display:flex;
       flex-direction:column;
       gap:.4rem;
     }
 
-    .pm-saveBtn {
-      background:#22c55e;
+    #viewPriceManager .pm-saveBtn{
+      background:linear-gradient(120deg, #22c55e, #16a34a);
       border:none;
-      color:white;
+      color:#052e16;
       border-radius:999px;
       padding:.45rem .85rem;
       font-weight:600;
@@ -186,7 +185,7 @@
       font-size:.75rem;
     }
 
-    .pm-sync {
+    #viewPriceManager .pm-sync{
       display:flex;
       align-items:center;
       gap:.35rem;
@@ -194,12 +193,12 @@
       color:var(--muted);
     }
 
-    .pm-status {
+    #viewPriceManager .pm-status{
       margin-top:.6rem;
       font-size:.8rem;
     }
 
-    .pm-toast {
+    #viewPriceManager .pm-toast{
       position:fixed;
       right:1rem;
       bottom:1rem;
@@ -210,49 +209,5 @@
       font-size:.8rem;
       display:none;
       z-index:40;
-      box-shadow:0 15px 30px rgba(15,23,42,.3);
+      box-shadow:0 15px 30px rgba(15,23,42,.25);
     }
-  </style>
-</head>
-<body>
-  <div class="pm-shell">
-    <header class="pm-header">
-      <div class="pm-titleBlock">
-        <div class="pm-title">Price Manager</div>
-        <div class="pm-sub">Manage tier pricing per SKU and sync to Shopify metafields + storefront.</div>
-      </div>
-    </header>
-
-    <section class="pm-panel">
-      <div class="pm-row">
-        <span id="pmStatus" class="pm-muted">Loading product list…</span>
-      </div>
-
-      <div style="overflow:auto;">
-        <table class="pm-productsTable">
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Title</th>
-              <th>Public</th>
-              <th>Agent</th>
-              <th>Retailer</th>
-              <th>Export</th>
-              <th>Private</th>
-              <th>FKB</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="pmTableBody">
-            <tr>
-              <td colspan="9" class="pm-muted">Loading products…</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </div>
-  <div id="pmToast" class="pm-toast"></div>
-  <script src="/price-manager.js"></script>
-</body>
-</html>

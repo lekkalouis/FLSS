@@ -1,0 +1,949 @@
+#viewFlocs{
+      --bg:#f6f6f7;
+      --panel:#ffffff;
+      --panel-soft:#f1f2f3;
+      --panel-strong:#e1e3e5;
+      --accent:#008060;
+      --accent-soft:rgba(0,128,96,.1);
+      --accent-strong:#006e52;
+      --danger:#d72c0d;
+      --text:#202223;
+      --muted:#6d7175;
+      --radius-lg:.75rem;
+      --radius-md:.5rem;
+      --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
+      --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    }
+    #viewFlocs *{ box-sizing:border-box; }
+
+    #viewFlocs{
+      margin:0;
+      min-height:100vh;
+      background:var(--bg);
+      color:var(--text);
+      font-family:var(--sans);
+    }
+
+    #viewFlocs .flocs-shell{
+      max-width:none;
+      width:100%;
+      margin:0 auto;
+      padding:1.25rem 1.25rem 2.5rem;
+    }
+
+    #viewFlocs header.flocs-header{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:.75rem;
+      margin-bottom:1rem;
+    }
+
+    #viewFlocs .flocs-titleBlock{
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+    }
+    #viewFlocs .flocs-title{
+      font-size:1.2rem;
+      font-weight:600;
+      letter-spacing:.01em;
+      text-transform:none;
+    }
+    #viewFlocs .flocs-sub{
+      font-size:.8rem;
+      color:var(--muted);
+    }
+    #viewFlocs .flocs-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      background:var(--panel-soft);
+      border-radius:.5rem;
+      padding:.25rem .6rem;
+      font-size:.75rem;
+      border:1px solid var(--panel-strong);
+      color:var(--muted);
+    }
+    #viewFlocs .flocs-headerActions{
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    #viewFlocs .flocs-linkBtn{
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      padding:.35rem .75rem;
+      border-radius:.5rem;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--muted);
+      font-size:.75rem;
+      text-decoration:none;
+      transition:all .2s ease;
+    }
+    #viewFlocs .flocs-linkBtn:hover{
+      border-color:rgba(0,128,96,.4);
+      color:#0f5132;
+    }
+    #viewFlocs .flocs-actionBtn{
+      display:inline-flex;
+      align-items:center;
+      gap:.4rem;
+      padding:.45rem .85rem;
+      border-radius:.5rem;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--text);
+      font-size:.78rem;
+      font-weight:600;
+      cursor:pointer;
+      transition:all .2s ease;
+    }
+    #viewFlocs .flocs-actionBtn:hover{
+      border-color:rgba(0,128,96,.4);
+      color:#0f5132;
+    }
+    #viewFlocs .flocs-actionBtn:disabled{
+      cursor:not-allowed;
+      opacity:.6;
+    }
+    #viewFlocs .flocs-actionBtn.is-ready{
+      background:var(--accent-strong);
+      border-color:transparent;
+      color:#ffffff;
+      box-shadow:0 8px 16px rgba(0,110,82,.18);
+    }
+    #viewFlocs .flocs-dot{
+      width:.45rem; height:.45rem;
+      border-radius:999px;
+      background:var(--accent);
+      box-shadow:none;
+    }
+
+    #viewFlocs .flocs-layout{
+      display:grid;
+      gap:1rem;
+      align-items:start;
+    }
+
+    #viewFlocs .flocs-panel{
+      background:var(--panel);
+      border-radius:var(--radius-lg);
+      border:1px solid var(--panel-strong);
+      box-shadow:0 8px 24px rgba(32,34,35,.08);
+      padding:1rem;
+      position:relative;
+    }
+
+    #viewFlocs .flocs-panel.form{
+      flex:1.15;
+      min-width:0;
+    }
+    #viewFlocs .flocs-topGrid{
+      display:grid;
+      gap:1rem;
+      align-items:start;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+    }
+    #viewFlocs .flocs-column{
+      border:1px solid var(--panel-strong);
+      border-radius:var(--radius-md);
+      padding:.9rem;
+      background:var(--panel);
+    }
+    #viewFlocs .flocs-column--preview{
+      border:none;
+      padding:0;
+      background:transparent;
+    }
+    #viewFlocs .flocs-topFields{
+      flex:1 1 auto;
+      min-width:0;
+    }
+    #viewFlocs .flocs-previewPanel{
+      flex:1 1 auto;
+      width:100%;
+      max-width:none;
+      min-width:0;
+      padding:.75rem;
+      background:var(--panel);
+    }
+    #viewFlocs .flocs-previewPanel .flocs-previewHeader{
+      flex-direction:column;
+      align-items:flex-start;
+      gap:.5rem;
+    }
+    #viewFlocs .flocs-previewPanel .flocs-previewTag{
+      align-self:flex-start;
+    }
+    #viewFlocs .flocs-previewPanel .flocs-invoice{
+      font-size:.7rem;
+      line-height:1.2;
+      max-height:60vh;
+      overflow:auto;
+    }
+    #viewFlocs .flocs-previewPanel .flocs-invoiceTable th,
+    #viewFlocs .flocs-previewPanel .flocs-invoiceTable td{
+      font-size:.65rem;
+      padding:.35rem .4rem;
+    }
+    #viewFlocs .flocs-previewPanel .flocs-invoiceTotalsRow{
+      font-size:.65rem;
+    }
+    @media (max-width:1100px) {
+      #viewFlocs .flocs-topGrid{
+        grid-template-columns:1fr;
+      }
+    }
+    @media (max-width:900px) {
+      #viewFlocs .flocs-previewPanel{
+        width:100%;
+        max-width:none;
+        min-width:0;
+      }
+    }
+
+    #viewFlocs .flocs-formSection{
+      margin-bottom:.9rem;
+      padding-bottom:.75rem;
+      border-bottom:1px dashed rgba(148,163,184,.45);
+    }
+    #viewFlocs .flocs-formSection:last-of-type{
+      border-bottom:none;
+      padding-bottom:0;
+      margin-bottom:0;
+    }
+
+    #viewFlocs .flocs-labelRow{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      margin-bottom:.35rem;
+      gap:.5rem;
+    }
+    #viewFlocs .flocs-labelRow span{
+      font-size:.8rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      color:var(--muted);
+    }
+    #viewFlocs .flocs-hint{
+      font-size:.7rem;
+      color:var(--muted);
+    }
+
+    #viewFlocs .flocs-input, #viewFlocs .flocs-select{
+      width:100%;
+      max-width:420px;
+      border-radius:.55rem;
+      border:1px solid var(--panel-strong);
+      background:#fff;
+      color:var(--text);
+      padding:.45rem .6rem;
+      font-size:.85rem;
+      outline:none;
+      font-family:var(--sans);
+    }
+    #viewFlocs .flocs-input:focus, #viewFlocs .flocs-select:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px rgba(0,128,96,.2);
+    }
+
+    #viewFlocs .flocs-row{
+      display:flex;
+      gap:.5rem;
+      flex-wrap:wrap;
+    }
+    #viewFlocs .flocs-row > *{
+      flex:1 1 220px;
+      max-width:360px;
+    }
+    @media (max-width:700px) {
+      #viewFlocs .flocs-row{ flex-direction:column; }
+    }
+
+    #viewFlocs .flocs-customerResults{
+      margin-top:.4rem;
+      max-height:190px;
+      overflow:auto;
+      border-radius:.6rem;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+    }
+    #viewFlocs .flocs-searchRow{
+      display:flex;
+      align-items:center;
+      gap:.5rem;
+    }
+    #viewFlocs .flocs-searchRow .flocs-input{
+      flex:1;
+      min-width:0;
+    }
+    #viewFlocs .flocs-clearBtn{
+      white-space:nowrap;
+    }
+    #viewFlocs .flocs-subSection{
+      margin-top:.6rem;
+      padding:.6rem;
+      border-radius:.6rem;
+      border:1px dashed rgba(148,163,184,.55);
+      background:var(--panel-soft);
+    }
+    #viewFlocs .flocs-azBar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.35rem;
+      margin-bottom:.65rem;
+    }
+    #viewFlocs .flocs-azBar button{
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--muted);
+      font-size:.7rem;
+      border-radius:.6rem;
+      padding:.25rem .45rem;
+      cursor:pointer;
+      transition:all .2s ease;
+    }
+    #viewFlocs .flocs-azBar button:hover,
+    #viewFlocs .flocs-azBar button.is-active{
+      border-color:rgba(0,128,96,.4);
+      color:#0f5132;
+      background:var(--accent-soft);
+    }
+    #viewFlocs .flocs-chipAddresses{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+      gap:.6rem;
+    }
+    #viewFlocs .flocs-chipAddress{
+      border:1px solid var(--panel-strong);
+      border-radius:.6rem;
+      padding:.5rem .6rem;
+      background:var(--panel);
+      font-size:.75rem;
+      color:var(--muted);
+    }
+    #viewFlocs .flocs-chipLabel{
+      display:block;
+      font-size:.7rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      font-weight:600;
+      margin-bottom:.25rem;
+      color:var(--text);
+    }
+    #viewFlocs .flocs-chipAddressText{
+      line-height:1.2;
+      white-space:normal;
+    }
+    #viewFlocs .flocs-customerItem{
+      padding:.4rem .55rem;
+      font-size:.8rem;
+      cursor:pointer;
+      border-bottom:1px solid rgba(148,163,184,.2);
+    }
+    #viewFlocs .flocs-customerItem:hover{
+      background:rgba(0,128,96,.08);
+    }
+    #viewFlocs .flocs-customerItem strong{
+      display:block;
+      margin-bottom:.15rem;
+    }
+    #viewFlocs .flocs-customerItem-meta{
+      color:var(--muted);
+      font-size:.7rem;
+    }
+    #viewFlocs .flocs-customerEmpty{
+      padding:.5rem .6rem;
+      font-size:.75rem;
+      color:var(--muted);
+    }
+    #viewFlocs .flocs-inlineActions{
+      display:flex;
+      gap:.5rem;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    #viewFlocs .flocs-miniBtn{
+      padding:.3rem .65rem;
+      border-radius:.45rem;
+      border:1px solid rgba(148,163,184,.5);
+      background:var(--panel);
+      color:var(--muted);
+      font-size:.7rem;
+      text-transform:none;
+      letter-spacing:.02em;
+      cursor:pointer;
+    }
+    #viewFlocs .flocs-miniBtn:hover{
+      border-color:var(--accent);
+      color:var(--accent);
+    }
+
+    #viewFlocs .flocs-chipRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.35rem;
+      margin-top:.3rem;
+    }
+    #viewFlocs .flocs-chip{
+      padding:.18rem .55rem;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.4);
+      font-size:.7rem;
+      color:var(--muted);
+    }
+
+    #viewFlocs .flocs-radioGroup{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.45rem;
+    }
+    #viewFlocs .flocs-radioPill{
+      position:relative;
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      padding:.25rem .6rem;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.4);
+      font-size:.8rem;
+      cursor:pointer;
+      user-select:none;
+    }
+    #viewFlocs .flocs-radioPill input{
+      appearance:none;
+      width:.7rem; height:.7rem;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,.5);
+      background:transparent;
+      position:relative;
+    }
+    #viewFlocs .flocs-radioPill input:checked{
+      border-color:var(--accent);
+      box-shadow:0 0 0 2px rgba(0,128,96,.25);
+    }
+    #viewFlocs .flocs-radioPill input:checked::after{
+      content:"";
+      position:absolute;
+      inset:.13rem;
+      border-radius:inherit;
+      background:var(--accent);
+    }
+
+    #viewFlocs .flocs-addressPreview{
+      margin-top:.35rem;
+      padding:.45rem .55rem;
+      border-radius:.45rem;
+      font-size:.75rem;
+      border:1px dashed rgba(148,163,184,.55);
+      background:var(--panel-soft);
+      white-space:pre-line;
+    }
+
+    #viewFlocs .flocs-productsTable{
+      width:100%;
+      border-collapse:collapse;
+      font-size:.78rem;
+      border-radius:.6rem;
+      overflow:hidden;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+    }
+    #viewFlocs .flocs-productsTable thead{
+      background:var(--panel-soft);
+    }
+    #viewFlocs .flocs-productsTable th, #viewFlocs .flocs-productsTable td{
+      padding:.3rem .45rem;
+      border-bottom:1px solid rgba(148,163,184,.2);
+      vertical-align:top;
+    }
+    #viewFlocs .flocs-productsTable th{
+      text-align:left;
+      font-weight:600;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      font-size:.7rem;
+    }
+    #viewFlocs .flocs-productsTable tbody tr:last-child td{
+      border-bottom:none;
+    }
+    #viewFlocs .flocs-productsTable tbody tr{
+      border-left:3px solid var(--flavour-color, transparent);
+    }
+    #viewFlocs .flocs-productsTable tbody tr:hover{
+      background:rgba(0,128,96,.05);
+    }
+    #viewFlocs .flocs-productsTable code{
+      font-family:var(--mono);
+      font-size:.78rem;
+    }
+    #viewFlocs .flocs-productName{
+      display:block;
+      max-width:220px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    #viewFlocs .flocs-flavourTag{
+      --flavour-color:#22d3ee;
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      padding:.1rem .5rem;
+      border-radius:.5rem;
+      border:1px solid var(--flavour-color);
+      background:var(--panel-soft);
+      color:var(--text);
+      font-size:.65rem;
+      font-weight:600;
+      text-transform:none;
+      letter-spacing:.02em;
+      white-space:nowrap;
+    }
+    #viewFlocs .flocs-flavourTag::before{
+      content:"";
+      width:.45rem;
+      height:.45rem;
+      border-radius:999px;
+      background:var(--flavour-color);
+      box-shadow:none;
+    }
+    #viewFlocs .flocs-filterRow{
+      display:flex;
+      flex-direction:column;
+      gap:.6rem;
+      margin-top:.4rem;
+    }
+    #viewFlocs .flocs-filterGroup{
+      display:flex;
+      flex-direction:column;
+      gap:.35rem;
+    }
+    #viewFlocs .flocs-filterLabel{
+      font-size:.7rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      font-weight:600;
+      color:var(--muted);
+    }
+    #viewFlocs .flocs-filterButtons{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.3rem;
+    }
+    #viewFlocs .flocs-filterBtn{
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--muted);
+      padding:.2rem .55rem;
+      border-radius:.5rem;
+      font-size:.68rem;
+      cursor:pointer;
+      transition:all .2s ease;
+    }
+    #viewFlocs .flocs-filterBtn--flavour{
+      --flavour-color:transparent;
+      position:relative;
+      padding:.2rem .7rem .25rem 1.15rem;
+      border-color:var(--flavour-color);
+      background:var(--panel-soft);
+      color:var(--text);
+      font-weight:600;
+      text-transform:none;
+      letter-spacing:.02em;
+    }
+    #viewFlocs .flocs-filterBtn--flavour::before{
+      content:"";
+      position:absolute;
+      left:.4rem;
+      top:50%;
+      width:.35rem;
+      height:.35rem;
+      border-radius:999px;
+      transform:translateY(-50%);
+      background:var(--flavour-color);
+      box-shadow:none;
+    }
+    #viewFlocs .flocs-filterBtn--flavour::after{
+      content:"";
+      position:absolute;
+      left:.45rem;
+      right:.45rem;
+      bottom:.18rem;
+      height:2px;
+      border-radius:999px;
+      background:var(--flavour-color);
+      opacity:.6;
+    }
+    #viewFlocs .flocs-filterBtn--flavour.is-neutral{
+      border-color:var(--panel-strong);
+      color:var(--muted);
+      text-transform:none;
+      letter-spacing:0;
+      font-weight:500;
+    }
+    #viewFlocs .flocs-filterBtn--flavour.is-neutral::before,
+    #viewFlocs .flocs-filterBtn--flavour.is-neutral::after{
+      background:transparent;
+      box-shadow:none;
+    }
+    #viewFlocs .flocs-filterBtn:hover,
+    #viewFlocs .flocs-filterBtn.is-active{
+      border-color:rgba(0,128,96,.4);
+      color:#0f5132;
+      background:var(--accent-soft);
+    }
+    #viewFlocs .flocs-filterBtn--flavour:hover,
+    #viewFlocs .flocs-filterBtn--flavour.is-active{
+      border-color:var(--flavour-color, rgba(0,128,96,.4));
+      color:var(--text);
+      background:rgba(0,128,96,.06);
+    }
+    #viewFlocs .flocs-filterBtn--flavour.is-neutral:hover,
+    #viewFlocs .flocs-filterBtn--flavour.is-neutral.is-active{
+      border-color:rgba(0,128,96,.4);
+      color:#0f5132;
+      background:var(--accent-soft);
+    }
+    #viewFlocs .flocs-qtyInput{
+      width:4.2rem;
+      border-radius:.45rem;
+      border:1px solid var(--panel-strong);
+      background:#fff;
+      color:var(--text);
+      padding:.2rem .35rem;
+      font-size:.78rem;
+      text-align:right;
+      outline:none;
+      font-family:var(--sans);
+    }
+    #viewFlocs .flocs-qtyInput:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px rgba(0,128,96,.2);
+    }
+    #viewFlocs .flocs-qtyWrap{
+      display:flex;
+      align-items:center;
+      gap:.25rem;
+      justify-content:flex-end;
+      margin-left:auto;
+    }
+    #viewFlocs .flocs-qtyArea{
+      display:flex;
+      flex-wrap:nowrap;
+      align-items:center;
+      justify-content:flex-end;
+      gap:.35rem;
+    }
+    #viewFlocs .flocs-qtyQuick{
+      display:flex;
+      flex-wrap:nowrap;
+      gap:.2rem;
+      justify-content:flex-end;
+      white-space:nowrap;
+    }
+    #viewFlocs .flocs-qtyQuickBtn{
+      border-radius:.35rem;
+      border:1px solid var(--panel-strong);
+      background:var(--panel-soft);
+      color:var(--text);
+      font-size:.65rem;
+      padding:.15rem .35rem;
+      cursor:pointer;
+      min-width:1.6rem;
+      text-align:center;
+    }
+    #viewFlocs .flocs-qtyQuickBtn:hover{
+      border-color:var(--accent);
+      color:var(--accent);
+    }
+    #viewFlocs .flocs-qtyBtn{
+      width:1.8rem;
+      height:1.8rem;
+      border-radius:.5rem;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--text);
+      cursor:pointer;
+      font-weight:700;
+    }
+    #viewFlocs .flocs-qtyBtn:hover{
+      border-color:var(--accent);
+      color:var(--accent);
+    }
+    #viewFlocs .flocs-productResults{
+      margin-top:.45rem;
+      max-height:180px;
+      overflow:auto;
+      border-radius:.6rem;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+    }
+    #viewFlocs .flocs-productItem{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.5rem;
+      padding:.4rem .55rem;
+      border-bottom:1px solid rgba(148,163,184,.2);
+      font-size:.78rem;
+    }
+    #viewFlocs .flocs-productItem:last-child{
+      border-bottom:none;
+    }
+    #viewFlocs .flocs-productMeta{
+      color:var(--muted);
+      font-size:.7rem;
+      display:flex;
+      gap:.35rem;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    #viewFlocs .flocs-actionsRow{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:.5rem;
+      margin-top:.55rem;
+    }
+
+    #viewFlocs .flocs-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.35rem;
+      border-radius:.5rem;
+      border:1px solid rgba(0,128,96,.35);
+      font-size:.8rem;
+      padding:.4rem .9rem;
+      cursor:pointer;
+      font-weight:600;
+      letter-spacing:.02em;
+      text-transform:none;
+      background:rgba(0,128,96,.08);
+      color:var(--text);
+    }
+    #viewFlocs .flocs-btn span.icon{
+      font-size:1rem;
+      line-height:1;
+    }
+    #viewFlocs .flocs-btn.primary{
+      background:var(--accent);
+      color:#ffffff;
+      box-shadow:0 10px 24px rgba(0,128,96,.2);
+    }
+    #viewFlocs .flocs-btn.primary:disabled{
+      opacity:.4;
+      cursor:default;
+    }
+
+    #viewFlocs .flocs-badgeShipping{
+      font-size:.75rem;
+      color:var(--text);
+    }
+
+    #viewFlocs .flocs-errors{
+      margin-top:.4rem;
+      font-size:.72rem;
+      color:var(--danger);
+      white-space:pre-line;
+    }
+
+    /* === Preview "invoice" card === */
+    #viewFlocs .flocs-previewHeader{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:.75rem;
+      margin-bottom:.6rem;
+    }
+    #viewFlocs .flocs-previewTitle{
+      font-size:.9rem;
+      font-weight:600;
+      text-transform:none;
+      letter-spacing:.02em;
+    }
+    #viewFlocs .flocs-previewTag{
+      padding:.18rem .45rem;
+      border-radius:.5rem;
+      font-size:.7rem;
+      background:var(--panel-soft);
+      border:1px solid var(--panel-strong);
+      color:var(--muted);
+    }
+
+    #viewFlocs .flocs-overrideWrap{
+      display:flex;
+      align-items:center;
+      gap:.35rem;
+    }
+    #viewFlocs .flocs-overrideBtn{
+      border-radius:.45rem;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--muted);
+      font-size:.65rem;
+      padding:.2rem .5rem;
+      cursor:pointer;
+      text-transform:none;
+      letter-spacing:.02em;
+    }
+    #viewFlocs .flocs-overrideBtn.is-active{
+      border-color:rgba(0,128,96,.6);
+      background:var(--accent-soft);
+      color:var(--text);
+      box-shadow:0 0 0 2px rgba(0,128,96,.15);
+    }
+    #viewFlocs .flocs-overrideInput{
+      width:5.5rem;
+      border-radius:.45rem;
+      border:1px solid var(--panel-strong);
+      background:#fff;
+      color:var(--text);
+      padding:.2rem .35rem;
+      font-size:.75rem;
+      text-align:right;
+      outline:none;
+    }
+    #viewFlocs .flocs-overrideInput:disabled{
+      opacity:.55;
+      background:var(--panel-soft);
+    }
+    #viewFlocs .flocs-overrideHint{
+      font-size:.65rem;
+      color:var(--muted);
+      margin-top:.2rem;
+    }
+    #viewFlocs .flocs-invoice{
+      background:#fafbfb;
+      color:#020617;
+      border-radius:.7rem;
+      padding:.75rem;
+      font-size:.78rem;
+    }
+    #viewFlocs .flocs-invoiceHeader{
+      display:flex;
+      justify-content:space-between;
+      gap:.5rem;
+      margin-bottom:.4rem;
+    }
+    #viewFlocs .flocs-invoiceBrand{
+      font-weight:700;
+      font-size:.9rem;
+    }
+    #viewFlocs .flocs-invoiceSub{
+      font-size:.72rem;
+      color:#4b5563;
+    }
+    #viewFlocs .flocs-invoiceCols{
+      display:flex;
+      gap:.75rem;
+      margin-bottom:.5rem;
+    }
+    #viewFlocs .flocs-invoiceCol{
+      flex:1;
+      white-space:pre-line;
+      font-size:.74rem;
+      color:#111827;
+    }
+    #viewFlocs .flocs-invoiceColTitle{
+      font-weight:600;
+      margin-bottom:.2rem;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      font-size:.68rem;
+      color:#6b7280;
+    }
+    #viewFlocs .flocs-invoiceTable{
+      width:100%;
+      border-collapse:collapse;
+      font-size:.74rem;
+      margin-bottom:.4rem;
+    }
+    #viewFlocs .flocs-invoiceTable th, #viewFlocs .flocs-invoiceTable td{
+      padding:.25rem .2rem;
+      border-bottom:1px solid #e5e7eb;
+    }
+    #viewFlocs .flocs-invoiceTable th{
+      text-align:left;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      font-size:.66rem;
+      color:#6b7280;
+    }
+    #viewFlocs .flocs-invoiceTable td:last-child, #viewFlocs .flocs-invoiceTable th:last-child{
+      text-align:right;
+    }
+    #viewFlocs .flocs-invoiceTotals{
+      font-size:.75rem;
+    }
+    #viewFlocs .flocs-invoiceTotalsRow{
+      display:flex;
+      justify-content:space-between;
+    }
+    #viewFlocs .flocs-invoiceTotalsRow span.label{
+      color:#4b5563;
+    }
+    #viewFlocs .flocs-invoiceTotalsRow span.val{
+      font-weight:600;
+    }
+    #viewFlocs .flocs-invoiceNote{
+      margin-top:.35rem;
+      font-size:.7rem;
+      color:#6b7280;
+    }
+
+    #viewFlocs .flocs-toast{
+      position:fixed;
+      right:1rem;
+      bottom:1rem;
+      padding:.7rem .9rem;
+      border-radius:.75rem;
+      font-size:.78rem;
+      background:var(--panel);
+      border:1px solid rgba(0,128,96,.4);
+      color:#0f5132;
+      max-width:260px;
+      box-shadow:0 18px 60px rgba(32,34,35,.18);
+      z-index:40;
+      display:none;
+    }
+
+      cursor:pointer;
+    }
+    #viewFlocs .flocs-convertBtn{
+      border-radius:.5rem;
+      border:1px solid rgba(0,128,96,.4);
+      background:rgba(0,128,96,.08);
+      color:#0f5132;
+      padding:.4rem .9rem;
+      font-size:.72rem;
+      font-weight:600;
+      text-transform:none;
+      letter-spacing:.02em;
+      cursor:pointer;
+    }
+    #viewFlocs .flocs-createOrderBtn{
+      border-radius:.5rem;
+      border:1px solid rgba(0,128,96,.6);
+      background:rgba(0,128,96,.12);
+      color:#0f5132;
+      padding:.4rem .9rem;
+      font-size:.72rem;
+      font-weight:600;
+      text-transform:none;
+      letter-spacing:.02em;
+      cursor:pointer;
+    }

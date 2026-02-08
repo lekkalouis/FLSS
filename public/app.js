@@ -1,31 +1,20 @@
+import { initFlocsView } from "./views/flocs.js";
+import { initStockView } from "./views/stock.js";
+import { initPriceManagerView } from "./views/price-manager.js";
+
 (() => {
   "use strict";
 
   const CONFIG = {
-    COST_ALERT_THRESHOLD: 250.0,
-    BOOKING_IDLE_MS: 6000,
-    TRUCK_ALERT_THRESHOLD: 25,
-    BOX_DIM: { dim1: 40, dim2: 40, dim3: 30, massKg: 5 },
-    ORIGIN: {
-      origpers: "Flippen Lekka Holdings (Pty) Ltd",
-      origperadd1: "7 Papawer Street",
-      origperadd2: "Blomtuin, Bellville",
-      origperadd3: "Cape Town, Western Cape",
-      origperadd4: "ZA",
-      origperpcode: "7530",
-      origtown: "Cape Town",
-      origplace: 4663,
-      origpercontact: "Louis",
-      origperphone: "0730451885",
-      origpercell: "0730451885",
-      notifyorigpers: 1,
-      origperemail: "admin@flippenlekkaspices.co.za",
-      notes: "Louis 0730451885 / Michael 0783556277"
-    },
-    PP_ENDPOINT: "/pp",
-    SHOPIFY: { PROXY_BASE: "/shopify" },
-    PROGRESS_STEP_DELAY_MS: 450,
-    FLOW_TRIGGER_TAG: "dispatch_flow"
+    PROGRESS_STEP_DELAY_MS: 450
+  };
+  const API_BASE = "/api/v1";
+
+  const loadConfig = async () => {
+    const res = await fetch(`${API_BASE}/config`, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Config fetch failed: ${res.status}`);
+    const data = await res.json();
+    Object.assign(CONFIG, data);
   };
 
   const $ = (id) => document.getElementById(id);
@@ -38,6 +27,8 @@
   const uiAutoBook = $("uiAutoBook");
   const uiCountdown = $("uiCountdown");
   const shipToCard = $("shipToCard");
+  const uiCustomerName = $("uiCustomerName");
+  const uiOrderWeight = $("uiOrderWeight");
   const parcelList = $("parcelList");
   const parcelNumbers = $("parcelNumbers");
   const bookingSummary = $("bookingSummary");
@@ -55,6 +46,7 @@
   const truckStatus = $("truckStatus");
   const truckParcelCount = $("truckParcelCount");
   const multiShipToggle = $("multiShipToggle");
+  const dispatchExpandToggle = $("dispatchExpandToggle");
   const uiBundleOrders = $("uiBundleOrders");
   const uiMultiShip = $("uiMultiShip");
 
@@ -65,9 +57,7 @@
   const dispatchProgressSteps = $("dispatchProgressSteps");
   const dispatchProgressLabel = $("dispatchProgressLabel");
   const dispatchLog = $("dispatchLog");
-  const dispatchTodoForm = $("dispatchTodoForm");
-  const dispatchTodoInput = $("dispatchTodoInput");
-  const dispatchTodoList = $("dispatchTodoList");
+  const dispatchShipmentsSidebar = $("dispatchShipmentsSidebar");
   const dispatchOrderModal = $("dispatchOrderModal");
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
   const dispatchOrderModalTitle = $("dispatchOrderModalTitle");
@@ -85,230 +75,87 @@
   const navDashboard = $("navDashboard");
   const navScan = $("navScan");
   const navOps = $("navOps");
-  const navInvoices = $("navInvoices");
   const navDocs = $("navDocs");
+  const navFlocs = $("navFlocs");
+  const navStock = $("navStock");
+  const navPriceManager = $("navPriceManager");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
-  const viewInvoices = $("viewInvoices");
   const viewDocs = $("viewDocs");
-  const actionFlash = $("actionFlash");
+  const viewFlocs = $("viewFlocs");
+  const viewStock = $("viewStock");
+  const viewPriceManager = $("viewPriceManager");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
   const btnBookNow = $("btnBookNow");
   const modeToggle = $("modeToggle");
   const moduleGrid = $("moduleGrid");
-  const invoiceTemplateInput = $("invoiceTemplate");
-  const invoiceTemplateSave = $("invoiceTemplateSave");
-  const invoiceFilterOrder = $("invoiceFilterOrder");
-  const invoiceFilterCustomer = $("invoiceFilterCustomer");
-  const invoiceFilterFrom = $("invoiceFilterFrom");
-  const invoiceFilterTo = $("invoiceFilterTo");
-  const invoiceRefresh = $("invoiceRefresh");
-  const invoiceTableBody = $("invoiceTableBody");
-  const invoiceSyncStatus = $("invoiceSyncStatus");
+  const kpiParcels = $("kpiParcels");
+  const kpiOpenOrders = $("kpiOpenOrders");
+  const kpiRecentShipments = $("kpiRecentShipments");
+  const kpiMode = $("kpiMode");
+  const kpiTruckStatus = $("kpiTruckStatus");
+  const kpiLastScan = $("kpiLastScan");
 
   const MAX_ORDER_AGE_HOURS = 180;
 
   const MODULES = [
     {
       id: "scan",
-      title: "Scan Station",
+      title: "Dispatch",
       description: "Scan parcels and auto-book shipments with live booking progress.",
-      type: "view",
-      target: "scan",
+      type: "route",
+      target: "/scan",
+      meta: "Internal module",
       tag: "Core"
     },
     {
       id: "dispatch",
       title: "Dispatch Board",
       description: "Review open orders, track packing, and prioritize dispatch.",
-      type: "view",
-      target: "ops",
+      type: "route",
+      target: "/ops",
+      meta: "Internal module",
       tag: "Core"
-    },
-    {
-      id: "invoices",
-      title: "Order Invoices",
-      description: "List orders, filter quickly, and send invoice actions.",
-      type: "view",
-      target: "invoices",
-      tag: "Module"
     },
     {
       id: "docs",
       title: "Documentation",
       description: "Operator guide, quick start, and endpoint reference.",
-      type: "view",
-      target: "docs",
+      type: "route",
+      target: "/docs",
+      meta: "Internal module",
       tag: "Guide"
     },
     {
       id: "flocs",
-      title: "Order Capture (FLOCS)",
-      description: "Create and manage incoming orders from the capture module.",
-      type: "link",
+      title: "Order Capture",
+      description: "Create and manage incoming orders for Shopify.",
+      type: "route",
       target: "/flocs",
+      meta: "Capture module",
       tag: "Module"
     },
     {
       id: "stock",
       title: "Stock Take",
       description: "Run inventory counts and stock adjustments.",
-      type: "link",
-      target: "/stock.html",
+      type: "route",
+      target: "/stock",
+      meta: "Inventory module",
       tag: "Module"
     },
     {
-      id: "pos",
-      title: "POS Walk-In",
-      description: "Scan walk-in items, show a large total, and close cash orders.",
-      type: "link",
-      target: "/pos.html",
+      id: "price-manager",
+      title: "Price Manager",
+      description: "Update tier pricing and sync to Shopify metafields.",
+      type: "route",
+      target: "/price-manager",
+      meta: "Pricing module",
       tag: "Module"
-    },
-    {
-      id: "simulate",
-      title: "Simulator",
-      description: "Test scan/booking flows without live orders.",
-      type: "link",
-      target: "/simulate.html",
-      tag: "Sandbox"
-    }
-  ];
-
-  const FACTORY_AREAS = [
-    {
-      id: "manufacturing",
-      title: "Manufacturing Command Stack",
-      badge: "Live",
-      description: "Monitor live batch builds, quality gates, and line cadence.",
-      tools: [
-        {
-          title: "Line Scan Station",
-          description: "Scan line output and auto-book production lots.",
-          type: "view",
-          target: "scan"
-        },
-        {
-          title: "Process Simulator",
-          description: "Run a sandbox pass for new formulations or batches.",
-          type: "link",
-          target: "/simulate.html"
-        },
-        {
-          title: "SOP Quick Guide",
-          description: "Open the operator playbook for line start-up.",
-          type: "view",
-          target: "docs"
-        }
-      ]
-    },
-    {
-      id: "dispatch",
-      title: "Dispatch Command Stack",
-      badge: "Priority",
-      description: "Orchestrate outbound bookings, dock readiness, and carrier status.",
-      tools: [
-        {
-          title: "Dispatch Board",
-          description: "Track outbound orders and live packing status.",
-          type: "view",
-          target: "ops"
-        },
-        {
-          title: "Carrier Booking",
-          description: "Scan and book parcels with SLA tracking.",
-          type: "view",
-          target: "scan"
-        },
-        {
-          title: "Manifest Simulator",
-          description: "Preview truck loads and pickup windows.",
-          type: "link",
-          target: "/simulate.html"
-        }
-      ]
-    },
-    {
-      id: "packing",
-      title: "Packing Command Stack",
-      badge: "In Flow",
-      description: "Keep carton builds, label prints, and QA signoff aligned.",
-      tools: [
-        {
-          title: "Packing Wave",
-          description: "View packing tasks and prioritization cues.",
-          type: "view",
-          target: "ops"
-        },
-        {
-          title: "Label Print Queue",
-          description: "Print labels directly from the scan station.",
-          type: "view",
-          target: "scan"
-        },
-        {
-          title: "Carton QA Checklist",
-          description: "Reference packing QA steps and escalation paths.",
-          type: "view",
-          target: "docs"
-        }
-      ]
-    },
-    {
-      id: "finished",
-      title: "Finished Goods Command Stack",
-      badge: "Ready",
-      description: "Coordinate pallet staging, final checks, and pickup windows.",
-      tools: [
-        {
-          title: "Finished Goods Staging",
-          description: "Review packed inventory and staging confirmation.",
-          type: "link",
-          target: "/stock.html"
-        },
-        {
-          title: "Dispatch Priority",
-          description: "Align dispatch sequencing with carrier ETAs.",
-          type: "view",
-          target: "ops"
-        },
-        {
-          title: "Outbound Drilldown",
-          description: "Explore shipment analytics and pickup readiness.",
-          type: "view",
-          target: "docs"
-        }
-      ]
-    },
-    {
-      id: "warehouse",
-      title: "Warehouse Command Stack",
-      badge: "Inventory",
-      description: "Track storage slots, replenishment tasks, and inbound capture.",
-      tools: [
-        {
-          title: "Stock Take",
-          description: "Run live inventory counts and adjustments.",
-          type: "link",
-          target: "/stock.html"
-        },
-        {
-          title: "Inbound Capture",
-          description: "Capture new inbound orders and intake checks.",
-          type: "link",
-          target: "/flocs"
-        },
-        {
-          title: "Storage SOP",
-          description: "Open the storage layout and replenishment guide.",
-          type: "view",
-          target: "docs"
-        }
-      ]
     }
   ];
 
@@ -335,14 +182,11 @@
   let dispatchModalShipmentId = null;
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
-  const INVOICE_TEMPLATE_KEY = "fl_invoice_template_v1";
-  const DISPATCH_TODO_KEY = "fl_dispatch_todo_v1";
   let dailyParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
   let truckBookedBy = null;
   let truckBookingInFlight = false;
-  let dispatchTodos = [];
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -385,192 +229,8 @@
 
   const statusExplain = (msg, tone = "info") => {
     if (statusChip) statusChip.textContent = msg;
-    if (!actionFlash) return;
-    actionFlash.textContent = msg;
-
-    actionFlash.classList.remove(
-      "actionFlash--info",
-      "actionFlash--ok",
-      "actionFlash--warn",
-      "actionFlash--err",
-      "actionFlash--booked"
-    );
-
-    const cls =
-      tone === "ok"
-        ? "actionFlash--ok"
-        : tone === "warn"
-        ? "actionFlash--warn"
-        : tone === "err"
-        ? "actionFlash--err"
-        : "actionFlash--info";
-
-    actionFlash.classList.add(cls);
-
-    actionFlash.style.opacity = "1";
-    clearTimeout(actionFlash._fadeTimer);
-    actionFlash._fadeTimer = setTimeout(() => {
-      actionFlash.style.opacity = "0.4";
-    }, 2000);
   };
-
-  let invoiceOrders = [];
-
-  function loadInvoiceTemplate() {
-    const saved = localStorage.getItem(INVOICE_TEMPLATE_KEY);
-    if (invoiceTemplateInput && saved) {
-      invoiceTemplateInput.value = saved;
-    }
-  }
-
-  function getInvoiceTemplate() {
-    return invoiceTemplateInput ? invoiceTemplateInput.value.trim() : "";
-  }
-
-  function saveInvoiceTemplate() {
-    if (!invoiceTemplateInput) return;
-    const template = getInvoiceTemplate();
-    if (template) {
-      localStorage.setItem(INVOICE_TEMPLATE_KEY, template);
-      statusExplain("Invoice template saved.", "ok");
-    } else {
-      localStorage.removeItem(INVOICE_TEMPLATE_KEY);
-      statusExplain("Invoice template cleared.", "warn");
-    }
-  }
-
-  function buildInvoiceUrl(order) {
-    const template = getInvoiceTemplate();
-    if (!template) return "";
-    const orderName = String(order?.name || "");
-    const orderNumber = order?.order_number ?? orderName.replace(/^#/, "");
-    const replacements = {
-      "{order_name}": orderName,
-      "{order_number}": orderNumber,
-      "{order_id}": order?.id ?? "",
-      "{customer_email}": order?.email ?? ""
-    };
-    let url = template;
-    Object.entries(replacements).forEach(([token, value]) => {
-      url = url.split(token).join(encodeURIComponent(String(value)));
-    });
-    return url;
-  }
-
-  function formatInvoiceDate(value) {
-    if (!value) return "—";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "—";
-    return date.toLocaleString();
-  }
-
-  function filterInvoiceOrders() {
-    const orderQuery = String(invoiceFilterOrder?.value || "").trim().toLowerCase();
-    const customerQuery = String(invoiceFilterCustomer?.value || "").trim().toLowerCase();
-    const fromValue = invoiceFilterFrom?.value ? new Date(invoiceFilterFrom.value) : null;
-    const toValue = invoiceFilterTo?.value ? new Date(invoiceFilterTo.value) : null;
-    const fromTime = fromValue ? fromValue.getTime() : null;
-    const toTime = toValue ? new Date(toValue.getTime() + 24 * 60 * 60 * 1000 - 1).getTime() : null;
-
-    return invoiceOrders.filter((order) => {
-      const name = String(order?.name || "").toLowerCase();
-      const orderNumber = String(order?.order_number || "").toLowerCase();
-      const customerName = String(order?.customer_name || "").toLowerCase();
-      const createdAt = order?.created_at ? new Date(order.created_at).getTime() : null;
-
-      if (orderQuery && !name.includes(orderQuery) && !orderNumber.includes(orderQuery)) {
-        return false;
-      }
-      if (customerQuery && !customerName.includes(customerQuery)) {
-        return false;
-      }
-      if (fromTime && (!createdAt || createdAt < fromTime)) {
-        return false;
-      }
-      if (toTime && (!createdAt || createdAt > toTime)) {
-        return false;
-      }
-      return true;
-    });
-  }
-
-  function renderInvoiceTable() {
-    if (!invoiceTableBody) return;
-    const filtered = filterInvoiceOrders();
-    if (!filtered.length) {
-      const emptyMessage = invoiceOrders.length
-        ? "No orders match these filters."
-        : "Load orders to get started.";
-      invoiceTableBody.innerHTML = `<tr><td colspan="4" class="invoiceEmpty">${emptyMessage}</td></tr>`;
-      return;
-    }
-
-    const rows = filtered.map((order) => {
-      const invoiceUrl = buildInvoiceUrl(order);
-      const safeUrl = invoiceUrl || "";
-      const downloadUrl = safeUrl || "#";
-      const orderLabel = order?.name || "—";
-      const customerLabel = order?.customer_name || "—";
-      const dateLabel = formatInvoiceDate(order?.created_at);
-      const disabledAttr = safeUrl ? "" : "disabled";
-      const whatsappText = encodeURIComponent(
-        `Invoice for ${orderLabel}: ${safeUrl || "Set invoice template first."}`
-      );
-      const whatsappUrl = safeUrl ? `https://wa.me/?text=${whatsappText}` : "#";
-
-      return `
-        <tr>
-          <td>${orderLabel}</td>
-          <td>${customerLabel}</td>
-          <td>${dateLabel}</td>
-          <td>
-            <div class="invoiceActions">
-              <a class="btn" href="${downloadUrl}" target="_blank" rel="noopener" ${safeUrl ? "" : "aria-disabled=\"true\""}>Download</a>
-              <a class="btn" href="${whatsappUrl}" target="_blank" rel="noopener" ${safeUrl ? "" : "aria-disabled=\"true\""}>WhatsApp</a>
-              <button class="btn" type="button" data-invoice-action="print" data-invoice-url="${safeUrl}" data-order-name="${orderLabel}" ${disabledAttr}>Print</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    });
-
-    invoiceTableBody.innerHTML = rows.join("");
-  }
-
-  async function refreshInvoiceOrders() {
-    if (!invoiceSyncStatus) return;
-    invoiceSyncStatus.textContent = "Loading orders…";
-    try {
-      const from = invoiceFilterFrom?.value ? new Date(`${invoiceFilterFrom.value}T00:00:00`) : null;
-      const to = invoiceFilterTo?.value ? new Date(`${invoiceFilterTo.value}T23:59:59.999`) : null;
-      const params = new URLSearchParams({ limit: "200" });
-      if (from) params.set("from", from.toISOString());
-      if (to) params.set("to", to.toISOString());
-      const resp = await fetch(`/shopify/orders/list?${params.toString()}`);
-      if (!resp.ok) {
-        throw new Error(`Order list failed (${resp.status})`);
-      }
-      const data = await resp.json();
-      invoiceOrders = Array.isArray(data.orders) ? data.orders : [];
-      invoiceSyncStatus.textContent = `Loaded ${invoiceOrders.length} orders`;
-      renderInvoiceTable();
-    } catch (err) {
-      console.error("Invoice order load error:", err);
-      invoiceSyncStatus.textContent = "Failed to load orders";
-      statusExplain("Invoice list failed to load.", "err");
-      if (invoiceTableBody) {
-        invoiceTableBody.innerHTML =
-          '<tr><td colspan="4" class="invoiceEmpty">Unable to load orders. Check Shopify connection.</td></tr>';
-      }
-    }
-  }
-
-  const triggerBookedFlash = () => {
-    if (!actionFlash) return;
-    actionFlash.classList.remove("actionFlash--booked");
-    void actionFlash.offsetWidth;
-    actionFlash.classList.add("actionFlash--booked");
-  };
+  const triggerBookedFlash = () => {};
 
   const appendDebug = (msg) => {
     if (!dbgOn || !debugLog) return;
@@ -669,7 +329,7 @@
   async function refreshServerStatus() {
     if (!serverStatusBar) return;
     try {
-      const res = await fetch("/statusz");
+      const res = await fetch(`${API_BASE}/statusz`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Status error");
       renderServerStatusBar(data);
@@ -792,79 +452,6 @@
           </div>
         `
       ).join("");
-    });
-  }
-
-  function saveDispatchTodos() {
-    localStorage.setItem(DISPATCH_TODO_KEY, JSON.stringify(dispatchTodos));
-  }
-
-  function renderDispatchTodos() {
-    if (!dispatchTodoList) return;
-    dispatchTodoList.innerHTML = "";
-    if (!dispatchTodos.length) {
-      const empty = document.createElement("div");
-      empty.className = "dispatchTodoEmpty";
-      empty.textContent = "No dispatch notes yet.";
-      dispatchTodoList.appendChild(empty);
-      return;
-    }
-    dispatchTodos.forEach((todo) => {
-      const item = document.createElement("div");
-      item.className = `dispatchTodoItem${todo.completed ? " is-complete" : ""}`;
-      item.dataset.todoId = todo.id;
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = todo.completed;
-      checkbox.setAttribute("aria-label", `Mark ${todo.text} as complete`);
-      const text = document.createElement("span");
-      text.textContent = todo.text;
-      item.append(checkbox, text);
-      dispatchTodoList.appendChild(item);
-    });
-  }
-
-  function loadDispatchTodos() {
-    if (!dispatchTodoList) return;
-    try {
-      const stored = JSON.parse(localStorage.getItem(DISPATCH_TODO_KEY) || "[]");
-      dispatchTodos = Array.isArray(stored) ? stored : [];
-    } catch (error) {
-      dispatchTodos = [];
-    }
-    renderDispatchTodos();
-  }
-
-  function initDispatchTodos() {
-    if (!dispatchTodoForm || !dispatchTodoInput || !dispatchTodoList) return;
-    loadDispatchTodos();
-    dispatchTodoForm.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const text = dispatchTodoInput.value.trim();
-      if (!text) return;
-      dispatchTodos.unshift({
-        id: `todo-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        text,
-        completed: false
-      });
-      dispatchTodoInput.value = "";
-      saveDispatchTodos();
-      renderDispatchTodos();
-    });
-    dispatchTodoList.addEventListener("change", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement) || target.type !== "checkbox") return;
-      const item = target.closest(".dispatchTodoItem");
-      if (!item) return;
-      const todo = dispatchTodos.find((entry) => entry.id === item.dataset.todoId);
-      if (!todo) return;
-      const wasComplete = todo.completed;
-      todo.completed = target.checked;
-      if (!wasComplete && todo.completed) {
-        triggerScreenFlash("success");
-      }
-      saveDispatchTodos();
-      renderDispatchTodos();
     });
   }
 
@@ -1189,6 +776,7 @@
       dailyParcelCount = 0;
     }
     saveDailyParcelCount();
+    updateDashboardKpis();
   }
 
   function saveDailyParcelCount() {
@@ -1244,12 +832,26 @@
     truckBookBtn.setAttribute("aria-pressed", truckBooked ? "true" : "false");
   }
 
+  function updateDashboardKpis() {
+    if (kpiParcels) kpiParcels.textContent = String(dailyParcelCount || 0);
+    if (kpiOpenOrders) kpiOpenOrders.textContent = String(dispatchOrdersLatest.length || 0);
+    if (kpiRecentShipments) kpiRecentShipments.textContent = String(dispatchShipmentsLatest.length || 0);
+    if (kpiMode) kpiMode.textContent = isAutoMode ? "Auto" : "Manual";
+    if (kpiTruckStatus) kpiTruckStatus.textContent = truckBooked ? "Booked" : "Not booked";
+    if (kpiLastScan) {
+      kpiLastScan.textContent = lastScanAt
+        ? new Date(lastScanAt).toLocaleTimeString()
+        : "--";
+    }
+  }
+
   function updateTruckBookingState({ booked, bookedBy }) {
     truckBooked = booked;
     truckBookedBy = bookedBy || null;
     truckBookedAt = booked ? new Date().toISOString() : null;
     saveTruckBooking();
     renderTruckPanel();
+    updateDashboardKpis();
   }
 
   async function requestTruckBooking(reason) {
@@ -1257,7 +859,7 @@
     try {
       truckBookingInFlight = true;
       statusExplain("Requesting truck collection…", "info");
-      const resp = await fetch("/alerts/book-truck", {
+      const resp = await fetch(`${API_BASE}/alerts/book-truck`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ parcelCount: dailyParcelCount, reason })
@@ -1281,6 +883,7 @@
     dailyParcelCount = Math.max(0, dailyParcelCount + delta);
     saveDailyParcelCount();
     renderTruckPanel();
+    updateDashboardKpis();
     if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
       requestTruckBooking("auto");
     }
@@ -1658,17 +1261,23 @@ function scheduleIdleAutoBook() {
       }
     }
 
+    if (uiCustomerName) {
+      uiCustomerName.textContent = orderDetails?.name ? orderDetails.name : "--";
+    }
+
+    if (uiOrderWeight) {
+      uiOrderWeight.textContent =
+        orderDetails && Number.isFinite(orderDetails.totalWeightKg)
+          ? `${orderDetails.totalWeightKg.toFixed(2)} kg`
+          : "--";
+    }
+
     if (shipToCard) {
       shipToCard.textContent = !orderDetails
         ? "None yet."
-        : `${orderDetails.name}
-${orderDetails.address1}
+        : `${orderDetails.address1}
 ${orderDetails.address2 ? orderDetails.address2 + "\n" : ""}${orderDetails.city}
-${orderDetails.province} ${orderDetails.postal}
-Tel: ${orderDetails.phone || ""}
-Email: ${orderDetails.email || ""}${
-  linkedOrders.size ? `\nBundled orders: ${getBundleOrderNos().join(", ")}` : ""
-}`.trim();
+${orderDetails.province} ${orderDetails.postal}`.trim();
     }
 
     if (totalExpected && totalScanned) {
@@ -1851,7 +1460,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     for (const q of queries) {
       try {
         appendDebug("PP getPlace query: " + q);
-        const res = await fetch(`/pp/place?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`${CONFIG.PP_ENDPOINT}/place?q=${encodeURIComponent(q)}`);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
 
@@ -2170,7 +1779,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       logDispatchEvent("Printing labels via PrintNode.");
 
       try {
-        await fetch("/printnode/print", {
+        await fetch(`${API_BASE}/printnode/print`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pdfBase64: labelsBase64, title: `Labels ${waybillNo}` })
@@ -2184,7 +1793,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
         await stepDispatchProgress(4, "Printing waybill");
         logDispatchEvent("Printing waybill via PrintNode.");
         try {
-          await fetch("/printnode/print", {
+          await fetch(`${API_BASE}/printnode/print`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ pdfBase64: waybillBase64, title: `Waybill ${waybillNo}` })
@@ -2367,6 +1976,7 @@ async function startOrder(orderNo) {
     lastScanAt = Date.now();
     lastScanCode = code;
     armedForBooking = false;
+    updateDashboardKpis();
 
     confirmScanFeedback(crossOrderScan ? "warn" : "success");
 
@@ -2548,26 +2158,17 @@ async function startOrder(orderNo) {
     return OPP_DOCUMENTS.find((doc) => doc.type === docType)?.label || "OPP document";
   }
 
-  function renderDispatchActions(order, laneId, orderNo, packingState) {
-    const actionBtn =
-      laneId === "delivery"
-        ? orderNo
-          ? `<button class="dispatchNoteBtn" type="button" data-action="print-note" data-order-no="${orderNo}">Print delivery note</button>`
-          : `<button class="dispatchNoteBtn" type="button" disabled>Print delivery note</button>`
-        : laneId === "pickup"
-        ? orderNo
-          ? `<button class="dispatchNotifyBtn" type="button" data-action="notify-ready" data-order-no="${orderNo}">Notify customer</button>`
-          : `<button class="dispatchNotifyBtn" type="button" disabled>Notify customer</button>`
-        : orderNo
-        ? `<button class="dispatchBookBtn" type="button" data-action="book-now" data-order-no="${orderNo}">Book Now</button>`
-        : `<button class="dispatchBookBtn" type="button" disabled>Book Now</button>`;
-
-    const flowBtn = orderNo
-      ? `<button class="dispatchFlowBtn" type="button" data-action="run-flow" data-order-no="${orderNo}">Run flow</button>`
-      : `<button class="dispatchFlowBtn" type="button" disabled>Run flow</button>`;
-    const oppBtns = renderOppDocButtons(orderNo);
-
-    return `${actionBtn}${flowBtn}${oppBtns}`;
+  function renderDispatchActions(order, laneId, orderNo) {
+    const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
+    const label = normalizedLane === "pickup" ? "Ready for collection" : "Fulfil";
+    const actionType =
+      normalizedLane === "delivery"
+        ? "fulfill-delivery"
+        : normalizedLane === "pickup"
+        ? "ready-collection"
+        : "fulfill-shipping";
+    const disabled = orderNo ? "" : "disabled";
+    return `<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
   }
 
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
@@ -2768,39 +2369,58 @@ async function startOrder(orderNo) {
     if (!orderNo) return;
     const order = dispatchOrderCache.get(orderNo);
     if (!order) return;
-    const packingState = dispatchPackingState.get(orderNo) || getPackingState(order);
-    const parcelCount = getPackingParcelCount(packingState);
-    const weightKg = Number(order.total_weight_kg || 0);
-    if (!order.email) {
-      statusExplain("Customer email missing.", "warn");
-      logDispatchEvent(`Notify failed for order ${orderNo}: missing email.`);
-      return;
-    }
     try {
-      setDispatchProgress(6, `Notifying ${orderNo}`);
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/notify-collection`, {
+      setDispatchProgress(6, `Marking ${orderNo} ready for collection`);
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/ready-for-pickup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderNo,
-          orderId: order.id,
-          email: order.email,
-          customerName: order.customer_name || "",
-          parcelCount,
-          weightKg
+          orderId: order.id
         })
       });
       if (!res.ok) {
         const text = await res.text();
-        statusExplain("Notify failed.", "warn");
-        logDispatchEvent(`Notify failed for order ${orderNo}: ${text}`);
+        statusExplain("Ready-for-collection failed.", "warn");
+        logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${text}`);
         return;
       }
-      statusExplain(`Customer notified for ${orderNo}.`, "ok");
-      logDispatchEvent(`Customer notified for order ${orderNo}.`);
+      statusExplain(`Order ${orderNo} marked ready for collection.`, "ok");
+      logDispatchEvent(`Order ${orderNo} marked ready for collection.`);
     } catch (err) {
-      statusExplain("Notify failed.", "warn");
-      logDispatchEvent(`Notify failed for order ${orderNo}: ${String(err)}`);
+      statusExplain("Ready-for-collection failed.", "warn");
+      logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${String(err)}`);
+    }
+  }
+
+  async function markDeliveryReady(orderNo) {
+    if (!orderNo) return;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return;
+    try {
+      setDispatchProgress(6, `Marking ${orderNo} ready for delivery`);
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          trackingNumber: "",
+          trackingUrl: "",
+          trackingCompany: "Local delivery",
+          message: "Ready for delivery."
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        statusExplain("Ready-for-delivery failed.", "warn");
+        logDispatchEvent(`Ready-for-delivery failed for order ${orderNo}: ${text}`);
+        return;
+      }
+      statusExplain(`Order ${orderNo} marked ready for delivery.`, "ok");
+      logDispatchEvent(`Order ${orderNo} marked ready for delivery.`);
+    } catch (err) {
+      statusExplain("Ready-for-delivery failed.", "warn");
+      logDispatchEvent(`Ready-for-delivery failed for order ${orderNo}: ${String(err)}`);
     }
   }
 
@@ -2887,6 +2507,10 @@ async function startOrder(orderNo) {
 
     filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     const list = filtered.slice(0, 60);
+    const shipments = Array.isArray(dispatchShipmentsLatest) ? dispatchShipmentsLatest : [];
+    if (dispatchShipmentsSidebar) {
+      dispatchShipmentsSidebar.innerHTML = renderShipmentList(shipments);
+    }
 
     if (!list.length) {
       dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
@@ -2897,8 +2521,7 @@ async function startOrder(orderNo) {
       { id: "delivery", label: "Delivery", type: "cards" },
       { id: "shippingA", label: "Shipping", type: "cards" },
       { id: "shippingB", label: "Shipping", type: "cards" },
-      { id: "pickup", label: "Pickup / Collection", type: "cards" },
-      { id: "shipments", label: "Recently shipped", type: "shipments" }
+      { id: "pickup", label: "Pickup / Collection", type: "cards" }
     ];
     const lanes = {
       delivery: [],
@@ -2946,15 +2569,6 @@ async function startOrder(orderNo) {
 
     dispatchBoard.innerHTML = cols
       .map((col) => {
-        if (col.type === "shipments") {
-          const shipments = Array.isArray(dispatchShipmentsLatest) ? dispatchShipmentsLatest : [];
-          const listHTML = renderShipmentList(shipments);
-          return `
-            <div class="dispatchCol dispatchCol--shipments">
-              <div class="dispatchColHeader">${col.label}</div>
-              <div class="dispatchColBody dispatchColBody--shipments">${listHTML}</div>
-            </div>`;
-        }
         const laneOrders =
           col.id === "shippingA"
             ? shippingA
@@ -3059,20 +2673,133 @@ async function startOrder(orderNo) {
     return true;
   }
 
-  function printDeliveryNote(order) {
+  async function printDeliveryNote(order) {
     if (!order) return false;
     const orderNo = String(order.name || "").replace("#", "").trim();
-    const title = order.customer_name || order.name || `Order ${order.id}`;
-    const addressLines = [
-      order.shipping_address1,
-      order.shipping_address2,
-      [order.shipping_city, order.shipping_postal].filter(Boolean).join(" ")
-    ]
-      .filter(Boolean)
-      .join("<br>");
-    const lineItems = (order.line_items || [])
-      .map((li) => `<tr><td>${li.title || ""}</td><td>${li.sku || ""}</td><td>${li.quantity}</td></tr>`)
+    let orderData = order;
+
+    try {
+      const res = await fetch(
+        `${CONFIG.SHOPIFY.PROXY_BASE}/orders/by-name/${encodeURIComponent(orderNo)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.order) orderData = data.order;
+      }
+    } catch (err) {
+      appendDebug(`Delivery note fetch failed for ${orderNo}: ${String(err)}`);
+    }
+
+    const billing = orderData.billing_address || {};
+    const shipping = orderData.shipping_address || {};
+    const customer = orderData.customer || {};
+    const noteRaw = String(orderData.note || "");
+    const noteLines = noteRaw.split("\n");
+
+    let poValue = "";
+    let invoiceDateFromNote = "";
+    noteLines.forEach((line) => {
+      const clean = line.trim();
+      if (clean.includes("PO:")) {
+        poValue = clean.split("PO:").pop().trim();
+      }
+      if (clean.includes("Invoice Date:")) {
+        const rawAfter = clean.split("Invoice Date:").pop().trim();
+        invoiceDateFromNote = rawAfter.slice(0, 10);
+      }
+    });
+
+    const invoiceDateMf =
+      orderData?.metafields?.custom?.invoice_date?.value ||
+      orderData?.metafields?.custom?.invoice_date ||
+      orderData?.metafields?.finance?.invoice_date?.value ||
+      orderData?.metafields?.finance?.invoice_date ||
+      "";
+
+    const invoiceDateRaw = invoiceDateMf || invoiceDateFromNote || orderData.created_at || "";
+
+    const normalizeDateParts = (value) => {
+      if (!value) return null;
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return { y: value.getFullYear(), m: value.getMonth() + 1, d: value.getDate() };
+      }
+      const str = String(value).trim();
+      if (!str) return null;
+
+      const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        return { y: Number(match[1]), m: Number(match[2]), d: Number(match[3]) };
+      }
+
+      if (str.includes("/")) {
+        const parts = str.split("/").map((part) => part.trim());
+        if (parts.length === 3) {
+          const [p0, p1, p2] = parts;
+          if (p0.length === 4) {
+            return { y: Number(p0), m: Number(p1), d: Number(p2) };
+          }
+          if (p2.length === 4) {
+            return { y: Number(p2), m: Number(p1), d: Number(p0) };
+          }
+        }
+      }
+
+      const parsed = new Date(str);
+      if (!Number.isNaN(parsed.getTime())) {
+        return { y: parsed.getFullYear(), m: parsed.getMonth() + 1, d: parsed.getDate() };
+      }
+      return null;
+    };
+
+    const formatDate = (value) => {
+      const parts = normalizeDateParts(value);
+      if (!parts) return "";
+      const day = String(parts.d).padStart(2, "0");
+      const month = String(parts.m).padStart(2, "0");
+      return `${day}/${month}/${parts.y}`;
+    };
+
+    const invoiceDateFinal = formatDate(invoiceDateRaw);
+
+    const billingName =
+      (billing.company && billing.company.trim()) || billing.name || orderData.customer_name || "";
+    const shippingName =
+      (shipping.company && shipping.company.trim()) || shipping.name || orderData.customer_name || "";
+
+    const billingPhone =
+      billing.phone ||
+      customer?.default_address?.phone ||
+      customer.phone ||
+      orderData.phone ||
+      "";
+    const shippingPhone = shipping.phone || orderData.shipping_phone || "";
+
+    const noteAttributes = Array.isArray(orderData.note_attributes)
+      ? orderData.note_attributes
+      : [];
+    const shippingEmail =
+      noteAttributes.find((attr) => attr?.name === "Shipping Email")?.value ||
+      orderData.email ||
+      "";
+
+    const lineItems = Array.isArray(orderData.line_items) ? [...orderData.line_items] : [];
+    lineItems.sort((a, b) => String(a.sku || "").localeCompare(String(b.sku || "")));
+
+    const shopName = CONFIG?.SHOP_NAME || "Flippen Lekka Holdings (Pty) Ltd";
+    const shopDomain = CONFIG?.SHOP_DOMAIN || "flippenlekkaspices.co.za";
+
+    const lineRows = lineItems
+      .map((line) => {
+        return `
+          <tr>
+            <td>${line.sku || ""}</td>
+            <td>${line.title || ""}</td>
+            <td style="text-align:center;">${line.quantity || ""}</td>
+          </tr>
+        `;
+      })
       .join("");
+
     const doc = `
       <!DOCTYPE html>
       <html>
@@ -3080,26 +2807,146 @@ async function startOrder(orderNo) {
         <meta charset="utf-8" />
         <title>Delivery Note ${orderNo}</title>
         <style>
-          body{ font-family:Arial, sans-serif; padding:24px; color:#0f172a; }
-          h1{ font-size:18px; margin-bottom:8px; }
-          .meta{ font-size:12px; color:#475569; margin-bottom:16px; }
-          table{ width:100%; border-collapse:collapse; font-size:12px; }
-          th,td{ border:1px solid #cbd5f5; padding:6px; text-align:left; }
-          th{ background:#e2e8f0; }
-          .addr{ margin-top:12px; font-size:12px; }
+          body{ font-family: Arial, sans-serif; font-size: 9pt; color:#000; }
+          .card{ border:1px solid #ddd; border-radius:6px; padding:10px; }
+          .card h3{ margin:0 0 6px 0; font-size:11pt; letter-spacing:.2px; }
+          .kv{ margin:2px 0; font-size:9pt; }
+          .kv .k{ color:#555; min-width:80px; display:inline-block; }
+          .namebig{ font-size:11pt; font-weight:700; margin-bottom:4px; }
+          .muted{ color:#666; }
+          h2{ margin:2px 0 0 0; font-size:13pt; font-weight:700; }
+          .small{ font-size:8pt !important; }
+          .tight td{ padding:2px 4px; }
+          .headerTbl{ width:100%; }
+          .hdrL{ width:70%; vertical-align:top; text-align:left; }
+          .hdrR{ width:30%; vertical-align:top; text-align:right; }
+          .addrTbl{ width:100%; margin-top:12px; }
+          .addrTbl td{ vertical-align:top; width:50%; }
+          .section{ font-size:14px; font-weight:700; text-transform:uppercase; }
+          .items{ font-size:11px; width:100%; border-collapse:collapse; margin-top:14px; }
+          .items th, .items td{ border:1px solid #000; padding:3px; }
+          .items th{ background:#f2f2f2; }
+          .sigTbl{ width:100%; margin-top:24px; }
+          .sigTbl td{ padding:12px 0; }
+          .note{ font-size:8pt; margin-top:8px; }
         </style>
       </head>
       <body>
-        <h1>Delivery Note • Order ${orderNo}</h1>
-        <div class="meta">${title}</div>
-        <div class="addr"><strong>Deliver to:</strong><br>${addressLines || "No address on file"}</div>
-        <table>
-          <thead><tr><th>Item</th><th>SKU</th><th>Qty</th></tr></thead>
-          <tbody>${lineItems || "<tr><td colspan='3'>No line items.</td></tr>"}</tbody>
+        <table class="headerTbl">
+          <tr>
+            <td class="hdrL">
+              <h2>${shopName}</h2>
+              <div class="logo-wrapper" style="float:left;">
+                <a href="https://${shopDomain}" target="_blank">
+                  <img class="logo" alt="Logo"
+                       src="https://www.orderprintertemplates.com/api/v1/logos/49348e82cd6bc0a105d1?v=1739954015"
+                       style="max-width:80%;height:auto;margin-right:10px;">
+                </a>
+              </div>
+              <div class="small" style="width:100%">
+                7 Papawer Street, Blomtuin, Bellville<br>
+                Cape Town, Western Cape, 7530<br>
+                Co. Reg No: 2015/091655/07<br>
+                VAT Reg No: 4150279885<br>
+                Phone: 071 371 0499 | 078 355 6277<br>
+                Email: admin@flippenlekkaspices.co.za
+              </div>
+            </td>
+            <td class="hdrR">
+              <h2 style="font-size:18px">DELIVERY NOTE</h2>
+              <table class="tight small" style="margin-left:auto;">
+                <tr>
+                  <td class="section">Date:</td>
+                  <td>${invoiceDateFinal || ""}</td>
+                </tr>
+                <tr>
+                  <td class="section">Delivery&nbsp;No:</td>
+                  <td>${orderData.name || ""}</td>
+                </tr>
+                ${poValue ? `<tr><td class="section">PO&nbsp;Number:</td><td>${poValue}</td></tr>` : ""}
+              </table>
+            </td>
+          </tr>
         </table>
+
+        <table class="addrTbl small">
+          <tr>
+            <td>
+              <div class="card">
+                <h3>Invoice to</h3>
+                <div class="namebig">${billingName || ""}</div>
+                ${billing.address1 ? `<div class="kv"><span class="k">Address:</span> ${billing.address1}</div>` : ""}
+                ${billing.address2 ? `<div class="kv"><span class="k"></span>${billing.address2}</div>` : ""}
+                ${
+                  billing.city || billing.province
+                    ? `<div class="kv"><span class="k"></span>${billing.city || ""}${
+                        billing.province ? `, ${billing.province}` : ""
+                      }</div>`
+                    : ""
+                }
+                ${billing.zip ? `<div class="kv"><span class="k"></span>${billing.zip}</div>` : ""}
+                ${billing.country ? `<div class="kv"><span class="k"></span>${billing.country}</div>` : ""}
+                ${billingPhone ? `<div class="kv"><span class="k">Phone:</span> ${billingPhone}</div>` : ""}
+                ${orderData.email ? `<div class="kv"><span class="k">Email:</span> ${orderData.email}</div>` : ""}
+                ${
+                  customer?.note && customer.note.includes("VAT ID:")
+                    ? `<div class="kv"><span class="k">VAT Nr:</span> ${
+                        customer.note.split("VAT ID:").pop().trim()
+                      }</div>`
+                    : ""
+                }
+              </div>
+            </td>
+            <td>
+              <div class="card">
+                <h3>Deliver to</h3>
+                <div class="namebig">${shippingName || ""}</div>
+                ${shipping.address1 ? `<div class="kv"><span class="k">Address:</span> ${shipping.address1}</div>` : ""}
+                ${shipping.address2 ? `<div class="kv"><span class="k"></span>${shipping.address2}</div>` : ""}
+                ${
+                  shipping.city || shipping.province
+                    ? `<div class="kv"><span class="k"></span>${shipping.city || ""}${
+                        shipping.province ? `, ${shipping.province}` : ""
+                      }</div>`
+                    : ""
+                }
+                ${shipping.zip ? `<div class="kv"><span class="k"></span>${shipping.zip}</div>` : ""}
+                ${shipping.country ? `<div class="kv"><span class="k"></span>${shipping.country}</div>` : ""}
+                ${shippingPhone ? `<div class="kv"><span class="k">Phone:</span> ${shippingPhone}</div>` : ""}
+                ${shippingEmail ? `<div class="kv"><span class="k">Email:</span> ${shippingEmail}</div>` : ""}
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <table class="items">
+          <thead>
+            <tr>
+              <th style="width:14%;">Code</th>
+              <th>Description</th>
+              <th style="width:8%; text-align:center;">Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lineRows || "<tr><td colspan='3'>No line items.</td></tr>"}
+          </tbody>
+        </table>
+
+        <table class="sigTbl small">
+          <tr>
+            <td>Received by: ___________________</td>
+            <td>Receiver signature: ___________________</td>
+            <td>Date: ___________________</td>
+          </tr>
+        </table>
+
+        <div class="note" style="text-align:center; margin-top:8px;">
+          Please check your goods before signing. Goods remain vested in Flippen Lekka Holdings (Pty) Ltd until paid in full.
+        </div>
       </body>
       </html>
     `;
+
     const win = window.open("", "_blank", "width=820,height=900");
     if (!win) return false;
     win.document.open();
@@ -3121,6 +2968,7 @@ async function startOrder(orderNo) {
       dispatchOrdersLatest = data.orders || [];
       dispatchShipmentsLatest = shipmentsData.shipments || [];
       renderDispatchBoard(dispatchOrdersLatest);
+      updateDashboardKpis();
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
     } catch (e) {
       appendDebug("Dispatch refresh failed: " + String(e));
@@ -3161,7 +3009,7 @@ async function startOrder(orderNo) {
 
       const meta = document.createElement("span");
       meta.className = "moduleMeta";
-      meta.textContent = module.type === "view" ? "Internal module" : module.target;
+      meta.textContent = module.meta || module.target || "Module";
 
       const button = document.createElement("button");
       button.type = "button";
@@ -3180,63 +3028,17 @@ async function startOrder(orderNo) {
     });
   }
 
-  function renderFactoryView(activeId = "manufacturing") {
-    if (!factoryMap || !factoryTools) return;
-    const targetArea = FACTORY_AREAS.find((area) => area.id === activeId) || FACTORY_AREAS[0];
-
-    factoryMap.querySelectorAll(".factoryArea").forEach((areaButton) => {
-      const isActive = areaButton instanceof HTMLElement && areaButton.dataset.dept === targetArea.id;
-      areaButton.classList.toggle("factoryArea--active", isActive);
-    });
-
-    if (factoryDetailTitle) factoryDetailTitle.textContent = targetArea.title;
-    if (factoryDetailBadge) factoryDetailBadge.textContent = targetArea.badge;
-    if (factoryDetailDesc) factoryDetailDesc.textContent = targetArea.description;
-
-    factoryTools.innerHTML = "";
-    targetArea.tools.forEach((tool) => {
-      const toolCard = document.createElement("article");
-      toolCard.className = "factoryTool";
-
-      const toolTitle = document.createElement("h4");
-      toolTitle.className = "factoryToolTitle";
-      toolTitle.textContent = tool.title;
-
-      const toolDesc = document.createElement("p");
-      toolDesc.className = "factoryToolDesc";
-      toolDesc.textContent = tool.description;
-
-      const toolButton = document.createElement("button");
-      toolButton.type = "button";
-      toolButton.className = "factoryToolBtn";
-      toolButton.textContent = "Open tool";
-      toolButton.dataset.toolType = tool.type;
-      toolButton.dataset.toolTarget = tool.target;
-
-      toolCard.appendChild(toolTitle);
-      toolCard.appendChild(toolDesc);
-      toolCard.appendChild(toolButton);
-      factoryTools.appendChild(toolCard);
-    });
-  }
-
-  function openFactoryTool(type, target) {
-    if (!type || !target) return;
-    if (type === "view") {
-      switchMainView(target);
-      return;
-    }
-    if (type === "link") {
-      window.location.href = target;
-    }
-  }
-
   function openModuleById(moduleId) {
     const module = MODULES.find((entry) => entry.id === moduleId);
     if (!module) return;
 
     if (module.type === "view") {
-      switchMainView(module.target);
+      navigateTo(routeForView(module.target));
+      return;
+    }
+
+    if (module.type === "route" && module.target) {
+      navigateTo(module.target);
       return;
     }
 
@@ -3255,30 +3057,14 @@ async function startOrder(orderNo) {
     openModuleById(moduleId);
   });
 
-  factoryMap?.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const area = target.closest("[data-dept]");
-    if (!area) return;
-    const deptId = area.dataset.dept;
-    if (!deptId) return;
-    renderFactoryView(deptId);
-  });
-
-  factoryTools?.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const button = target.closest(".factoryToolBtn");
-    if (!button) return;
-    openFactoryTool(button.dataset.toolType, button.dataset.toolTarget);
-  });
-
   function switchMainView(view) {
     const showDashboard = view === "dashboard";
     const showScan = view === "scan";
     const showOps = view === "ops";
-    const showInvoices = view === "invoices";
     const showDocs = view === "docs";
+    const showFlocs = view === "flocs";
+    const showStock = view === "stock";
+    const showPriceManager = view === "price-manager";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3292,41 +3078,117 @@ async function startOrder(orderNo) {
       viewOps.hidden = !showOps;
       viewOps.classList.toggle("flView--active", showOps);
     }
-    if (viewInvoices) {
-      viewInvoices.hidden = !showInvoices;
-      viewInvoices.classList.toggle("flView--active", showInvoices);
-    }
     if (viewDocs) {
       viewDocs.hidden = !showDocs;
       viewDocs.classList.toggle("flView--active", showDocs);
+    }
+    if (viewFlocs) {
+      viewFlocs.hidden = !showFlocs;
+      viewFlocs.classList.toggle("flView--active", showFlocs);
+    }
+    if (viewStock) {
+      viewStock.hidden = !showStock;
+      viewStock.classList.toggle("flView--active", showStock);
+    }
+    if (viewPriceManager) {
+      viewPriceManager.hidden = !showPriceManager;
+      viewPriceManager.classList.toggle("flView--active", showPriceManager);
     }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navOps?.classList.toggle("flNavBtn--active", showOps);
-    navInvoices?.classList.toggle("flNavBtn--active", showInvoices);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
+    navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
+    navStock?.classList.toggle("flNavBtn--active", showStock);
+    navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
-    navInvoices?.setAttribute("aria-selected", showInvoices ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
+    navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
+    navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
+    navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
     } else if (showScan) {
       statusExplain("Ready to scan orders…", "info");
       scanInput?.focus();
-    } else if (showInvoices) {
-      statusExplain("Invoice list ready.", "info");
-      if (!invoiceOrders.length) {
-        refreshInvoiceOrders();
-      }
     } else if (showDocs) {
       statusExplain("Viewing operator documentation", "info");
+    } else if (showFlocs) {
+      statusExplain("Order capture ready.", "info");
+    } else if (showStock) {
+      statusExplain("Stock take ready.", "info");
+    } else if (showPriceManager) {
+      statusExplain("Price manager ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
+  }
+
+  const ROUTE_VIEW_MAP = new Map([
+    ["/", "dashboard"],
+    ["/dashboard", "dashboard"],
+    ["/scan", "scan"],
+    ["/ops", "scan"],
+    ["/docs", "docs"],
+    ["/flocs", "flocs"],
+    ["/stock", "stock"],
+    ["/price-manager", "price-manager"]
+  ]);
+
+  const VIEW_ROUTE_MAP = {
+    dashboard: "/",
+    scan: "/scan",
+    ops: "/scan",
+    docs: "/docs",
+    flocs: "/flocs",
+    stock: "/stock",
+    "price-manager": "/price-manager"
+  };
+
+  const viewInitializers = {
+    flocs: initFlocsView,
+    stock: initStockView,
+    "price-manager": initPriceManagerView
+  };
+
+  function normalizePath(path) {
+    if (!path) return "/";
+    let cleaned = path.split("?")[0].split("#")[0];
+    cleaned = cleaned.replace(/\/index\.html$/, "");
+    return cleaned.replace(/\/+$/, "") || "/";
+  }
+
+  function viewForPath(path) {
+    return ROUTE_VIEW_MAP.get(normalizePath(path)) || "dashboard";
+  }
+
+  function routeForView(view) {
+    return VIEW_ROUTE_MAP[view] || "/";
+  }
+
+  function initViewIfNeeded(view) {
+    const init = viewInitializers[view];
+    if (init) init();
+  }
+
+  function renderRoute(path) {
+    const view = viewForPath(path);
+    switchMainView(view);
+    initViewIfNeeded(view);
+  }
+
+  function navigateTo(path, { replace = false } = {}) {
+    const next = normalizePath(path);
+    if (replace) {
+      window.history.replaceState({}, "", next);
+    } else {
+      window.history.pushState({}, "", next);
+    }
+    renderRoute(next);
   }
 
   const NAV_COLLAPSE_KEY = "fl_nav_collapsed";
@@ -3345,6 +3207,24 @@ async function startOrder(orderNo) {
       const next = !document.body.classList.contains("flNavCollapsed");
       setNavCollapsed(next);
       localStorage.setItem(NAV_COLLAPSE_KEY, String(next));
+    });
+  }
+
+  let dispatchExpanded = false;
+
+  function setDispatchExpanded(expanded) {
+    dispatchExpanded = expanded;
+    viewScan?.classList.toggle("dispatchExpanded", dispatchExpanded);
+    if (dispatchExpandToggle) {
+      dispatchExpandToggle.setAttribute("aria-expanded", dispatchExpanded ? "true" : "false");
+      dispatchExpandToggle.textContent = dispatchExpanded ? "Collapse" : "Expand";
+    }
+  }
+
+  if (dispatchExpandToggle) {
+    setDispatchExpanded(false);
+    dispatchExpandToggle.addEventListener("click", () => {
+      setDispatchExpanded(!dispatchExpanded);
     });
   }
 
@@ -3401,68 +3281,18 @@ async function startOrder(orderNo) {
     if (bookingSummary) bookingSummary.textContent = "";
     if (scanInput) scanInput.value = "";
     if (dbgOn && debugLog) debugLog.textContent = "";
-    switchMainView("scan");
+    navigateTo("/scan", { replace: true });
   });
 
-  navScan?.addEventListener("click", () => switchMainView("scan"));
-  navOps?.addEventListener("click", () => switchMainView("ops"));
-  navInvoices?.addEventListener("click", () => switchMainView("invoices"));
-  navDocs?.addEventListener("click", () => switchMainView("docs"));
-  navDashboard?.addEventListener("click", () => switchMainView("dashboard"));
-
-  invoiceTemplateSave?.addEventListener("click", () => {
-    saveInvoiceTemplate();
-    renderInvoiceTable();
-  });
-
-  invoiceTemplateInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      saveInvoiceTemplate();
-      renderInvoiceTable();
-    }
-  });
-
-  [invoiceFilterOrder, invoiceFilterCustomer, invoiceFilterFrom, invoiceFilterTo].forEach(
-    (input) => {
-      input?.addEventListener("input", renderInvoiceTable);
-      input?.addEventListener("change", renderInvoiceTable);
-    }
-  );
-
-  invoiceRefresh?.addEventListener("click", () => {
-    refreshInvoiceOrders();
-  });
-
-  invoiceTableBody?.addEventListener("click", async (event) => {
+  document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    const button = target.closest("button[data-invoice-action]");
-    if (!button) return;
-    const action = button.dataset.invoiceAction;
-    const invoiceUrl = button.dataset.invoiceUrl || "";
-    const orderName = button.dataset.orderName || "Invoice";
-    if (action === "print") {
-      if (!invoiceUrl) {
-        statusExplain("Set the invoice template first.", "warn");
-        return;
-      }
-      try {
-        statusExplain(`Printing ${orderName}…`, "info");
-        const resp = await fetch("/printnode/print-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ invoiceUrl, title: `Invoice ${orderName}` })
-        });
-        if (!resp.ok) {
-          throw new Error(`Print failed (${resp.status})`);
-        }
-        statusExplain(`Sent ${orderName} to PrintNode.`, "ok");
-      } catch (err) {
-        console.error("Print invoice error:", err);
-        statusExplain(`Print failed for ${orderName}.`, "err");
-      }
-    }
+    const routeEl = target.closest("[data-route]");
+    if (!routeEl) return;
+    const route = routeEl.getAttribute("data-route") || routeEl.getAttribute("href");
+    if (!route) return;
+    event.preventDefault();
+    navigateTo(route);
   });
 
   modeToggle?.addEventListener("click", () => {
@@ -3470,6 +3300,7 @@ async function startOrder(orderNo) {
     cancelAutoBookTimer();
     saveModePreference();
     updateModeToggle();
+    updateDashboardKpis();
     renderSessionUI();
     statusExplain(isAutoMode ? "Auto mode enabled." : "Manual mode enabled.", "info");
   });
@@ -3635,6 +3466,38 @@ async function startOrder(orderNo) {
       }
       return true;
     }
+    if (actionType === "fulfill-shipping") {
+      if (!orderNo) return true;
+      if (isBooked(orderNo)) {
+        statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
+        return true;
+      }
+      await startOrder(orderNo);
+      navigateTo("/scan", { replace: true });
+      statusExplain(`Scan station ready for ${orderNo}.`, "info");
+      return true;
+    }
+    if (actionType === "fulfill-delivery") {
+      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+      if (!orderNo || !order) {
+        statusExplain("Delivery note unavailable.", "warn");
+        logDispatchEvent("Delivery fulfil failed: order not found.");
+        return true;
+      }
+      setDispatchProgress(4, `Printing note ${orderNo}`);
+      logDispatchEvent(`Printing delivery note for order ${orderNo}.`);
+      const ok = await printDeliveryNote(order);
+      if (!ok) {
+        statusExplain("Pop-up blocked for delivery note.", "warn");
+        logDispatchEvent("Delivery note blocked by popup settings.");
+      }
+      await markDeliveryReady(orderNo);
+      return true;
+    }
+    if (actionType === "ready-collection") {
+      await notifyPickupReady(orderNo);
+      return true;
+    }
     if (actionType === "print-opp") {
       const docType = action.dataset.docType;
       const docLabel = getOppDocLabel(docType);
@@ -3664,7 +3527,7 @@ async function startOrder(orderNo) {
       }
       setDispatchProgress(4, `Printing note ${orderNo}`);
       logDispatchEvent(`Printing delivery note for order ${orderNo}.`);
-      const ok = printDeliveryNote(order);
+      const ok = await printDeliveryNote(order);
       if (!ok) {
         statusExplain("Pop-up blocked for delivery note.", "warn");
         logDispatchEvent("Delivery note blocked by popup settings.");
@@ -3715,6 +3578,16 @@ async function startOrder(orderNo) {
     if (card && !e.target.closest("button") && !e.target.closest("input")) {
       const orderNo = card.dataset.orderNo;
       if (orderNo) openDispatchOrderModal(orderNo);
+    }
+  });
+
+  dispatchShipmentsSidebar?.addEventListener("click", async (e) => {
+    const shipmentRow = e.target.closest(".dispatchShipmentRow");
+    if (shipmentRow && !shipmentRow.classList.contains("dispatchShipmentRow--header")) {
+      const shipmentKeyId = shipmentRow.dataset.shipmentKey;
+      if (shipmentKeyId) {
+        await openDispatchShipmentModal(shipmentKeyId);
+      }
     }
   });
 
@@ -3830,37 +3703,49 @@ async function startOrder(orderNo) {
     }
   });
 
-  loadBookedOrders();
-  loadPackingState();
-  loadModePreference();
-  loadDailyParcelCount();
-  loadTruckBooking();
-  updateModeToggle();
-  updateMultiShipToggle();
-  renderSessionUI();
-  renderCountdown();
-  renderTruckPanel();
-  if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
-    requestTruckBooking("auto");
-  }
-  initDispatchProgress();
-  setDispatchProgress(0, "Idle", { silent: true });
-  initDispatchTodos();
-  initAddressSearch();
-  refreshDispatchData();
-  setInterval(refreshDispatchData, 30000);
-  refreshServerStatus();
-  setInterval(refreshServerStatus, 20000);
-  renderFactoryView();
-  renderModuleDashboard();
-  loadInvoiceTemplate();
-  renderInvoiceTable();
-  switchMainView("dashboard");
+  const boot = async () => {
+    try {
+      await loadConfig();
+    } catch (err) {
+      console.error(err);
+      alert("Unable to load configuration from the server. Please refresh or contact support.");
+      return;
+    }
 
-  if (location.protocol === "file:") {
-    alert("Open via http://localhost/... (not file://). Run a local server.");
-  }
+    loadBookedOrders();
+    loadPackingState();
+    loadModePreference();
+    loadDailyParcelCount();
+    loadTruckBooking();
+    updateModeToggle();
+    updateMultiShipToggle();
+    renderSessionUI();
+    renderCountdown();
+    renderTruckPanel();
+    if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
+      requestTruckBooking("auto");
+    }
+    initDispatchProgress();
+    setDispatchProgress(0, "Idle", { silent: true });
+    initAddressSearch();
+    refreshDispatchData();
+    setInterval(refreshDispatchData, 30000);
+    refreshServerStatus();
+    setInterval(refreshServerStatus, 20000);
+    renderModuleDashboard();
+    renderRoute(window.location.pathname);
 
-  window.__fl = window.__fl || {};
-  window.__fl.bookNow = doBookingNow;
+    window.addEventListener("popstate", () => {
+      renderRoute(window.location.pathname);
+    });
+
+    if (location.protocol === "file:") {
+      alert("Open via http://localhost/... (not file://). Run a local server.");
+    }
+
+    window.__fl = window.__fl || {};
+    window.__fl.bookNow = doBookingNow;
+  };
+
+  boot();
 })();

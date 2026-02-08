@@ -13,12 +13,25 @@ import parcelPerfectRouter from "./routes/parcelperfect.js";
 import printnodeRouter from "./routes/printnode.js";
 import shopifyRouter from "./routes/shopify.js";
 import statusRouter from "./routes/status.js";
+import configRouter from "./routes/config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function isPrivateHostname(hostname) {
+  if (!hostname) return false;
+  if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+  const parts = hostname.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((num) => Number.isNaN(num))) return false;
+  if (parts[0] === 10) return true;
+  if (parts[0] === 192 && parts[1] === 168) return true;
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  return false;
+}
+
 export function createApp() {
   const app = express();
+  const apiRouter = express.Router();
 
   app.disable("x-powered-by");
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
@@ -37,6 +50,14 @@ export function createApp() {
     cors({
       origin: (origin, cb) => {
         if (!origin || allowAllOrigins || allowedOrigins.has(origin)) return cb(null, true);
+        if (config.NODE_ENV !== "production") {
+          try {
+            const { hostname } = new URL(origin);
+            if (isPrivateHostname(hostname)) return cb(null, true);
+          } catch {
+            // ignore parsing errors
+          }
+        }
         return cb(new Error("CORS: origin not allowed"));
       },
       methods: ["GET", "POST", "OPTIONS"],
@@ -58,16 +79,17 @@ export function createApp() {
 
   app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
 
-  app.use(statusRouter);
-  app.use(parcelPerfectRouter);
-  app.use(shopifyRouter);
-  app.use(printnodeRouter);
-  app.use(alertsRouter);
+  apiRouter.use(statusRouter);
+  apiRouter.use(configRouter);
+  apiRouter.use(parcelPerfectRouter);
+  apiRouter.use(shopifyRouter);
+  apiRouter.use(printnodeRouter);
+  apiRouter.use(alertsRouter);
+  app.use("/api/v1", apiRouter);
+  app.use("/api/v1", (_req, res) => res.status(404).json({ error: "Not found" }));
 
   const publicDir = path.join(__dirname, "..", "public");
   app.use(express.static(publicDir));
-  app.get("/flocs", (req, res) => res.sendFile(path.join(publicDir, "flocs.html")));
-  app.get("/simulate", (req, res) => res.sendFile(path.join(publicDir, "simulate.html")));
 
   app.get("*", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
 

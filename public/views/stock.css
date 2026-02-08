@@ -1,0 +1,138 @@
+#viewStock{
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --panel-muted:#f1f5f9;
+      --panel-strong:#e2e8f0;
+      --text:#0f172a;
+      --text-muted:#5b6b7f;
+      --accent:#38bdf8;
+      --accent-soft:rgba(56,189,248,.15);
+      --success:#22c55e;
+      --warning:#f59e0b;
+      --radius-lg:.85rem;
+      --radius-md:.6rem;
+      --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
+      --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
+    }
+    #viewStock *{ box-sizing:border-box; }
+    #viewStock{
+      margin:0;
+      min-height:100vh;
+      background:radial-gradient(circle at 12% 12%, rgba(56,189,248,.12) 0%, rgba(245,247,251,0) 55%),
+                 radial-gradient(circle at 88% 10%, rgba(168,85,247,.08) 0%, rgba(245,247,251,0) 60%),
+                 var(--bg);
+      color:var(--text);
+      font-family:var(--sans);
+    }
+    #viewStock .stock-shell{
+      max-width:1200px;
+      margin:0 auto;
+      padding:1.5rem 1rem 2.5rem;
+      display:flex;
+      flex-direction:column;
+      gap:1rem;
+    }
+
+    #viewStock .stock-card{
+      background:var(--panel);
+      border:1px solid var(--panel-strong);
+      border-radius:var(--radius-lg);
+      padding:1rem;
+      box-shadow:0 12px 30px rgba(15,23,42,.08);
+    }
+    #viewStock .stock-card h2{
+      font-size:.9rem;
+      margin:0 0 .6rem 0;
+    }
+    #viewStock .stock-toolbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.5rem;
+      align-items:center;
+      margin-bottom:.75rem;
+    }
+    #viewStock .stock-input, #viewStock .stock-select{
+      border-radius:.55rem;
+      border:1px solid var(--panel-strong);
+      background:#fff;
+      color:var(--text);
+      padding:.45rem .6rem;
+      font-size:.85rem;
+      outline:none;
+      flex:1;
+    }
+    #viewStock .stock-input:focus, #viewStock .stock-select:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 2px rgba(56,189,248,.2);
+    }
+
+    #viewStock .stock-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:.78rem;
+      border:1px solid var(--panel-strong);
+      border-radius:.6rem;
+      overflow:hidden;
+      background:#fff;
+    }
+    #viewStock .stock-table th, #viewStock .stock-table td{
+      padding:.4rem .5rem;
+      border-bottom:1px solid rgba(148,163,184,.2);
+      text-align:left;
+    }
+    #viewStock .stock-table th{
+      background:var(--panel-muted);
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      font-size:.68rem;
+      color:var(--text-muted);
+    }
+    #viewStock .stock-table tbody tr:hover{
+      background:rgba(34,211,238,.08);
+    }
+    #viewStock .stock-qtyInput{
+      width:4.5rem;
+      border-radius:.45rem;
+      border:1px solid var(--panel-strong);
+      padding:.2rem .35rem;
+      text-align:right;
+      font-size:.78rem;
+      background:#fff;
+      color:var(--text);
+    }
+    #viewStock .stock-totalInput{
+      background:var(--panel-muted);
+      font-weight:700;
+    }
+    #viewStock .stock-actionBtn{
+      border-radius:999px;
+      border:1px solid rgba(34,197,94,.6);
+      background:rgba(34,197,94,.15);
+      color:#065f46;
+      font-size:.7rem;
+      font-weight:700;
+      padding:.25rem .7rem;
+      cursor:pointer;
+    }
+    #viewStock .stock-crateBtn{
+      border-radius:999px;
+      border:1px solid rgba(99,102,241,.4);
+      background:rgba(99,102,241,.12);
+      color:#312e81;
+      font-size:.75rem;
+      padding:.2rem .6rem;
+      cursor:pointer;
+    }
+    #viewStock .stock-crateBtn:disabled{
+      opacity:.4;
+      cursor:not-allowed;
+    }
+    #viewStock .stock-crateCount{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:1.4rem;
+      font-weight:700;
+      color:var(--text-muted);
+      font-size:.7rem;
+    }

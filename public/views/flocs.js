@@ -1,10 +1,14 @@
-(() => {
+let flocsInitialized = false;
+
+export function initFlocsView() {
+  if (flocsInitialized) return;
+  flocsInitialized = true;
   "use strict";
 
   // ===== CONFIG =====
   const CONFIG = {
-    SHOPIFY: { PROXY_BASE: "/shopify" }, // existing proxy base
-    PP_ENDPOINT: "/pp",
+    SHOPIFY: { PROXY_BASE: "/api/v1/shopify" },
+    PP_ENDPOINT: "/api/v1/pp",
     BOX_DIM: { dim1: 40, dim2: 40, dim3: 30, massKg: 5 }, // fallback parcel
     // Configure your real SKUs + variant IDs and optional weights/prices here.
    PRODUCTS: [
@@ -28,6 +32,7 @@
   { sku: "FL032", title: "FL032 – Flippen Lekka Curry Mix 500g", flavour: "Curry", size: "500g", variantId: 42912372097071, weightKg: 0.51, prices: { standard: 110.0 } },
   { sku: "FL033", title: "FL033 – Flippen Lekka Curry Mix 1kg", flavour: "Curry", size: "1kg", variantId: 42912372129839, weightKg: 1.007, prices: { standard: 220.0 } },
   { sku: "FL035", title: "FL035 – Chutney Sprinkle 200ml", flavour: "Chutney", size: "200ml", variantId: 42873122291759, weightKg: 0.22, prices: { standard: 45.0 } },
+  { sku: "FL036", title: "FL036 – Chutney Sprinkle 500g", flavour: "Chutney", size: "500g", variantId: 42873122324527, weightKg: 0.51, prices: { standard: 100.0 } },
   { sku: "FL037", title: "FL037 – Chutney Sprinkle 1kg", flavour: "Chutney", size: "1kg", variantId: 42873122357295, weightKg: 1.007, prices: { standard: 200.0 } },
   { sku: "FL038", title: "FL038 – Flippen Lekka Savoury Herb Mix 200ml", flavour: "Savoury Herb", size: "200ml", variantId: 43582507352111, weightKg: 0.12, prices: { standard: 45.0 } },
   { sku: "FL039", title: "FL039 – Flippen Lekka Savoury Herb Mix 500g", flavour: "Savoury Herb", size: "500g", variantId: 43582507384879, weightKg: 0.51, prices: { standard: 130.0 } },
@@ -41,7 +46,7 @@
   { sku: "FL062", title: "FL062 – Cheese & Onion Popcorn Sprinkle 100ml", flavour: "Cheese & Onion", size: "100ml", variantId: 43610218037295, weightKg: 0.12, prices: { standard: 25.0 } },
   { sku: "FL065", title: "FL065 – Salt & Vinegar Popcorn Sprinkle 100ml", flavour: "Salt & Vinegar", size: "100ml", variantId: 43610218659887, weightKg: 0.15, prices: { standard: 25.0 } },
   { sku: "FLBS001", title: "FLBS001 – Original Multi Purpose Basting Sauce 375ml", flavour: "Original", size: "375ml", variantId: 43610234912815, weightKg: 0.42, prices: { standard: 30.0 } },
-  { sku: "FLBS002", title: "FLBS002 – Original Multi Purpose Basting Sauce 12x375ml", flavour: "Original", size: "12 x 375ml", variantId: 43610234945583, weightKg: 5.0, prices: { standard: 360.0 } },
+ 
   // ... continues for all 54 variants
 ]
   };
@@ -49,6 +54,7 @@
   // ===== DOM =====
   const shell            = document.getElementById("flocs-shell");
   const customerSearch   = document.getElementById("flocs-customerSearch");
+  const customerSearchClear = document.getElementById("flocs-customerSearchClear");
   const customerResults  = document.getElementById("flocs-customerResults");
   const customerStatus   = document.getElementById("flocs-customerStatus");
   const customerChips    = document.getElementById("flocs-selectedCustomerChips");
@@ -60,6 +66,8 @@
   const customerEmail    = document.getElementById("flocs-customerEmail");
   const customerPhone    = document.getElementById("flocs-customerPhone");
   const customerCompany  = document.getElementById("flocs-customerCompany");
+  const customerVat      = document.getElementById("flocs-customerVat");
+  const customerDeliveryNotes = document.getElementById("flocs-customerDeliveryNotes");
   const customerDelivery = document.getElementById("flocs-customerDelivery");
   const customerAddr1    = document.getElementById("flocs-customerAddr1");
   const customerAddr2    = document.getElementById("flocs-customerAddr2");
@@ -71,59 +79,74 @@
   const customerResetBtn = document.getElementById("flocs-customerResetBtn");
 
   const poInput          = document.getElementById("flocs-po");
+  const deliveryDateInput = document.getElementById("flocs-deliveryDate");
   const deliveryGroup    = document.getElementById("flocs-deliveryGroup");
-  const shipSection      = document.getElementById("flocs-shipSection");
   const addrSelect       = document.getElementById("flocs-addressSelect");
   const addrPreview      = document.getElementById("flocs-addressPreview");
+  const billingAddrSelect = document.getElementById("flocs-billingAddressSelect");
+  const billingAddrPreview = document.getElementById("flocs-billingAddressPreview");
 
   const productsBody     = document.getElementById("flocs-productsBody");
-  const productSearch    = document.getElementById("flocs-productSearch");
-  const productResults   = document.getElementById("flocs-productResults");
-  const productStatus    = document.getElementById("flocs-productStatus");
-  const productCodeInput = document.getElementById("flocs-productCode");
-  const productPager     = document.getElementById("flocs-productPager");
-  const productPrevBtn   = document.getElementById("flocs-productPrev");
-  const productNextBtn   = document.getElementById("flocs-productNext");
   const filterFlavour    = document.getElementById("flocs-filterFlavour");
   const filterSize       = document.getElementById("flocs-filterSize");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
-  const collectionSelect = document.getElementById("flocs-collectionSelect");
-  const collectionLoadBtn = document.getElementById("flocs-collectionLoadBtn");
 
   const invoice          = document.getElementById("flocs-invoice");
   const previewTag       = document.getElementById("flocs-previewTag");
-  const armBtn           = document.getElementById("flocs-armBtn");
   const convertBtn       = document.getElementById("flocs-convertBtn");
   const createOrderBtn   = document.getElementById("flocs-createOrderBtn");
+  const createDraftBtn   = document.getElementById("flocs-createDraftBtn");
+  const azBar            = document.getElementById("flocs-azBar");
 
   const toast            = document.getElementById("flocs-toast");
-  const confirmOverlay   = document.getElementById("flocs-confirmOverlay");
-  const confirmBtn       = document.getElementById("flocs-confirmBtn");
-  const disarmBtn        = document.getElementById("flocs-disarmBtn");
 
   // ===== STATE =====
   const state = {
     customer: null,
     po: "",
+    deliveryDate: "",
     delivery: "ship",        // ship | pickup | deliver
-    addressIndex: null,      // index in customer.addresses
+    shippingAddressIndex: null,      // index in customer.addresses
+    billingAddressIndex: null,       // index in customer.addresses
     items: {},               // sku -> qty
     products: [...CONFIG.PRODUCTS],
     shippingQuote: null,     // { service, total, quoteno, raw }
     errors: [],
     isSubmitting: false,
-    lockArmed: true,
     lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
-    filters: { flavour: "", size: "" },
+    filters: { flavour: "", size: "200ml" },
     priceOverrides: {},
-    priceOverrideEnabled: {}
+    priceOverrideEnabled: {},
+    azLetters: []
   };
-  let productPageInfo = { products: {}, variants: {} };
-  let productPagingCursor = { products: null, variants: null };
+
+  const FLAVOUR_COLORS = {
+    "hot & spicy": "#DA291C",
+    "chutney": "#7340B2",
+    "original": "#8BAF84",
+    "worcester sauce": "#FF8200",
+    "red wine & garlic": "#904066",
+    "savoury herb": "#A1C935",
+    "savoury herbs": "#A1C935",
+    "salt & vinegar": "#40B2FF",
+    "curry": "#FFC72C",
+    "butter": "#FFE66D",
+    "sour cream & chives": "#7BC96F",
+    "parmesan cheese": "#FACC15",
+    "cheese & onion": "#C4E36A"
+  };
+
+  const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
+  const flavourColor = (flavour) => FLAVOUR_COLORS[flavourKey(flavour)] || "#22d3ee";
+  const flavourTag = (flavour) =>
+    flavour
+      ? `<span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span>`
+      : "—";
+  let priceTierLoading = false;
 
   // ===== HELPERS =====
   const money = (v) =>
@@ -135,6 +158,26 @@
       clearTimeout(t);
       t = setTimeout(() => fn(...args), ms);
     };
+  };
+
+  const normalizeAzLetters = (value) =>
+    String(value || "")
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "")
+      .slice(0, 4)
+      .split("");
+
+  const updateAzBarActive = (letters = []) => {
+    if (!azBar) return;
+    azBar.querySelectorAll(".is-active").forEach((el) => {
+      el.classList.remove("is-active");
+    });
+    letters.forEach((char) => {
+      const target = azBar.querySelector(
+        `[data-letter="${CSS.escape(char)}"]`
+      );
+      if (target) target.classList.add("is-active");
+    });
   };
 
   function showToast(msg, tone = "ok") {
@@ -157,6 +200,7 @@
     String(p.variantId || p.sku || p.title || "").trim();
 
   const PRICE_TAGS = ["agent", "retailer", "export", "private", "fkb"];
+  const QUICK_QTY = [1, 3, 6, 10, 12, 24, 50, 100];
 
   function normalizeTags(tags) {
     if (!tags) return [];
@@ -179,15 +223,34 @@
     );
   }
 
+  function normalizePriceTiers(product) {
+    if (!product) return null;
+    const raw = product.priceTiers || product.prices || null;
+    if (!raw || typeof raw !== "object") return null;
+    const normalized = { ...raw };
+    if (normalized.default == null) {
+      if (product.price != null) {
+        normalized.default = product.price;
+      } else if (product.prices && product.prices.standard != null) {
+        normalized.default = product.prices.standard;
+      }
+    }
+    if (normalized.standard == null && product.prices && product.prices.standard != null) {
+      normalized.standard = product.prices.standard;
+    }
+    return normalized;
+  }
+
   function priceForCustomer(product) {
     if (!product) return null;
     const tier = state.priceTier;
-    const tiers = product.priceTiers || product.prices || null;
+    const tiers = normalizePriceTiers(product);
     if (tier && tiers && tiers[tier] != null) {
       return Number(tiers[tier]);
     }
-    if (tiers && tiers.default != null) {
-      return Number(tiers.default);
+    if (tiers) {
+      const fallback = tiers.default != null ? tiers.default : tiers.standard;
+      if (fallback != null) return Number(fallback);
     }
     if (product.price != null) {
       return Number(product.price);
@@ -213,9 +276,21 @@
     return priceForCustomer(product);
   }
 
+  function displayProductTitle(product) {
+    if (!product) return "";
+    const sku = String(product.sku || "").trim();
+    let title = String(product.title || "").trim();
+    if (!title) return sku;
+    if (sku) {
+      const escaped = sku.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      title = title.replace(new RegExp(`^${escaped}\\s*[–-]\\s*`, "i"), "");
+    }
+    return title || sku;
+  }
+
   function setShellReady(ready) {
     if (!shell) return;
-    if (ready && state.lockArmed) shell.classList.add("flocs-ready");
+    if (ready) shell.classList.add("flocs-ready");
     else shell.classList.remove("flocs-ready");
   }
 
@@ -226,7 +301,8 @@
 
   function renderCreateOrderButton(ready) {
     if (!createOrderBtn) return;
-    createOrderBtn.hidden = !ready || state.isSubmitting;
+    createOrderBtn.disabled = !ready || state.isSubmitting;
+    createOrderBtn.classList.toggle("is-ready", ready && !state.isSubmitting);
   }
 
   function setCustomerCreateVisible(visible) {
@@ -247,10 +323,17 @@
     return state.delivery || "ship";
   }
 
-  function currentAddress() {
+  function currentShippingAddress() {
     if (!state.customer || !Array.isArray(state.customer.addresses)) return null;
     const idx =
-      state.addressIndex != null ? state.addressIndex : 0;
+      state.shippingAddressIndex != null ? state.shippingAddressIndex : 0;
+    return state.customer.addresses[idx] || null;
+  }
+
+  function currentBillingAddress() {
+    if (!state.customer || !Array.isArray(state.customer.addresses)) return null;
+    const idx =
+      state.billingAddressIndex != null ? state.billingAddressIndex : 0;
     return state.customer.addresses[idx] || null;
   }
 
@@ -278,7 +361,7 @@
       if (!qty || qty <= 0) continue;
       out.push({
         sku: p.sku,
-        title: p.title,
+        title: displayProductTitle(p),
         variantId: p.variantId,
         quantity: qty,
         weightKg: p.weightKg || 0,
@@ -345,13 +428,19 @@
       const flavour = (p.flavour || "").toLowerCase();
       const size = (p.size || "").toLowerCase();
       if (flavourFilter && flavour !== flavourFilter) return false;
-      if (sizeFilter && size !== sizeFilter) return false;
+      if (sizeFilter) {
+        if (sizeFilter === "other") {
+          if (size === "100ml" || size === "200ml") return false;
+        } else if (size !== sizeFilter) {
+          return false;
+        }
+      }
       return true;
     });
 
     productsBody.innerHTML = filtered
       .map((p) => {
-        const name = (p.title || p.sku || "").trim();
+        const name = displayProductTitle(p);
         const key = productKey(p);
         const value = state.items[key] || "";
         const price = priceForCustomer(p);
@@ -359,11 +448,16 @@
         const overrideValue =
           state.priceOverrides[key] != null ? state.priceOverrides[key] : "";
         const overridePrice = priceOverrideForKey(key);
+        const rowStyle = p.flavour ? ` style="--flavour-color:${flavourColor(p.flavour)}"` : "";
+        const quickButtons = QUICK_QTY.map(
+          (qty) =>
+            `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
+        ).join("");
         return `
-        <tr>
+        <tr${rowStyle}>
           <td><code>${p.sku}</code></td>
-          <td>${name}</td>
-          <td>${p.flavour || "—"}</td>
+          <td><span class="flocs-productName" title="${name}">${name}</span></td>
+          <td>${flavourTag(p.flavour)}</td>
           <td>${p.size || "—"}</td>
           <td>${price != null ? money(price) : "—"}</td>
           <td>
@@ -387,23 +481,80 @@
             </div>
           </td>
           <td>
-            <div class="flocs-qtyWrap">
-              <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
-              <input class="flocs-qtyInput"
-                     type="number"
-                     min="0"
-                     step="1"
-                     data-key="${key}"
-                     data-sku="${p.sku || ""}"
-                     inputmode="numeric"
-                     value="${value}" />
-              <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+            <div class="flocs-qtyArea">
+              <div class="flocs-qtyQuick">
+                ${quickButtons}
+              </div>
+              <div class="flocs-qtyWrap">
+                <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
+                <input class="flocs-qtyInput"
+                       type="number"
+                       min="0"
+                       step="1"
+                       data-key="${key}"
+                       data-sku="${p.sku || ""}"
+                       inputmode="numeric"
+                       value="${value}" />
+                <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+              </div>
             </div>
           </td>
         </tr>
       `;
       })
       .join("");
+  }
+
+  async function hydratePriceTiersForProducts(products) {
+    if (priceTierLoading) return;
+    const missingIds = Array.from(
+      new Set(
+        products
+          .filter(
+            (p) =>
+              p?.variantId &&
+              (!p.priceTiers || !Object.keys(p.priceTiers).length)
+          )
+          .map((p) => String(p.variantId))
+          .filter(Boolean)
+      )
+    );
+    if (!missingIds.length) return;
+
+    priceTierLoading = true;
+    try {
+      const resp = await fetch(
+        `${CONFIG.SHOPIFY.PROXY_BASE}/variants/price-tiers/fetch`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ variantIds: missingIds })
+        }
+      );
+      if (!resp.ok) {
+        console.warn("Price tier fetch failed:", resp.status, resp.statusText);
+        return;
+      }
+      const payload = await resp.json();
+      const tiersByVariantId = payload?.priceTiersByVariantId || {};
+      let updated = false;
+      products.forEach((product) => {
+        const tiers = tiersByVariantId[String(product.variantId)];
+        if (tiers) {
+          product.priceTiers = tiers;
+          updated = true;
+        }
+      });
+      if (updated) {
+        renderProductsTable();
+        renderInvoice();
+        validate();
+      }
+    } catch (err) {
+      console.warn("Price tier hydration failed:", err);
+    } finally {
+      priceTierLoading = false;
+    }
   }
 
   // ===== UI: selected customer chips & address selector =====
@@ -414,59 +565,40 @@
       return;
     }
     const c = state.customer;
-    const addr = currentAddress();
+    const chips = [
+      c.name,
+      c.email,
+      c.phone,
+      c.companyName,
+      state.priceTier ? `Tier: ${state.priceTier}` : null
+    ].filter(Boolean);
 
-    const deliveryLabel =
-      currentDelivery() === "pickup"
-        ? "Pickup"
-        : currentDelivery() === "deliver"
-        ? "Deliver"
-        : "Ship";
-
-    const tagChips = state.customerTags.length
-      ? state.customerTags
-          .map((t) => `<span class="flocs-chip">Tag: ${t}</span>`)
-          .join("")
-      : `<span class="flocs-chip">Tags: none</span>`;
-
-    const tierLabel = state.priceTier
-      ? `Pricing: ${state.priceTier}`
-      : "Pricing: default";
-
-    customerChips.innerHTML = `
-      <span class="flocs-chip">Customer: ${c.name}</span>
-      <span class="flocs-chip">Delivery: ${deliveryLabel}</span>
-      <span class="flocs-chip">${tierLabel}</span>
-      ${
-        addr
-          ? `<span class="flocs-chip">Ship-to: ${addr.city || ""} ${addr.zip || ""}</span>`
-          : ""
-      }
-      ${tagChips}
-    `;
+    customerChips.innerHTML = chips
+      .map((chip) => `<span class="flocs-chip">${chip}</span>`)
+      .join("");
   }
 
-  function renderAddressSelect() {
-    if (!addrSelect) return;
+  function renderAddressSelect(selectEl, previewEl, addressIndexKey) {
+    if (!selectEl) return;
     if (!state.customer) {
-      addrSelect.innerHTML =
+      selectEl.innerHTML =
         `<option value="">Select a customer first…</option>`;
-      addrSelect.disabled = true;
-      addrPreview.hidden = true;
+      selectEl.disabled = true;
+      if (previewEl) previewEl.hidden = true;
       return;
     }
     const addrs = Array.isArray(state.customer.addresses)
       ? state.customer.addresses
       : [];
     if (!addrs.length) {
-      addrSelect.innerHTML =
+      selectEl.innerHTML =
         `<option value="">No addresses on customer</option>`;
-      addrSelect.disabled = true;
-      addrPreview.hidden = true;
+      selectEl.disabled = true;
+      if (previewEl) previewEl.hidden = true;
       return;
     }
-    addrSelect.disabled = false;
-    addrSelect.innerHTML = addrs
+    selectEl.disabled = false;
+    selectEl.innerHTML = addrs
       .map((a, idx) => {
         const labelParts = [];
         if (a.company) labelParts.push(a.company);
@@ -479,23 +611,29 @@
       .join("");
 
     const idx =
-      state.addressIndex != null ? state.addressIndex : 0;
-    addrSelect.value = String(Math.min(idx, addrs.length - 1));
-    state.addressIndex = Number(addrSelect.value);
-    const addr = currentAddress();
-    if (addr) {
-      addrPreview.textContent = formatAddress(addr);
-      addrPreview.hidden = false;
-    } else {
-      addrPreview.hidden = true;
+      state[addressIndexKey] != null ? state[addressIndexKey] : 0;
+    selectEl.value = String(Math.min(idx, addrs.length - 1));
+    state[addressIndexKey] = Number(selectEl.value);
+    if (previewEl) {
+      previewEl.hidden = true;
+      previewEl.textContent = "";
     }
+  }
+
+  function renderBillingAddressSelect() {
+    renderAddressSelect(billingAddrSelect, billingAddrPreview, "billingAddressIndex");
+  }
+
+  function renderShippingAddressSelect() {
+    renderAddressSelect(addrSelect, addrPreview, "shippingAddressIndex");
   }
 
   // ===== UI: invoice preview =====
   function renderInvoice() {
     if (!invoice) return;
     const items = buildItemsArray();
-    const addr = currentAddress();
+    const shipAddr = currentShippingAddress();
+    const billAddr = currentBillingAddress();
 
     const delivery = currentDelivery();
     const totals = computeTotals(items);
@@ -513,15 +651,22 @@
       ? `${customerName}
 ${state.customer.email || ""}${
           state.customer.phone ? "\n" + state.customer.phone : ""
+        }${
+          state.customer.companyName ? "\n" + state.customer.companyName : ""
+        }${
+          state.customer.vatNumber ? "\nVAT: " + state.customer.vatNumber : ""
+        }${
+          billAddr ? "\n" + formatAddress(billAddr) : ""
         }`
       : "No customer selected";
 
+    const shipToLabel = delivery === "ship" ? "Ship to" : "Shipping address";
     const shipToText =
-      delivery === "ship"
-        ? addr
-          ? formatAddress(addr)
-          : "Ship selected but no address chosen"
-        : "Not applicable";
+      shipAddr
+        ? formatAddress(shipAddr)
+        : delivery === "ship"
+        ? "Ship selected but no address chosen"
+        : "Not selected";
 
     const shippingLine =
       delivery === "ship" && state.shippingQuote
@@ -563,7 +708,7 @@ ${state.customer.email || ""}${
       <div class="flocs-invoiceHeader">
         <div>
           <div class="flocs-invoiceBrand">Flippen Lekka Holdings (Pty) Ltd</div>
-          <div class="flocs-invoiceSub">Draft order preview (FLOCS)</div>
+          <div class="flocs-invoiceSub">Draft order preview</div>
         </div>
         <div class="flocs-invoiceSub" style="text-align:right">
           PO: <strong>${po}</strong><br/>
@@ -577,9 +722,7 @@ ${state.customer.email || ""}${
           ${billToText}
         </div>
         <div class="flocs-invoiceCol">
-          <div class="flocs-invoiceColTitle">${
-            delivery === "ship" ? "Ship to" : "Delivery context"
-          }</div>
+          <div class="flocs-invoiceColTitle">${shipToLabel}</div>
           ${shipToText}
         </div>
       </div>
@@ -614,7 +757,7 @@ ${state.customer.email || ""}${
       </div>
 
       <div class="flocs-invoiceNote">
-        ${pricingNote}${overrideNote}. Final pricing and tax are still controlled in Shopify. FLOCS only seeds the draft order.
+        ${pricingNote}${overrideNote}. Final pricing and tax are still controlled in Shopify.
       </div>
     `;
   }
@@ -632,11 +775,11 @@ ${state.customer.email || ""}${
     }
 
     if (currentDelivery() === "ship") {
-      if (!currentAddress()) {
+      if (!currentShippingAddress()) {
         errs.push("Select a ship-to address.");
       }
       if (!state.shippingQuote) {
-        errs.push("Calculate shipping (SWE quote) before locking the order.");
+        errs.push("Calculate shipping (SWE quote) before creating the order.");
       }
     }
 
@@ -654,20 +797,21 @@ ${state.customer.email || ""}${
         previewTag.textContent = "Add item quantities…";
       } else if (currentDelivery() === "ship" && !state.shippingQuote) {
         previewTag.textContent = "Awaiting SWE shipping quote…";
-      } else if (ready && state.lockArmed) {
-        previewTag.textContent = "Ready to lock in (green)";
       } else if (ready) {
-        previewTag.textContent = "Ready (lock disarmed)";
+        previewTag.textContent = "Ready to create order";
       } else {
         previewTag.textContent = "Incomplete order";
       }
     }
 
-    if (armBtn) {
-      armBtn.hidden = !(ready && !state.lockArmed);
+    if (createDraftBtn) {
+      createDraftBtn.disabled = !ready || state.isSubmitting;
+      createDraftBtn.classList.toggle(
+        "is-ready",
+        ready && !state.isSubmitting
+      );
     }
 
-    confirmBtn.disabled = !ready || !state.lockArmed;
     renderConvertButton();
     renderCreateOrderButton(ready);
   }
@@ -712,7 +856,7 @@ ${state.customer.email || ""}${
 
     for (const q of queries) {
       try {
-        const res = await fetch(`/pp/place?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`${CONFIG.PP_ENDPOINT}/place?q=${encodeURIComponent(q)}`);
         if (!res.ok) continue;
         const data = await res.json();
         if (data.errorcode && Number(data.errorcode) !== 0) continue;
@@ -762,7 +906,7 @@ ${state.customer.email || ""}${
       renderInvoice();
       return;
     }
-    const addr = currentAddress();
+    const addr = currentShippingAddress();
     if (!addr) {
       showToast("Select a ship-to address first.", "err");
       return;
@@ -802,7 +946,7 @@ ${state.customer.email || ""}${
       origpercell: "0730451885",
       notifyorigpers: 1,
       origperemail: "admin@flippenlekkaspices.co.za",
-      notes: `FLOCS draft pre-quote`,
+      notes: `Draft pre-quote`,
 
       destpers:
         `${addr.first_name || ""} ${addr.last_name || ""}`.trim() ||
@@ -915,7 +1059,6 @@ ${state.customer.email || ""}${
 
   // ===== Shopify calls =====
   const searchCustomersDebounced = debounce(searchCustomersNow, 320);
-  const searchProductsDebounced = debounce(searchProductsNow, 320);
 
   async function searchCustomersNow() {
     const q = (customerSearch.value || "").trim();
@@ -975,148 +1118,6 @@ ${state.customer.email || ""}${
     }
   }
 
-  async function searchProductsNow() {
-    const q = (productSearch?.value || "").trim();
-    if (!productResults || !productStatus) return;
-    if (!q) {
-      productResults.hidden = true;
-      productResults.innerHTML = "";
-      productStatus.textContent = "Search by SKU or product title";
-      resetProductPaging();
-      return;
-    }
-
-    productStatus.textContent = "Searching products…";
-    productResults.hidden = false;
-    productResults.innerHTML =
-      `<div class="flocs-customerEmpty">Searching…</div>`;
-    if (productPager) productPager.hidden = true;
-
-    try {
-      const productCode = (productCodeInput?.value || "").trim();
-      const params = new URLSearchParams({ q, includePriceTiers: "1" });
-      if (productCode) params.set("productCode", productCode);
-      if (productPagingCursor.products) {
-        params.set("productPageInfo", productPagingCursor.products);
-      }
-      if (productPagingCursor.variants) {
-        params.set("variantPageInfo", productPagingCursor.variants);
-      }
-      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/search?${params.toString()}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const list = Array.isArray(data.products) ? data.products : [];
-      productPageInfo = data.pageInfo || { products: {}, variants: {} };
-
-      if (!list.length) {
-        productResults.innerHTML =
-          `<div class="flocs-customerEmpty">No products found.</div>`;
-        productStatus.textContent = "No products found. Refine search.";
-        if (productPager) productPager.hidden = true;
-        return;
-      }
-
-      productResults.innerHTML = list
-        .map(
-          (p, idx) => `
-        <div class="flocs-productItem" data-idx="${idx}">
-          <div>
-            <strong>${p.title || p.sku || "Untitled item"}</strong>
-            <div class="flocs-productMeta">
-              ${p.sku || "no sku"} · ${
-                p.price != null ? money(p.price) : "price n/a"
-              }
-            </div>
-          </div>
-          <button class="flocs-miniBtn" type="button" data-action="add">Add</button>
-        </div>
-      `
-        )
-        .join("");
-      productResults._data = list;
-      productStatus.textContent = "Click add to include in the order.";
-      updateProductPager();
-    } catch (e) {
-      console.error("Product search error:", e);
-      productResults.innerHTML =
-        `<div class="flocs-customerEmpty">Error searching: ${String(
-          e?.message || e
-      )}</div>`;
-      productStatus.textContent = "Error searching products.";
-      if (productPager) productPager.hidden = true;
-    }
-  }
-
-  function updateProductPager() {
-    if (!productPager || !productPrevBtn || !productNextBtn) return;
-    const hasPrev =
-      Boolean(productPageInfo?.products?.previous) ||
-      Boolean(productPageInfo?.variants?.previous);
-    const hasNext =
-      Boolean(productPageInfo?.products?.next) || Boolean(productPageInfo?.variants?.next);
-    productPrevBtn.disabled = !hasPrev;
-    productNextBtn.disabled = !hasNext;
-    productPager.hidden = !(hasPrev || hasNext);
-  }
-
-  function resetProductPaging() {
-    productPageInfo = { products: {}, variants: {} };
-    productPagingCursor = { products: null, variants: null };
-    if (productPager) productPager.hidden = true;
-  }
-
-  async function loadCollectionProducts() {
-    if (!collectionSelect || !collectionLoadBtn) return;
-    const handle = (collectionSelect.value || "").trim();
-    if (!handle) {
-      showToast("Select a collection to load.", "err");
-      return;
-    }
-
-    collectionLoadBtn.disabled = true;
-    productStatus.textContent = "Loading collection products…";
-
-    try {
-      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/collection?handle=${encodeURIComponent(
-        handle
-      )}&includePriceTiers=1`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const list = Array.isArray(data.products) ? data.products : [];
-      if (!list.length) {
-        showToast("No products found in that collection.", "err");
-        productStatus.textContent = "No collection products found.";
-        return;
-      }
-
-      let added = 0;
-      list.forEach((p) => {
-        const key = productKey(p);
-        if (!key) return;
-        const exists = state.products.some((sp) => productKey(sp) === key);
-        if (!exists) {
-          state.products.push(p);
-          added += 1;
-        }
-      });
-
-      updateFiltersFromProducts();
-      renderProductsTable();
-      renderInvoice();
-      validate();
-      showToast(
-        `Loaded ${list.length} collection products (${added} new).`,
-        "ok"
-      );
-      productStatus.textContent = "Collection products loaded.";
-    } catch (e) {
-      console.error("Collection load error:", e);
-      productStatus.textContent = "Error loading collection products.";
-      showToast("Collection load failed.", "err");
-    } finally {
-      collectionLoadBtn.disabled = false;
-    }
-  }
 
   async function createCustomer() {
     if (!customerCreateBtn) return;
@@ -1125,6 +1126,8 @@ ${state.customer.email || ""}${
     const email = customerEmail?.value?.trim() || "";
     const phone = customerPhone?.value?.trim() || "";
     const company = customerCompany?.value?.trim() || "";
+    const vatNumber = customerVat?.value?.trim() || "";
+    const deliveryInstructions = customerDeliveryNotes?.value?.trim() || "";
     const deliveryMethod = customerDelivery?.value || "";
     const address1 = customerAddr1?.value?.trim() || "";
     const address2 = customerAddr2?.value?.trim() || "";
@@ -1153,6 +1156,8 @@ ${state.customer.email || ""}${
       email,
       phone,
       company,
+      vatNumber,
+      deliveryInstructions,
       deliveryMethod,
       address: address1 || address2 || city || province || zip || country
         ? { address1, address2, city, province, zip, country }
@@ -1213,6 +1218,8 @@ ${state.customer.email || ""}${
     if (customerEmail) customerEmail.value = "";
     if (customerPhone) customerPhone.value = "";
     if (customerCompany) customerCompany.value = "";
+    if (customerVat) customerVat.value = "";
+    if (customerDeliveryNotes) customerDeliveryNotes.value = "";
     if (customerDelivery) customerDelivery.value = "";
     if (customerAddr1) customerAddr1.value = "";
     if (customerAddr2) customerAddr2.value = "";
@@ -1226,6 +1233,15 @@ ${state.customer.email || ""}${
     }
   }
 
+  function resolveDefaultAddressIndex(addresses, defaultAddress) {
+    const addrs = Array.isArray(addresses) ? addresses : [];
+    if (defaultAddress && defaultAddress.id) {
+      const foundIdx = addrs.findIndex((a) => a.id === defaultAddress.id);
+      if (foundIdx >= 0) return foundIdx;
+    }
+    return addrs.length ? 0 : null;
+  }
+
   function applySelectedCustomer(c) {
     state.customer = c;
 
@@ -1236,14 +1252,9 @@ ${state.customer.email || ""}${
     }
 
     const addrs = Array.isArray(c.addresses) ? c.addresses : [];
-    if (c.default_address) {
-      const did = c.default_address.id;
-      const foundIdx = addrs.findIndex((a) => a.id === did);
-      state.addressIndex =
-        foundIdx >= 0 ? foundIdx : addrs.length ? 0 : null;
-    } else {
-      state.addressIndex = addrs.length ? 0 : null;
-    }
+    const defaultIdx = resolveDefaultAddressIndex(addrs, c.default_address);
+    state.shippingAddressIndex = defaultIdx;
+    state.billingAddressIndex = defaultIdx;
 
     if (customerResults) customerResults.hidden = true;
     if (customerStatus) customerStatus.textContent = `Selected: ${c.name}`;
@@ -1251,9 +1262,11 @@ ${state.customer.email || ""}${
     state.priceTier = resolvePriceTier(state.customerTags);
     renderCustomerChips();
     renderProductsTable();
-    renderAddressSelect();
+    renderBillingAddressSelect();
+    renderShippingAddressSelect();
     renderInvoice();
     validate();
+    hydratePriceTiersForProducts(state.products);
   }
 
   function addProductToOrder(product) {
@@ -1274,27 +1287,72 @@ ${state.customer.email || ""}${
     if (!filterFlavour || !filterSize) return;
     const flavours = new Set();
     const sizes = new Set();
+    const flavourStats = new Map();
     state.products.forEach((p) => {
-      if (p.flavour) flavours.add(p.flavour);
+      if (p.flavour) {
+        flavours.add(p.flavour);
+        const stats = flavourStats.get(p.flavour) || {
+          hasPopcorn: false,
+          hasNonPopcorn: false
+        };
+        const isPopcorn = String(p.title || "")
+          .toLowerCase()
+          .includes("popcorn sprinkle");
+        if (isPopcorn) {
+          stats.hasPopcorn = true;
+        } else {
+          stats.hasNonPopcorn = true;
+        }
+        flavourStats.set(p.flavour, stats);
+      }
       if (p.size) sizes.add(p.size);
     });
-    const flavourOptions = ["", ...Array.from(flavours).sort()];
-    const sizeOptions = ["", ...Array.from(sizes).sort()];
+    const flavourOptions = [
+      "",
+      ...Array.from(flavours)
+        .filter((flavour) => {
+          const stats = flavourStats.get(flavour);
+          return !(stats?.hasPopcorn && !stats.hasNonPopcorn);
+        })
+        .sort()
+    ];
+    const sizeOptions = ["", "100ml", "200ml", "Other"].filter((s) => {
+      if (!s) return true;
+      if (s === "Other") {
+        return Array.from(sizes).some(
+          (size) => !["100ml", "200ml"].includes(String(size).toLowerCase())
+        );
+      }
+      return Array.from(sizes).some(
+        (size) => String(size).toLowerCase() === s.toLowerCase()
+      );
+    });
 
     filterFlavour.innerHTML = flavourOptions
-      .map((f) => `<option value="${f}">${f || "All flavours"}</option>`)
+      .map((f) => {
+        const label = f || "All flavours";
+        const active = (state.filters.flavour || "") === f;
+        const flavourStyle = f
+          ? ` style="--flavour-color:${flavourColor(f)}"`
+          : "";
+        const neutralClass = f ? "" : " is-neutral";
+        return `<button class="flocs-filterBtn flocs-filterBtn--flavour${neutralClass} ${
+          active ? "is-active" : ""
+        }" type="button" data-filter="flavour" data-value="${f}"${flavourStyle}>${label}</button>`;
+      })
       .join("");
     filterSize.innerHTML = sizeOptions
-      .map((s) => `<option value="${s}">${s || "All sizes"}</option>`)
+      .map((s) => {
+        const label = s || "All sizes";
+        const active = (state.filters.size || "") === s;
+        return `<button class="flocs-filterBtn ${active ? "is-active" : ""}" type="button" data-filter="size" data-value="${s}">${label}</button>`;
+      })
       .join("");
-
-    filterFlavour.value = state.filters.flavour || "";
-    filterSize.value = state.filters.size || "";
   }
 
   async function createDraftOrder() {
     if (state.errors.length) {
-      showToast("Fix errors before locking order.", "err");
+      showToast("Fix errors before creating draft order.", "err");
       return;
     }
 
@@ -1306,11 +1364,13 @@ ${state.customer.email || ""}${
 
     state.isSubmitting = true;
     validate();
-    confirmBtn.disabled = true;
-    confirmBtn.textContent = "Creating draft order…";
+    if (createDraftBtn) {
+      createDraftBtn.disabled = true;
+      createDraftBtn.textContent = "Creating draft order…";
+    }
 
     const delivery = currentDelivery();
-    const addr = currentAddress();
+    const addr = currentShippingAddress();
     const shippingPrice =
       delivery === "ship" && state.shippingQuote
         ? state.shippingQuote.total
@@ -1325,19 +1385,22 @@ ${state.customer.email || ""}${
         : null;
 
     const billingAddress =
-      state.customer?.default_address || null;
+      currentBillingAddress() || state.customer?.default_address || null;
     const shippingAddress =
-      delivery === "ship" && addr ? addr : null;
+      addr || null;
 
     const payload = {
       customerId: state.customer.id,
       poNumber: state.po || null,
+      deliveryDate: state.deliveryDate || null,
       shippingMethod: delivery,
       shippingPrice,
       shippingService,
       shippingQuoteNo,
       billingAddress,
       shippingAddress,
+      customerTags: state.customerTags,
+      priceTier: state.priceTier,
       lineItems: items.map((li) => ({
         sku: li.sku,
         title: li.title,
@@ -1399,7 +1462,9 @@ ${state.customer.email || ""}${
       showToast("Draft order error: " + String(e?.message || e), "err");
     } finally {
       state.isSubmitting = false;
-      confirmBtn.textContent = "Lock order & create Shopify draft";
+      if (createDraftBtn) {
+        createDraftBtn.textContent = "Create draft order";
+      }
       validate();
     }
   }
@@ -1423,7 +1488,7 @@ ${state.customer.email || ""}${
     }
 
     const delivery = currentDelivery();
-    const addr = currentAddress();
+    const addr = currentShippingAddress();
     const shippingPrice =
       delivery === "ship" && state.shippingQuote
         ? state.shippingQuote.total
@@ -1438,19 +1503,21 @@ ${state.customer.email || ""}${
         : null;
 
     const billingAddress =
-      state.customer?.default_address || null;
+      currentBillingAddress() || state.customer?.default_address || null;
     const shippingAddress =
-      delivery === "ship" && addr ? addr : null;
+      addr || null;
 
     const payload = {
       customerId: state.customer.id,
       poNumber: state.po || null,
+      deliveryDate: state.deliveryDate || null,
       shippingMethod: delivery,
       shippingPrice,
       shippingService,
       shippingQuoteNo,
       billingAddress,
       shippingAddress,
+      customerTags: state.customerTags,
       lineItems: items.map((li) => ({
         sku: li.sku,
         title: li.title,
@@ -1508,24 +1575,28 @@ ${state.customer.email || ""}${
     const { keepDraftOrder = false } = options;
     state.customer = null;
     state.po = "";
+    state.deliveryDate = "";
     state.delivery = "ship";
-    state.addressIndex = null;
+    state.shippingAddressIndex = null;
+    state.billingAddressIndex = null;
     state.items = {};
     state.shippingQuote = null;
     state.errors = [];
     state.isSubmitting = false;
-    state.lockArmed = true;
     if (!keepDraftOrder) {
       state.lastDraftOrderId = null;
     }
     state.customerTags = [];
     state.priceTier = null;
-    state.filters = { flavour: "", size: "" };
+    state.filters = { flavour: "", size: "200ml" };
     state.priceOverrides = {};
     state.priceOverrideEnabled = {};
+    state.azLetters = [];
 
     if (customerSearch) customerSearch.value = "";
+    updateAzBarActive([]);
     if (poInput) poInput.value = "";
+    if (deliveryDateInput) deliveryDateInput.value = "";
     if (customerResults) {
       customerResults.hidden = true;
       customerResults.innerHTML = "";
@@ -1548,6 +1619,9 @@ ${state.customer.email || ""}${
     if (errorsBox) {
       errorsBox.textContent = "";
     }
+    if (createDraftBtn) {
+      createDraftBtn.textContent = "Create draft order";
+    }
     setCustomerCreateVisible(false);
     // reset qty inputs
     if (productsBody) {
@@ -1558,7 +1632,8 @@ ${state.customer.email || ""}${
     renderCustomerChips();
     updateFiltersFromProducts();
     renderProductsTable();
-    renderAddressSelect();
+    renderBillingAddressSelect();
+    renderShippingAddressSelect();
     renderInvoice();
     validate();
     renderConvertButton();
@@ -1656,13 +1731,17 @@ ${state.customer.email || ""}${
       });
     }
 
+    if (deliveryDateInput) {
+      deliveryDateInput.addEventListener("input", () => {
+        state.deliveryDate = deliveryDateInput.value || "";
+      });
+    }
+
     if (deliveryGroup) {
       deliveryGroup.addEventListener("change", (e) => {
         const t = e.target;
         if (!t || t.name !== "delivery") return;
         state.delivery = t.value;
-        shipSection.style.display =
-          t.value === "ship" ? "" : "none";
         if (t.value !== "ship") {
           state.shippingQuote = null;
           shippingSummary.textContent =
@@ -1678,14 +1757,28 @@ ${state.customer.email || ""}${
       addrSelect.addEventListener("change", () => {
         const v = addrSelect.value;
         if (!state.customer) return;
-        state.addressIndex =
+        state.shippingAddressIndex =
           v === "" ? null : Number(v);
-        const addr = currentAddress();
-        if (addr) {
-          addrPreview.textContent = formatAddress(addr);
-          addrPreview.hidden = false;
-        } else {
+        const addr = currentShippingAddress();
+        if (addrPreview) {
           addrPreview.hidden = true;
+          addrPreview.textContent = "";
+        }
+        renderCustomerChips();
+        renderInvoice();
+        validate();
+      });
+    }
+
+    if (billingAddrSelect) {
+      billingAddrSelect.addEventListener("change", () => {
+        const v = billingAddrSelect.value;
+        if (!state.customer) return;
+        state.billingAddressIndex =
+          v === "" ? null : Number(v);
+        if (billingAddrPreview) {
+          billingAddrPreview.hidden = true;
+          billingAddrPreview.textContent = "";
         }
         renderCustomerChips();
         renderInvoice();
@@ -1739,7 +1832,12 @@ ${state.customer.email || ""}${
           validate();
           return;
         }
-        if (action === "inc") {
+        if (action === "quick-add") {
+          const amount = Number(btn.dataset.amount || 0);
+          if (Number.isFinite(amount) && amount > 0) {
+            state.items[key] = current + amount;
+          }
+        } else if (action === "inc") {
           state.items[key] = current + 1;
         } else if (action === "dec") {
           const next = Math.max(0, current - 1);
@@ -1762,73 +1860,68 @@ ${state.customer.email || ""}${
       });
     }
 
-    if (productSearch) {
-      productSearch.addEventListener("input", () => {
-        resetProductPaging();
-        searchProductsDebounced();
-      });
-    }
-
-    if (productCodeInput) {
-      productCodeInput.addEventListener("input", () => {
-        resetProductPaging();
-        searchProductsDebounced();
-      });
-    }
-
-    if (productPrevBtn) {
-      productPrevBtn.addEventListener("click", () => {
-        if (!productPageInfo) return;
-        productPagingCursor = {
-          products: productPageInfo.products?.previous || null,
-          variants: productPageInfo.variants?.previous || null
-        };
-        searchProductsNow();
-      });
-    }
-
-    if (productNextBtn) {
-      productNextBtn.addEventListener("click", () => {
-        if (!productPageInfo) return;
-        productPagingCursor = {
-          products: productPageInfo.products?.next || null,
-          variants: productPageInfo.variants?.next || null
-        };
-        searchProductsNow();
-      });
-    }
-
-    if (collectionLoadBtn) {
-      collectionLoadBtn.addEventListener("click", () => {
-        loadCollectionProducts();
-      });
-    }
-
-    if (productResults) {
-      productResults.addEventListener("click", (e) => {
-        const row = e.target.closest(".flocs-productItem");
-        if (!row || !productResults._data) return;
-        const action = e.target.closest("[data-action]");
-        if (!action) return;
-        const idx = Number(row.dataset.idx);
-        const list = productResults._data;
-        const p = list[idx];
-        if (!p) return;
-        addProductToOrder(p);
-      });
-    }
-
     if (filterFlavour) {
-      filterFlavour.addEventListener("change", () => {
-        state.filters.flavour = filterFlavour.value || "";
+      filterFlavour.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-filter='flavour']");
+        if (!btn) return;
+        state.filters.flavour = btn.dataset.value || "";
+        updateFiltersFromProducts();
         renderProductsTable();
       });
     }
 
     if (filterSize) {
-      filterSize.addEventListener("change", () => {
-        state.filters.size = filterSize.value || "";
+      filterSize.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-filter='size']");
+        if (!btn) return;
+        state.filters.size = btn.dataset.value || "";
+        updateFiltersFromProducts();
         renderProductsTable();
+      });
+    }
+
+    if (azBar && customerSearch) {
+      azBar.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-letter]");
+        if (!btn) return;
+        const letter = String(btn.dataset.letter || "")
+          .toUpperCase()
+          .trim();
+        if (!letter) return;
+        const currentValue = customerSearch.value || "";
+        let currentLetters =
+          state.azLetters && state.azLetters.length
+            ? [...state.azLetters]
+            : normalizeAzLetters(currentValue);
+        const normalizedValue = normalizeAzLetters(currentValue);
+        let nextLetters = [];
+
+        const maxLetters = 4;
+        if (
+          currentLetters.length === 1 &&
+          currentLetters[0] === letter &&
+          normalizedValue.length === 1
+        ) {
+          nextLetters = [];
+        } else if (currentLetters.length < maxLetters) {
+          nextLetters = [...currentLetters, letter];
+        } else {
+          nextLetters = [...currentLetters.slice(1), letter];
+        }
+
+        state.azLetters = nextLetters;
+        customerSearch.value = nextLetters.join("");
+        updateAzBarActive(nextLetters);
+        searchCustomersNow();
+      });
+    }
+
+    if (customerSearchClear && customerSearch) {
+      customerSearchClear.addEventListener("click", () => {
+        customerSearch.value = "";
+        state.azLetters = [];
+        updateAzBarActive([]);
+        searchCustomersNow();
       });
     }
 
@@ -1838,23 +1931,9 @@ ${state.customer.email || ""}${
       });
     }
 
-    if (confirmBtn) {
-      confirmBtn.addEventListener("click", () => {
+    if (createDraftBtn) {
+      createDraftBtn.addEventListener("click", () => {
         createDraftOrder();
-      });
-    }
-
-    if (armBtn) {
-      armBtn.addEventListener("click", () => {
-        state.lockArmed = true;
-        validate();
-      });
-    }
-
-    if (disarmBtn) {
-      disarmBtn.addEventListener("click", () => {
-        state.lockArmed = false;
-        validate();
       });
     }
 
@@ -1876,6 +1955,7 @@ ${state.customer.email || ""}${
     updateFiltersFromProducts();
     renderProductsTable();
     resetForm();
+    hydratePriceTiersForProducts(state.products);
     initEvents();
   }
 
@@ -1884,4 +1964,4 @@ ${state.customer.email || ""}${
   } else {
     boot();
   }
-})();
+}
