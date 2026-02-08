@@ -2596,7 +2596,7 @@ npm run dev</code></pre>
           <main class="flocs-layout">
             <section class="flocs-panel form" id="flocs-formPanel">
               <div class="flocs-topGrid">
-                <div class="flocs-topFields">
+                <div class="flocs-column">
                   <!-- Customer -->
                   <div class="flocs-formSection">
                     <div class="flocs-azBar" id="flocs-azBar">
@@ -2627,71 +2627,97 @@ npm run dev</code></pre>
                       <button type="button" data-letter="Y">Y</button>
                       <button type="button" data-letter="Z">Z</button>
                     </div>
-                <div class="flocs-labelRow">
-                  <span>Customer</span>
-                  <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
-                </div>
-                <div class="flocs-searchRow">
-                  <input id="flocs-customerSearch" class="flocs-input" type="text"
-                         placeholder="Type to search Shopify customers…" autocomplete="off" />
-                  <button id="flocs-customerSearchClear" class="flocs-miniBtn flocs-clearBtn" type="button">Clear</button>
-                </div>
-                <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
-                <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
-                <div class="flocs-inlineActions" style="margin-top:.5rem">
-                  <button id="flocs-customerCreateToggle" class="flocs-miniBtn" type="button">
-                    Add new customer
-                  </button>
-                </div>
-                <div class="flocs-subSection" id="flocs-customerCreatePanel" hidden>
-                  <div class="flocs-labelRow">
-                    <span>Create new customer</span>
-                    <span class="flocs-hint" id="flocs-customerCreateStatus">Add a customer if search returns nothing.</span>
+                    <div class="flocs-labelRow">
+                      <span>Customer</span>
+                      <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
+                    </div>
+                    <div class="flocs-searchRow">
+                      <input id="flocs-customerSearch" class="flocs-input" type="text"
+                             placeholder="Type to search Shopify customers…" autocomplete="off" />
+                      <button id="flocs-customerSearchClear" class="flocs-miniBtn flocs-clearBtn" type="button">Clear</button>
+                    </div>
+                    <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
+                    <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
+                    <div class="flocs-inlineActions" style="margin-top:.5rem">
+                      <button id="flocs-customerCreateToggle" class="flocs-miniBtn" type="button">
+                        Add new customer
+                      </button>
+                    </div>
+                    <div class="flocs-subSection" id="flocs-customerCreatePanel" hidden>
+                      <div class="flocs-labelRow">
+                        <span>Create new customer</span>
+                        <span class="flocs-hint" id="flocs-customerCreateStatus">Add a customer if search returns nothing.</span>
+                      </div>
+                      <div class="flocs-row">
+                        <input id="flocs-customerFirst" class="flocs-input" type="text" placeholder="First name" />
+                        <input id="flocs-customerLast" class="flocs-input" type="text" placeholder="Last name" />
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerEmail" class="flocs-input" type="email" placeholder="Email" />
+                        <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
+                        <select id="flocs-customerDelivery" class="flocs-select">
+                          <option value="">Default delivery (optional)</option>
+                          <option value="ship">Ship</option>
+                          <option value="pickup">Pickup</option>
+                          <option value="deliver">Deliver</option>
+                        </select>
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerVat" class="flocs-input" type="text" placeholder="VAT number (optional)" />
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <textarea id="flocs-customerDeliveryNotes" class="flocs-input" rows="2" placeholder="Delivery instructions (optional)"></textarea>
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1" />
+                        <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
+                        <input id="flocs-customerProvince" class="flocs-input" type="text" placeholder="Province" />
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />
+                        <input id="flocs-customerCountry" class="flocs-input" type="text" placeholder="Country" value="South Africa" />
+                      </div>
+                      <div class="flocs-inlineActions" style="margin-top:.5rem">
+                        <button id="flocs-customerCreateBtn" class="flocs-btn primary" type="button">
+                          <span class="icon">➕</span><span>Create customer</span>
+                        </button>
+                        <button id="flocs-customerResetBtn" class="flocs-miniBtn" type="button">Clear form</button>
+                      </div>
+                    </div>
                   </div>
-                  <div class="flocs-row">
-                    <input id="flocs-customerFirst" class="flocs-input" type="text" placeholder="First name" />
-                    <input id="flocs-customerLast" class="flocs-input" type="text" placeholder="Last name" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerEmail" class="flocs-input" type="email" placeholder="Email" />
-                    <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
-                    <select id="flocs-customerDelivery" class="flocs-select">
-                      <option value="">Default delivery (optional)</option>
-                      <option value="ship">Ship</option>
-                      <option value="pickup">Pickup</option>
-                      <option value="deliver">Deliver</option>
-                    </select>
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerVat" class="flocs-input" type="text" placeholder="VAT number (optional)" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <textarea id="flocs-customerDeliveryNotes" class="flocs-input" rows="2" placeholder="Delivery instructions (optional)"></textarea>
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1" />
-                    <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
-                    <input id="flocs-customerProvince" class="flocs-input" type="text" placeholder="Province" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />
-                    <input id="flocs-customerCountry" class="flocs-input" type="text" placeholder="Country" value="South Africa" />
-                  </div>
-                  <div class="flocs-inlineActions" style="margin-top:.5rem">
-                    <button id="flocs-customerCreateBtn" class="flocs-btn primary" type="button">
-                      <span class="icon">➕</span><span>Create customer</span>
-                    </button>
-                    <button id="flocs-customerResetBtn" class="flocs-miniBtn" type="button">Clear form</button>
-                  </div>
-                </div>
-              </div>
 
+                  <!-- Billing address selector -->
+                  <div class="flocs-formSection" id="flocs-billSection">
+                    <div class="flocs-labelRow">
+                      <span>Billing address</span>
+                      <span class="flocs-hint">Pulled from customer’s Shopify addresses</span>
+                    </div>
+                    <select id="flocs-billingAddressSelect" class="flocs-select">
+                      <option value="">Select a customer first…</option>
+                    </select>
+                    <div id="flocs-billingAddressPreview" class="flocs-addressPreview" hidden></div>
+                  </div>
+
+                  <!-- Shipping address selector -->
+                  <div class="flocs-formSection" id="flocs-shipSection">
+                    <div class="flocs-labelRow">
+                      <span>Shipping address</span>
+                      <span class="flocs-hint">Saved to the draft order even for pickup/deliver</span>
+                    </div>
+                    <select id="flocs-addressSelect" class="flocs-select">
+                      <option value="">Select a customer first…</option>
+                    </select>
+                    <div id="flocs-addressPreview" class="flocs-addressPreview" hidden></div>
+                  </div>
+                </div>
+
+                <div class="flocs-column">
                   <!-- PO + Delivery method -->
                   <div class="flocs-formSection">
                     <div class="flocs-row">
@@ -2725,48 +2751,42 @@ npm run dev</code></pre>
                     </div>
                   </div>
 
-                  <!-- Billing address selector -->
-                  <div class="flocs-formSection" id="flocs-billSection">
+                  <div class="flocs-formSection">
                     <div class="flocs-labelRow">
-                      <span>Billing address</span>
-                      <span class="flocs-hint">Pulled from customer’s Shopify addresses</span>
+                      <span>Delivery date</span>
+                      <span class="flocs-hint">Optional requested delivery date.</span>
                     </div>
-                    <select id="flocs-billingAddressSelect" class="flocs-select">
-                      <option value="">Select a customer first…</option>
-                    </select>
-                    <div id="flocs-billingAddressPreview" class="flocs-addressPreview" hidden></div>
+                    <input id="flocs-deliveryDate" class="flocs-input" type="date" />
                   </div>
 
-                  <!-- Shipping address selector -->
-                  <div class="flocs-formSection" id="flocs-shipSection">
+                  <div class="flocs-formSection">
                     <div class="flocs-labelRow">
-                      <span>Shipping address</span>
-                      <span class="flocs-hint">Saved to the draft order even for pickup/deliver</span>
+                      <span>Shipping quote summary</span>
+                      <span class="flocs-hint">Updated after calculating shipping.</span>
                     </div>
-                    <select id="flocs-addressSelect" class="flocs-select">
-                      <option value="">Select a customer first…</option>
-                    </select>
-                    <div id="flocs-addressPreview" class="flocs-addressPreview" hidden></div>
+                    <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
                   </div>
                 </div>
 
-                <aside class="flocs-panel flocs-previewPanel" aria-label="Invoice preview">
-                  <div class="flocs-previewHeader">
-                    <div>
-                      <div class="flocs-previewTitle">Invoice preview</div>
+                <div class="flocs-column flocs-column--preview">
+                  <aside class="flocs-panel flocs-previewPanel" aria-label="Invoice preview">
+                    <div class="flocs-previewHeader">
+                      <div>
+                        <div class="flocs-previewTitle">Invoice preview</div>
+                      </div>
+                      <div>
+                        <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
+                        <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>
+                          Convert draft to order
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
-                      <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>
-                        Convert draft to order
-                      </button>
-                    </div>
-                  </div>
 
-                  <div class="flocs-invoice" id="flocs-invoice">
-                    <!-- Filled by JS -->
-                  </div>
-                </aside>
+                    <div class="flocs-invoice" id="flocs-invoice">
+                      <!-- Filled by JS -->
+                    </div>
+                  </aside>
+                </div>
               </div>
 
               <!-- Product grid -->
@@ -2800,9 +2820,6 @@ npm run dev</code></pre>
                     <!-- Populated by JS -->
                   </tbody>
                 </table>
-                <div class="flocs-actionsRow">
-                  <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
-                </div>
                 <div id="flocs-errors" class="flocs-errors"></div>
               </div>
             </section>

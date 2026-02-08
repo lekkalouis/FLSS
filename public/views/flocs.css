@@ -27,9 +27,10 @@
     }
 
     #viewFlocs .flocs-shell{
-      max-width:1120px;
+      max-width:none;
+      width:100%;
       margin:0 auto;
-      padding:1.25rem .9rem 2.5rem;
+      padding:1.25rem 1.25rem 2.5rem;
     }
 
     #viewFlocs header.flocs-header{
@@ -127,10 +128,9 @@
     }
 
     #viewFlocs .flocs-layout{
-      display:flex;
-      flex-direction:column;
+      display:grid;
       gap:1rem;
-      align-items:flex-start;
+      align-items:start;
     }
 
     #viewFlocs .flocs-panel{
@@ -147,11 +147,21 @@
       min-width:0;
     }
     #viewFlocs .flocs-topGrid{
-      display:flex;
+      display:grid;
       gap:1rem;
-      align-items:flex-start;
-      flex-wrap:wrap;
-      flex-direction:column;
+      align-items:start;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+    }
+    #viewFlocs .flocs-column{
+      border:1px solid var(--panel-strong);
+      border-radius:var(--radius-md);
+      padding:.9rem;
+      background:rgba(255,255,255,.8);
+    }
+    #viewFlocs .flocs-column--preview{
+      border:none;
+      padding:0;
+      background:transparent;
     }
     #viewFlocs .flocs-topFields{
       flex:1 1 auto;
@@ -187,6 +197,11 @@
     }
     #viewFlocs .flocs-previewPanel .flocs-invoiceTotalsRow{
       font-size:.65rem;
+    }
+    @media (max-width:1100px) {
+      #viewFlocs .flocs-topGrid{
+        grid-template-columns:1fr;
+      }
     }
     @media (max-width:900px) {
       #viewFlocs .flocs-previewPanel{
