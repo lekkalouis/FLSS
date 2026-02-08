@@ -117,7 +117,7 @@ export function initFlocsView() {
     lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
-    filters: { flavour: "", size: "" },
+    filters: { flavour: "", size: "200ml" },
     priceOverrides: {},
     priceOverrideEnabled: {},
     azLetters: []
@@ -1334,7 +1334,13 @@ ${state.customer.email || ""}${
       .map((f) => {
         const label = f || "All flavours";
         const active = (state.filters.flavour || "") === f;
-        return `<button class="flocs-filterBtn ${active ? "is-active" : ""}" type="button" data-filter="flavour" data-value="${f}">${label}</button>`;
+        const flavourStyle = f
+          ? ` style="--flavour-color:${flavourColor(f)}"`
+          : "";
+        const neutralClass = f ? "" : " is-neutral";
+        return `<button class="flocs-filterBtn flocs-filterBtn--flavour${neutralClass} ${
+          active ? "is-active" : ""
+        }" type="button" data-filter="flavour" data-value="${f}"${flavourStyle}>${label}</button>`;
       })
       .join("");
     filterSize.innerHTML = sizeOptions
