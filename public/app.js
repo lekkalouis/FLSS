@@ -2929,17 +2929,130 @@ async function startOrder(orderNo) {
   function printDeliveryNote(order) {
     if (!order) return false;
     const orderNo = String(order.name || "").replace("#", "").trim();
-    const title = order.customer_name || order.name || `Order ${order.id}`;
-    const addressLines = [
-      order.shipping_address1,
-      order.shipping_address2,
-      [order.shipping_city, order.shipping_postal].filter(Boolean).join(" ")
-    ]
-      .filter(Boolean)
-      .join("<br>");
-    const lineItems = (order.line_items || [])
-      .map((li) => `<tr><td>${li.title || ""}</td><td>${li.sku || ""}</td><td>${li.quantity}</td></tr>`)
+    let orderData = order;
+
+    try {
+      const res = await fetch(
+        `${CONFIG.SHOPIFY.PROXY_BASE}/orders/by-name/${encodeURIComponent(orderNo)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.order) orderData = data.order;
+      }
+    } catch (err) {
+      appendDebug(`Delivery note fetch failed for ${orderNo}: ${String(err)}`);
+    }
+
+    const billing = orderData.billing_address || {};
+    const shipping = orderData.shipping_address || {};
+    const customer = orderData.customer || {};
+    const noteRaw = String(orderData.note || "");
+    const noteLines = noteRaw.split("\n");
+
+    let poValue = "";
+    let invoiceDateFromNote = "";
+    noteLines.forEach((line) => {
+      const clean = line.trim();
+      if (clean.includes("PO:")) {
+        poValue = clean.split("PO:").pop().trim();
+      }
+      if (clean.includes("Invoice Date:")) {
+        const rawAfter = clean.split("Invoice Date:").pop().trim();
+        invoiceDateFromNote = rawAfter.slice(0, 10);
+      }
+    });
+
+    const invoiceDateMf =
+      orderData?.metafields?.custom?.invoice_date?.value ||
+      orderData?.metafields?.custom?.invoice_date ||
+      orderData?.metafields?.finance?.invoice_date?.value ||
+      orderData?.metafields?.finance?.invoice_date ||
+      "";
+
+    const invoiceDateRaw = invoiceDateMf || invoiceDateFromNote || orderData.created_at || "";
+
+    const normalizeDateParts = (value) => {
+      if (!value) return null;
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return { y: value.getFullYear(), m: value.getMonth() + 1, d: value.getDate() };
+      }
+      const str = String(value).trim();
+      if (!str) return null;
+
+      const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        return { y: Number(match[1]), m: Number(match[2]), d: Number(match[3]) };
+      }
+
+      if (str.includes("/")) {
+        const parts = str.split("/").map((part) => part.trim());
+        if (parts.length === 3) {
+          const [p0, p1, p2] = parts;
+          if (p0.length === 4) {
+            return { y: Number(p0), m: Number(p1), d: Number(p2) };
+          }
+          if (p2.length === 4) {
+            return { y: Number(p2), m: Number(p1), d: Number(p0) };
+          }
+        }
+      }
+
+      const parsed = new Date(str);
+      if (!Number.isNaN(parsed.getTime())) {
+        return { y: parsed.getFullYear(), m: parsed.getMonth() + 1, d: parsed.getDate() };
+      }
+      return null;
+    };
+
+    const formatDate = (value) => {
+      const parts = normalizeDateParts(value);
+      if (!parts) return "";
+      const day = String(parts.d).padStart(2, "0");
+      const month = String(parts.m).padStart(2, "0");
+      return `${day}/${month}/${parts.y}`;
+    };
+
+    const invoiceDateFinal = formatDate(invoiceDateRaw);
+
+    const billingName =
+      (billing.company && billing.company.trim()) || billing.name || orderData.customer_name || "";
+    const shippingName =
+      (shipping.company && shipping.company.trim()) || shipping.name || orderData.customer_name || "";
+
+    const billingPhone =
+      billing.phone ||
+      customer?.default_address?.phone ||
+      customer.phone ||
+      orderData.phone ||
+      "";
+    const shippingPhone = shipping.phone || orderData.shipping_phone || "";
+
+    const noteAttributes = Array.isArray(orderData.note_attributes)
+      ? orderData.note_attributes
+      : [];
+    const shippingEmail =
+      noteAttributes.find((attr) => attr?.name === "Shipping Email")?.value ||
+      orderData.email ||
+      "";
+
+    const lineItems = Array.isArray(orderData.line_items) ? [...orderData.line_items] : [];
+    lineItems.sort((a, b) => String(a.sku || "").localeCompare(String(b.sku || "")));
+
+    const shopName = CONFIG?.SHOP_NAME || "Flippen Lekka Holdings (Pty) Ltd";
+    const shopDomain = CONFIG?.SHOP_DOMAIN || "flippenlekkaspices.co.za";
+
+    const lineRows = lineItems
+      .map((line) => {
+        return `
+          <tr>
+            <td>${line.sku || ""}</td>
+            <td>${line.title || ""}</td>
+            <td style="text-align:center;">${line.quantity || ""}</td>
+          </tr>
+        `;
+      })
       .join("");
+
     const doc = `
       <!DOCTYPE html>
       <html>
@@ -2947,26 +3060,146 @@ async function startOrder(orderNo) {
         <meta charset="utf-8" />
         <title>Delivery Note ${orderNo}</title>
         <style>
-          body{ font-family:Arial, sans-serif; padding:24px; color:#0f172a; }
-          h1{ font-size:18px; margin-bottom:8px; }
-          .meta{ font-size:12px; color:#475569; margin-bottom:16px; }
-          table{ width:100%; border-collapse:collapse; font-size:12px; }
-          th,td{ border:1px solid #cbd5f5; padding:6px; text-align:left; }
-          th{ background:#e2e8f0; }
-          .addr{ margin-top:12px; font-size:12px; }
+          body{ font-family: Arial, sans-serif; font-size: 9pt; color:#000; }
+          .card{ border:1px solid #ddd; border-radius:6px; padding:10px; }
+          .card h3{ margin:0 0 6px 0; font-size:11pt; letter-spacing:.2px; }
+          .kv{ margin:2px 0; font-size:9pt; }
+          .kv .k{ color:#555; min-width:80px; display:inline-block; }
+          .namebig{ font-size:11pt; font-weight:700; margin-bottom:4px; }
+          .muted{ color:#666; }
+          h2{ margin:2px 0 0 0; font-size:13pt; font-weight:700; }
+          .small{ font-size:8pt !important; }
+          .tight td{ padding:2px 4px; }
+          .headerTbl{ width:100%; }
+          .hdrL{ width:70%; vertical-align:top; text-align:left; }
+          .hdrR{ width:30%; vertical-align:top; text-align:right; }
+          .addrTbl{ width:100%; margin-top:12px; }
+          .addrTbl td{ vertical-align:top; width:50%; }
+          .section{ font-size:14px; font-weight:700; text-transform:uppercase; }
+          .items{ font-size:11px; width:100%; border-collapse:collapse; margin-top:14px; }
+          .items th, .items td{ border:1px solid #000; padding:3px; }
+          .items th{ background:#f2f2f2; }
+          .sigTbl{ width:100%; margin-top:24px; }
+          .sigTbl td{ padding:12px 0; }
+          .note{ font-size:8pt; margin-top:8px; }
         </style>
       </head>
       <body>
-        <h1>Delivery Note • Order ${orderNo}</h1>
-        <div class="meta">${title}</div>
-        <div class="addr"><strong>Deliver to:</strong><br>${addressLines || "No address on file"}</div>
-        <table>
-          <thead><tr><th>Item</th><th>SKU</th><th>Qty</th></tr></thead>
-          <tbody>${lineItems || "<tr><td colspan='3'>No line items.</td></tr>"}</tbody>
+        <table class="headerTbl">
+          <tr>
+            <td class="hdrL">
+              <h2>${shopName}</h2>
+              <div class="logo-wrapper" style="float:left;">
+                <a href="https://${shopDomain}" target="_blank">
+                  <img class="logo" alt="Logo"
+                       src="https://www.orderprintertemplates.com/api/v1/logos/49348e82cd6bc0a105d1?v=1739954015"
+                       style="max-width:80%;height:auto;margin-right:10px;">
+                </a>
+              </div>
+              <div class="small" style="width:100%">
+                7 Papawer Street, Blomtuin, Bellville<br>
+                Cape Town, Western Cape, 7530<br>
+                Co. Reg No: 2015/091655/07<br>
+                VAT Reg No: 4150279885<br>
+                Phone: 071 371 0499 | 078 355 6277<br>
+                Email: admin@flippenlekkaspices.co.za
+              </div>
+            </td>
+            <td class="hdrR">
+              <h2 style="font-size:18px">DELIVERY NOTE</h2>
+              <table class="tight small" style="margin-left:auto;">
+                <tr>
+                  <td class="section">Date:</td>
+                  <td>${invoiceDateFinal || ""}</td>
+                </tr>
+                <tr>
+                  <td class="section">Delivery&nbsp;No:</td>
+                  <td>${orderData.name || ""}</td>
+                </tr>
+                ${poValue ? `<tr><td class="section">PO&nbsp;Number:</td><td>${poValue}</td></tr>` : ""}
+              </table>
+            </td>
+          </tr>
         </table>
+
+        <table class="addrTbl small">
+          <tr>
+            <td>
+              <div class="card">
+                <h3>Invoice to</h3>
+                <div class="namebig">${billingName || ""}</div>
+                ${billing.address1 ? `<div class="kv"><span class="k">Address:</span> ${billing.address1}</div>` : ""}
+                ${billing.address2 ? `<div class="kv"><span class="k"></span>${billing.address2}</div>` : ""}
+                ${
+                  billing.city || billing.province
+                    ? `<div class="kv"><span class="k"></span>${billing.city || ""}${
+                        billing.province ? `, ${billing.province}` : ""
+                      }</div>`
+                    : ""
+                }
+                ${billing.zip ? `<div class="kv"><span class="k"></span>${billing.zip}</div>` : ""}
+                ${billing.country ? `<div class="kv"><span class="k"></span>${billing.country}</div>` : ""}
+                ${billingPhone ? `<div class="kv"><span class="k">Phone:</span> ${billingPhone}</div>` : ""}
+                ${orderData.email ? `<div class="kv"><span class="k">Email:</span> ${orderData.email}</div>` : ""}
+                ${
+                  customer?.note && customer.note.includes("VAT ID:")
+                    ? `<div class="kv"><span class="k">VAT Nr:</span> ${
+                        customer.note.split("VAT ID:").pop().trim()
+                      }</div>`
+                    : ""
+                }
+              </div>
+            </td>
+            <td>
+              <div class="card">
+                <h3>Deliver to</h3>
+                <div class="namebig">${shippingName || ""}</div>
+                ${shipping.address1 ? `<div class="kv"><span class="k">Address:</span> ${shipping.address1}</div>` : ""}
+                ${shipping.address2 ? `<div class="kv"><span class="k"></span>${shipping.address2}</div>` : ""}
+                ${
+                  shipping.city || shipping.province
+                    ? `<div class="kv"><span class="k"></span>${shipping.city || ""}${
+                        shipping.province ? `, ${shipping.province}` : ""
+                      }</div>`
+                    : ""
+                }
+                ${shipping.zip ? `<div class="kv"><span class="k"></span>${shipping.zip}</div>` : ""}
+                ${shipping.country ? `<div class="kv"><span class="k"></span>${shipping.country}</div>` : ""}
+                ${shippingPhone ? `<div class="kv"><span class="k">Phone:</span> ${shippingPhone}</div>` : ""}
+                ${shippingEmail ? `<div class="kv"><span class="k">Email:</span> ${shippingEmail}</div>` : ""}
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <table class="items">
+          <thead>
+            <tr>
+              <th style="width:14%;">Code</th>
+              <th>Description</th>
+              <th style="width:8%; text-align:center;">Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lineRows || "<tr><td colspan='3'>No line items.</td></tr>"}
+          </tbody>
+        </table>
+
+        <table class="sigTbl small">
+          <tr>
+            <td>Received by: ___________________</td>
+            <td>Receiver signature: ___________________</td>
+            <td>Date: ___________________</td>
+          </tr>
+        </table>
+
+        <div class="note" style="text-align:center; margin-top:8px;">
+          Please check your goods before signing. Goods remain vested in Flippen Lekka Holdings (Pty) Ltd until paid in full.
+        </div>
       </body>
       </html>
     `;
+
     const win = window.open("", "_blank", "width=820,height=900");
     if (!win) return false;
     win.document.open();
@@ -3506,7 +3739,7 @@ async function startOrder(orderNo) {
       }
       setDispatchProgress(4, `Printing note ${orderNo}`);
       logDispatchEvent(`Printing delivery note for order ${orderNo}.`);
-      const ok = printDeliveryNote(order);
+      const ok = await printDeliveryNote(order);
       if (!ok) {
         statusExplain("Pop-up blocked for delivery note.", "warn");
         logDispatchEvent("Delivery note blocked by popup settings.");
@@ -3558,7 +3791,7 @@ async function startOrder(orderNo) {
       }
       setDispatchProgress(4, `Printing note ${orderNo}`);
       logDispatchEvent(`Printing delivery note for order ${orderNo}.`);
-      const ok = printDeliveryNote(order);
+      const ok = await printDeliveryNote(order);
       if (!ok) {
         statusExplain("Pop-up blocked for delivery note.", "warn");
         logDispatchEvent("Delivery note blocked by popup settings.");
