@@ -7,6 +7,7 @@ import {
   fetchInventoryItemIdsForVariants,
   fetchInventoryLevelsForItems,
   fetchPrimaryLocationId,
+  fetchVariantPrice,
   fetchVariantPriceTiers,
   shopifyFetch,
   setInventoryLevel,
@@ -763,6 +764,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
 
     const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
     const tierCache = new Map();
+    const variantPriceCache = new Map();
     const lineItemsWithPrice = await Promise.all(
       lineItems.map(async (li) => {
         if (!normalizedTier || !li.variantId) {
@@ -777,7 +779,14 @@ router.post("/shopify/draft-orders", async (req, res) => {
         const resolved = resolveTierPrice(tiers, normalizedTier);
         if (resolved == null) return li;
         // Tier prices must override incoming base prices so draft orders use the tier.
-        const publicPrice = Number(li.price);
+        let publicPrice = Number(li.price);
+        if (!Number.isFinite(publicPrice)) {
+          if (!variantPriceCache.has(variantId)) {
+            const fetchedPrice = await fetchVariantPrice(variantId);
+            variantPriceCache.set(variantId, fetchedPrice);
+          }
+          publicPrice = variantPriceCache.get(variantId);
+        }
         return {
           ...li,
           price: resolved,
