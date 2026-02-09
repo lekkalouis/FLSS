@@ -67,6 +67,33 @@ function requireCustomerEmailConfigured(res) {
   return true;
 }
 
+const ORDER_PARCEL_NAMESPACE = "custom";
+const ORDER_PARCEL_KEY = "parcel_count";
+
+async function fetchOrderParcelMetafield(base, orderId) {
+  if (!orderId) return null;
+  const metaUrl = `${base}/orders/${orderId}/metafields.json?namespace=${ORDER_PARCEL_NAMESPACE}&key=${ORDER_PARCEL_KEY}`;
+  const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
+  if (!metaResp.ok) return null;
+  const metaData = await metaResp.json();
+  const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
+  return metafields.find(
+    (mf) => mf.namespace === ORDER_PARCEL_NAMESPACE && mf.key === ORDER_PARCEL_KEY
+  ) || null;
+}
+
+async function fetchOrderParcelCount(base, orderId) {
+  try {
+    const metafield = await fetchOrderParcelMetafield(base, orderId);
+    if (!metafield || metafield.value == null) return null;
+    const parsed = Number(metafield.value);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch (err) {
+    console.warn("Order parcel metafield fetch failed:", err);
+    return null;
+  }
+}
+
 function normalizeCustomer(customer, metafields = {}) {
   if (!customer) return null;
   const first = (customer.first_name || "").trim();
@@ -1140,6 +1167,7 @@ router.get("/shopify/orders/by-name/:name", async (req, res) => {
     }
 
     let customerPlaceCode = null;
+    let parcelCountMeta = null;
     try {
       if (order.customer && order.customer.id) {
         const metaUrl = `${base}/customers/${order.customer.id}/metafields.json`;
@@ -1160,12 +1188,108 @@ router.get("/shopify/orders/by-name/:name", async (req, res) => {
       console.warn("Customer metafields error:", e);
     }
 
-    return res.json({ order, customerPlaceCode });
+    try {
+      parcelCountMeta = await fetchOrderParcelCount(base, order.id);
+    } catch (e) {
+      console.warn("Order parcel metafield error:", e);
+    }
+
+    return res.json({ order, customerPlaceCode, parcelCountMeta });
   } catch (err) {
     console.error("Shopify proxy error:", err);
     return res
       .status(502)
       .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+router.post("/shopify/orders/parcel-count", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { orderId, parcelCount } = req.body || {};
+    if (!orderId) return badRequest(res, "Missing orderId");
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const shouldClear =
+      parcelCount === null || parcelCount === "" || typeof parcelCount === "undefined";
+
+    if (shouldClear) {
+      const existing = await fetchOrderParcelMetafield(base, orderId);
+      if (existing?.id) {
+        const delResp = await shopifyFetch(`${base}/metafields/${existing.id}.json`, {
+          method: "DELETE"
+        });
+        if (!delResp.ok) {
+          const body = await delResp.text();
+          return res.status(delResp.status).json({
+            error: "SHOPIFY_UPSTREAM",
+            status: delResp.status,
+            statusText: delResp.statusText,
+            body
+          });
+        }
+      }
+      return res.json({ ok: true, parcelCount: null });
+    }
+
+    const parsed = Number(parcelCount);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      return badRequest(res, "parcelCount must be a non-negative integer");
+    }
+
+    const existing = await fetchOrderParcelMetafield(base, orderId);
+    if (existing?.id) {
+      const updateResp = await shopifyFetch(`${base}/metafields/${existing.id}.json`, {
+        method: "PUT",
+        body: JSON.stringify({
+          metafield: {
+            id: existing.id,
+            type: "number_integer",
+            value: String(parsed)
+          }
+        })
+      });
+      if (!updateResp.ok) {
+        const body = await updateResp.text();
+        return res.status(updateResp.status).json({
+          error: "SHOPIFY_UPSTREAM",
+          status: updateResp.status,
+          statusText: updateResp.statusText,
+          body
+        });
+      }
+      return res.json({ ok: true, parcelCount: parsed });
+    }
+
+    const createResp = await shopifyFetch(`${base}/orders/${orderId}/metafields.json`, {
+      method: "POST",
+      body: JSON.stringify({
+        metafield: {
+          namespace: ORDER_PARCEL_NAMESPACE,
+          key: ORDER_PARCEL_KEY,
+          type: "number_integer",
+          value: String(parsed)
+        }
+      })
+    });
+    if (!createResp.ok) {
+      const body = await createResp.text();
+      return res.status(createResp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: createResp.status,
+        statusText: createResp.statusText,
+        body
+      });
+    }
+
+    return res.json({ ok: true, parcelCount: parsed });
+  } catch (err) {
+    console.error("Shopify parcel-count error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
   }
 });
 
@@ -1217,9 +1341,15 @@ router.get("/shopify/orders/open", async (req, res) => {
       pageCount += 1;
     }
 
-    const orders = ordersRaw
-      .filter((o) => !o.cancelled_at)
-      .map((o) => {
+    const filteredOrders = ordersRaw.filter((o) => !o.cancelled_at);
+    const parcelCounts = await Promise.all(
+      filteredOrders.map((o) => fetchOrderParcelCount(base, o.id))
+    );
+    const parcelCountMap = new Map(
+      filteredOrders.map((o, idx) => [o.id, parcelCounts[idx]])
+    );
+
+    const orders = filteredOrders.map((o) => {
         const shipping = o.shipping_address || {};
         const customer = o.customer || {};
 
@@ -1252,6 +1382,8 @@ router.get("/shopify/orders/open", async (req, res) => {
           `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
           (o.name ? o.name.replace(/^#/, "") : "");
 
+        const parcelCountFromMeta = parcelCountMap.get(o.id) ?? null;
+
         return {
           id: o.id,
           name: o.name,
@@ -1274,7 +1406,7 @@ router.get("/shopify/orders/open", async (req, res) => {
           shipping_country: shipping.country || "",
           shipping_phone: shipping.phone || "",
           shipping_name: shipping.name || customer_name,
-          parcel_count: parcelCountFromTag,
+          parcel_count: parcelCountFromMeta ?? parcelCountFromTag,
           line_items: (o.line_items || []).map((li) => ({
             title: li.title,
             variant_title: li.variant_title,

@@ -1133,12 +1133,16 @@ function scheduleIdleAutoBook() {
       details && typeof details.parcelCountFromTag === "number" && details.parcelCountFromTag > 0
         ? details.parcelCountFromTag
         : null;
+    const fromMeta =
+      details && typeof details.parcelCountFromMeta === "number" && details.parcelCountFromMeta > 0
+        ? details.parcelCountFromMeta
+        : null;
     const manual =
       details && typeof details.manualParcelCount === "number" && details.manualParcelCount > 0
         ? details.manualParcelCount
         : null;
-    if (!isAutoMode) return manual || null;
-    return fromTag || manual || null;
+    if (!isAutoMode) return fromMeta || manual || null;
+    return fromTag || fromMeta || manual || null;
   }
 
   function getParcelIndexesForCurrentOrder(details) {
@@ -1178,7 +1182,9 @@ function scheduleIdleAutoBook() {
     let parcelSource = "--";
     if (!isAutoMode) {
       parcelSource =
-        orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
+        orderDetails && typeof orderDetails.parcelCountFromMeta === "number" && orderDetails.parcelCountFromMeta > 0
+          ? `Order meta ${orderDetails.parcelCountFromMeta}`
+          : orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
           ? `Manual ${orderDetails.manualParcelCount}`
           : idxs.length
           ? "Scanned"
@@ -1186,6 +1192,8 @@ function scheduleIdleAutoBook() {
     } else {
       parcelSource = hasParcelCountTag(orderDetails)
         ? `Tag parcel_count_${orderDetails.parcelCountFromTag}`
+        : orderDetails && typeof orderDetails.parcelCountFromMeta === "number" && orderDetails.parcelCountFromMeta > 0
+        ? `Order meta ${orderDetails.parcelCountFromMeta}`
         : orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
         ? `Manual ${orderDetails.manualParcelCount}`
         : idxs.length
@@ -1215,6 +1223,10 @@ function scheduleIdleAutoBook() {
       orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
         ? ` (manual: ${orderDetails.manualParcelCount})`
         : "";
+    const metaInfo =
+      orderDetails && typeof orderDetails.parcelCountFromMeta === "number" && orderDetails.parcelCountFromMeta > 0
+        ? ` (meta: ${orderDetails.parcelCountFromMeta})`
+        : "";
 
     if (parcelList) {
       const activeSet = getActiveParcelSet();
@@ -1236,7 +1248,7 @@ function scheduleIdleAutoBook() {
             })
             .join(" | ")}`
         : "Bundled: --";
-      parcelList.textContent = `${scannedLine}\n${missingLine}\n${lastScanLine}\n${listLine}\n${bundleLine}${tagInfo}${manualInfo}`;
+      parcelList.textContent = `${scannedLine}\n${missingLine}\n${lastScanLine}\n${listLine}\n${bundleLine}${tagInfo}${metaInfo}${manualInfo}`;
     }
 
     if (parcelNumbers) {
@@ -2011,6 +2023,10 @@ async function startOrder(orderNo) {
       const data = await res.json();
       const o = data.order || data || {};
       const placeCodeFromMeta = data.customerPlaceCode || null;
+      const parcelCountFromMeta =
+        typeof data.parcelCountMeta === "number" && data.parcelCountMeta > 0
+          ? data.parcelCountMeta
+          : null;
 
       const shipping = o.shipping_address || {};
       const customer = o.customer || {};
@@ -2055,6 +2071,7 @@ async function startOrder(orderNo) {
         placeCode: placeCodeFromMeta,
         placeLabel: null,
         parcelCountFromTag,
+        parcelCountFromMeta,
         manualParcelCount: null
       };
 
@@ -2085,6 +2102,7 @@ async function startOrder(orderNo) {
         placeCode: null,
         placeLabel: null,
         parcelCountFromTag: null,
+        parcelCountFromMeta: null,
         manualParcelCount: null
       };
     }
@@ -2761,6 +2779,8 @@ async function startOrder(orderNo) {
       const addr1 = o.shipping_address1 || "";
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
+      const parcelCountValue =
+        typeof o.parcel_count === "number" && o.parcel_count >= 0 ? o.parcel_count : "";
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
@@ -2770,7 +2790,22 @@ async function startOrder(orderNo) {
         <div class="dispatchCard" data-order-no="${orderNo}">
           <div class="dispatchCardTitle"><span>${title}</span></div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
-         
+          <div class="dispatchCardParcel">
+            <label for="dispatchParcel-${orderNo}">Parcels</label>
+            <input
+              id="dispatchParcel-${orderNo}"
+              class="dispatchParcelCountInput"
+              type="number"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              data-order-no="${orderNo}"
+              data-order-id="${o.id || ""}"
+              data-last-value="${parcelCountValue}"
+              value="${parcelCountValue}"
+              placeholder="--"
+            />
+          </div>
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
             ${renderDispatchActions(o, laneId, orderNo, packingState)}
@@ -2805,6 +2840,34 @@ async function startOrder(orderNo) {
       }
     });
     if (pruned) savePackingState();
+  }
+
+  async function updateDispatchParcelCount({ orderId, orderNo, value }) {
+    if (!orderId) return false;
+    try {
+      const payload = { orderId };
+      if (value === "" || value === null || typeof value === "undefined") {
+        payload.parcelCount = null;
+      } else {
+        payload.parcelCount = value;
+      }
+      const resp = await fetch(`${API_BASE}/shopify/orders/parcel-count`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      if (orderNo) {
+        const order = dispatchOrderCache.get(orderNo);
+        if (order) order.parcel_count = data.parcelCount ?? null;
+      }
+      return true;
+    } catch (err) {
+      statusExplain("Failed to save parcel count.", "warn");
+      appendDebug(`Parcel count update failed: ${String(err)}`);
+      return false;
+    }
   }
 
   function printOppDocument(order, docType) {
@@ -3847,6 +3910,33 @@ async function startOrder(orderNo) {
       const orderNo = card.dataset.orderNo;
       if (orderNo) openDispatchOrderModal(orderNo);
     }
+  });
+
+  dispatchBoard?.addEventListener("focusout", async (e) => {
+    const input = e.target.closest(".dispatchParcelCountInput");
+    if (!input) return;
+    const orderId = input.dataset.orderId;
+    const orderNo = input.dataset.orderNo;
+    const raw = input.value.trim();
+    const lastValue = input.dataset.lastValue ?? "";
+
+    if (raw === lastValue) return;
+
+    if (raw === "") {
+      const ok = await updateDispatchParcelCount({ orderId, orderNo, value: "" });
+      if (ok) input.dataset.lastValue = "";
+      return;
+    }
+
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      statusExplain("Parcel count must be a non-negative number.", "warn");
+      input.value = lastValue;
+      return;
+    }
+
+    const ok = await updateDispatchParcelCount({ orderId, orderNo, value: parsed });
+    if (ok) input.dataset.lastValue = String(parsed);
   });
 
   dispatchShipmentsSidebar?.addEventListener("click", async (e) => {
