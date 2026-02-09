@@ -2343,7 +2343,22 @@ async function startOrder(orderNo) {
     return cleaned;
   }
 
-  function sizeLabelToWeightKg(sizeLabel) {
+  function isCurryMixItem(lineItem) {
+    return /curry mix/i.test(String(lineItem?.title || ""));
+  }
+
+  const BOX_MAX_SPACES = 96;
+  const BOX_MAX_WEIGHT_KG = 21;
+  const CURRY_BOX_MAX = 50;
+  const SIZE_METRICS = {
+    "200ml": { spaces: 1, weight: 0.2 },
+    "250ml": { spaces: 1.6, weight: 0.2 },
+    "375ml": { spaces: 2, weight: 0.45 },
+    "500g": { spaces: 2.5, weight: 0.5 },
+    "1kg": { spaces: 4.7, weight: 1 }
+  };
+
+  function sizeLabelToWeightKgRaw(sizeLabel) {
     if (!sizeLabel) return 0;
     const match = String(sizeLabel).match(/(\d+(?:\.\d+)?)\s*(kg|g|ml)\b/i);
     if (!match) return 0;
@@ -2354,32 +2369,16 @@ async function startOrder(orderNo) {
     return value / 1000;
   }
 
-  function isCurryMixItem(lineItem) {
-    return /curry mix/i.test(String(lineItem?.title || ""));
+  function getSizeMetrics(sizeLabel) {
+    if (!sizeLabel) return { spaces: 0, weight: 0 };
+    const normalized = String(sizeLabel).replace(/\s+/g, "").toLowerCase();
+    if (normalized.includes("gift")) return { spaces: 0, weight: 0 };
+    if (SIZE_METRICS[normalized]) return SIZE_METRICS[normalized];
+    return { spaces: 1, weight: sizeLabelToWeightKgRaw(sizeLabel) };
   }
 
-  const PACKING_LIMITS = {
-    default: {
-      "1kg": 6,
-      "500g": 12,
-      "250g": 24,
-      "250ml": 24,
-      "100g": 48,
-      "50g": 96
-    },
-    curryMix: {
-      "1kg": 6,
-      "500g": 8,
-      "250ml": 12
-    }
-  };
-
-  function getBoxLimit(sizeLabel, curryMix) {
-    if (!sizeLabel) return 1;
-    if (curryMix && PACKING_LIMITS.curryMix[sizeLabel]) {
-      return PACKING_LIMITS.curryMix[sizeLabel];
-    }
-    return PACKING_LIMITS.default[sizeLabel] || 1;
+  function sizeLabelToWeightKg(sizeLabel) {
+    return getSizeMetrics(sizeLabel).weight;
   }
 
   function buildDispatchPackingPlan(order) {
@@ -2388,11 +2387,14 @@ async function startOrder(orderNo) {
       .map((item) => {
         const size = getLineItemSize(item);
         const curryMix = isCurryMixItem(item);
+        const metrics = getSizeMetrics(size);
         return {
           title: item.title || "",
           size,
           curryMix,
-          quantity: Number(item.quantity) || 0
+          quantity: Number(item.quantity) || 0,
+          spaces: metrics.spaces,
+          weight: metrics.weight
         };
       })
       .filter((item) => item.quantity > 0);
@@ -2409,48 +2411,109 @@ async function startOrder(orderNo) {
     const boxes = [];
     let boxIndex = 1;
 
-    const groupMap = new Map();
+    function createBox(itemsInBox, curryMixOnly) {
+      const sizeCounts = new Map();
+      let spacesUsed = 0;
+      let weightUsed = 0;
+      itemsInBox.forEach((entry) => {
+        const label = entry.size || "Unspecified";
+        sizeCounts.set(label, (sizeCounts.get(label) || 0) + entry.quantity);
+        spacesUsed += entry.quantity * entry.spaces;
+        weightUsed += entry.quantity * entry.weight;
+      });
+      const sizeLabels = Array.from(sizeCounts.keys());
+      const sizeLabel = sizeLabels.length === 1 ? sizeLabels[0] : "Mixed";
+      return {
+        label: `Box ${boxIndex}`,
+        size: sizeLabel,
+        curryMix: curryMixOnly,
+        spacesUsed,
+        weightUsed,
+        sizeBreakdown: Array.from(sizeCounts.entries()).map(([size, quantity]) => ({
+          size,
+          quantity
+        })),
+        items: itemsInBox.map((entry) => ({
+          label: entry.title,
+          quantity: entry.quantity,
+          size: entry.size,
+          curryMix: entry.curryMix
+        }))
+      };
+    }
+
+    const curryMixItems = [];
+    const otherItems = [];
     items.forEach((item) => {
-      const groupKey = `${item.curryMix ? "Curry Mix" : "Standard"}|${item.size || "Unspecified"}`;
-      if (!groupMap.has(groupKey)) {
-        groupMap.set(groupKey, {
-          curryMix: item.curryMix,
-          size: item.size || "Unspecified",
-          items: []
-        });
+      if (item.curryMix && item.size === "250ml") {
+        curryMixItems.push({ ...item });
+      } else {
+        otherItems.push({ ...item });
       }
-      groupMap.get(groupKey).items.push(item);
     });
 
-    groupMap.forEach((group) => {
-      const limit = getBoxLimit(group.size, group.curryMix);
-      let currentBox = null;
-      let remainingCapacity = 0;
+    let curryTotal = curryMixItems.reduce((sum, item) => sum + item.quantity, 0);
+    let curryRemaining = curryMixItems.map((item) => ({ ...item }));
 
-      group.items.forEach((item) => {
-        let remainingQty = item.quantity;
-        while (remainingQty > 0) {
-          if (!currentBox || remainingCapacity <= 0) {
-            currentBox = {
-              label: `Box ${boxIndex}`,
-              size: group.size,
-              curryMix: group.curryMix,
-              items: []
-            };
-            boxes.push(currentBox);
-            boxIndex += 1;
-            remainingCapacity = limit;
-          }
-          const packQty = Math.min(remainingCapacity, remainingQty);
-          currentBox.items.push({
-            label: item.title,
-            quantity: packQty
-          });
-          remainingQty -= packQty;
-          remainingCapacity -= packQty;
+    while (curryTotal >= CURRY_BOX_MAX) {
+      let boxQtyRemaining = CURRY_BOX_MAX;
+      const boxItems = [];
+      const nextRemaining = [];
+      curryRemaining.forEach((item) => {
+        if (boxQtyRemaining <= 0) {
+          nextRemaining.push(item);
+          return;
+        }
+        const packQty = Math.min(item.quantity, boxQtyRemaining);
+        if (packQty > 0) {
+          boxItems.push({ ...item, quantity: packQty });
+          boxQtyRemaining -= packQty;
+          curryTotal -= packQty;
+        }
+        const leftoverQty = item.quantity - packQty;
+        if (leftoverQty > 0) {
+          nextRemaining.push({ ...item, quantity: leftoverQty });
         }
       });
-    });
+      boxes.push(createBox(boxItems, true));
+      boxIndex += 1;
+      curryRemaining = nextRemaining;
+    }
+
+    const remainingItems = [...otherItems, ...curryRemaining];
+    let itemsToPack = remainingItems.map((item) => ({ ...item }));
+    while (itemsToPack.length) {
+      let boxSpaces = 0;
+      let boxWeight = 0;
+      let packedAny = false;
+      const boxItems = [];
+      const nextRemaining = [];
+
+      itemsToPack.forEach((item) => {
+        let qtyLeft = item.quantity;
+        const spaceLeft = BOX_MAX_SPACES - boxSpaces;
+        const weightLeft = BOX_MAX_WEIGHT_KG - boxWeight;
+        const fitBySpace = item.spaces > 0 ? Math.floor(spaceLeft / item.spaces) : qtyLeft;
+        const fitByWeight = item.weight > 0 ? Math.floor(weightLeft / item.weight) : qtyLeft;
+        let fitQty = Math.min(fitBySpace, fitByWeight, qtyLeft);
+        if (fitQty > 0) {
+          packedAny = true;
+          boxItems.push({ ...item, quantity: fitQty });
+          boxSpaces += fitQty * item.spaces;
+          boxWeight += fitQty * item.weight;
+          qtyLeft -= fitQty;
+        }
+        if (qtyLeft > 0) {
+          nextRemaining.push({ ...item, quantity: qtyLeft });
+        }
+      });
+
+      if (!packedAny) break;
+      const curryMixOnly = boxItems.length > 0 && boxItems.every((entry) => entry.curryMix);
+      boxes.push(createBox(boxItems, curryMixOnly));
+      boxIndex += 1;
+      itemsToPack = nextRemaining;
+    }
 
     return {
       boxes,
@@ -2473,10 +2536,26 @@ async function startOrder(orderNo) {
           )
           .join("");
         const tag = `${box.curryMix ? "Curry Mix" : "Standard"} · ${box.size}`;
+        const meta =
+          box.spacesUsed || box.weightUsed
+            ? `<div class="dispatchPackingPlanBoxMeta">Spaces: ${box.spacesUsed.toFixed(
+                1
+              )} · Weight: ${box.weightUsed.toFixed(2)} kg</div>`
+            : "";
+        const sizeBreakdown = Array.isArray(box.sizeBreakdown)
+          ? box.sizeBreakdown
+              .map((entry) => `<div>${entry.quantity} × ${entry.size}</div>`)
+              .join("")
+          : "";
+        const breakdown = sizeBreakdown
+          ? `<div class="dispatchPackingPlanBoxBreakdown"><div><strong>Sizes</strong></div>${sizeBreakdown}</div>`
+          : "";
         return `
           <div class="dispatchPackingPlanBox">
             <div class="dispatchPackingPlanBoxTitle">${box.label} <span>${tag}</span></div>
             <div class="dispatchPackingPlanBoxItems">${itemsHtml}</div>
+            ${meta}
+            ${breakdown}
           </div>
         `;
       })
@@ -3114,6 +3193,8 @@ async function startOrder(orderNo) {
           .dispatchPackingPlanBox{ border:1px solid #e2e8f0; padding:10px 12px; margin-bottom:12px; }
           .dispatchPackingPlanBoxTitle{ font-size:12px; font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between; }
           .dispatchPackingPlanItem{ display:flex; justify-content:space-between; font-size:12px; padding:2px 0; }
+          .dispatchPackingPlanBoxMeta{ font-size:11px; color:#475569; margin-top:6px; }
+          .dispatchPackingPlanBoxBreakdown{ font-size:11px; margin-top:6px; }
           .dispatchPackingSummary{ margin-top:16px; font-size:12px; }
           .dispatchPackingSummaryTitle{ font-weight:700; margin-bottom:6px; }
           .dispatchPackingSummaryRow{ margin-bottom:4px; }
