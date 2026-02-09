@@ -3,8 +3,13 @@ import { Router } from "express";
 import { config } from "../config.js";
 import { getSmtpTransport } from "../services/email.js";
 import {
+  adjustInventoryLevel,
+  fetchInventoryItemIdsForVariants,
+  fetchInventoryLevelsForItems,
+  fetchPrimaryLocationId,
   fetchVariantPriceTiers,
   shopifyFetch,
+  setInventoryLevel,
   upsertVariantPriceTiers,
   updateVariantPrice
 } from "../services/shopify.js";
@@ -1913,6 +1918,112 @@ router.post("/shopify/ready-for-pickup", async (req, res) => {
     return res.json({ ok: true, fulfillmentOrder: mutationPayload.fulfillmentOrder });
   } catch (err) {
     console.error("Shopify ready-for-pickup error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.get("/shopify/inventory-levels", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+    const rawIds = String(req.query.variantIds || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+    if (!rawIds.length) {
+      return badRequest(res, "Missing variantIds query parameter.");
+    }
+
+    const variantIds = rawIds.map((id) => Number(id)).filter((id) => Number.isFinite(id));
+    if (!variantIds.length) {
+      return badRequest(res, "No valid variantIds provided.");
+    }
+
+    const locationId =
+      req.query.locationId != null
+        ? Number(req.query.locationId)
+        : await fetchPrimaryLocationId();
+
+    const inventoryItemIdsByVariant = await fetchInventoryItemIdsForVariants(variantIds);
+    const inventoryItemIds = [...inventoryItemIdsByVariant.values()];
+    const levelsByItem = await fetchInventoryLevelsForItems(inventoryItemIds, locationId);
+
+    const levels = variantIds.map((variantId) => {
+      const inventoryItemId = inventoryItemIdsByVariant.get(variantId) || null;
+      const available =
+        inventoryItemId != null ? levelsByItem.get(inventoryItemId) ?? 0 : null;
+      return { variantId, inventoryItemId, locationId, available };
+    });
+
+    return res.json({ ok: true, locationId, levels });
+  } catch (err) {
+    console.error("Shopify inventory levels fetch failed:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.post("/shopify/inventory-levels/set", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+    const { variantId, value, mode = "take", locationId: rawLocationId } = req.body || {};
+
+    const safeVariantId = Number(variantId);
+    if (!Number.isFinite(safeVariantId)) {
+      return badRequest(res, "Missing variantId in request body.");
+    }
+
+    const inventoryItemIdsByVariant = await fetchInventoryItemIdsForVariants([
+      safeVariantId
+    ]);
+    const inventoryItemId = inventoryItemIdsByVariant.get(safeVariantId);
+    if (!inventoryItemId) {
+      return res.status(404).json({
+        error: "INVENTORY_ITEM_NOT_FOUND",
+        message: "Unable to resolve inventory item for variant."
+      });
+    }
+
+    const locationId = Number.isFinite(Number(rawLocationId))
+      ? Number(rawLocationId)
+      : await fetchPrimaryLocationId();
+
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) {
+      return badRequest(res, "Missing inventory value.");
+    }
+
+    let inventoryLevel;
+    if (String(mode).toLowerCase() === "receive") {
+      inventoryLevel = await adjustInventoryLevel({
+        inventoryItemId,
+        locationId,
+        adjustment: Math.floor(numericValue)
+      });
+    } else {
+      inventoryLevel = await setInventoryLevel({
+        inventoryItemId,
+        locationId,
+        available: Math.floor(numericValue)
+      });
+    }
+
+    const available = Number(inventoryLevel?.available ?? numericValue);
+    return res.json({
+      ok: true,
+      level: {
+        variantId: safeVariantId,
+        inventoryItemId,
+        locationId,
+        available: Number.isFinite(available) ? available : 0
+      }
+    });
+  } catch (err) {
+    console.error("Shopify inventory level update failed:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)

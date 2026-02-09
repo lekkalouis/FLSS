@@ -2313,9 +2313,9 @@
           <li><strong>Scan Station</strong> for booking ParcelPerfect shipments based on scanned parcel barcodes and Shopify order data.</li>
           <li><strong>Dispatch Board</strong> for triaging open Shopify orders into delivery/shipping/pickup lanes.</li>
           <li><strong>FLOCS (Order Capture)</strong> for creating Shopify customers, searching products, quoting shipping, and creating draft orders/orders.</li>
-          <li><strong>Stock Take</strong> for offline/local stock adjustments stored in browser storage.</li>
+          <li><strong>Stock Take</strong> for reviewing and updating Shopify inventory levels with an activity log.</li>
         </ul>
-        <p>The server acts as a secure proxy to ParcelPerfect, Shopify Admin APIs (OAuth client credentials), and PrintNode. It also serves the static frontend pages from <span class="docsCode">/public</span>.【F:server.js†L1-L453】【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】【F:public/views/flocs.js†L1-L200】【F:public/stock.js†L1-L200】</p>
+        <p>The server acts as a secure proxy to ParcelPerfect, Shopify Admin APIs (OAuth client credentials), and PrintNode. It also serves the static frontend pages from <span class="docsCode">/public</span>.【F:server.js†L1-L453】【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】【F:public/views/flocs.js†L1-L200】【F:public/views/stock.js†L1-L229】</p>
 
         <hr class="docsDivider" />
 
@@ -2426,7 +2426,7 @@
         </ul>
         <h4>4) Stock Take</h4>
         <ul>
-          <li>Local-only stock counts stored in <span class="docsCode">localStorage</span> under <span class="docsCode">fl_stock_levels_v1</span> with “stock take” and “stock received” modes; no backend calls required.【F:public/stock.js†L1-L200】</li>
+          <li>Loads Shopify inventory levels via <span class="docsCode">/shopify/inventory-levels</span> and writes updates through <span class="docsCode">/shopify/inventory-levels/set</span>; activity log entries persist in <span class="docsCode">localStorage</span> under <span class="docsCode">fl_stock_log_v1</span>.【F:public/views/stock.js†L1-L229】</li>
         </ul>
         <h4>5) Price Manager</h4>
         <ul>
@@ -2470,8 +2470,8 @@
             </tr>
             <tr>
               <td><span class="docsCode">stockLevels</span></td>
-              <td>Local map of SKU → count.</td>
-              <td><span class="docsCode">localStorage</span> in stock tool.【F:public/stock.js†L34-L112】</td>
+              <td>Map of SKU → current Shopify inventory count.</td>
+              <td><span class="docsCode">/shopify/inventory-levels</span> response in stock tool.【F:public/views/stock.js†L28-L101】</td>
             </tr>
           </tbody>
         </table>
@@ -2570,7 +2570,7 @@
         </ul>
         <h4>Stock Take</h4>
         <ul>
-          <li><strong>Local persistence</strong>: stock levels are stored and restored from <span class="docsCode">localStorage</span>, keeping the tool offline-friendly.【F:public/stock.js†L34-L112】</li>
+          <li><strong>Activity log persistence</strong>: log entries are stored in <span class="docsCode">localStorage</span> (<span class="docsCode">fl_stock_log_v1</span>) so adjustments remain visible after reloads.【F:public/views/stock.js†L88-L137】</li>
         </ul>
 
         <hr class="docsDivider" />
@@ -2594,6 +2594,8 @@
           <li><span class="docsCode">GET /shopify/orders/by-name/:name</span> — Find order by Shopify name. 【F:server.js†L801-L873】</li>
           <li><span class="docsCode">GET /shopify/orders/open</span> — Open orders for dispatch board. 【F:server.js†L875-L956】</li>
           <li><span class="docsCode">POST /shopify/fulfill</span> — Fulfill order with tracking. 【F:server.js†L958-L1057】</li>
+          <li><span class="docsCode">GET /shopify/inventory-levels?variantIds=...</span> — Fetch inventory levels for variants. 【F:src/routes/shopify.js†L606-L650】</li>
+          <li><span class="docsCode">POST /shopify/inventory-levels/set</span> — Set or adjust inventory levels. 【F:src/routes/shopify.js†L652-L731】</li>
         </ul>
         <h4>PrintNode</h4>
         <ul>
@@ -2661,9 +2663,9 @@ PRINTNODE_PRINTER_ID=123456</code></pre>
         <h4>Stock Take flow</h4>
         <ol>
           <li>Choose mode (stock take vs received).</li>
-          <li>Search SKU and set/add quantities; entries persist locally in <span class="docsCode">localStorage</span>.</li>
+          <li>Search SKU, apply counts, and sync inventory back to Shopify; entries are logged locally for history.</li>
         </ol>
-        <p>This tool is local-only and does not talk to the backend or Shopify.【F:public/stock.js†L34-L200】</p>
+        <p>This tool reads and writes Shopify inventory levels via the backend inventory endpoints.【F:public/views/stock.js†L28-L229】【F:src/routes/shopify.js†L606-L731】</p>
 
         <hr class="docsDivider" />
 
@@ -2720,7 +2722,7 @@ npm run dev</code></pre>
           <li><span class="docsCode">public/index.html</span> + <span class="docsCode">public/app.js</span> — Scan Station + Dispatch Board + embedded docs. 【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】</li>
           <li><span class="docsCode">public/views/flocs.js</span> — FLOCS order capture logic (SPA view). 【F:public/views/flocs.js†L1-L200】</li>
           <li><span class="docsCode">public/price-manager.html</span> + <span class="docsCode">public/price-manager.js</span> — Price manager for tier pricing and storefront sync. 【F:public/price-manager.html†L1-L200】【F:public/price-manager.js†L1-L201】</li>
-          <li><span class="docsCode">public/stock.html</span> + <span class="docsCode">public/stock.js</span> — Stock take tool. 【F:public/stock.js†L1-L200】</li>
+          <li><span class="docsCode">public/stock.html</span> + <span class="docsCode">public/views/stock.js</span> — Stock take tool. 【F:public/views/stock.js†L1-L229】</li>
           <li><span class="docsCode">.env.example</span> — Example environment config. 【F:.env.example†L1-L18】</li>
           <li><span class="docsCode">package.json</span> — Scripts and dependencies. 【F:package.json†L1-L16】</li>
         </ul>
@@ -2994,6 +2996,11 @@ npm run dev</code></pre>
           <h2>Stock overview</h2>
           <div class="stock-toolbar">
             <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
+            <div class="stock-modeToggle">
+              <button class="stock-modeBtn is-active" type="button" data-mode="take">Stock take</button>
+              <button class="stock-modeBtn" type="button" data-mode="receive">Stock received</button>
+            </div>
+            <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
           </div>
           <table class="stock-table">
             <thead>
@@ -3011,6 +3018,8 @@ npm run dev</code></pre>
             </thead>
             <tbody id="stock-tableBody"></tbody>
           </table>
+          <h3 class="stock-logTitle">Activity log</h3>
+          <div id="stock-log" class="stock-log"></div>
         </section>
         </div>
     </div>

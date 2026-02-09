@@ -139,3 +139,130 @@ export async function updateVariantPrice(variantId, price) {
     body: JSON.stringify(payload)
   });
 }
+
+let cachedLocationId = null;
+let locationFetchedAtMs = 0;
+
+function chunkArray(list, size) {
+  const chunks = [];
+  for (let i = 0; i < list.length; i += size) {
+    chunks.push(list.slice(i, i + size));
+  }
+  return chunks;
+}
+
+export async function fetchPrimaryLocationId() {
+  const cacheTtlMs = 5 * 60 * 1000;
+  if (cachedLocationId && Date.now() - locationFetchedAtMs < cacheTtlMs) {
+    return cachedLocationId;
+  }
+
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const resp = await shopifyFetch(`${base}/locations.json`, { method: "GET" });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Shopify locations fetch failed (${resp.status}): ${body}`);
+  }
+  const data = await resp.json();
+  const locations = Array.isArray(data.locations) ? data.locations : [];
+  const primary = locations.find((loc) => loc.active !== false) || locations[0];
+  if (!primary?.id) {
+    throw new Error("No Shopify locations available.");
+  }
+  cachedLocationId = primary.id;
+  locationFetchedAtMs = Date.now();
+  return cachedLocationId;
+}
+
+export async function fetchInventoryItemIdsForVariants(variantIds = []) {
+  const ids = variantIds
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id));
+  if (!ids.length) return new Map();
+
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const idMap = new Map();
+  const chunks = chunkArray(ids, 50);
+  for (const chunk of chunks) {
+    const url = `${base}/variants.json?ids=${chunk.join(",")}&fields=id,inventory_item_id`;
+    const resp = await shopifyFetch(url, { method: "GET" });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`Shopify variants fetch failed (${resp.status}): ${body}`);
+    }
+    const data = await resp.json();
+    const variants = Array.isArray(data.variants) ? data.variants : [];
+    variants.forEach((variant) => {
+      if (variant?.id && variant?.inventory_item_id) {
+        idMap.set(Number(variant.id), Number(variant.inventory_item_id));
+      }
+    });
+  }
+  return idMap;
+}
+
+export async function fetchInventoryLevelsForItems(inventoryItemIds = [], locationId) {
+  const ids = inventoryItemIds
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id));
+  if (!ids.length) return new Map();
+
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const levelMap = new Map();
+  const chunks = chunkArray(ids, 50);
+  for (const chunk of chunks) {
+    const params = new URLSearchParams();
+    params.set("inventory_item_ids", chunk.join(","));
+    if (locationId) params.set("location_ids", String(locationId));
+    const url = `${base}/inventory_levels.json?${params.toString()}`;
+    const resp = await shopifyFetch(url, { method: "GET" });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`Shopify inventory levels fetch failed (${resp.status}): ${body}`);
+    }
+    const data = await resp.json();
+    const levels = Array.isArray(data.inventory_levels) ? data.inventory_levels : [];
+    levels.forEach((level) => {
+      if (level?.inventory_item_id != null) {
+        levelMap.set(Number(level.inventory_item_id), Number(level.available || 0));
+      }
+    });
+  }
+  return levelMap;
+}
+
+export async function setInventoryLevel({ inventoryItemId, locationId, available }) {
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const resp = await shopifyFetch(`${base}/inventory_levels/set.json`, {
+    method: "POST",
+    body: JSON.stringify({
+      location_id: Number(locationId),
+      inventory_item_id: Number(inventoryItemId),
+      available: Math.max(0, Math.floor(Number(available)))
+    })
+  });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Shopify inventory set failed (${resp.status}): ${body}`);
+  }
+  const data = await resp.json();
+  return data?.inventory_level || null;
+}
+
+export async function adjustInventoryLevel({ inventoryItemId, locationId, adjustment }) {
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const resp = await shopifyFetch(`${base}/inventory_levels/adjust.json`, {
+    method: "POST",
+    body: JSON.stringify({
+      location_id: Number(locationId),
+      inventory_item_id: Number(inventoryItemId),
+      available_adjustment: Math.floor(Number(adjustment || 0))
+    })
+  });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Shopify inventory adjust failed (${resp.status}): ${body}`);
+  }
+  const data = await resp.json();
+  return data?.inventory_level || null;
+}
