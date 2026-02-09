@@ -323,6 +323,7 @@ export function initFlocsView() {
       const qty = Number(state.items[key] || 0);
       if (!qty || qty <= 0) continue;
       out.push({
+        key,
         sku: p.sku,
         title: displayProductTitle(p),
         variantId: p.variantId,
@@ -1364,13 +1365,20 @@ ${state.customer.email || ""}${
       shippingAddress,
       customerTags: state.customerTags,
       priceTier: state.priceTier,
-      lineItems: items.map((li) => ({
-        sku: li.sku,
-        title: li.title,
-        variantId: li.variantId,
-        quantity: li.quantity,
-        price: li.price
-      }))
+      lineItems: items.map((li) => {
+        const includePrice =
+          !state.priceTier || priceOverrideForKey(li.key) != null;
+        const entry = {
+          sku: li.sku,
+          title: li.title,
+          variantId: li.variantId,
+          quantity: li.quantity
+        };
+        if (includePrice && li.price != null) {
+          entry.price = li.price;
+        }
+        return entry;
+      })
     };
 
     try {
