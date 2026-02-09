@@ -1,3 +1,5 @@
+import { PRODUCT_LIST } from "./products.js";
+
 let stockInitialized = false;
 
 export function initStockView() {
@@ -5,47 +7,12 @@ export function initStockView() {
   stockInitialized = true;
   "use strict";
 
-  const DEFAULT_ITEMS = [
-    { sku: "FL002", title: "Original Multi-Purpose Spice 200ml" },
-    { sku: "FL003", title: "Original Multi-Purpose Spice 500g" },
-    { sku: "FL004", title: "Original Multi-Purpose Spice 1kg" },
-    { sku: "FL005", title: "Original Multi-Purpose Spice Bag 750g" },
-    { sku: "FL008", title: "Hot & Spicy Multi-Purpose Spice 200ml" },
-    { sku: "FL009", title: "Hot & Spicy Multi-Purpose Spice 500g" },
-    { sku: "FL010", title: "Hot & Spicy Multi-Purpose Spice 1kg" },
-    { sku: "FL014", title: "Worcester Sauce Spice 200ml" },
-    { sku: "FL015", title: "Worcester Sauce Spice 500g" },
-    { sku: "FL016", title: "Worcester Sauce Spice 1kg" },
-    { sku: "FL017", title: "Worcester Sauce Spice Bag 750g" },
-    { sku: "FL026", title: "Red Wine & Garlic Sprinkle 200ml" },
-    { sku: "FL027", title: "Red Wine & Garlic Sprinkle 500g" },
-    { sku: "FL028", title: "Red Wine & Garlic Sprinkle 1kg" },
-    { sku: "FL031", title: "Flippen Lekka Curry Mix 250ml" },
-    { sku: "FL032", title: "Flippen Lekka Curry Mix 500g" },
-    { sku: "FL033", title: "Flippen Lekka Curry Mix 1kg" },
-    { sku: "FL035", title: "Chutney Sprinkle 200ml" },
-    { sku: "FL037", title: "Chutney Sprinkle 1kg" },
-    { sku: "FL038", title: "Savoury Herb Mix 200ml" },
-    { sku: "FL039", title: "Savoury Herb Mix 500g" },
-    { sku: "FL041", title: "Salt & Vinegar Seasoning 200ml" },
-    { sku: "FL042", title: "Salt & Vinegar Seasoning 500g" },
-    { sku: "FL043", title: "Salt & Vinegar Seasoning 1kg" },
-    { sku: "FL050", title: "Butter Popcorn Sprinkle 100ml" },
-    { sku: "FL053", title: "Sour Cream & Chives Popcorn Sprinkle 100ml" },
-    { sku: "FL056", title: "Chutney Popcorn Sprinkle 100ml" },
-    { sku: "FL059", title: "Parmesan Cheese Popcorn Sprinkle 100ml" },
-    { sku: "FL062", title: "Cheese & Onion Popcorn Sprinkle 100ml" },
-    { sku: "FL065", title: "Salt & Vinegar Popcorn Sprinkle 100ml" },
-    { sku: "FLBS001", title: "Original Multi-Purpose Basting Sauce 375ml" },
-    { sku: "GBOX", title: "Gift Box" }
-  ];
-
   const STORAGE_KEY = "fl_stock_levels_v1";
 
   const searchInput = document.getElementById("stock-search");
   const tableBody = document.getElementById("stock-tableBody");
 
-  let items = [...DEFAULT_ITEMS];
+  let items = [...PRODUCT_LIST];
   let stockLevels = {};
 
   function loadStockLevels() {
@@ -57,7 +24,7 @@ export function initStockView() {
       }
     } catch {}
     stockLevels = Object.fromEntries(
-      DEFAULT_ITEMS.map((item) => [item.sku, 0])
+      PRODUCT_LIST.map((item) => [item.sku, 0])
     );
   }
 
@@ -88,11 +55,15 @@ export function initStockView() {
   }
 
   function crateUnitsForItem(item) {
-    const title = item.title.toLowerCase();
-    if (title.includes("100ml")) return 180;
-    if (title.includes("200ml")) return 102;
-    if (title.includes("500g")) return 40;
-    if (title.includes("1kg")) return 20;
+    if (!item) return 0;
+    if (Number.isFinite(item.crateUnits) && item.crateUnits > 0) {
+      return item.crateUnits;
+    }
+    const size = String(item.size || "").toLowerCase();
+    if (size === "100ml") return 180;
+    if (size === "200ml") return 102;
+    if (size === "500g") return 40;
+    if (size === "1kg") return 20;
     return 0;
   }
 
