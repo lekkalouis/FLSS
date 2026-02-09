@@ -155,6 +155,19 @@
       color:#0c4a6e;
       box-shadow:0 0 0 2px rgba(56,189,248,.2);
     }
+    .stock-toolbarGroup{
+      display:flex;
+      flex-wrap:wrap;
+      gap:.4rem;
+      align-items:center;
+    }
+    .stock-toolbarLabel{
+      font-size:.7rem;
+      font-weight:700;
+      color:var(--text-muted);
+      text-transform:uppercase;
+      letter-spacing:.06em;
+    }
 
     .stock-table{
       width:100%;
@@ -202,6 +215,48 @@
       border-color:rgba(251,191,36,.7);
       background:rgba(251,191,36,.18);
       color:#92400e;
+    }
+    .stock-actionBtn.transfer{
+      border-color:rgba(59,130,246,.6);
+      background:rgba(59,130,246,.15);
+      color:#1d4ed8;
+    }
+    .stock-iconGroup{
+      display:inline-flex;
+      align-items:center;
+      gap:.35rem;
+      margin-right:.4rem;
+    }
+    .stock-iconBtn{
+      border-radius:999px;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      padding:.2rem .5rem;
+      font-size:.8rem;
+      cursor:pointer;
+    }
+    .stock-iconBtn:disabled{
+      cursor:not-allowed;
+      opacity:.5;
+    }
+    .stock-iconCount{
+      font-size:.7rem;
+      font-weight:700;
+      color:#0f172a;
+    }
+    .stock-table[data-mode="take"] .stock-currentCol{
+      display:none;
+    }
+    .stock-table[data-mode="read"] .stock-adjustCol,
+    .stock-table[data-mode="read"] .stock-actionCol,
+    .stock-table[data-mode="read"] .stock-quickCol{
+      display:none;
+    }
+    .stock-table[data-mode="take"] .stock-boxGroup{
+      display:none;
+    }
+    .stock-table[data-mode="read"] .stock-iconGroup{
+      display:none;
     }
 
     .stock-focus{
@@ -300,20 +355,33 @@
         <h2>Stock overview</h2>
         <div class="stock-toolbar">
           <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
+          <div class="stock-toolbarGroup">
+            <span class="stock-toolbarLabel">Location</span>
+            <select id="stock-location" class="stock-select"></select>
+          </div>
           <div class="stock-modeToggle">
-            <button class="stock-modeBtn is-active" type="button" data-mode="take">Stock take</button>
+            <button class="stock-modeBtn is-active" type="button" data-mode="read">Read only</button>
+            <button class="stock-modeBtn" type="button" data-mode="take">Stock take</button>
             <button class="stock-modeBtn" type="button" data-mode="receive">Stock received</button>
           </div>
-          <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
+          <div class="stock-toolbarGroup">
+            <span class="stock-toolbarLabel">Transfer to</span>
+            <select id="stock-transferLocation" class="stock-select"></select>
+          </div>
+          <span class="stock-pill" id="stock-modeLabel">Mode: Read only</span>
         </div>
-        <table class="stock-table">
+        <table class="stock-table" id="stock-table" data-mode="read">
           <thead>
             <tr>
               <th>SKU</th>
               <th>Product</th>
-              <th>Current</th>
-              <th id="stock-adjustLabel">New count</th>
-              <th>Action</th>
+              <th class="stock-currentCol">Current</th>
+              <th class="stock-adjustCol" id="stock-adjustLabel">New count</th>
+              <th class="stock-adjustCol">Count 2</th>
+              <th class="stock-adjustCol">Count 3</th>
+              <th class="stock-adjustCol">Total</th>
+              <th class="stock-quickCol">Quick add</th>
+              <th class="stock-actionCol">Action</th>
             </tr>
           </thead>
           <tbody id="stock-tableBody"></tbody>

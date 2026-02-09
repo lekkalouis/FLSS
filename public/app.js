@@ -63,6 +63,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
   const dispatchSelectionWeight = $("dispatchSelectionWeight");
   const dispatchSelectionTime = $("dispatchSelectionTime");
+  const dispatchSelectionClear = $("dispatchSelectionClear");
   const dispatchShipmentsSidebar = $("dispatchShipmentsSidebar");
   const dispatchOrderModal = $("dispatchOrderModal");
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
@@ -2659,6 +2660,7 @@ async function startOrder(orderNo) {
   function updateDispatchSelectionSummary() {
     if (!dispatchSelectionPanel) return;
     const totals = aggregateDispatchSelection();
+    dispatchSelectionPanel.classList.toggle("is-hidden", totals.orderCount === 0);
     if (dispatchSelectionCount) {
       dispatchSelectionCount.textContent = String(totals.orderCount || 0);
     }
@@ -2690,6 +2692,15 @@ async function startOrder(orderNo) {
         .join("");
       dispatchSelectionUnits.innerHTML = rows;
     }
+  }
+
+  function clearDispatchSelection() {
+    dispatchSelectedOrders.clear();
+    dispatchBoard?.querySelectorAll(".dispatchCardSelectInput").forEach((checkbox) => {
+      checkbox.checked = false;
+      checkbox.closest(".dispatchCard")?.classList.remove("is-selected");
+    });
+    updateDispatchSelectionSummary();
   }
 
   function openDispatchOrderModal(orderNo) {
@@ -4177,6 +4188,10 @@ async function startOrder(orderNo) {
       card.classList.toggle("is-selected", checkbox.checked);
     }
     updateDispatchSelectionSummary();
+  });
+
+  dispatchSelectionClear?.addEventListener("click", () => {
+    clearDispatchSelection();
   });
 
   dispatchBoard?.addEventListener("focusout", async (e) => {
