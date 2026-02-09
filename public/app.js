@@ -57,6 +57,12 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dispatchProgressSteps = $("dispatchProgressSteps");
   const dispatchProgressLabel = $("dispatchProgressLabel");
   const dispatchLog = $("dispatchLog");
+  const dispatchSelectionPanel = $("dispatchSelectionPanel");
+  const dispatchSelectionCount = $("dispatchSelectionCount");
+  const dispatchSelectionUnits = $("dispatchSelectionUnits");
+  const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
+  const dispatchSelectionWeight = $("dispatchSelectionWeight");
+  const dispatchSelectionTime = $("dispatchSelectionTime");
   const dispatchShipmentsSidebar = $("dispatchShipmentsSidebar");
   const dispatchOrderModal = $("dispatchOrderModal");
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
@@ -176,6 +182,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dispatchOrderCache = new Map();
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
+  const dispatchSelectedOrders = new Set();
   let dispatchOrdersLatest = [];
   let dispatchShipmentsLatest = [];
   let dispatchModalOrderNo = null;
@@ -2301,6 +2308,41 @@ async function startOrder(orderNo) {
     return "";
   }
 
+  function normalizeLineLabel(label) {
+    return String(label || "")
+      .replace(/\s*[-–|·]\s*/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function getLineItemFlavour(lineItem) {
+    if (!lineItem) return "";
+    if (Array.isArray(lineItem.properties)) {
+      const prop = lineItem.properties.find((item) =>
+        /flavour|flavor/.test(String(item?.name || "").toLowerCase())
+      );
+      if (prop?.value) return normalizeLineLabel(prop.value);
+    }
+    if (Array.isArray(lineItem.options_with_values)) {
+      const option = lineItem.options_with_values.find((item) =>
+        /flavour|flavor/.test(String(item?.name || "").toLowerCase())
+      );
+      if (option?.value) return normalizeLineLabel(option.value);
+    }
+    if (Array.isArray(lineItem.variant_options)) {
+      const option = lineItem.variant_options.find((opt) =>
+        /flavour|flavor/i.test(String(opt || ""))
+      );
+      if (option) return normalizeLineLabel(option);
+    }
+    const title = lineItem.title || "";
+    const sizeLabel = getLineItemSize(lineItem);
+    const cleaned = sizeLabel
+      ? normalizeLineLabel(title.replace(new RegExp(sizeLabel, "i"), ""))
+      : normalizeLineLabel(title);
+    return cleaned;
+  }
+
   function sizeLabelToWeightKg(sizeLabel) {
     if (!sizeLabel) return 0;
     const match = String(sizeLabel).match(/(\d+(?:\.\d+)?)\s*(kg|g|ml)\b/i);
@@ -2462,6 +2504,90 @@ async function startOrder(orderNo) {
         </div>
       </div>
     `;
+  }
+
+  const DISPATCH_SELECTION_TIME_BASE_MIN = 3;
+  const DISPATCH_SELECTION_TIME_PER_UNIT_MIN = 0.4;
+  const DISPATCH_SELECTION_TIME_PER_BOX_MIN = 1;
+
+  function formatDispatchDuration(minutes) {
+    if (!Number.isFinite(minutes) || minutes <= 0) return "—";
+    const rounded = Math.round(minutes);
+    const hours = Math.floor(rounded / 60);
+    const mins = rounded % 60;
+    if (hours) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  }
+
+  function aggregateDispatchSelection() {
+    const units = new Map();
+    let totalWeightKg = 0;
+    let totalBoxes = 0;
+    let totalUnits = 0;
+    let orderCount = 0;
+
+    dispatchSelectedOrders.forEach((orderNo) => {
+      const order = dispatchOrderCache.get(orderNo);
+      if (!order) return;
+      orderCount += 1;
+      const packingPlan = buildDispatchPackingPlan(order);
+      totalBoxes += packingPlan?.estimatedBoxes || 0;
+      totalWeightKg += packingPlan?.totalWeightKg || 0;
+      (order.line_items || []).forEach((item) => {
+        const qty = Number(item.quantity) || 0;
+        if (!qty) return;
+        totalUnits += qty;
+        const size = getLineItemSize(item) || "Unspecified";
+        const flavour = getLineItemFlavour(item) || "Unspecified";
+        const key = `${size}||${flavour}`;
+        const existing = units.get(key) || { size, flavour, quantity: 0 };
+        existing.quantity += qty;
+        units.set(key, existing);
+      });
+    });
+
+    const totalTimeMin =
+      orderCount * DISPATCH_SELECTION_TIME_BASE_MIN +
+      totalUnits * DISPATCH_SELECTION_TIME_PER_UNIT_MIN +
+      totalBoxes * DISPATCH_SELECTION_TIME_PER_BOX_MIN;
+
+    return { units, totalWeightKg, totalBoxes, totalUnits, orderCount, totalTimeMin };
+  }
+
+  function updateDispatchSelectionSummary() {
+    if (!dispatchSelectionPanel) return;
+    const totals = aggregateDispatchSelection();
+    if (dispatchSelectionCount) {
+      dispatchSelectionCount.textContent = String(totals.orderCount || 0);
+    }
+    if (dispatchSelectionBoxes) {
+      dispatchSelectionBoxes.textContent = String(totals.totalBoxes || 0);
+    }
+    if (dispatchSelectionWeight) {
+      dispatchSelectionWeight.textContent =
+        totals.totalWeightKg > 0 ? `${totals.totalWeightKg.toFixed(2)} kg` : "—";
+    }
+    if (dispatchSelectionTime) {
+      dispatchSelectionTime.textContent = formatDispatchDuration(totals.totalTimeMin);
+    }
+
+    if (dispatchSelectionUnits) {
+      if (!totals.orderCount || totals.units.size === 0) {
+        dispatchSelectionUnits.innerHTML = `<div class="dispatchSelectionRow">Select orders to see totals.</div>`;
+        return;
+      }
+      const rows = Array.from(totals.units.values())
+        .sort((a, b) => {
+          if (a.size === b.size) return a.flavour.localeCompare(b.flavour);
+          return a.size.localeCompare(b.size);
+        })
+        .map(
+          (entry) =>
+            `<div class="dispatchSelectionRow"><span>${entry.size} · ${entry.flavour}</span><span>${entry.quantity}</span></div>`
+        )
+        .join("");
+      dispatchSelectionUnits.innerHTML = rows;
+    }
   }
 
   function openDispatchOrderModal(orderNo) {
@@ -2743,6 +2869,8 @@ async function startOrder(orderNo) {
 
     if (!list.length) {
       dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
+      dispatchSelectedOrders.clear();
+      updateDispatchSelectionSummary();
       return;
     }
 
@@ -2781,14 +2909,24 @@ async function startOrder(orderNo) {
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
       const parcelCountValue =
         typeof o.parcel_count === "number" && o.parcel_count >= 0 ? o.parcel_count : "";
+      const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
       }
 
       return `
-        <div class="dispatchCard" data-order-no="${orderNo}">
-          <div class="dispatchCardTitle"><span>${title}</span></div>
+        <div class="dispatchCard ${isSelected ? "is-selected" : ""}" data-order-no="${orderNo}">
+          <div class="dispatchCardTitle">
+            <span class="dispatchCardTitleText">${title}</span>
+            ${
+              orderNo
+                ? `<label class="dispatchCardSelect"><input class="dispatchCardSelectInput" type="checkbox" data-order-no="${orderNo}" ${
+                    isSelected ? "checked" : ""
+                  } aria-label="Select order ${orderNo}"/>Select</label>`
+                : ""
+            }
+          </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
           <div class="dispatchCardParcel">
             <label for="dispatchParcel-${orderNo}">Parcels</label>
@@ -2840,6 +2978,14 @@ async function startOrder(orderNo) {
       }
     });
     if (pruned) savePackingState();
+    let selectionPruned = false;
+    dispatchSelectedOrders.forEach((orderNo) => {
+      if (!activeOrders.has(orderNo)) {
+        dispatchSelectedOrders.delete(orderNo);
+        selectionPruned = true;
+      }
+    });
+    updateDispatchSelectionSummary();
   }
 
   async function updateDispatchParcelCount({ orderId, orderNo, value }) {
@@ -3910,6 +4056,23 @@ async function startOrder(orderNo) {
       const orderNo = card.dataset.orderNo;
       if (orderNo) openDispatchOrderModal(orderNo);
     }
+  });
+
+  dispatchBoard?.addEventListener("change", (e) => {
+    const checkbox = e.target.closest(".dispatchCardSelectInput");
+    if (!checkbox) return;
+    const orderNo = checkbox.dataset.orderNo;
+    if (!orderNo) return;
+    if (checkbox.checked) {
+      dispatchSelectedOrders.add(orderNo);
+    } else {
+      dispatchSelectedOrders.delete(orderNo);
+    }
+    const card = checkbox.closest(".dispatchCard");
+    if (card) {
+      card.classList.toggle("is-selected", checkbox.checked);
+    }
+    updateDispatchSelectionSummary();
   });
 
   dispatchBoard?.addEventListener("focusout", async (e) => {

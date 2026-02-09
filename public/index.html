@@ -843,6 +843,71 @@
   min-height:calc(100dvh - 160px);
 }
 
+.dispatchSelectionPanel{
+  position:sticky;
+  top:1rem;
+  align-self:flex-start;
+  width:min(440px, 100%);
+  border-radius:var(--radius-lg);
+  border:1px solid var(--panel-strong);
+  padding:.85rem 1rem;
+  background:rgba(255,255,255,.98);
+  box-shadow:0 18px 32px rgba(15,23,42,.12);
+  display:flex;
+  flex-direction:column;
+  gap:.65rem;
+}
+.dispatchSelectionHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:.82rem;
+  font-weight:700;
+  color:#0f172a;
+}
+.dispatchSelectionCount{
+  font-size:.7rem;
+  padding:.2rem .5rem;
+  border-radius:999px;
+  border:1px solid rgba(56,189,248,.4);
+  background:rgba(56,189,248,.15);
+  color:#075985;
+}
+.dispatchSelectionBody{
+  display:flex;
+  flex-direction:column;
+  gap:.65rem;
+  font-size:.72rem;
+  color:var(--text);
+}
+.dispatchSelectionLabel{
+  font-weight:700;
+  color:#0f172a;
+  margin-bottom:.35rem;
+}
+.dispatchSelectionList{
+  display:flex;
+  flex-direction:column;
+  gap:.35rem;
+  max-height:210px;
+  overflow:auto;
+  padding:.2rem .1rem;
+}
+.dispatchSelectionRow{
+  display:flex;
+  justify-content:space-between;
+  gap:.6rem;
+  padding:.3rem .35rem;
+  border-radius:.45rem;
+  background:rgba(148,163,184,.12);
+  font-variant-numeric:tabular-nums;
+}
+.dispatchSelectionMeta{
+  display:grid;
+  gap:.3rem;
+  font-variant-numeric:tabular-nums;
+}
+
 .dispatchBoardLayout{
   display:grid;
   grid-template-columns:minmax(0,1fr) 320px;
@@ -1101,6 +1166,10 @@
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
 }
+.dispatchCard.is-selected{
+  border-color: rgba(56,189,248,.6);
+  box-shadow: 0 0 0 1px rgba(56,189,248,.25), 0 6px 14px rgba(56,189,248,.18);
+}
 
 .dispatchCard:hover {
   transform: translateY(-1px);
@@ -1112,12 +1181,33 @@
   font-size: 0.85rem;
   color: var(--text);
   margin-bottom: 0.2rem;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:.5rem;
+}
+.dispatchCardTitleText{
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   line-clamp: 2;
   overflow: hidden;
   word-break: break-word;
+}
+.dispatchCardSelect{
+  display:flex;
+  align-items:center;
+  gap:.25rem;
+  font-size:.62rem;
+  font-weight:700;
+  color:#0f172a;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.dispatchCardSelect input{
+  width:.8rem;
+  height:.8rem;
+  accent-color:#38bdf8;
 }
 
 .dispatchCardMeta {
@@ -2138,6 +2228,25 @@
         </div>
       </div>
       <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
+        <div class="dispatchSelectionPanel" id="dispatchSelectionPanel" aria-live="polite">
+          <div class="dispatchSelectionHeader">
+            <span>Selected orders</span>
+            <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
+          </div>
+          <div class="dispatchSelectionBody">
+            <div>
+              <div class="dispatchSelectionLabel">Units by size &amp; flavour</div>
+              <div class="dispatchSelectionList" id="dispatchSelectionUnits">
+                <div class="dispatchSelectionRow">Select orders to see totals.</div>
+              </div>
+            </div>
+            <div class="dispatchSelectionMeta">
+              <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
+              <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
+              <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
+            </div>
+          </div>
+        </div>
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">
             <div class="dispatchBoardPanel">
