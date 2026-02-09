@@ -7,8 +7,26 @@ export function initPriceManagerView() {
   priceManagerInitialized = true;
   const PRICE_TIERS = ["agent", "retailer", "export", "private", "fkb"];
   const DEFAULT_COLLECTION_HANDLE = "most-popular-products";
+  const FLAVOUR_COLORS = {
+    "hot & spicy": "#DA291C",
+    "chutney": "#7340B2",
+    "original": "#8BAF84",
+    "worcester sauce": "#FF8200",
+    "red wine & garlic": "#904066",
+    "savoury herb": "#A1C935",
+    "savoury herbs": "#A1C935",
+    "salt & vinegar": "#40B2FF",
+    "curry": "#FFC72C",
+    "butter": "#FFE66D",
+    "sour cream & chives": "#7BC96F",
+    "parmesan cheese": "#FACC15",
+    "cheese & onion": "#C4E36A"
+  };
   const skuOrder = new Map(
     PRODUCT_LIST.map((product, index) => [product.sku, index])
+  );
+  const productMeta = new Map(
+    PRODUCT_LIST.map((product) => [product.sku, product])
   );
   const state = {
     products: [],
@@ -47,6 +65,19 @@ export function initPriceManagerView() {
       : {};
   }
 
+  function flavourKey(flavour) {
+    return String(flavour || "").toLowerCase().trim();
+  }
+
+  function flavourColor(flavour) {
+    return FLAVOUR_COLORS[flavourKey(flavour)] || "#22d3ee";
+  }
+
+  function flavourBadge(flavour) {
+    if (!flavour) return "";
+    return `<span class="pm-flavourBadge" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span>`;
+  }
+
   function renderTable() {
     if (!tableBody) return;
     if (!state.products.length) {
@@ -61,11 +92,20 @@ export function initPriceManagerView() {
     tableBody.innerHTML = state.products
       .map((product, idx) => {
         const tiers = normalizePriceTiers(product);
+        const meta = productMeta.get(product.sku) || {};
+        const sku = product.sku || meta.sku || "—";
+        const title = product.title || meta.title || "Untitled";
+        const flavour = meta.flavour || product.flavour || "";
         const rowId = `pm-row-${idx}`;
         return `
         <tr data-row="${idx}" data-variant-id="${product.variantId}">
-          <td class="pm-sku">${product.sku || "—"}</td>
-          <td>${product.title || "Untitled"}</td>
+          <td class="pm-sku"><strong>${sku}</strong></td>
+          <td>
+            <div class="pm-productLine">
+              ${flavourBadge(flavour)}
+              <span class="pm-productTitle">${title}</span>
+            </div>
+          </td>
           <td>
             <input class="pm-input" type="number" step="0.01" data-field="public" value="${formatInputValue(product.price)}" />
           </td>
