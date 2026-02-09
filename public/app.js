@@ -2271,6 +2271,17 @@ async function startOrder(orderNo) {
     `;
   }
 
+  function estimatePackingTime({ totalUnits, boxCount }) {
+    const units = Number(totalUnits) || 0;
+    const boxes = Number(boxCount) || 0;
+    if (units <= 0 && boxes <= 0) return null;
+    if (units > 0 && units <= 24) return 5;
+    if (units > 0 && units <= 96) return 8;
+    const effectiveBoxes = boxes || Math.max(1, Math.ceil(units / 24));
+    const perBoxMin = effectiveBoxes <= 2 ? 6 : effectiveBoxes <= 4 ? 8 : 10;
+    return effectiveBoxes * perBoxMin;
+  }
+
   function extractSizeLabel(text) {
     if (!text) return "";
     const match = String(text).match(/(\d+(?:\.\d+)?)\s*(kg|g|ml)\b/i);
@@ -2399,11 +2410,13 @@ async function startOrder(orderNo) {
 
     const sizeCounts = new Map();
     let totalWeightKg = 0;
+    let totalUnits = 0;
 
     items.forEach((item) => {
       const key = item.size || "Unspecified";
       sizeCounts.set(key, (sizeCounts.get(key) || 0) + item.quantity);
       totalWeightKg += sizeLabelToWeightKg(item.size) * item.quantity;
+      totalUnits += item.quantity;
     });
 
     const boxes = [];
@@ -2456,7 +2469,8 @@ async function startOrder(orderNo) {
       boxes,
       sizeCounts,
       totalWeightKg,
-      estimatedBoxes: boxes.length
+      estimatedBoxes: boxes.length,
+      totalUnits
     };
   }
 
@@ -2488,7 +2502,6 @@ async function startOrder(orderNo) {
     const sizeRows = Array.from(plan.sizeCounts.entries())
       .map(([size, qty]) => `<div class="dispatchPackingSummaryRow">${size}: ${qty}</div>`)
       .join("");
-    const weightLabel = plan.totalWeightKg ? `${plan.totalWeightKg.toFixed(2)} kg` : "—";
     return `
       <div class="dispatchPackingSummary">
         <div class="dispatchPackingSummaryTitle">Packing summary</div>
@@ -2498,17 +2511,12 @@ async function startOrder(orderNo) {
             ${sizeRows || `<div class="dispatchPackingSummaryRow">No sizes detected.</div>`}
           </div>
           <div class="dispatchPackingSummaryGroup">
-            <div>Total weight: <strong>${weightLabel}</strong></div>
-            <div>Estimated boxes: <strong>${plan.estimatedBoxes}</strong></div>
+            ${renderDispatchPackingPlanStats(plan)}
           </div>
         </div>
       </div>
     `;
   }
-
-  const DISPATCH_SELECTION_TIME_BASE_MIN = 3;
-  const DISPATCH_SELECTION_TIME_PER_UNIT_MIN = 0.4;
-  const DISPATCH_SELECTION_TIME_PER_BOX_MIN = 1;
 
   function formatDispatchDuration(minutes) {
     if (!Number.isFinite(minutes) || minutes <= 0) return "—";
@@ -2517,6 +2525,21 @@ async function startOrder(orderNo) {
     const mins = rounded % 60;
     if (hours) return `${hours}h ${mins}m`;
     return `${mins}m`;
+  }
+
+  function renderDispatchPackingPlanStats(plan) {
+    if (!plan) return "";
+    const weightLabel = plan.totalWeightKg ? `${plan.totalWeightKg.toFixed(2)} kg` : "—";
+    const estimatedTime = estimatePackingTime({
+      totalUnits: plan.totalUnits,
+      boxCount: plan.estimatedBoxes
+    });
+    const timeLabel = formatDispatchDuration(estimatedTime);
+    return `
+      <div>Total weight: <strong>${weightLabel}</strong></div>
+      <div>Estimated boxes: <strong>${plan.estimatedBoxes}</strong></div>
+      <div>Estimated time: <strong>${timeLabel}</strong></div>
+    `;
   }
 
   function aggregateDispatchSelection() {
@@ -2546,10 +2569,10 @@ async function startOrder(orderNo) {
       });
     });
 
-    const totalTimeMin =
-      orderCount * DISPATCH_SELECTION_TIME_BASE_MIN +
-      totalUnits * DISPATCH_SELECTION_TIME_PER_UNIT_MIN +
-      totalBoxes * DISPATCH_SELECTION_TIME_PER_BOX_MIN;
+    const totalTimeMin = estimatePackingTime({
+      totalUnits,
+      boxCount: totalBoxes
+    });
 
     return { units, totalWeightKg, totalBoxes, totalUnits, orderCount, totalTimeMin };
   }
