@@ -308,7 +308,7 @@ router.post("/shopify/customers", async (req, res) => {
               }
             ]
           : [],
-        note: company ? `Company: ${company}` : undefined,
+        note: vatNumber ? `VAT ID: ${vatNumber}` : undefined,
         metafields
       }
     };
@@ -735,8 +735,12 @@ router.post("/shopify/draft-orders", async (req, res) => {
       deliveryDate,
       shippingMethod,
       shippingPrice,
+      shippingBaseTotal,
       shippingService,
       shippingQuoteNo,
+      estimatedParcels,
+      vatNumber,
+      companyName,
       billingAddress,
       shippingAddress,
       lineItems,
@@ -776,6 +780,58 @@ router.post("/shopify/draft-orders", async (req, res) => {
       })
     );
 
+    const metafields = [];
+    if (deliveryDate) {
+      metafields.push({
+        namespace: "custom",
+        key: "delivery_date",
+        type: "single_line_text_field",
+        value: String(deliveryDate)
+      });
+    }
+    if (shippingMethod) {
+      metafields.push({
+        namespace: "custom",
+        key: "delivery_type",
+        type: "single_line_text_field",
+        value: String(shippingMethod)
+      });
+    }
+    if (vatNumber) {
+      metafields.push({
+        namespace: "custom",
+        key: "vat_number",
+        type: "single_line_text_field",
+        value: String(vatNumber)
+      });
+    }
+    if (companyName) {
+      metafields.push({
+        namespace: "custom",
+        key: "company_name",
+        type: "single_line_text_field",
+        value: String(companyName)
+      });
+    }
+    const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
+    if (Number.isFinite(shippingAmount)) {
+      metafields.push({
+        namespace: "custom",
+        key: "shipping_amount",
+        type: "number_decimal",
+        value: String(shippingAmount)
+      });
+    }
+    const estimatedParcelsValue = Number(estimatedParcels);
+    if (Number.isFinite(estimatedParcelsValue)) {
+      metafields.push({
+        namespace: "custom",
+        key: "estimated_parcels",
+        type: "number_integer",
+        value: String(Math.round(estimatedParcelsValue))
+      });
+    }
+
     const payload = {
       draft_order: {
         customer: { id: customerId },
@@ -805,16 +861,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : [])
         ],
-        metafields: deliveryDate
-          ? [
-              {
-                namespace: "custom",
-                key: "delivery_date",
-                type: "single_line_text_field",
-                value: String(deliveryDate)
-              }
-            ]
-          : undefined
+        metafields: metafields.length ? metafields : undefined
       }
     };
 
@@ -822,8 +869,11 @@ router.post("/shopify/draft-orders", async (req, res) => {
     if (config.SHOPIFY_FLOW_TAG) {
       tags.push(config.SHOPIFY_FLOW_TAG);
     }
-    if (shippingMethod && shippingMethod !== "ship") {
+    if (shippingMethod && shippingMethod !== "shipping") {
       tags.push(`delivery_${shippingMethod}`);
+    }
+    if (shippingMethod === "local") {
+      tags.push("local");
     }
     const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
       tag.toLowerCase()
@@ -838,7 +888,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
       payload.draft_order.tags = Array.from(new Set(tags)).join(", ");
     }
 
-    if (shippingPrice != null && shippingMethod === "ship") {
+    if (shippingPrice != null && shippingMethod === "shipping") {
       payload.draft_order.shipping_line = {
         title: shippingService || "Courier",
         price: String(shippingPrice)
@@ -944,8 +994,12 @@ router.post("/shopify/orders", async (req, res) => {
       deliveryDate,
       shippingMethod,
       shippingPrice,
+      shippingBaseTotal,
       shippingService,
       shippingQuoteNo,
+      estimatedParcels,
+      vatNumber,
+      companyName,
       billingAddress,
       shippingAddress,
       lineItems,
@@ -964,6 +1018,58 @@ router.post("/shopify/orders", async (req, res) => {
     if (poNumber) noteParts.push(`PO: ${poNumber}`);
     if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
     if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
+
+    const metafields = [];
+    if (deliveryDate) {
+      metafields.push({
+        namespace: "custom",
+        key: "delivery_date",
+        type: "single_line_text_field",
+        value: String(deliveryDate)
+      });
+    }
+    if (shippingMethod) {
+      metafields.push({
+        namespace: "custom",
+        key: "delivery_type",
+        type: "single_line_text_field",
+        value: String(shippingMethod)
+      });
+    }
+    if (vatNumber) {
+      metafields.push({
+        namespace: "custom",
+        key: "vat_number",
+        type: "single_line_text_field",
+        value: String(vatNumber)
+      });
+    }
+    if (companyName) {
+      metafields.push({
+        namespace: "custom",
+        key: "company_name",
+        type: "single_line_text_field",
+        value: String(companyName)
+      });
+    }
+    const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
+    if (Number.isFinite(shippingAmount)) {
+      metafields.push({
+        namespace: "custom",
+        key: "shipping_amount",
+        type: "number_decimal",
+        value: String(shippingAmount)
+      });
+    }
+    const estimatedParcelsValue = Number(estimatedParcels);
+    if (Number.isFinite(estimatedParcelsValue)) {
+      metafields.push({
+        namespace: "custom",
+        key: "estimated_parcels",
+        type: "number_integer",
+        value: String(Math.round(estimatedParcelsValue))
+      });
+    }
 
     const orderPayload = {
       order: {
@@ -991,23 +1097,17 @@ router.post("/shopify/orders", async (req, res) => {
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : [])
         ],
-        metafields: deliveryDate
-          ? [
-              {
-                namespace: "custom",
-                key: "delivery_date",
-                type: "single_line_text_field",
-                value: String(deliveryDate)
-              }
-            ]
-          : undefined,
+        metafields: metafields.length ? metafields : undefined,
         financial_status: "pending"
       }
     };
 
     const orderTags = [];
-    if (shippingMethod && shippingMethod !== "ship") {
+    if (shippingMethod && shippingMethod !== "shipping") {
       orderTags.push(`delivery_${shippingMethod}`);
+    }
+    if (shippingMethod === "local") {
+      orderTags.push("local");
     }
     const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
       tag.toLowerCase()
@@ -1022,7 +1122,7 @@ router.post("/shopify/orders", async (req, res) => {
       orderPayload.order.tags = Array.from(new Set(orderTags)).join(", ");
     }
 
-    if (shippingPrice != null && shippingMethod === "ship") {
+    if (shippingPrice != null && shippingMethod === "shipping") {
       orderPayload.order.shipping_lines = [
         {
           title: shippingService || "Courier",

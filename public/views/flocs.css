@@ -226,6 +226,11 @@
       margin-bottom:.35rem;
       gap:.5rem;
     }
+    #viewFlocs .flocs-labelRow--items{
+      align-items:flex-start;
+      gap:.75rem;
+      flex-wrap:wrap;
+    }
     #viewFlocs .flocs-labelRow span{
       font-size:.8rem;
       font-weight:600;
@@ -523,6 +528,17 @@
       gap:.6rem;
       margin-top:.4rem;
     }
+    #viewFlocs .flocs-filterRow--inline{
+      flex-direction:row;
+      align-items:flex-start;
+      gap:.9rem;
+      margin-top:0;
+      padding:.4rem .55rem;
+      border-radius:.6rem;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      flex-wrap:wrap;
+    }
     #viewFlocs .flocs-filterGroup{
       display:flex;
       flex-direction:column;
@@ -613,6 +629,14 @@
       border-color:rgba(0,128,96,.4);
       color:#0f5132;
       background:var(--accent-soft);
+    }
+
+    #viewFlocs .flocs-radioGroup.is-attention{
+      border:1px solid rgba(248,113,113,.7);
+      box-shadow:0 0 0 2px rgba(248,113,113,.15);
+      border-radius:.65rem;
+      padding:.35rem;
+      background:rgba(248,113,113,.08);
     }
     #viewFlocs .flocs-qtyInput{
       width:4.2rem;

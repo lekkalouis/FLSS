@@ -2813,9 +2813,10 @@ npm run dev</code></pre>
                         <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
                         <select id="flocs-customerDelivery" class="flocs-select">
                           <option value="">Default delivery (optional)</option>
-                          <option value="ship">Ship</option>
+                          <option value="shipping">Shipping</option>
                           <option value="pickup">Pickup</option>
-                          <option value="deliver">Deliver</option>
+                          <option value="delivery">Delivery</option>
+                          <option value="local">Local delivery</option>
                         </select>
                       </div>
                       <div class="flocs-row" style="margin-top:.4rem">
@@ -2882,20 +2883,26 @@ npm run dev</code></pre>
                       <div>
                         <div class="flocs-labelRow">
                           <span>Delivery type</span>
-                          <span class="flocs-hint">Uses customer metafield custom.delivery_method if set</span>
+                          <span class="flocs-hint" id="flocs-deliveryHint">
+                            Uses customer metafield custom.delivery_method if set
+                          </span>
                         </div>
                         <div class="flocs-radioGroup" id="flocs-deliveryGroup">
                           <label class="flocs-radioPill">
-                            <input type="radio" name="delivery" value="ship" checked />
-                            <span>Ship</span>
+                            <input type="radio" name="delivery" value="shipping" checked />
+                            <span>Shipping</span>
                           </label>
                           <label class="flocs-radioPill">
                             <input type="radio" name="delivery" value="pickup" />
                             <span>Pickup</span>
                           </label>
                           <label class="flocs-radioPill">
-                            <input type="radio" name="delivery" value="deliver" />
-                            <span>Deliver (own vehicle)</span>
+                            <input type="radio" name="delivery" value="delivery" />
+                            <span>Delivery</span>
+                          </label>
+                          <label class="flocs-radioPill">
+                            <input type="radio" name="delivery" value="local" />
+                            <span>Local delivery</span>
                           </label>
                         </div>
                       </div>
@@ -2948,10 +2955,9 @@ npm run dev</code></pre>
 
               <!-- Product grid -->
               <div class="flocs-formSection">
-              <div class="flocs-labelRow">
+              <div class="flocs-labelRow flocs-labelRow--items">
                 <span>Items</span>
-              </div>
-                <div class="flocs-filterRow">
+                <div class="flocs-filterRow flocs-filterRow--inline" aria-label="Item filters">
                   <div class="flocs-filterGroup">
                     <span class="flocs-filterLabel">Flavour</span>
                     <div id="flocs-filterFlavour" class="flocs-filterButtons"></div>
@@ -2961,6 +2967,7 @@ npm run dev</code></pre>
                     <div id="flocs-filterSize" class="flocs-filterButtons"></div>
                   </div>
                 </div>
+              </div>
                 <table class="flocs-productsTable">
                   <thead>
                     <tr>
@@ -2968,7 +2975,8 @@ npm run dev</code></pre>
                       <th>Description</th>
                       <th>Flavour</th>
                       <th>Size</th>
-                      <th>Price</th>
+                      <th>Unit price</th>
+                      <th>Line total</th>
                       <th>Override</th>
                       <th style="width:10%">Qty</th>
                     </tr>
