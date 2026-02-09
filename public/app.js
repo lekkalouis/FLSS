@@ -977,16 +977,17 @@ function cancelAutoBookTimer() {
   }
 }
 
-function scheduleIdleAutoBook() {
-  cancelAutoBookTimer();
+  function scheduleIdleAutoBook() {
+    cancelAutoBookTimer();
 
-  if (!isAutoMode) return;
-  if (multiShipEnabled && linkedOrders.size > 0) return;
+    if (!isAutoMode) return;
+    if (multiShipEnabled && linkedOrders.size > 0) return;
 
   // Only for untagged orders
-  if (!activeOrderNo || !orderDetails) return;
-  if (isBooked(activeOrderNo)) return;
-  if (hasParcelCountTag(orderDetails)) return;
+    if (!activeOrderNo || !orderDetails) return;
+    if (isBooked(activeOrderNo)) return;
+    if (hasParcelCountTag(orderDetails)) return;
+    if (getExpectedParcelCount(orderDetails)) return;
 
   // Need at least 1 scan
   if (getTotalScannedCount() <= 0) return;
@@ -2014,6 +2015,22 @@ async function startOrder(orderNo) {
       return;
     }
 
+    const totalScanned = getTotalScannedCount();
+    if (
+      isAutoMode &&
+      expected &&
+      totalScanned >= expected &&
+      !multiShipEnabled &&
+      !linkedOrders.size
+    ) {
+      cancelAutoBookTimer();
+      renderSessionUI();
+      updateBookNowButton();
+      statusExplain(`All ${expected} parcels scanned. Booking now...`, "ok");
+      await doBookingNow();
+      return;
+    }
+
     // UNTAGGED: schedule auto-book 6s after last scan
     renderSessionUI();
     updateBookNowButton();
@@ -2062,6 +2079,7 @@ async function startOrder(orderNo) {
         o.name ||
         String(orderNo);
 
+      const autoParcelCount = getAutoParcelCountForOrder(lineItems);
       const normalized = {
         raw: o,
         name,
@@ -2079,7 +2097,8 @@ async function startOrder(orderNo) {
         placeLabel: null,
         parcelCountFromTag,
         parcelCountFromMeta,
-        manualParcelCount: null
+        manualParcelCount:
+          parcelCountFromMeta == null && autoParcelCount != null ? autoParcelCount : null
       };
 
       if (!placeCodeFromMeta) {
@@ -2392,6 +2411,36 @@ async function startOrder(orderNo) {
     return getSizeMetrics(sizeLabel).weight;
   }
 
+  const SMALL_ORDER_MAX_UNITS = 50;
+  const SMALL_ORDER_EXCLUDED_SIZES = new Set(["500g", "750g", "1kg"]);
+
+  function normalizeSizeToken(sizeLabel) {
+    return String(sizeLabel || "")
+      .replace(/\s+/g, "")
+      .toLowerCase();
+  }
+
+  function isSingleBoxSmallOrder(lineItems) {
+    const items = Array.isArray(lineItems) ? lineItems : [];
+    let totalUnits = 0;
+    let hasExcludedSize = false;
+
+    items.forEach((item) => {
+      const qty = Number(item?.quantity) || 0;
+      totalUnits += qty;
+      const sizeLabel = normalizeSizeToken(getLineItemSize(item));
+      if (SMALL_ORDER_EXCLUDED_SIZES.has(sizeLabel)) {
+        hasExcludedSize = true;
+      }
+    });
+
+    return totalUnits > 0 && totalUnits < SMALL_ORDER_MAX_UNITS && !hasExcludedSize;
+  }
+
+  function getAutoParcelCountForOrder(lineItems) {
+    return isSingleBoxSmallOrder(lineItems) ? 1 : null;
+  }
+
   function buildDispatchPackingPlan(order) {
     const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
     const items = lineItems
@@ -2452,6 +2501,18 @@ async function startOrder(orderNo) {
           size: entry.size,
           curryMix: entry.curryMix
         }))
+      };
+    }
+
+    if (isSingleBoxSmallOrder(lineItems)) {
+      const curryMixOnly = items.length > 0 && items.every((entry) => entry.curryMix);
+      boxes.push(createBox(items, curryMixOnly));
+      return {
+        boxes,
+        sizeCounts,
+        totalWeightKg,
+        estimatedBoxes: boxes.length,
+        totalUnits
       };
     }
 
@@ -3009,8 +3070,11 @@ async function startOrder(orderNo) {
       const addr1 = o.shipping_address1 || "";
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
+      const fallbackParcelCount = getAutoParcelCountForOrder(o.line_items);
       const parcelCountValue =
-        typeof o.parcel_count === "number" && o.parcel_count >= 0 ? o.parcel_count : "";
+        typeof o.parcel_count === "number" && o.parcel_count >= 0
+          ? o.parcel_count
+          : fallbackParcelCount ?? "";
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
 
       if (orderNo) {
@@ -4040,9 +4104,29 @@ async function startOrder(orderNo) {
         statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
         return true;
       }
+      const order = dispatchOrderCache.get(orderNo);
+      const presetCount =
+        typeof order?.parcel_count === "number" && order.parcel_count > 0
+          ? order.parcel_count
+          : getAutoParcelCountForOrder(order?.line_items);
       await startOrder(orderNo);
+      let parcelCount = getExpectedParcelCount(orderDetails);
+      if (!parcelCount && presetCount) {
+        parcelCount = presetCount;
+      }
+      if (!parcelCount) {
+        const count = promptManualParcelCount(orderNo);
+        if (!count) {
+          statusExplain("Parcel count required (cancelled).", "warn");
+          return true;
+        }
+        parcelCount = count;
+      }
+      orderDetails.manualParcelCount = parcelCount;
+      renderSessionUI();
       navigateTo("/scan", { replace: true });
-      statusExplain(`Scan station ready for ${orderNo}.`, "info");
+      statusExplain(`Booking order ${orderNo} (${parcelCount} parcels).`, "info");
+      await doBookingNow({ manual: true, parcelCount });
       return true;
     }
     if (actionType === "fulfill-delivery") {
