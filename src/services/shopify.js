@@ -88,6 +88,49 @@ export async function shopifyFetch(pathname, { method = "GET", headers = {}, bod
   return resp;
 }
 
+export async function shopifyGraphQL(query, variables = {}) {
+  const url = `https://${config.SHOPIFY_STORE}.myshopify.com/admin/api/${config.SHOPIFY_API_VERSION}/graphql.json`;
+  const body = JSON.stringify({ query, variables });
+  const token = await getShopifyAdminToken();
+
+  const makeRequest = async (accessToken) =>
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "X-Shopify-Access-Token": accessToken,
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      },
+      body
+    });
+
+  let resp = await makeRequest(token);
+  if (resp.status === 401 || resp.status === 403) {
+    cachedToken = null;
+    tokenExpiresAtMs = 0;
+    const freshToken = await getShopifyAdminToken();
+    resp = await makeRequest(freshToken);
+  }
+
+  const text = await resp.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { raw: text };
+  }
+
+  if (!resp.ok) {
+    throw new Error(`Shopify GraphQL error (${resp.status}): ${text}`);
+  }
+
+  if (Array.isArray(data?.errors) && data.errors.length) {
+    throw new Error(`Shopify GraphQL errors: ${JSON.stringify(data.errors)}`);
+  }
+
+  return data?.data;
+}
+
 export async function fetchVariantPriceTiers(variantId) {
   if (!variantId) return null;
   const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;

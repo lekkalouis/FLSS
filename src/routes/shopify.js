@@ -5,6 +5,7 @@ import { getSmtpTransport } from "../services/email.js";
 import {
   fetchVariantPriceTiers,
   shopifyFetch,
+  shopifyGraphQL,
   upsertVariantPriceTiers,
   updateVariantPrice
 } from "../services/shopify.js";
@@ -156,6 +157,45 @@ function parsePageInfo(linkHeader) {
     }
   });
   return info;
+}
+
+async function getPickupFulfillmentOrderGid(orderIdNum) {
+  const orderGid = `gid://shopify/Order/${orderIdNum}`;
+  const query = `
+    query PickupFulfillmentOrders($orderId: ID!) {
+      order(id: $orderId) {
+        fulfillmentOrders(first: 50) {
+          nodes {
+            id
+            status
+            deliveryMethod {
+              methodType
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const data = await shopifyGraphQL(query, { orderId: orderGid });
+  const fulfillmentOrders = data?.order?.fulfillmentOrders?.nodes || [];
+  const pickupOrders = fulfillmentOrders.filter((fo) => {
+    const methodType = String(fo?.deliveryMethod?.methodType || "");
+    const methodUpper = methodType.toUpperCase();
+    const isPickup = methodUpper === "PICKUP" || methodUpper.includes("PICKUP");
+    const isOpen = String(fo?.status || "").toUpperCase() === "OPEN";
+    return isPickup && isOpen;
+  });
+
+  const selected = pickupOrders[0];
+  if (!selected?.id) {
+    const err = new Error("No OPEN pickup fulfillment order found.");
+    err.status = 409;
+    err.code = "NO_PICKUP_FULFILLMENT_ORDER";
+    throw err;
+  }
+
+  return selected.id;
 }
 
 router.get("/shopify/customers/search", async (req, res) => {
@@ -1698,11 +1738,68 @@ router.get("/shopify/fulfillment-events", async (req, res) => {
   }
 });
 
+router.post("/shopify/fulfillment-events", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { orderId, fulfillmentId, status, message } = req.body || {};
+    if (!orderId || !fulfillmentId || !status) {
+      return res.status(400).json({ error: "MISSING_FIELDS", body: req.body });
+    }
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const url = `${base}/orders/${orderId}/fulfillments/${fulfillmentId}/events.json`;
+    const payload = {
+      fulfillment_event: {
+        status,
+        message: message || undefined
+      }
+    };
+
+    const resp = await shopifyFetch(url, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body: data
+      });
+    }
+
+    return res.json({ ok: true, fulfillmentEvent: data });
+  } catch (err) {
+    console.error("Shopify fulfillment-events create error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
 router.post("/shopify/fulfill", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
-    const { orderId, trackingNumber, trackingUrl, trackingCompany, message } = req.body || {};
+    const {
+      orderId,
+      trackingNumber,
+      trackingUrl,
+      trackingCompany,
+      message,
+      notifyCustomer
+    } = req.body || {};
     if (!orderId) {
       return res.status(400).json({ error: "MISSING_ORDER_ID", body: req.body });
     }
@@ -1710,6 +1807,12 @@ router.post("/shopify/fulfill", async (req, res) => {
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const trackingCompanyFinal =
       trackingCompany || process.env.TRACKING_COMPANY || "SWE / ParcelPerfect";
+    const notifyCustomerFinal =
+      notifyCustomer == null
+        ? true
+        : String(notifyCustomer).toLowerCase() === "true" ||
+          notifyCustomer === 1 ||
+          notifyCustomer === true;
 
     const foUrl = `${base}/orders/${orderId}/fulfillment_orders.json`;
     const foResp = await shopifyFetch(foUrl, { method: "GET" });
@@ -1751,11 +1854,12 @@ router.post("/shopify/fulfill", async (req, res) => {
 
     const fulfillUrl = `${base}/fulfillments.json`;
     const trackingNote = trackingNumber ? ` Tracking: ${trackingNumber}` : "";
-    const fulfillmentMessage = message || `Shipped via Scan Station.${trackingNote}`;
+    const defaultMessage = `Shipped via Scan Station.${trackingNote}`;
+    const fulfillmentMessage = message != null ? String(message) : defaultMessage;
     const fulfillmentPayload = {
       fulfillment: {
         message: fulfillmentMessage,
-        notify_customer: true,
+        notify_customer: notifyCustomerFinal,
         tracking_info: {
           number: trackingNumber || "",
           url: trackingUrl || undefined,
@@ -1790,6 +1894,158 @@ router.post("/shopify/fulfill", async (req, res) => {
     return res.json({ ok: true, fulfillment: data });
   } catch (err) {
     console.error("Shopify fulfill error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.post("/shopify/pickup/ready", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { orderId } = req.body || {};
+    if (!orderId) {
+      return res.status(400).json({ error: "MISSING_ORDER_ID", body: req.body });
+    }
+
+    const fulfillmentOrderId = await getPickupFulfillmentOrderGid(orderId);
+    const lineItemsQuery = `
+      query PickupFulfillmentOrderLineItems($id: ID!) {
+        fulfillmentOrder(id: $id) {
+          lineItems(first: 250) {
+            nodes {
+              id
+              remainingQuantity
+              totalQuantity
+            }
+          }
+        }
+      }
+    `;
+
+    const lineItemsData = await shopifyGraphQL(lineItemsQuery, { id: fulfillmentOrderId });
+    const lineItemsNodes =
+      lineItemsData?.fulfillmentOrder?.lineItems?.nodes || [];
+    const lineItems = lineItemsNodes
+      .map((item) => {
+        const quantity = Number(item.remainingQuantity ?? item.totalQuantity ?? 0);
+        return quantity > 0
+          ? {
+              fulfillmentOrderLineItemId: item.id,
+              quantity
+            }
+          : null;
+      })
+      .filter(Boolean);
+
+    if (!lineItems.length) {
+      return res.status(409).json({
+        error: "NO_PICKUP_LINE_ITEMS",
+        message: "No remaining pickup line items to mark ready.",
+        fulfillmentOrderId
+      });
+    }
+
+    const mutation = `
+      mutation MarkReadyForPickup($lineItems: [FulfillmentOrderLineItemInput!]!) {
+        fulfillmentOrderLineItemsPreparedForPickup(
+          fulfillmentOrderLineItems: $lineItems
+        ) {
+          fulfillmentOrder {
+            id
+            status
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const mutationData = await shopifyGraphQL(mutation, { lineItems });
+    const payload = mutationData?.fulfillmentOrderLineItemsPreparedForPickup;
+    const userErrors = payload?.userErrors || [];
+    if (userErrors.length) {
+      return res.status(400).json({ error: "USER_ERRORS", errs: userErrors });
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Shopify pickup ready error:", err);
+    if (err?.status) {
+      return res.status(err.status).json({
+        error: err.code || "PICKUP_FULFILLMENT_ORDER_MISSING",
+        message: String(err?.message || err)
+      });
+    }
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.post("/shopify/pickup/picked-up", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { orderId } = req.body || {};
+    if (!orderId) {
+      return res.status(400).json({ error: "MISSING_ORDER_ID", body: req.body });
+    }
+
+    const fulfillmentOrderId = await getPickupFulfillmentOrderGid(orderId);
+    const mutation = `
+      mutation PickupFulfillmentCreate($input: FulfillmentV2Input!) {
+        fulfillmentCreateV2(fulfillment: $input) {
+          fulfillment {
+            id
+            status
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      input: {
+        lineItemsByFulfillmentOrder: [{ fulfillmentOrderId }],
+        notifyCustomer: false,
+        message: "Picked up"
+      }
+    };
+
+    const mutationData = await shopifyGraphQL(mutation, variables);
+    const payload = mutationData?.fulfillmentCreateV2;
+    const userErrors = payload?.userErrors || [];
+    if (userErrors.length) {
+      return res.status(400).json({ error: "USER_ERRORS", errs: userErrors });
+    }
+
+    const fulfillment = payload?.fulfillment || null;
+    if (!fulfillment) {
+      return res.status(409).json({
+        error: "PICKUP_FULFILLMENT_FAILED",
+        message: "Shopify returned no fulfillment payload.",
+        response: mutationData
+      });
+    }
+
+    return res.json({ ok: true, fulfillment: { id: fulfillment.id, status: fulfillment.status } });
+  } catch (err) {
+    console.error("Shopify pickup picked-up error:", err);
+    if (err?.status) {
+      return res.status(err.status).json({
+        error: err.code || "PICKUP_FULFILLMENT_ORDER_MISSING",
+        message: String(err?.message || err)
+      });
+    }
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)
@@ -1962,3 +2218,9 @@ Thank you.`;
 });
 
 export default router;
+
+// Example pickup/local delivery calls:
+// fetch("/shopify/pickup/ready", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }) });
+// fetch("/shopify/pickup/picked-up", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId }) });
+// fetch("/shopify/fulfill", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId, notifyCustomer: false, message: "Local delivery: ready for dispatch" }) });
+// fetch("/shopify/fulfillment-events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId, fulfillmentId, status: "out_for_delivery", message: "Driver en route" }) });
