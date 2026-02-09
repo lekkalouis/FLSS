@@ -844,10 +844,18 @@ router.post("/shopify/draft-orders", async (req, res) => {
             entry.variant_id = li.variantId;
           } else {
             entry.title = li.title || li.sku || "Custom item";
-            if (li.price != null) entry.price = String(li.price);
+            if (li.price != null) {
+              const priceValue = String(li.price);
+              entry.price = priceValue;
+              entry.original_price = priceValue;
+            }
           }
           if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
+          if (li.price != null && !entry.price) {
+            const priceValue = String(li.price);
+            entry.price = priceValue;
+            entry.original_price = priceValue;
+          }
           return entry;
         }),
         billing_address: billingAddress || undefined,
