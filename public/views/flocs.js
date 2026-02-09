@@ -44,6 +44,7 @@ export function initFlocsView() {
   const poInput          = document.getElementById("flocs-po");
   const deliveryDateInput = document.getElementById("flocs-deliveryDate");
   const deliveryGroup    = document.getElementById("flocs-deliveryGroup");
+  const deliveryHint     = document.getElementById("flocs-deliveryHint");
   const addrSelect       = document.getElementById("flocs-addressSelect");
   const addrPreview      = document.getElementById("flocs-addressPreview");
   const billingAddrSelect = document.getElementById("flocs-billingAddressSelect");
@@ -70,7 +71,7 @@ export function initFlocsView() {
     customer: null,
     po: "",
     deliveryDate: "",
-    delivery: "ship",        // ship | pickup | deliver
+    delivery: "shipping",        // shipping | pickup | delivery | local
     shippingAddressIndex: null,      // index in customer.addresses
     billingAddressIndex: null,       // index in customer.addresses
     items: {},               // sku -> qty
@@ -164,6 +165,9 @@ export function initFlocsView() {
 
   const PRICE_TAGS = ["agent", "retailer", "export", "private", "fkb"];
   const QUICK_QTY = [1, 3, 6, 10, 12, 24, 50, 100];
+  const AUTO_QUOTE_DELAY_MS = 3000;
+  let autoQuoteTimer = null;
+  const deliveryHintDefault = deliveryHint ? deliveryHint.textContent : "";
 
   function normalizeTags(tags) {
     if (!tags) return [];
@@ -283,7 +287,7 @@ export function initFlocsView() {
   }
 
   function currentDelivery() {
-    return state.delivery || "ship";
+    return state.delivery || "shipping";
   }
 
   function currentShippingAddress() {
@@ -381,6 +385,60 @@ export function initFlocsView() {
     return totalWeightKg + boxWeight;
   }
 
+  function computeEstimatedParcels(items) {
+    const totalWeightKg = computeTotalWeightKg(items);
+    return computeBoxCount(totalWeightKg);
+  }
+
+  function normalizeDeliveryMethod(value) {
+    const normalized = String(value || "").toLowerCase().trim();
+    if (normalized === "ship" || normalized === "shipping") return "shipping";
+    if (normalized === "deliver" || normalized === "delivery") return "delivery";
+    if (normalized === "pickup") return "pickup";
+    if (normalized === "local") return "local";
+    return "shipping";
+  }
+
+  function syncDeliveryGroup() {
+    if (!deliveryGroup) return;
+    const radios = deliveryGroup.querySelectorAll("input[name='delivery']");
+    radios.forEach((radio) => {
+      radio.checked = radio.value === state.delivery;
+    });
+  }
+
+  function updateDeliveryPrompt(hasDeliveryMetafield) {
+    if (!deliveryGroup) return;
+    if (state.customer && !hasDeliveryMetafield) {
+      deliveryGroup.classList.add("is-attention");
+      if (deliveryHint) {
+        deliveryHint.textContent = "Select delivery type to continue.";
+      }
+    } else {
+      deliveryGroup.classList.remove("is-attention");
+      if (deliveryHint && deliveryHintDefault) {
+        deliveryHint.textContent = deliveryHintDefault;
+      }
+    }
+  }
+
+  function scheduleAutoQuote() {
+    if (autoQuoteTimer) {
+      clearTimeout(autoQuoteTimer);
+      autoQuoteTimer = null;
+    }
+    if (calcShipBtn && calcShipBtn.disabled) return;
+    if (currentDelivery() !== "shipping") return;
+    if (!state.customer) return;
+    if (!currentShippingAddress()) return;
+    const items = buildItemsArray();
+    if (!items.length) return;
+    autoQuoteTimer = setTimeout(() => {
+      autoQuoteTimer = null;
+      requestShippingQuote({ auto: true });
+    }, AUTO_QUOTE_DELAY_MS);
+  }
+
   // ===== UI: products table rendering =====
   function renderProductsTable() {
     if (!productsBody) return;
@@ -406,7 +464,10 @@ export function initFlocsView() {
         const name = displayProductTitle(p);
         const key = productKey(p);
         const value = state.items[key] || "";
-        const price = priceForCustomer(p);
+        const qty = Number(state.items[key] || 0);
+        const unitPrice = resolveLinePrice(p);
+        const lineTotal =
+          unitPrice != null && qty > 0 ? unitPrice * qty : null;
         const overrideEnabled = !!state.priceOverrideEnabled[key];
         const overrideValue =
           state.priceOverrides[key] != null ? state.priceOverrides[key] : "";
@@ -422,7 +483,8 @@ export function initFlocsView() {
           <td><span class="flocs-productName" title="${name}">${name}</span></td>
           <td>${flavourTag(p.flavour)}</td>
           <td>${p.size || "—"}</td>
-          <td>${price != null ? money(price) : "—"}</td>
+          <td>${unitPrice != null ? money(unitPrice) : "—"}</td>
+          <td>${lineTotal != null ? money(lineTotal) : "—"}</td>
           <td>
             <div class="flocs-overrideWrap">
               <button class="flocs-overrideBtn ${overrideEnabled ? "is-active" : ""}" type="button" data-action="toggle-override" data-key="${key}">
@@ -606,9 +668,11 @@ export function initFlocsView() {
     const deliveryLabel =
       delivery === "pickup"
         ? "Pickup at Flippen Lekka"
-        : delivery === "deliver"
-        ? "Deliver (own vehicle)"
-        : "Ship via SWE";
+        : delivery === "delivery"
+        ? "Delivery (own vehicle)"
+        : delivery === "local"
+        ? "Local delivery"
+        : "Shipping via SWE";
 
     const billToText = state.customer
       ? `${customerName}
@@ -623,24 +687,24 @@ ${state.customer.email || ""}${
         }`
       : "No customer selected";
 
-    const shipToLabel = delivery === "ship" ? "Ship to" : "Shipping address";
+    const shipToLabel = delivery === "shipping" ? "Ship to" : "Shipping address";
     const shipToText =
       shipAddr
         ? formatAddress(shipAddr)
-        : delivery === "ship"
+        : delivery === "shipping"
         ? "Ship selected but no address chosen"
         : "Not selected";
 
     const shippingLine =
-      delivery === "ship" && state.shippingQuote
+      delivery === "shipping" && state.shippingQuote
         ? `Shipping (${state.shippingQuote.service || "Courier"} @ ${money(
             state.shippingQuote.ratePerKg || 0
           )}/kg, quoteno ${state.shippingQuote.quoteno}): ${money(
             state.shippingQuote.total
-          )} (base ${money(state.shippingQuote.baseTotal || 0)} + 5% margin)`
-        : delivery === "ship"
+          )}`
+        : delivery === "shipping"
         ? "Shipping will be added once SWE quote is calculated"
-        : "R0.00 (pickup/deliver)";
+        : "R0.00 (pickup/delivery/local)";
 
     const itemsRows = items.length
       ? items
@@ -650,6 +714,7 @@ ${state.customer.email || ""}${
             <td>${li.title || li.sku}</td>
             <td>${li.sku}</td>
             <td>${li.quantity}</td>
+            <td>${li.price != null ? money(li.price) : "—"}</td>
             <td>${li.price != null ? money(li.price * li.quantity) : "—"}</td>
           </tr>
         `
@@ -696,6 +761,7 @@ ${state.customer.email || ""}${
             <th>Item</th>
             <th>SKU</th>
             <th>Qty</th>
+            <th>Unit price</th>
             <th>Line total</th>
           </tr>
         </thead>
@@ -737,7 +803,7 @@ ${state.customer.email || ""}${
       errs.push("Enter at least one item quantity.");
     }
 
-    if (currentDelivery() === "ship") {
+    if (currentDelivery() === "shipping") {
       if (!currentShippingAddress()) {
         errs.push("Select a ship-to address.");
       }
@@ -758,7 +824,7 @@ ${state.customer.email || ""}${
         previewTag.textContent = "Waiting for customer…";
       } else if (!items.length) {
         previewTag.textContent = "Add item quantities…";
-      } else if (currentDelivery() === "ship" && !state.shippingQuote) {
+      } else if (currentDelivery() === "shipping" && !state.shippingQuote) {
         previewTag.textContent = "Awaiting SWE shipping quote…";
       } else if (ready) {
         previewTag.textContent = "Ready to create order";
@@ -860,23 +926,27 @@ ${state.customer.email || ""}${
     return null;
   }
 
-  async function requestShippingQuote() {
-    if (currentDelivery() !== "ship") {
+  async function requestShippingQuote(options = {}) {
+    if (currentDelivery() !== "shipping") {
       state.shippingQuote = null;
       shippingSummary.textContent =
-        "Delivery type is pickup/deliver – no courier shipping.";
+        "Delivery type is pickup/delivery/local – no courier shipping.";
       validate();
       renderInvoice();
       return;
     }
     const addr = currentShippingAddress();
     if (!addr) {
-      showToast("Select a ship-to address first.", "err");
+      if (!options.auto) {
+        showToast("Select a ship-to address first.", "err");
+      }
       return;
     }
     const items = buildItemsArray();
     if (!items.length) {
-      showToast("Enter at least one item quantity first.", "err");
+      if (!options.auto) {
+        showToast("Enter at least one item quantity first.", "err");
+      }
       return;
     }
 
@@ -984,9 +1054,9 @@ ${state.customer.email || ""}${
 
       const baseTotal =
         Number(picked.total ?? picked.subtotal ?? picked.charge ?? 0) || 0;
-      const marginRate = 1.05;
-      const total = baseTotal * marginRate;
-      const marginAmount = total - baseTotal;
+      const total = baseTotal;
+      const marginRate = 1;
+      const marginAmount = 0;
       const ratePerKg = grossWeightKg ? total / grossWeightKg : 0;
       state.shippingQuote = {
         service: picked.service,
@@ -1003,7 +1073,7 @@ ${state.customer.email || ""}${
       };
 
       shippingSummary.textContent =
-        `Quote: ${picked.service} – ${money(total)} (base ${money(baseTotal)} + 5% margin)` +
+        `Quote: ${picked.service} – ${money(total)}` +
         ` · ${money(ratePerKg)}/kg · ${grossWeightKg.toFixed(2)}kg gross incl ${boxCount} boxes` +
         ` (quoteno ${quoteno})`;
 
@@ -1208,11 +1278,13 @@ ${state.customer.email || ""}${
   function applySelectedCustomer(c) {
     state.customer = c;
 
-    if (c.delivery_method) {
-      state.delivery = c.delivery_method;
+    const hasDeliveryMethod = !!c.delivery_method;
+    if (hasDeliveryMethod) {
+      state.delivery = normalizeDeliveryMethod(c.delivery_method);
     } else {
-      state.delivery = "ship";
+      state.delivery = "shipping";
     }
+    syncDeliveryGroup();
 
     const addrs = Array.isArray(c.addresses) ? c.addresses : [];
     const defaultIdx = resolveDefaultAddressIndex(addrs, c.default_address);
@@ -1230,6 +1302,8 @@ ${state.customer.email || ""}${
     renderInvoice();
     validate();
     hydratePriceTiersForProducts(state.products);
+    updateDeliveryPrompt(hasDeliveryMethod);
+    scheduleAutoQuote();
   }
 
   function addProductToOrder(product) {
@@ -1335,17 +1409,22 @@ ${state.customer.email || ""}${
     const delivery = currentDelivery();
     const addr = currentShippingAddress();
     const shippingPrice =
-      delivery === "ship" && state.shippingQuote
+      delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.total
         : null;
+    const shippingBaseTotal =
+      delivery === "shipping" && state.shippingQuote
+        ? state.shippingQuote.baseTotal
+        : null;
     const shippingService =
-      delivery === "ship" && state.shippingQuote
+      delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.service
         : null;
     const shippingQuoteNo =
-      delivery === "ship" && state.shippingQuote
+      delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.quoteno
         : null;
+    const estimatedParcels = computeEstimatedParcels(items);
 
     const billingAddress =
       currentBillingAddress() || state.customer?.default_address || null;
@@ -1358,8 +1437,12 @@ ${state.customer.email || ""}${
       deliveryDate: state.deliveryDate || null,
       shippingMethod: delivery,
       shippingPrice,
+      shippingBaseTotal,
       shippingService,
       shippingQuoteNo,
+      estimatedParcels,
+      vatNumber: state.customer?.vatNumber || null,
+      companyName: state.customer?.companyName || null,
       billingAddress,
       shippingAddress,
       customerTags: state.customerTags,
@@ -1453,17 +1536,22 @@ ${state.customer.email || ""}${
     const delivery = currentDelivery();
     const addr = currentShippingAddress();
     const shippingPrice =
-      delivery === "ship" && state.shippingQuote
+      delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.total
         : null;
+    const shippingBaseTotal =
+      delivery === "shipping" && state.shippingQuote
+        ? state.shippingQuote.baseTotal
+        : null;
     const shippingService =
-      delivery === "ship" && state.shippingQuote
+      delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.service
         : null;
     const shippingQuoteNo =
-      delivery === "ship" && state.shippingQuote
+      delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.quoteno
         : null;
+    const estimatedParcels = computeEstimatedParcels(items);
 
     const billingAddress =
       currentBillingAddress() || state.customer?.default_address || null;
@@ -1476,8 +1564,12 @@ ${state.customer.email || ""}${
       deliveryDate: state.deliveryDate || null,
       shippingMethod: delivery,
       shippingPrice,
+      shippingBaseTotal,
       shippingService,
       shippingQuoteNo,
+      estimatedParcels,
+      vatNumber: state.customer?.vatNumber || null,
+      companyName: state.customer?.companyName || null,
       billingAddress,
       shippingAddress,
       customerTags: state.customerTags,
@@ -1539,7 +1631,7 @@ ${state.customer.email || ""}${
     state.customer = null;
     state.po = "";
     state.deliveryDate = "";
-    state.delivery = "ship";
+    state.delivery = "shipping";
     state.shippingAddressIndex = null;
     state.billingAddressIndex = null;
     state.items = {};
@@ -1569,12 +1661,7 @@ ${state.customer.email || ""}${
         "Search by name, email, company, or phone";
     }
     if (deliveryGroup) {
-      const radios = deliveryGroup.querySelectorAll(
-        "input[name='delivery']"
-      );
-      radios.forEach((r) => {
-        r.checked = r.value === "ship";
-      });
+      syncDeliveryGroup();
     }
     if (shippingSummary) {
       shippingSummary.textContent = "No shipping quote yet.";
@@ -1600,6 +1687,7 @@ ${state.customer.email || ""}${
     renderInvoice();
     validate();
     renderConvertButton();
+    updateDeliveryPrompt(true);
   }
 
   async function convertDraftToOrder() {
@@ -1704,15 +1792,17 @@ ${state.customer.email || ""}${
       deliveryGroup.addEventListener("change", (e) => {
         const t = e.target;
         if (!t || t.name !== "delivery") return;
-        state.delivery = t.value;
-        if (t.value !== "ship") {
+        state.delivery = normalizeDeliveryMethod(t.value);
+        updateDeliveryPrompt(true);
+        if (state.delivery !== "shipping") {
           state.shippingQuote = null;
           shippingSummary.textContent =
-            "No courier shipping for pickup/deliver.";
+            "No courier shipping for pickup/delivery/local.";
         }
         renderCustomerChips();
         renderInvoice();
         validate();
+        scheduleAutoQuote();
       });
     }
 
@@ -1730,6 +1820,7 @@ ${state.customer.email || ""}${
         renderCustomerChips();
         renderInvoice();
         validate();
+        scheduleAutoQuote();
       });
     }
 
@@ -1776,6 +1867,7 @@ ${state.customer.email || ""}${
         }
         renderInvoice();
         validate();
+        scheduleAutoQuote();
       });
 
       productsBody.addEventListener("click", (e) => {
@@ -1820,6 +1912,7 @@ ${state.customer.email || ""}${
         }
         renderInvoice();
         validate();
+        scheduleAutoQuote();
       });
     }
 
