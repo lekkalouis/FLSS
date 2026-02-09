@@ -844,10 +844,7 @@
 }
 
 .dispatchSelectionPanel{
-  position:sticky;
-  top:1rem;
-  align-self:flex-start;
-  width:min(440px, 100%);
+  width:100%;
   border-radius:var(--radius-lg);
   border:1px solid var(--panel-strong);
   padding:.85rem 1rem;
@@ -864,6 +861,25 @@
   font-size:.82rem;
   font-weight:700;
   color:#0f172a;
+}
+.dispatchSelectionActions{
+  display:flex;
+  gap:.4rem;
+  align-items:center;
+}
+.dispatchSelectionClear{
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.7);
+  background:#fff;
+  color:#475569;
+  font-size:.7rem;
+  font-weight:600;
+  padding:.2rem .6rem;
+  cursor:pointer;
+}
+.dispatchSelectionClear:hover{
+  border-color:rgba(56,189,248,.7);
+  color:#0c4a6e;
 }
 .dispatchSelectionCount{
   font-size:.7rem;
@@ -889,8 +905,6 @@
   display:flex;
   flex-direction:column;
   gap:.35rem;
-  max-height:210px;
-  overflow:auto;
   padding:.2rem .1rem;
 }
 .dispatchSelectionRow{
@@ -906,6 +920,9 @@
   display:grid;
   gap:.3rem;
   font-variant-numeric:tabular-nums;
+}
+.dispatchSelectionPanel.is-hidden{
+  display:none;
 }
 
 .dispatchBoardLayout{
@@ -1132,7 +1149,6 @@
   gap: 1rem;
   padding: .35rem;
   min-height: 65vh;
-  overflow-y: auto;
   background:var(--panel-muted);
 }
 @media (max-width:1400px){
@@ -2228,25 +2244,6 @@
         </div>
       </div>
       <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
-        <div class="dispatchSelectionPanel" id="dispatchSelectionPanel" aria-live="polite">
-          <div class="dispatchSelectionHeader">
-            <span>Selected orders</span>
-            <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
-          </div>
-          <div class="dispatchSelectionBody">
-            <div>
-              <div class="dispatchSelectionLabel">Units by size &amp; flavour</div>
-              <div class="dispatchSelectionList" id="dispatchSelectionUnits">
-                <div class="dispatchSelectionRow">Select orders to see totals.</div>
-              </div>
-            </div>
-            <div class="dispatchSelectionMeta">
-              <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
-              <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
-              <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
-            </div>
-          </div>
-        </div>
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">
             <div class="dispatchBoardPanel">
@@ -2260,6 +2257,28 @@
             </div>
           </div>
           <aside class="dispatchBoardSidebar" aria-label="Dispatch sidebar">
+            <div class="dispatchSelectionPanel" id="dispatchSelectionPanel" aria-live="polite">
+              <div class="dispatchSelectionHeader">
+                <span>Selected orders</span>
+                <div class="dispatchSelectionActions">
+                  <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
+                  <button class="dispatchSelectionClear" id="dispatchSelectionClear" type="button">Clear</button>
+                </div>
+              </div>
+              <div class="dispatchSelectionBody">
+                <div>
+                  <div class="dispatchSelectionLabel">Units by size &amp; flavour</div>
+                  <div class="dispatchSelectionList" id="dispatchSelectionUnits">
+                    <div class="dispatchSelectionRow">Select orders to see totals.</div>
+                  </div>
+                </div>
+                <div class="dispatchSelectionMeta">
+                  <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
+                  <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
+                  <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
+                </div>
+              </div>
+            </div>
             <div class="dispatchShipmentsPanel">
               <div class="dispatchShipmentsHeader">
                 <span>Recently shipped</span>

@@ -1967,6 +1967,35 @@ router.get("/shopify/inventory-levels", async (req, res) => {
   }
 });
 
+router.get("/shopify/locations", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const resp = await shopifyFetch(`${base}/locations.json`, { method: "GET" });
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(502).json({
+        error: "UPSTREAM_ERROR",
+        message: `Shopify locations fetch failed (${resp.status}): ${body}`
+      });
+    }
+    const data = await resp.json();
+    const locations = Array.isArray(data.locations) ? data.locations : [];
+    const normalized = locations.map((loc) => ({
+      id: loc.id,
+      name: loc.name,
+      active: loc.active !== false
+    }));
+    return res.json({ ok: true, locations: normalized });
+  } catch (err) {
+    console.error("Shopify locations fetch failed:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
 router.post("/shopify/inventory-levels/set", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -2024,6 +2053,77 @@ router.post("/shopify/inventory-levels/set", async (req, res) => {
     });
   } catch (err) {
     console.error("Shopify inventory level update failed:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.post("/shopify/inventory-levels/transfer", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+    const {
+      variantId,
+      fromLocationId,
+      toLocationId,
+      quantity
+    } = req.body || {};
+
+    const safeVariantId = Number(variantId);
+    if (!Number.isFinite(safeVariantId)) {
+      return badRequest(res, "Missing variantId in request body.");
+    }
+
+    const fromId = Number(fromLocationId);
+    const toId = Number(toLocationId);
+    if (!Number.isFinite(fromId) || !Number.isFinite(toId)) {
+      return badRequest(res, "Missing from/to location IDs.");
+    }
+    if (fromId === toId) {
+      return badRequest(res, "Source and destination locations must differ.");
+    }
+
+    const qty = Math.floor(Number(quantity));
+    if (!Number.isFinite(qty) || qty <= 0) {
+      return badRequest(res, "Missing transfer quantity.");
+    }
+
+    const inventoryItemIdsByVariant = await fetchInventoryItemIdsForVariants([
+      safeVariantId
+    ]);
+    const inventoryItemId = inventoryItemIdsByVariant.get(safeVariantId);
+    if (!inventoryItemId) {
+      return res.status(404).json({
+        error: "INVENTORY_ITEM_NOT_FOUND",
+        message: "Unable to resolve inventory item for variant."
+      });
+    }
+
+    const fromLevel = await adjustInventoryLevel({
+      inventoryItemId,
+      locationId: fromId,
+      adjustment: -qty
+    });
+    const toLevel = await adjustInventoryLevel({
+      inventoryItemId,
+      locationId: toId,
+      adjustment: qty
+    });
+
+    return res.json({
+      ok: true,
+      from: {
+        locationId: fromId,
+        available: Number(fromLevel?.available ?? 0)
+      },
+      to: {
+        locationId: toId,
+        available: Number(toLevel?.available ?? 0)
+      }
+    });
+  } catch (err) {
+    console.error("Shopify inventory transfer failed:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)
