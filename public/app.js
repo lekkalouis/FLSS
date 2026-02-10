@@ -45,10 +45,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const truckBookBtn = $("truckBookBtn");
   const truckStatus = $("truckStatus");
   const truckParcelCount = $("truckParcelCount");
-  const multiShipToggle = $("multiShipToggle");
   const dispatchExpandToggle = $("dispatchExpandToggle");
   const uiBundleOrders = $("uiBundleOrders");
-  const uiMultiShip = $("uiMultiShip");
 
   const dispatchBoard = $("dispatchBoardGrid");
   const dispatchStamp = $("dispatchStamp");
@@ -179,7 +177,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   let bookedOrders = new Set();
   let isAutoMode = true;
   let linkedOrders = new Map();
-  let multiShipEnabled = false;
+  const activeGroupOrderNos = new Set();
   const dispatchOrderCache = new Map();
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
@@ -266,6 +264,9 @@ import { initPriceManagerView } from "./views/price-manager.js";
 
   function getBundleOrderNos() {
     if (!activeOrderNo) return [];
+    if (hasActiveGroupedSession()) {
+      return [...activeGroupOrderNos].filter((orderNo) => orderNo === activeOrderNo || linkedOrders.has(orderNo));
+    }
     return [activeOrderNo, ...linkedOrders.keys()];
   }
 
@@ -312,6 +313,27 @@ import { initPriceManagerView } from "./views/price-manager.js";
     ]
       .filter(Boolean)
       .join("|");
+  }
+
+  function hasActiveGroupedSession() {
+    return activeGroupOrderNos.size > 1;
+  }
+
+  function getSelectedGroupOrderNos() {
+    return [...dispatchSelectedOrders].filter(Boolean);
+  }
+
+  function resetGroupedSession() {
+    activeGroupOrderNos.clear();
+  }
+
+  function groupColorForOrderNos(orderNos) {
+    const seed = (orderNos && orderNos.length ? orderNos[0] : "") || "group";
+    let hash = 0;
+    for (let i = 0; i < seed.length; i += 1) {
+      hash = (hash * 31 + seed.charCodeAt(i)) % 360;
+    }
+    return `hsl(${hash}, 78%, 56%)`;
   }
 
   function renderServerStatusBar(data) {
@@ -738,14 +760,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
     modeToggle.setAttribute("aria-pressed", isAutoMode ? "true" : "false");
   }
 
-  function updateMultiShipToggle() {
-    if (!multiShipToggle) return;
-    multiShipToggle.textContent = `Multi-shipment override: ${multiShipEnabled ? "On" : "Off"}`;
-    multiShipToggle.classList.toggle("is-active", multiShipEnabled);
-    multiShipToggle.setAttribute("aria-pressed", multiShipEnabled ? "true" : "false");
-    if (uiMultiShip) uiMultiShip.textContent = multiShipEnabled ? "On" : "Off";
-  }
-
   function loadBookedOrders() {
     try {
       const raw = localStorage.getItem("fl_booked_orders_v1");
@@ -982,7 +996,7 @@ function cancelAutoBookTimer() {
     cancelAutoBookTimer();
 
     if (!isAutoMode) return;
-    if (multiShipEnabled && linkedOrders.size > 0) return;
+    if (hasActiveGroupedSession()) return;
 
   // Only for untagged orders
     if (!activeOrderNo || !orderDetails) return;
@@ -1170,8 +1184,8 @@ function cancelAutoBookTimer() {
     if (uiOrderNo) {
       if (!activeOrderNo) {
         uiOrderNo.textContent = "--";
-      } else if (linkedOrders.size) {
-        uiOrderNo.textContent = `${activeOrderNo} (+${linkedOrders.size})`;
+      } else if (hasActiveGroupedSession()) {
+        uiOrderNo.textContent = `${activeOrderNo} (+${activeGroupOrderNos.size - 1})`;
       } else {
         uiOrderNo.textContent = activeOrderNo;
       }
@@ -1179,10 +1193,6 @@ function cancelAutoBookTimer() {
     if (uiBundleOrders) {
       uiBundleOrders.textContent = bundleOrderNos.length ? bundleOrderNos.join(", ") : "--";
     }
-    if (uiMultiShip) {
-      uiMultiShip.textContent = multiShipEnabled ? "On" : "Off";
-    }
-
     const expected = getExpectedParcelCount(orderDetails || {});
     const idxs = getParcelIndexesForCurrentOrder(orderDetails || {});
     if (uiParcelCount) uiParcelCount.textContent = String(totalScanned);
@@ -1209,13 +1219,13 @@ function cancelAutoBookTimer() {
         ? "Scanned"
         : "--";
     }
-    if (linkedOrders.size) parcelSource = "Bundled orders";
+    if (hasActiveGroupedSession()) parcelSource = "Grouped orders";
     if (uiParcelSource) uiParcelSource.textContent = parcelSource;
 
     const sessionMode = !activeOrderNo
       ? "Waiting"
-      : linkedOrders.size
-      ? "Bundled multi-order shipment"
+      : hasActiveGroupedSession()
+      ? "Grouped multi-order shipment"
       : isAutoMode
       ? hasParcelCountTag(orderDetails)
         ? "Tag auto-book"
@@ -1316,8 +1326,8 @@ ${orderDetails.province} ${orderDetails.postal}`.trim();
         uiAutoBook.textContent = "Idle";
       } else if (!isAutoMode) {
         uiAutoBook.textContent = "Manual mode";
-      } else if (multiShipEnabled && linkedOrders.size) {
-        uiAutoBook.textContent = "Multi-order: auto-book paused";
+      } else if (hasActiveGroupedSession()) {
+        uiAutoBook.textContent = "Grouped session: immediate on first scan";
       } else if (hasParcelCountTag(orderDetails)) {
         uiAutoBook.textContent = "Immediate on first scan";
       } else if (autoBookEndsAt) {
@@ -1895,6 +1905,7 @@ function resetSession() {
   orderDetails = null;
   parcelsByOrder = new Map();
   linkedOrders = new Map();
+  resetGroupedSession();
   armedForBooking = false;
   lastScanAt = null;
   lastScanCode = null;
@@ -1916,32 +1927,81 @@ function resetSession() {
     return { orderNo, parcelSeq: seq };
   }
 
-async function startOrder(orderNo) {
-  cancelAutoBookTimer();
+  async function startOrder(orderNo) {
+    cancelAutoBookTimer();
 
-  activeOrderNo = orderNo;
-  parcelsByOrder = new Map();
-  parcelsByOrder.set(orderNo, new Set());
-  linkedOrders = new Map();
-  armedForBooking = false;
-  lastScanAt = null;
-  lastScanCode = null;
+    activeOrderNo = orderNo;
+    parcelsByOrder = new Map();
+    parcelsByOrder.set(orderNo, new Set());
+    linkedOrders = new Map();
+    resetGroupedSession();
+    armedForBooking = false;
+    lastScanAt = null;
+    lastScanCode = null;
 
-  placeCodeOverride = null;
-  if (placeCodeInput) placeCodeInput.value = "";
+    placeCodeOverride = null;
+    if (placeCodeInput) placeCodeInput.value = "";
 
-  orderDetails = await fetchShopifyOrder(activeOrderNo);
+    orderDetails = await fetchShopifyOrder(activeOrderNo);
 
-  if (orderDetails && orderDetails.placeCode != null) {
-    placeCodeOverride = Number(orderDetails.placeCode) || orderDetails.placeCode;
-    if (placeCodeInput) placeCodeInput.value = String(placeCodeOverride);
+    if (orderDetails && orderDetails.placeCode != null) {
+      placeCodeOverride = Number(orderDetails.placeCode) || orderDetails.placeCode;
+      if (placeCodeInput) placeCodeInput.value = String(placeCodeOverride);
+    }
+
+    appendDebug("Started new order " + activeOrderNo);
+    renderSessionUI();
+    renderCountdown();
+    updateBookNowButton();
   }
 
-  appendDebug("Started new order " + activeOrderNo);
-  renderSessionUI();
-  renderCountdown();
-  updateBookNowButton();
-}
+  async function activateGroupedSessionFromSelection(scannedOrderNo) {
+    const selected = getSelectedGroupOrderNos();
+    if (selected.length < 2 || !selected.includes(scannedOrderNo)) return false;
+
+    const anchorOrderNo = selected[0];
+    if (!activeOrderNo || activeOrderNo !== anchorOrderNo) {
+      await startOrder(anchorOrderNo);
+    }
+
+    const anchorDetails = orderDetails;
+    if (!anchorDetails) {
+      statusExplain(`Order ${anchorOrderNo} not found.`, "warn");
+      return false;
+    }
+
+    const anchorSignature = addressSignature(anchorDetails);
+    const nextLinked = new Map();
+    let mismatchDetected = false;
+
+    for (const orderNo of selected) {
+      if (orderNo === anchorOrderNo) continue;
+      const details = await fetchShopifyOrder(orderNo);
+      if (!details) {
+        statusExplain(`Order ${orderNo} not found.`, "warn");
+        return false;
+      }
+      const signature = addressSignature(details);
+      if (anchorSignature && signature && signature !== anchorSignature) mismatchDetected = true;
+      nextLinked.set(orderNo, details);
+    }
+
+    if (mismatchDetected) {
+      const ok = window.confirm(
+        `Grouped orders have different shipping addresses. Use the first selected order (${anchorOrderNo}) address for shipment?`
+      );
+      if (!ok) {
+        statusExplain("Grouped session cancelled. Select matching addresses or confirm override.", "warn");
+        return false;
+      }
+    }
+
+    linkedOrders = nextLinked;
+    activeGroupOrderNos.clear();
+    selected.forEach((orderNo) => activeGroupOrderNos.add(orderNo));
+    statusExplain(`Grouped session active (${selected.join(", ")}).`, "ok");
+    return true;
+  }
 
   async function handleScan(code) {
     const parsed = parseScan(code);
@@ -1958,15 +2018,23 @@ async function startOrder(orderNo) {
       return;
     }
 
-    const crossOrderScan = activeOrderNo && parsed.orderNo !== activeOrderNo;
-
     if (!activeOrderNo) {
-      await startOrder(parsed.orderNo);
-    } else if (parsed.orderNo !== activeOrderNo && !linkedOrders.has(parsed.orderNo)) {
-      cancelAutoBookTimer();
-      if (!multiShipEnabled) {
+      const activated = await activateGroupedSessionFromSelection(parsed.orderNo);
+      if (!activated) {
+        await startOrder(parsed.orderNo);
+      }
+    } else if (!hasActiveGroupedSession()) {
+      const activated = await activateGroupedSessionFromSelection(parsed.orderNo);
+      if (activated) {
+        cancelAutoBookTimer();
+      }
+    }
+
+    const crossOrderScan = activeOrderNo && parsed.orderNo !== activeOrderNo;
+    if (crossOrderScan && !linkedOrders.has(parsed.orderNo)) {
+      if (!hasActiveGroupedSession() || !activeGroupOrderNos.has(parsed.orderNo)) {
         statusExplain(
-          `Different order scanned (${parsed.orderNo}). Enable multi-shipment to bundle.`,
+          `Different order scanned (${parsed.orderNo}). Select orders on dispatch board to start grouped scanning.`,
           "warn"
         );
         confirmScanFeedback("warn");
@@ -1982,14 +2050,19 @@ async function startOrder(orderNo) {
 
       const baseSignature = addressSignature(orderDetails);
       const candidateSignature = addressSignature(candidate);
-      if (!baseSignature || baseSignature !== candidateSignature) {
-        statusExplain(`Different order ${parsed.orderNo} has a different address.`, "warn");
-        confirmScanFeedback("warn");
-        return;
+      if (baseSignature && candidateSignature && baseSignature !== candidateSignature) {
+        const ok = window.confirm(
+          `Order ${parsed.orderNo} has a different shipping address. Continue with ${activeOrderNo} address?`
+        );
+        if (!ok) {
+          statusExplain(`Grouped scan for ${parsed.orderNo} cancelled (address mismatch).`, "warn");
+          confirmScanFeedback("warn");
+          return;
+        }
       }
 
       linkedOrders.set(parsed.orderNo, candidate);
-      statusExplain(`Bundling order ${parsed.orderNo} (same address).`, "ok");
+      activeGroupOrderNos.add(parsed.orderNo);
     }
 
     const parcelSet = getParcelSet(parsed.orderNo);
@@ -2002,9 +2075,23 @@ async function startOrder(orderNo) {
     confirmScanFeedback(crossOrderScan ? "warn" : "success");
 
     const expected = getExpectedParcelCount(orderDetails);
+    const totalScanned = getTotalScannedCount();
+    const groupedSession = hasActiveGroupedSession();
+    const bundleOrders = getBundleOrders();
 
-    // TAGGED: auto-book immediately on first scan (single order only)
-    if (isAutoMode && hasParcelCountTag(orderDetails) && expected && !multiShipEnabled && !linkedOrders.size) {
+    if (isAutoMode && groupedSession) {
+      const allGroupedExpectedKnown = bundleOrders.length > 1 && bundleOrders.every(({ details }) => !!getExpectedParcelCount(details));
+      if (allGroupedExpectedKnown && totalScanned > 0) {
+        cancelAutoBookTimer();
+        renderSessionUI();
+        updateBookNowButton();
+        statusExplain("Grouped scan complete context detected. Booking now...", "ok");
+        await doBookingNow();
+        return;
+      }
+    }
+
+    if (isAutoMode && hasParcelCountTag(orderDetails) && expected && !groupedSession) {
       cancelAutoBookTimer();
 
       parcelsByOrder.set(activeOrderNo, new Set(Array.from({ length: expected }, (_, i) => i + 1)));
@@ -2016,14 +2103,7 @@ async function startOrder(orderNo) {
       return;
     }
 
-    const totalScanned = getTotalScannedCount();
-    if (
-      isAutoMode &&
-      expected &&
-      totalScanned >= expected &&
-      !multiShipEnabled &&
-      !linkedOrders.size
-    ) {
+    if (isAutoMode && expected && totalScanned >= expected && !groupedSession) {
       cancelAutoBookTimer();
       renderSessionUI();
       updateBookNowButton();
@@ -2032,13 +2112,10 @@ async function startOrder(orderNo) {
       return;
     }
 
-    // UNTAGGED: schedule auto-book 6s after last scan
     renderSessionUI();
     updateBookNowButton();
-    scheduleIdleAutoBook();
-}
-
-
+    if (!groupedSession) scheduleIdleAutoBook();
+  }
 
   async function fetchShopifyOrder(orderNo) {
     try {
@@ -2757,11 +2834,11 @@ async function startOrder(orderNo) {
 
   function clearDispatchSelection() {
     dispatchSelectedOrders.clear();
-    dispatchBoard?.querySelectorAll(".dispatchCardSelectInput").forEach((checkbox) => {
-      checkbox.checked = false;
-      checkbox.closest(".dispatchCard")?.classList.remove("is-selected");
-    });
+    resetGroupedSession();
+    linkedOrders = new Map();
+    renderDispatchBoard(dispatchOrdersLatest);
     updateDispatchSelectionSummary();
+    renderSessionUI();
   }
 
   function openDispatchOrderModal(orderNo) {
@@ -3087,13 +3164,20 @@ async function startOrder(orderNo) {
           ? o.parcel_count
           : fallbackParcelCount ?? "";
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
+      const visualGroupOrderNos = hasActiveGroupedSession()
+        ? [...activeGroupOrderNos]
+        : getSelectedGroupOrderNos();
+      const isGrouped = orderNo && visualGroupOrderNos.length > 1 && visualGroupOrderNos.includes(orderNo);
+      const groupColor = isGrouped ? groupColorForOrderNos(visualGroupOrderNos) : "";
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
       }
 
       return `
-        <div class="dispatchCard ${isSelected ? "is-selected" : ""}" data-order-no="${orderNo}">
+        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${isGrouped ? "is-grouped" : ""}" data-order-no="${orderNo}" ${
+          isGrouped ? `style="--group-color: ${groupColor}"` : ""
+        }>
           <div class="dispatchCardTitle">
             <span class="dispatchCardTitleText">${title}</span>
             ${
@@ -3162,6 +3246,13 @@ async function startOrder(orderNo) {
         selectionPruned = true;
       }
     });
+    if (selectionPruned || [...activeGroupOrderNos].some((orderNo) => !dispatchSelectedOrders.has(orderNo))) {
+      resetGroupedSession();
+      linkedOrders = new Map();
+      if (activeOrderNo && orderDetails) {
+        parcelsByOrder = new Map([[activeOrderNo, getActiveParcelSet()]]);
+      }
+    }
     updateDispatchSelectionSummary();
   }
 
@@ -3948,25 +4039,6 @@ async function startOrder(orderNo) {
     statusExplain(isAutoMode ? "Auto mode enabled." : "Manual mode enabled.", "info");
   });
 
-  multiShipToggle?.addEventListener("click", () => {
-    multiShipEnabled = !multiShipEnabled;
-    cancelAutoBookTimer();
-    if (!multiShipEnabled && linkedOrders.size) {
-      const activeSet = new Set(getActiveParcelSet());
-      linkedOrders = new Map();
-      parcelsByOrder = new Map();
-      if (activeOrderNo) parcelsByOrder.set(activeOrderNo, activeSet);
-    }
-    updateMultiShipToggle();
-    renderSessionUI();
-    statusExplain(
-      multiShipEnabled
-        ? "Multi-shipment override enabled. Only same-address orders will bundle."
-        : "Multi-shipment override disabled.",
-      "info"
-    );
-  });
-
   truckBookBtn?.addEventListener("click", async () => {
     if (!dailyParcelCount) {
       statusExplain("No parcels counted for today yet.", "warn");
@@ -4267,11 +4339,8 @@ async function startOrder(orderNo) {
     } else {
       dispatchSelectedOrders.delete(orderNo);
     }
-    const card = checkbox.closest(".dispatchCard");
-    if (card) {
-      card.classList.toggle("is-selected", checkbox.checked);
-    }
     updateDispatchSelectionSummary();
+    renderDispatchBoard(dispatchOrdersLatest);
   });
 
   dispatchSelectionClear?.addEventListener("click", () => {
@@ -4442,7 +4511,6 @@ async function startOrder(orderNo) {
     loadDailyParcelCount();
     loadTruckBooking();
     updateModeToggle();
-    updateMultiShipToggle();
     renderSessionUI();
     renderCountdown();
     renderTruckPanel();
