@@ -9,6 +9,7 @@ export function initStockView() {
 
   const LOG_STORAGE_KEY = "fl_stock_log_v1";
   const MRP_STORAGE_KEY = "fl_stock_mrp_v1";
+  const LOCATION_STORAGE_KEY = "fl_stock_location_v1";
   const API_BASE = "/api/v1/shopify";
 
   const rootView = document.getElementById("viewStock");
@@ -78,6 +79,22 @@ export function initStockView() {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return "--";
     return numeric.toFixed(digits);
+  }
+
+  function getSavedLocationId() {
+    try {
+      const raw = localStorage.getItem(LOCATION_STORAGE_KEY);
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveLocationId(locationId) {
+    try {
+      localStorage.setItem(LOCATION_STORAGE_KEY, String(locationId));
+    } catch {}
   }
 
   async function loadStockLevels() {
@@ -517,11 +534,14 @@ export function initStockView() {
         .join("");
       locationSelect.innerHTML = options;
       transferSelect.innerHTML = `<option value="">Transfer target...</option>${options}`;
-      if (currentLocationId) {
+      const savedLocationId = getSavedLocationId();
+      const chosenLocation = locations.find((loc) => Number(loc.id) === Number(currentLocationId))
+        || locations.find((loc) => Number(loc.id) === Number(savedLocationId))
+        || locations[0];
+      if (chosenLocation) {
+        currentLocationId = Number(chosenLocation.id);
         locationSelect.value = String(currentLocationId);
-      } else if (locations[0]) {
-        currentLocationId = Number(locations[0].id);
-        locationSelect.value = String(currentLocationId);
+        saveLocationId(currentLocationId);
       }
       const nextLocation = locations.find((loc) => Number(loc.id) !== currentLocationId);
       if (nextLocation) {
@@ -800,6 +820,7 @@ export function initStockView() {
       const nextId = Number(locationSelect.value);
       if (!Number.isFinite(nextId)) return;
       currentLocationId = nextId;
+      saveLocationId(currentLocationId);
       loadStockLevels().then(() => {
         renderTable();
         updateModeUI();
