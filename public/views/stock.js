@@ -8,6 +8,7 @@ export function initStockView() {
   "use strict";
 
   const LOG_STORAGE_KEY = "fl_stock_log_v1";
+  const MRP_STORAGE_KEY = "fl_stock_mrp_v1";
   const API_BASE = "/api/v1/shopify";
 
   const searchInput = document.getElementById("stock-search");
@@ -20,6 +21,16 @@ export function initStockView() {
   const transferSelect = document.getElementById("stock-transferLocation");
   const focusInput = document.getElementById("stock-focusInput");
   const focusApplyBtn = document.getElementById("stock-focusApply");
+  const mrpBatchName = document.getElementById("mrp-batchName");
+  const mrpSampleWeight = document.getElementById("mrp-sampleWeight");
+  const mrpSkuSelect = document.getElementById("mrp-skuSelect");
+  const mrpSkuQty = document.getElementById("mrp-skuQty");
+  const mrpAddLine = document.getElementById("mrp-addLine");
+  const mrpLinesTable = document.getElementById("mrp-linesTable");
+  const mrpCreateBatch = document.getElementById("mrp-createBatch");
+  const mrpClearLines = document.getElementById("mrp-clearLines");
+  const mrpSummaryTable = document.getElementById("mrp-summaryTable");
+  const mrpBatchList = document.getElementById("mrp-batchList");
 
   let items = [...PRODUCT_LIST];
   let stockLevels = {};
@@ -29,6 +40,8 @@ export function initStockView() {
   let transferLocationId = null;
   let locations = [];
   let locationNameMap = new Map();
+  let mrpState = { batches: [] };
+  let mrpDraftLines = [];
   const CRATE_UNITS = 102;
   const BOX_UNITS = 250;
 
@@ -39,6 +52,12 @@ export function initStockView() {
 
   function setStock(sku, value) {
     stockLevels[sku] = Math.max(0, Math.floor(value));
+  }
+
+  function formatNumber(value, digits = 0) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return "--";
+    return numeric.toFixed(digits);
   }
 
   async function loadStockLevels() {
@@ -123,6 +142,273 @@ export function initStockView() {
     });
     saveLogEntries();
     renderLog();
+  }
+
+  function loadMrpState() {
+    try {
+      const raw = localStorage.getItem(MRP_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.batches)) {
+          mrpState = parsed;
+          return;
+        }
+      }
+    } catch {}
+    mrpState = { batches: [] };
+  }
+
+  function saveMrpState() {
+    try {
+      localStorage.setItem(MRP_STORAGE_KEY, JSON.stringify(mrpState));
+    } catch {}
+  }
+
+  function getProductBySku(sku) {
+    return items.find((entry) => entry.sku === sku);
+  }
+
+  function renderMrpSkuOptions() {
+    if (!mrpSkuSelect) return;
+    mrpSkuSelect.innerHTML = items
+      .map((item) => `<option value="${item.sku}">${item.sku} — ${item.title}</option>`)
+      .join("");
+  }
+
+  function renderDraftLines() {
+    if (!mrpLinesTable) return;
+    if (!mrpDraftLines.length) {
+      mrpLinesTable.innerHTML = `
+        <tr>
+          <td colspan="4" class="stock-muted">Add line items to build the batch.</td>
+        </tr>
+      `;
+      return;
+    }
+    mrpLinesTable.innerHTML = mrpDraftLines
+      .map((line) => {
+        const product = getProductBySku(line.sku);
+        return `
+          <tr data-sku="${line.sku}">
+            <td><strong>${line.sku}</strong></td>
+            <td>${product?.title || "Unknown"}</td>
+            <td>${formatNumber(line.qty)}</td>
+            <td><button class="stock-actionBtn stock-actionBtn--inline" type="button" data-mrp-remove="${line.sku}">Remove</button></td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
+  function getOpenBatches() {
+    return mrpState.batches.filter((batch) => batch.status !== "completed");
+  }
+
+  function computeCommittedTotals() {
+    const totals = new Map();
+    getOpenBatches().forEach((batch) => {
+      batch.lines.forEach((line) => {
+        const current = totals.get(line.sku) || 0;
+        totals.set(line.sku, current + Number(line.qty || 0));
+      });
+    });
+    return totals;
+  }
+
+  function renderMrpSummary() {
+    if (!mrpSummaryTable) return;
+    const totals = computeCommittedTotals();
+    const rows = Array.from(totals.entries())
+      .map(([sku, committed]) => {
+        const onHand = getStock(sku);
+        const missing = Math.max(0, committed - onHand);
+        return `
+          <tr>
+            <td><strong>${sku}</strong></td>
+            <td>${formatNumber(committed)}</td>
+            <td>${formatNumber(onHand)}</td>
+            <td>${formatNumber(missing)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+    mrpSummaryTable.innerHTML =
+      rows ||
+      `
+        <tr>
+          <td colspan="4" class="stock-muted">No committed items yet.</td>
+        </tr>
+      `;
+  }
+
+  function renderMrpBatches() {
+    if (!mrpBatchList) return;
+    const batches = mrpState.batches.slice().sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+    if (!batches.length) {
+      mrpBatchList.innerHTML = `<div class="stock-muted">No production orders yet.</div>`;
+      return;
+    }
+    mrpBatchList.innerHTML = batches
+      .map((batch) => {
+        const sampleWeightLabel = batch.sampleWeight
+          ? `Sample weight: ${formatNumber(batch.sampleWeight, 2)} kg`
+          : "Sample weight: —";
+        const statusLabel = batch.status === "completed" ? "Completed" : "Open";
+        const linesMarkup = batch.lines
+          .map((line) => {
+            const product = getProductBySku(line.sku);
+            const onHand = getStock(line.sku);
+            const missing = Math.max(0, line.qty - onHand);
+            return `
+              <li>
+                <strong>${line.sku}</strong> ${product?.title || ""} — ${formatNumber(line.qty)}
+                <span class="stock-muted">(On hand ${formatNumber(onHand)}, missing ${formatNumber(missing)})</span>
+              </li>
+            `;
+          })
+          .join("");
+        return `
+          <div class="stock-batchCard" data-batch-id="${batch.id}">
+            <div class="stock-batchHeader">
+              <div>
+                <strong>${batch.name}</strong>
+                <div class="stock-batchMeta">${statusLabel} • ${new Date(batch.createdAt).toLocaleString()}</div>
+              </div>
+              <div class="stock-batchActions">
+                <button type="button" class="is-primary" data-batch-action="receive">Receive batch</button>
+                <button type="button" data-batch-action="print">Print order</button>
+                <button type="button" class="is-danger" data-batch-action="delete">Delete</button>
+              </div>
+            </div>
+            <div class="stock-batchMeta">${sampleWeightLabel}</div>
+            <ul class="stock-muted">
+              ${linesMarkup}
+            </ul>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  async function receiveInventoryLine(line) {
+    const item = getProductBySku(line.sku);
+    if (!item?.variantId) return null;
+    const qty = Number(line.qty || 0);
+    if (!Number.isFinite(qty) || qty <= 0) return null;
+    const resp = await fetch(`${API_BASE}/inventory-levels/set`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        variantId: item.variantId,
+        mode: "receive",
+        value: qty,
+        locationId: currentLocationId
+      })
+    });
+    const payload = await resp.json();
+    if (!resp.ok) {
+      console.warn("MRP receive failed", payload);
+      return null;
+    }
+    return Number(payload?.level?.available);
+  }
+
+  function updateRowCurrentValue(sku) {
+    const row = tableBody?.querySelector(`tr[data-sku="${sku}"]`);
+    const currentCell = row?.querySelector(`[data-current="${sku}"]`);
+    if (currentCell) currentCell.textContent = String(getStock(sku));
+  }
+
+  async function handleBatchReceive(batch) {
+    if (!batch || batch.status === "completed") return;
+    for (const line of batch.lines) {
+      const oldCount = getStock(line.sku);
+      const newCount = await receiveInventoryLine(line);
+      if (Number.isFinite(newCount)) {
+        setStock(line.sku, newCount);
+        updateRowCurrentValue(line.sku);
+        appendLogEntry({
+          sku: line.sku,
+          oldCount,
+          newCount,
+          mode: `batch ${batch.name}`
+        });
+      }
+    }
+    batch.status = "completed";
+    batch.completedAt = new Date().toISOString();
+    saveMrpState();
+    renderMrpBatches();
+    renderMrpSummary();
+  }
+
+  function printProductionOrder(batch) {
+    if (!batch) return;
+    const linesMarkup = batch.lines
+      .map((line) => {
+        const product = getProductBySku(line.sku);
+        const onHand = getStock(line.sku);
+        const missing = Math.max(0, line.qty - onHand);
+        return `
+          <tr>
+            <td>${line.sku}</td>
+            <td>${product?.title || ""}</td>
+            <td>${formatNumber(line.qty)}</td>
+            <td>${formatNumber(onHand)}</td>
+            <td>${formatNumber(missing)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+    const sampleWeightLabel = batch.sampleWeight
+      ? `${formatNumber(batch.sampleWeight, 2)} kg`
+      : "—";
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Production Order - ${batch.name}</title>
+        <style>
+          body{ font-family:Arial, sans-serif; color:#0f172a; padding:24px; }
+          h1{ margin:0 0 8px 0; font-size:20px; }
+          .meta{ margin-bottom:16px; font-size:12px; color:#475569; }
+          table{ width:100%; border-collapse:collapse; font-size:12px; }
+          th, td{ border:1px solid #e2e8f0; padding:6px 8px; text-align:left; }
+          th{ background:#f1f5f9; text-transform:uppercase; font-size:11px; letter-spacing:.05em; }
+          .footer{ margin-top:16px; font-size:11px; color:#64748b; }
+        </style>
+      </head>
+      <body>
+        <h1>Production order: ${batch.name}</h1>
+        <div class="meta">Created: ${new Date(batch.createdAt).toLocaleString()} • Sample weight: ${sampleWeightLabel}</div>
+        <table>
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Product</th>
+              <th>Required</th>
+              <th>On hand</th>
+              <th>Missing</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linesMarkup}
+          </tbody>
+        </table>
+        <div class="footer">Printed from Stock Take MRP.</div>
+      </body>
+      </html>
+    `;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   }
 
   async function loadLocations() {
@@ -455,16 +741,103 @@ export function initStockView() {
       if (!row) return;
       updateRowTotal(row);
     });
+
+    mrpAddLine?.addEventListener("click", () => {
+      const sku = mrpSkuSelect?.value;
+      const qty = Number(mrpSkuQty?.value);
+      if (!sku || !Number.isFinite(qty) || qty <= 0) return;
+      const existing = mrpDraftLines.find((line) => line.sku === sku);
+      if (existing) {
+        existing.qty += qty;
+      } else {
+        mrpDraftLines.push({ sku, qty });
+      }
+      if (mrpSkuQty) mrpSkuQty.value = "";
+      renderDraftLines();
+    });
+
+    mrpLinesTable?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-mrp-remove]");
+      if (!button) return;
+      const sku = button.dataset.mrpRemove;
+      mrpDraftLines = mrpDraftLines.filter((line) => line.sku !== sku);
+      renderDraftLines();
+    });
+
+    mrpClearLines?.addEventListener("click", () => {
+      mrpDraftLines = [];
+      renderDraftLines();
+    });
+
+    mrpCreateBatch?.addEventListener("click", () => {
+      const name = mrpBatchName?.value.trim();
+      if (!name || !mrpDraftLines.length) return;
+      const sampleWeightValue = Number(mrpSampleWeight?.value);
+      const sampleWeight = Number.isFinite(sampleWeightValue) && sampleWeightValue > 0
+        ? sampleWeightValue
+        : null;
+      const batch = {
+        id: `batch-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name,
+        createdAt: new Date().toISOString(),
+        sampleWeight,
+        status: "open",
+        lines: mrpDraftLines.map((line) => ({ ...line }))
+      };
+      mrpState.batches.unshift(batch);
+      saveMrpState();
+      mrpDraftLines = [];
+      if (mrpBatchName) mrpBatchName.value = "";
+      if (mrpSampleWeight) mrpSampleWeight.value = "";
+      renderDraftLines();
+      renderMrpBatches();
+      renderMrpSummary();
+    });
+
+    mrpBatchList?.addEventListener("click", (event) => {
+      const actionBtn = event.target.closest("button[data-batch-action]");
+      if (!actionBtn) return;
+      const batchCard = actionBtn.closest("[data-batch-id]");
+      if (!batchCard) return;
+      const batchId = batchCard.dataset.batchId;
+      const batch = mrpState.batches.find((entry) => entry.id === batchId);
+      if (!batch) return;
+      const action = actionBtn.dataset.batchAction;
+      if (action === "print") {
+        printProductionOrder(batch);
+        return;
+      }
+      if (action === "delete") {
+        mrpState.batches = mrpState.batches.filter((entry) => entry.id !== batchId);
+        saveMrpState();
+        renderMrpBatches();
+        renderMrpSummary();
+        return;
+      }
+      if (action === "receive") {
+        actionBtn.disabled = true;
+        handleBatchReceive(batch).finally(() => {
+          actionBtn.disabled = false;
+        });
+      }
+    });
   }
 
   loadLogEntries();
   renderLog();
+  loadMrpState();
+  renderMrpSkuOptions();
+  renderDraftLines();
+  renderMrpBatches();
+  renderMrpSummary();
   renderTable();
   updateModeUI();
   loadLocations().then(() => {
     loadStockLevels().then(() => {
       renderTable();
       updateModeUI();
+      renderMrpSummary();
+      renderMrpBatches();
     });
   });
   initEvents();
