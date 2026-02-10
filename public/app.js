@@ -3603,8 +3603,8 @@ async function startOrder(orderNo) {
               <div class="logo-wrapper" style="float:left;">
                 <a href="https://${shopDomain}" target="_blank">
                   <img class="logo" alt="Logo"
-                       src="https://www.orderprintertemplates.com/api/v1/logos/49348e82cd6bc0a105d1?v=1739954015"
-                       style="max-width:80%;height:auto;margin-right:10px;">
+                       src="/img/logo.png"
+                       style="max-width:40%;height:auto;margin-right:10px;">
                 </a>
               </div>
               <div class="small" style="width:100%">
