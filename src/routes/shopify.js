@@ -7,6 +7,7 @@ import {
   fetchInventoryItemIdsForVariants,
   fetchInventoryLevelsForItems,
   fetchPrimaryLocationId,
+  fetchVariantPrice,
   fetchVariantPriceTiers,
   shopifyFetch,
   setInventoryLevel,
@@ -763,9 +764,10 @@ router.post("/shopify/draft-orders", async (req, res) => {
 
     const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
     const tierCache = new Map();
+    const variantPriceCache = new Map();
     const lineItemsWithPrice = await Promise.all(
       lineItems.map(async (li) => {
-        if (!normalizedTier || li.price != null || !li.variantId) {
+        if (!normalizedTier || !li.variantId) {
           return li;
         }
         const variantId = String(li.variantId);
@@ -776,7 +778,21 @@ router.post("/shopify/draft-orders", async (req, res) => {
         const tiers = tierCache.get(variantId);
         const resolved = resolveTierPrice(tiers, normalizedTier);
         if (resolved == null) return li;
-        return { ...li, price: resolved };
+        // Tier prices must override incoming base prices so draft orders use the tier.
+        let publicPrice = Number(li.price);
+        if (!Number.isFinite(publicPrice)) {
+          if (!variantPriceCache.has(variantId)) {
+            const fetchedPrice = await fetchVariantPrice(variantId);
+            variantPriceCache.set(variantId, fetchedPrice);
+          }
+          publicPrice = variantPriceCache.get(variantId);
+        }
+        return {
+          ...li,
+          price: resolved,
+          publicPrice: Number.isFinite(publicPrice) ? publicPrice : null,
+          tierPrice: resolved
+        };
       })
     );
 
@@ -840,6 +856,12 @@ router.post("/shopify/draft-orders", async (req, res) => {
           const entry = {
             quantity: li.quantity || 1
           };
+          const hasTierPrice = Number.isFinite(li.tierPrice);
+          const publicPrice = Number.isFinite(li.publicPrice)
+            ? li.publicPrice
+            : Number.isFinite(Number(li.price))
+            ? Number(li.price)
+            : null;
           if (li.variantId) {
             entry.variant_id = li.variantId;
           } else {
@@ -847,7 +869,19 @@ router.post("/shopify/draft-orders", async (req, res) => {
             if (li.price != null) entry.price = String(li.price);
           }
           if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
+          if (li.price != null && !entry.price && !hasTierPrice) {
+            entry.price = String(li.price);
+          }
+          if (li.variantId && hasTierPrice && Number.isFinite(publicPrice)) {
+            const discount = publicPrice - Number(li.tierPrice);
+            if (discount > 0) {
+              entry.applied_discount = {
+                value_type: "fixed_amount",
+                value: String(discount),
+                title: `Tier price (${normalizedTier || "tier"})`
+              };
+            }
+          }
           return entry;
         }),
         billing_address: billingAddress || undefined,

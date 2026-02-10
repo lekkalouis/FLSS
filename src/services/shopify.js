@@ -103,6 +103,17 @@ export async function fetchVariantPriceTiers(variantId) {
   };
 }
 
+export async function fetchVariantPrice(variantId) {
+  if (!variantId) return null;
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const url = `${base}/variants/${variantId}.json?fields=id,price`;
+  const resp = await shopifyFetch(url, { method: "GET" });
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  const price = Number(data?.variant?.price);
+  return Number.isFinite(price) ? price : null;
+}
+
 export async function upsertVariantPriceTiers(variantId, priceTiers) {
   const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
   const existing = await fetchVariantPriceTiers(variantId);
