@@ -170,6 +170,14 @@
       tag: "Module"
     },
     {
+      id: "hoursSaved",
+      title: "Hours Saved",
+      description: "Track hours saved, error cost avoided, and FTE avoided.",
+      type: "link",
+      target: "/hours-saved",
+      tag: "Metrics"
+    },
+    {
       id: "simulate",
       title: "Simulator",
       description: "Test scan/booking flows without live orders.",
