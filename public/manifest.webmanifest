@@ -1,0 +1,24 @@
+{
+  "name": "Flippen Lekka Scan Station",
+  "short_name": "FLSS",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "description": "Offline-enabled operations console for dispatch, stock take, and order capture.",
+  "icons": [
+    {
+      "src": "/img/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/img/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
