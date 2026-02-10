@@ -75,6 +75,38 @@ function requireCustomerEmailConfigured(res) {
 const ORDER_PARCEL_NAMESPACE = "custom";
 const ORDER_PARCEL_KEY = "parcel_count";
 
+async function upsertCustomerMetafield(base, customerId, key, value, type) {
+  if (!customerId || !key || value == null) return null;
+  const namespace = "custom";
+  const metaUrl = `${base}/customers/${customerId}/metafields.json?namespace=${namespace}&key=${key}`;
+  const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
+  let existing = null;
+  if (metaResp.ok) {
+    const metaData = await metaResp.json();
+    const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
+    existing =
+      metafields.find((mf) => mf.namespace === namespace && mf.key === key) || null;
+  }
+  const payload = {
+    metafield: {
+      namespace,
+      key,
+      type: type || "single_line_text_field",
+      value: String(value)
+    }
+  };
+  if (existing?.id) {
+    return shopifyFetch(`${base}/metafields/${existing.id}.json`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+  }
+  return shopifyFetch(`${base}/customers/${customerId}/metafields.json`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 async function fetchOrderParcelMetafield(base, orderId) {
   if (!orderId) return null;
   const metaUrl = `${base}/orders/${orderId}/metafields.json?namespace=${ORDER_PARCEL_NAMESPACE}&key=${ORDER_PARCEL_KEY}`;
@@ -758,8 +790,6 @@ router.post("/shopify/draft-orders", async (req, res) => {
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const noteParts = [];
     if (poNumber) noteParts.push(`PO: ${poNumber}`);
-    if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
-    if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
 
     const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
     const tierCache = new Map();
@@ -792,7 +822,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
     if (shippingMethod) {
       metafields.push({
         namespace: "custom",
-        key: "delivery_type",
+        key: "delivery_method",
         type: "single_line_text_field",
         value: String(shippingMethod)
       });
@@ -820,6 +850,23 @@ router.post("/shopify/draft-orders", async (req, res) => {
         key: "shipping_amount",
         type: "number_decimal",
         value: String(shippingAmount)
+      });
+    }
+    if (shippingQuoteNo) {
+      metafields.push({
+        namespace: "custom",
+        key: "shipping_quote_no",
+        type: "single_line_text_field",
+        value: String(shippingQuoteNo)
+      });
+    }
+    const shippingActualCost = Number(shippingPrice);
+    if (Number.isFinite(shippingActualCost)) {
+      metafields.push({
+        namespace: "custom",
+        key: "shipping_actual_cost",
+        type: "number_decimal",
+        value: String(shippingActualCost)
       });
     }
     const estimatedParcelsValue = Number(estimatedParcels);
@@ -864,6 +911,19 @@ router.post("/shopify/draft-orders", async (req, res) => {
         metafields: metafields.length ? metafields : undefined
       }
     };
+
+    if (shippingMethod) {
+      try {
+        await upsertCustomerMetafield(
+          base,
+          customerId,
+          "delivery_method",
+          shippingMethod
+        );
+      } catch (err) {
+        console.warn("Customer delivery method update failed:", err);
+      }
+    }
 
     const tags = [];
     if (config.SHOPIFY_FLOW_TAG) {
@@ -1016,8 +1076,6 @@ router.post("/shopify/orders", async (req, res) => {
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const noteParts = [];
     if (poNumber) noteParts.push(`PO: ${poNumber}`);
-    if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
-    if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
 
     const metafields = [];
     if (deliveryDate) {
@@ -1031,7 +1089,7 @@ router.post("/shopify/orders", async (req, res) => {
     if (shippingMethod) {
       metafields.push({
         namespace: "custom",
-        key: "delivery_type",
+        key: "delivery_method",
         type: "single_line_text_field",
         value: String(shippingMethod)
       });
@@ -1059,6 +1117,23 @@ router.post("/shopify/orders", async (req, res) => {
         key: "shipping_amount",
         type: "number_decimal",
         value: String(shippingAmount)
+      });
+    }
+    if (shippingQuoteNo) {
+      metafields.push({
+        namespace: "custom",
+        key: "shipping_quote_no",
+        type: "single_line_text_field",
+        value: String(shippingQuoteNo)
+      });
+    }
+    const shippingActualCost = Number(shippingPrice);
+    if (Number.isFinite(shippingActualCost)) {
+      metafields.push({
+        namespace: "custom",
+        key: "shipping_actual_cost",
+        type: "number_decimal",
+        value: String(shippingActualCost)
       });
     }
     const estimatedParcelsValue = Number(estimatedParcels);
@@ -1101,6 +1176,19 @@ router.post("/shopify/orders", async (req, res) => {
         financial_status: "pending"
       }
     };
+
+    if (shippingMethod) {
+      try {
+        await upsertCustomerMetafield(
+          base,
+          customerId,
+          "delivery_method",
+          shippingMethod
+        );
+      } catch (err) {
+        console.warn("Customer delivery method update failed:", err);
+      }
+    }
 
     const orderTags = [];
     if (shippingMethod && shippingMethod !== "shipping") {

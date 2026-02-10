@@ -581,6 +581,16 @@ export function initFlocsView() {
     }
   }
 
+  function ensureTierPricingForKey(key) {
+    if (!key || !state.priceTier) return;
+    const product = state.products.find((p) => productKey(p) === key);
+    if (!product?.variantId) return;
+    const tiers = product.priceTiers || product.prices;
+    const hasTiers = tiers && typeof tiers === "object" && Object.keys(tiers).length;
+    if (hasTiers) return;
+    hydratePriceTiersForProducts([product]);
+  }
+
   // ===== UI: selected customer chips & address selector =====
   function renderCustomerChips() {
     if (!customerChips) return;
@@ -1860,6 +1870,7 @@ ${state.customer.email || ""}${
           } else {
             state.items[key] = Math.floor(v);
             t.value = String(Math.floor(v));
+            ensureTierPricingForKey(key);
           }
         }
         renderInvoice();
@@ -1888,15 +1899,18 @@ ${state.customer.email || ""}${
           const amount = Number(btn.dataset.amount || 0);
           if (Number.isFinite(amount) && amount > 0) {
             state.items[key] = current + amount;
+            ensureTierPricingForKey(key);
           }
         } else if (action === "inc") {
           state.items[key] = current + 1;
+          ensureTierPricingForKey(key);
         } else if (action === "dec") {
           const next = Math.max(0, current - 1);
           if (next === 0) {
             delete state.items[key];
           } else {
             state.items[key] = next;
+            ensureTierPricingForKey(key);
           }
         } else {
           return;
