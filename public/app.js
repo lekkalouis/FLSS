@@ -86,6 +86,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const navScan = $("navScan");
   const navOps = $("navOps");
   const navDocs = $("navDocs");
+  const navFlowcharts = $("navFlowcharts");
   const navFlocs = $("navFlocs");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
@@ -94,6 +95,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
+  const viewFlowcharts = $("viewFlowcharts");
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
@@ -138,6 +140,15 @@ import { initPriceManagerView } from "./views/price-manager.js";
       type: "route",
       target: "/docs",
       meta: "Internal module",
+      tag: "Guide"
+    },
+    {
+      id: "flowcharts",
+      title: "Flowcharts",
+      description: "Decision maps for packing and dispatch logic, including hard and soft rules.",
+      type: "route",
+      target: "/flowcharts",
+      meta: "Logic reference",
       tag: "Guide"
     },
     {
@@ -3826,6 +3837,7 @@ async function startOrder(orderNo) {
     const showScan = view === "scan";
     const showOps = view === "ops";
     const showDocs = view === "docs";
+    const showFlowcharts = view === "flowcharts";
     const showFlocs = view === "flocs";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
@@ -3846,6 +3858,10 @@ async function startOrder(orderNo) {
       viewDocs.hidden = !showDocs;
       viewDocs.classList.toggle("flView--active", showDocs);
     }
+    if (viewFlowcharts) {
+      viewFlowcharts.hidden = !showFlowcharts;
+      viewFlowcharts.classList.toggle("flView--active", showFlowcharts);
+    }
     if (viewFlocs) {
       viewFlocs.hidden = !showFlocs;
       viewFlocs.classList.toggle("flView--active", showFlocs);
@@ -3863,6 +3879,7 @@ async function startOrder(orderNo) {
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
+    navFlowcharts?.classList.toggle("flNavBtn--active", showFlowcharts);
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
@@ -3870,6 +3887,7 @@ async function startOrder(orderNo) {
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
+    navFlowcharts?.setAttribute("aria-selected", showFlowcharts ? "true" : "false");
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
@@ -3883,6 +3901,8 @@ async function startOrder(orderNo) {
       statusExplain("Viewing operator documentation", "info");
     } else if (showFlocs) {
       statusExplain("Order capture ready.", "info");
+    } else if (showFlowcharts) {
+      statusExplain("Flowchart logic reference loaded.", "info");
     } else if (showStock) {
       statusExplain("Stock take ready.", "info");
     } else if (showPriceManager) {
@@ -3898,6 +3918,7 @@ async function startOrder(orderNo) {
     ["/scan", "scan"],
     ["/ops", "scan"],
     ["/docs", "docs"],
+    ["/flowcharts", "flowcharts"],
     ["/flocs", "flocs"],
     ["/stock", "stock"],
     ["/price-manager", "price-manager"]
@@ -3908,6 +3929,7 @@ async function startOrder(orderNo) {
     scan: "/scan",
     ops: "/scan",
     docs: "/docs",
+    flowcharts: "/flowcharts",
     flocs: "/flocs",
     stock: "/stock",
     "price-manager": "/price-manager"

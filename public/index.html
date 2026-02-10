@@ -2151,6 +2151,7 @@
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
             <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
+            <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Flowcharts</span></button>
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
@@ -2794,6 +2795,116 @@ npm run dev</code></pre>
         </ul>
       </div>
     </div>
+    <div class="flView" id="viewFlowcharts" hidden>
+      <div class="docsShell">
+        <div class="pill">FLOW LOGIC</div>
+        <h2>Packing and Dispatch Flowcharts</h2>
+        <p>This page documents the operational logic for packing prediction, parcel planning, and box allocation. It separates hard rules (must obey) from soft rules (optimization preferences) so packing behavior is consistent and explainable.</p>
+
+        <h3>1) End-to-end packing orchestration</h3>
+        <pre class="docsBlock"><code>flowchart TD
+  A[Order enters dispatch queue] --> B[Normalize items and quantities]
+  B --> C[Validate SKU master data]
+  C --> D[Estimate total mass and volume]
+  D --> E[Predict parcel count]
+  E --> F[Generate candidate packing plans]
+  F --> G[Run hard-rule validation]
+  G -->|Fail| H[Reject plan and regenerate]
+  G -->|Pass| I[Score plans with soft rules]
+  I --> J[Pick best plan]
+  J --> K[Assign items to boxes]
+  K --> L[Finalize box sizes and parcel weights]
+  L --> M[Create booking payload]</code></pre>
+
+        <h3>2) Predict parcel count and total weight</h3>
+        <pre class="docsBlock"><code>flowchart TD
+  A[Start prediction] --> B[Load per-SKU unit mass and dimensions]
+  B --> C{Missing mass or dims?}
+  C -->|Yes| D[Apply default fallback profile]
+  C -->|No| E[Use SKU profile]
+  D --> F[Compute order totals]
+  E --> F[Compute order totals]
+  F --> G[Apply packaging overhead per box]
+  G --> H[Estimate minimum boxes by mass limit]
+  H --> I[Estimate minimum boxes by volume limit]
+  I --> J[Predicted parcels = max mass/volume constraints]
+  J --> K[Clamp to service limits]
+  K --> L[Return predicted parcel count + weight range]</code></pre>
+
+        <h3>3) Packing plan generation and box allocation</h3>
+        <pre class="docsBlock"><code>flowchart TD
+  A[Take normalized line items] --> B[Sort items by constraint priority]
+  B --> C[Select allowed box catalog]
+  C --> D[Seed plan with largest constrained items]
+  D --> E[Pack remaining items using best-fit strategy]
+  E --> F{Any overflow?}
+  F -->|Yes| G[Open next box and continue]
+  F -->|No| H[Compute plan metrics]
+  G --> H
+  H --> I{Hard rules pass?}
+  I -->|No| J[Try next candidate strategy]
+  I -->|Yes| K[Store candidate]
+  J --> D
+  K --> L{More candidates?}
+  L -->|Yes| D
+  L -->|No| M[Pick highest scored candidate]</code></pre>
+
+        <h3>4) Hard-rule decision tree (must pass)</h3>
+        <pre class="docsBlock"><code>flowchart TD
+  A[Candidate plan] --> B{Any prohibited SKU pair in same box?}
+  B -->|Yes| X[Fail candidate]
+  B -->|No| C{Box mass exceeds service limit?}
+  C -->|Yes| X
+  C -->|No| D{Box dimensions exceed max?}
+  D -->|Yes| X
+  D -->|No| E{Fragile orientation constraints broken?}
+  E -->|Yes| X
+  E -->|No| F{Temperature / hazard separation required?}
+  F -->|Yes| X
+  F -->|No| G{Predicted parcel count outside allowed range?}
+  G -->|Yes| X
+  G -->|No| H[Hard rules pass]</code></pre>
+
+        <h3>5) Soft-rule scoring tree (optimize)</h3>
+        <pre class="docsBlock"><code>flowchart TD
+  A[Hard-valid candidate] --> B[Score box utilization]
+  B --> C[Penalty for excess void space]
+  C --> D[Penalty for too many parcels]
+  D --> E[Penalty for mixing odd-size SKUs]
+  E --> F[Bonus for standard box sizes]
+  F --> G[Bonus for picking efficiency]
+  G --> H[Bonus for lower chargeable mass]
+  H --> I[Total weighted score]
+  I --> J[Compare against other candidates]</code></pre>
+
+        <h3>Hard rules (examples)</h3>
+        <ul>
+          <li>Per-parcel weight must never exceed courier contract maximum.</li>
+          <li>Per-parcel dimensions must remain under service constraints.</li>
+          <li>Non-compatible product classes must be separated.</li>
+          <li>Fragile items must remain upright and buffered in approved boxes.</li>
+          <li>If SKU master data is missing, the fallback profile must be applied and flagged.</li>
+        </ul>
+
+        <h3>Soft rules (examples)</h3>
+        <ul>
+          <li>Prefer fewer parcels when shipping cost impact is acceptable.</li>
+          <li>Prefer box sizes that are already high-rotation in warehouse stock.</li>
+          <li>Prefer packing plans with higher fill rate but still safe to handle.</li>
+          <li>Prefer grouping similar SKUs for easier pick-and-pack operations.</li>
+          <li>Prefer plans with lower total chargeable weight when hard rules are equal.</li>
+        </ul>
+
+        <h3>Operational outputs expected from this logic</h3>
+        <ul>
+          <li><strong>Predicted parcels:</strong> integer count plus confidence range.</li>
+          <li><strong>Total weight:</strong> physical and chargeable mass per parcel and order.</li>
+          <li><strong>Packing plan:</strong> per-box item allocation and box size chosen.</li>
+          <li><strong>Decision trace:</strong> failed hard-rule checks and soft-rule score rationale.</li>
+        </ul>
+      </div>
+    </div>
+
     <div class="flView" id="viewFlocs" hidden>
       <div class="flocs-shell" id="flocs-shell">
           <header class="flocs-header">
