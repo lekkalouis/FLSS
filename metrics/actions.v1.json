@@ -1,0 +1,1524 @@
+[
+  {
+    "action_code": "OI_OPEN_SHOPIFY",
+    "category": "Order Intake",
+    "label": "Open Shopify admin",
+    "manual_seconds": 20,
+    "automated_seconds": 1,
+    "manual_error_rate": 0.001,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 60,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Shopify"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_NAV_ORDERS",
+    "category": "Order Intake",
+    "label": "Navigate to Orders",
+    "manual_seconds": 18,
+    "automated_seconds": 1,
+    "manual_error_rate": 0.001,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 45,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Shopify"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_OPEN_NEW_ORDER",
+    "category": "Order Intake",
+    "label": "Open new order",
+    "manual_seconds": 15,
+    "automated_seconds": 2,
+    "manual_error_rate": 0.002,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 90,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Shopify"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_READ_TIER",
+    "category": "Order Intake",
+    "label": "Read customer tier",
+    "manual_seconds": 25,
+    "automated_seconds": 3,
+    "manual_error_rate": 0.01,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 180,
+    "avg_direct_cost": 80,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_VALIDATE_TIER",
+    "category": "Order Intake",
+    "label": "Validate pricing tier",
+    "manual_seconds": 60,
+    "automated_seconds": 5,
+    "manual_error_rate": 0.02,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 360,
+    "avg_direct_cost": 180,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_SCAN_ANOMALIES",
+    "category": "Order Intake",
+    "label": "Scan for anomalies",
+    "manual_seconds": 75,
+    "automated_seconds": 8,
+    "manual_error_rate": 0.018,
+    "automated_error_rate": 0.004,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 150,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_CHECK_ADDRESS",
+    "category": "Order Intake",
+    "label": "Check address completeness",
+    "manual_seconds": 55,
+    "automated_seconds": 5,
+    "manual_error_rate": 0.03,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 720,
+    "avg_direct_cost": 180,
+    "systems": [
+      "Shopify",
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_CHECK_SHIP_METHOD",
+    "category": "Order Intake",
+    "label": "Check shipping method",
+    "manual_seconds": 40,
+    "automated_seconds": 4,
+    "manual_error_rate": 0.012,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 300,
+    "avg_direct_cost": 120,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_CLASSIFY_ORDER",
+    "category": "Order Intake",
+    "label": "Classify order type",
+    "manual_seconds": 50,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.02,
+    "automated_error_rate": 0.004,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 150,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_DECIDE_NEXT_SYSTEM",
+    "category": "Order Intake",
+    "label": "Decide next system",
+    "manual_seconds": 45,
+    "automated_seconds": 5,
+    "manual_error_rate": 0.015,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 240,
+    "avg_direct_cost": 100,
+    "systems": [
+      "Shopify",
+      "Dispatch",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_REFRESH_ORDER_LIST",
+    "category": "Order Intake",
+    "label": "Refresh order list for new items",
+    "manual_seconds": 22,
+    "automated_seconds": 4,
+    "manual_error_rate": 0.001,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 60,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Shopify"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_SWITCH_TABS",
+    "category": "Order Intake",
+    "label": "Switch between order and courier tabs",
+    "manual_seconds": 30,
+    "automated_seconds": 4,
+    "manual_error_rate": 0.005,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 120,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Shopify",
+      "ParcelPerfect"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_COPY_ORDER_REF",
+    "category": "Order Intake",
+    "label": "Copy order reference",
+    "manual_seconds": 18,
+    "automated_seconds": 2,
+    "manual_error_rate": 0.004,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 180,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "OI_NOTE_SPECIAL_REQ",
+    "category": "Order Intake",
+    "label": "Capture special handling note",
+    "manual_seconds": 35,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.01,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 300,
+    "avg_direct_cost": 60,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "OI_ASSIGN_OPERATOR",
+    "category": "Order Intake",
+    "label": "Assign operator queue",
+    "manual_seconds": 28,
+    "automated_seconds": 4,
+    "manual_error_rate": 0.006,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 120,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Dispatch",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PV_VERIFY_SKU_PRICE",
+    "category": "Pricing & Validation",
+    "label": "Verify SKU pricing",
+    "manual_seconds": 90,
+    "automated_seconds": 5,
+    "manual_error_rate": 0.02,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 900,
+    "avg_direct_cost": 250,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PV_CROSSCHECK_DISCOUNT",
+    "category": "Pricing & Validation",
+    "label": "Cross-check discounts",
+    "manual_seconds": 70,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.018,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 720,
+    "avg_direct_cost": 180,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PV_VALIDATE_VAT",
+    "category": "Pricing & Validation",
+    "label": "Validate VAT logic",
+    "manual_seconds": 65,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.014,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 600,
+    "avg_direct_cost": 130,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PV_IDENTIFY_CHANNEL",
+    "category": "Pricing & Validation",
+    "label": "Identify wholesale vs retail",
+    "manual_seconds": 55,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.012,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 100,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PV_CORRECT_LINE_ITEM",
+    "category": "Pricing & Validation",
+    "label": "Correct line item pricing",
+    "manual_seconds": 120,
+    "automated_seconds": 10,
+    "manual_error_rate": 0.025,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 1080,
+    "avg_direct_cost": 250,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PV_RECALC_TOTALS",
+    "category": "Pricing & Validation",
+    "label": "Recalculate totals",
+    "manual_seconds": 80,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.015,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 600,
+    "avg_direct_cost": 180,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PV_SAVE_ORDER",
+    "category": "Pricing & Validation",
+    "label": "Save order",
+    "manual_seconds": 20,
+    "automated_seconds": 2,
+    "manual_error_rate": 0.004,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 180,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Shopify"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PV_REOPEN_CONFIRM",
+    "category": "Pricing & Validation",
+    "label": "Re-open to confirm",
+    "manual_seconds": 25,
+    "automated_seconds": 3,
+    "manual_error_rate": 0.005,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 180,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Shopify"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PV_SHIPPING_QUOTE_CALC",
+    "category": "Pricing & Validation",
+    "label": "Manually calculate shipping quote",
+    "manual_seconds": 240,
+    "automated_seconds": 12,
+    "manual_error_rate": 0.03,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 1200,
+    "avg_direct_cost": 220,
+    "systems": [
+      "ParcelPerfect",
+      "Email",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PV_EMAIL_QUOTE_CUSTOMER",
+    "category": "Pricing & Validation",
+    "label": "Email quote to customer",
+    "manual_seconds": 180,
+    "automated_seconds": 18,
+    "manual_error_rate": 0.02,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 900,
+    "avg_direct_cost": 90,
+    "systems": [
+      "Email",
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PV_WAIT_CUSTOMER_REPLY",
+    "category": "Pricing & Validation",
+    "label": "Wait and follow-up on quote approval",
+    "manual_seconds": 3600,
+    "automated_seconds": 120,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 0,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Email",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PV_REKEY_APPROVED_TOTAL",
+    "category": "Pricing & Validation",
+    "label": "Rekey approved totals into order",
+    "manual_seconds": 110,
+    "automated_seconds": 8,
+    "manual_error_rate": 0.018,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 600,
+    "avg_direct_cost": 180,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_OPEN_FLSS",
+    "category": "Dispatch Prep",
+    "label": "Open FLSS",
+    "manual_seconds": 20,
+    "automated_seconds": 2,
+    "manual_error_rate": 0.001,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 60,
+    "avg_direct_cost": 0,
+    "systems": [
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_SEARCH_ORDER",
+    "category": "Dispatch Prep",
+    "label": "Search order ID",
+    "manual_seconds": 35,
+    "automated_seconds": 3,
+    "manual_error_rate": 0.007,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 180,
+    "avg_direct_cost": 0,
+    "systems": [
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_LOAD_CONTEXT",
+    "category": "Dispatch Prep",
+    "label": "Load order context",
+    "manual_seconds": 45,
+    "automated_seconds": 4,
+    "manual_error_rate": 0.005,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 180,
+    "avg_direct_cost": 0,
+    "systems": [
+      "FLSS",
+      "Shopify"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_ASSIGN_ROUTE",
+    "category": "Dispatch Prep",
+    "label": "Assign fulfilment route",
+    "manual_seconds": 60,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.014,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 120,
+    "systems": [
+      "Dispatch",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_TRIGGER_LABEL",
+    "category": "Dispatch Prep",
+    "label": "Trigger label generation",
+    "manual_seconds": 35,
+    "automated_seconds": 3,
+    "manual_error_rate": 0.004,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 120,
+    "avg_direct_cost": 0,
+    "systems": [
+      "PrintNode",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "DP_WAIT_PRINTNODE",
+    "category": "Dispatch Prep",
+    "label": "Wait for PrintNode",
+    "manual_seconds": 70,
+    "automated_seconds": 8,
+    "manual_error_rate": 0.002,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 60,
+    "avg_direct_cost": 0,
+    "systems": [
+      "PrintNode"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_COLLECT_LABELS",
+    "category": "Dispatch Prep",
+    "label": "Collect labels physically",
+    "manual_seconds": 55,
+    "automated_seconds": 25,
+    "manual_error_rate": 0.01,
+    "automated_error_rate": 0.005,
+    "avg_fix_seconds": 180,
+    "avg_direct_cost": 40,
+    "systems": [
+      "PrintNode",
+      "Shopfloor"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "DP_ATTACH_LABELS",
+    "category": "Dispatch Prep",
+    "label": "Attach labels",
+    "manual_seconds": 80,
+    "automated_seconds": 65,
+    "manual_error_rate": 0.012,
+    "automated_error_rate": 0.01,
+    "avg_fix_seconds": 300,
+    "avg_direct_cost": 80,
+    "systems": [
+      "Shopfloor"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "DP_CONFIRM_PARCELS",
+    "category": "Dispatch Prep",
+    "label": "Confirm parcel count",
+    "manual_seconds": 50,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.02,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 360,
+    "avg_direct_cost": 120,
+    "systems": [
+      "FLSS",
+      "Shopify"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_CONFIRM_WEIGHT",
+    "category": "Dispatch Prep",
+    "label": "Confirm weights",
+    "manual_seconds": 60,
+    "automated_seconds": 8,
+    "manual_error_rate": 0.018,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 120,
+    "systems": [
+      "FLSS",
+      "ParcelPerfect"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_CONFIRM_DIMS",
+    "category": "Dispatch Prep",
+    "label": "Confirm dimensions",
+    "manual_seconds": 65,
+    "automated_seconds": 8,
+    "manual_error_rate": 0.018,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 120,
+    "systems": [
+      "FLSS",
+      "ParcelPerfect"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_MARK_READY",
+    "category": "Dispatch Prep",
+    "label": "Mark ready for dispatch",
+    "manual_seconds": 30,
+    "automated_seconds": 3,
+    "manual_error_rate": 0.006,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 180,
+    "avg_direct_cost": 0,
+    "systems": [
+      "FLSS",
+      "Shopify"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "DP_STAGING_DECISION",
+    "category": "Dispatch Prep",
+    "label": "Decide staging lane",
+    "manual_seconds": 40,
+    "automated_seconds": 8,
+    "manual_error_rate": 0.014,
+    "automated_error_rate": 0.004,
+    "avg_fix_seconds": 300,
+    "avg_direct_cost": 70,
+    "systems": [
+      "Dispatch",
+      "Shopfloor"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_RECHECK_ORDER_HOLD",
+    "category": "Dispatch Prep",
+    "label": "Recheck hold flags",
+    "manual_seconds": 35,
+    "automated_seconds": 5,
+    "manual_error_rate": 0.01,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 240,
+    "avg_direct_cost": 100,
+    "systems": [
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_OPERATOR_HANDOFF",
+    "category": "Dispatch Prep",
+    "label": "Handoff between ops manager and floor",
+    "manual_seconds": 90,
+    "automated_seconds": 20,
+    "manual_error_rate": 0.02,
+    "automated_error_rate": 0.006,
+    "avg_fix_seconds": 600,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Ops Manager",
+      "Shopfloor",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "DP_PAGE_RELOAD",
+    "category": "Dispatch Prep",
+    "label": "Reload dispatch board due to lag",
+    "manual_seconds": 30,
+    "automated_seconds": 5,
+    "manual_error_rate": 0.001,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 60,
+    "avg_direct_cost": 0,
+    "systems": [
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_OPEN_PP",
+    "category": "Shipping & Courier",
+    "label": "Open ParcelPerfect",
+    "manual_seconds": 25,
+    "automated_seconds": 2,
+    "manual_error_rate": 0.001,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 60,
+    "avg_direct_cost": 0,
+    "systems": [
+      "ParcelPerfect"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_REENTER_ORDER_REF",
+    "category": "Shipping & Courier",
+    "label": "Re-enter order ref",
+    "manual_seconds": 40,
+    "automated_seconds": 0,
+    "manual_error_rate": 0.008,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 180,
+    "avg_direct_cost": 0,
+    "systems": [
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_REENTER_ADDRESS",
+    "category": "Shipping & Courier",
+    "label": "Re-enter address",
+    "manual_seconds": 120,
+    "automated_seconds": 0,
+    "manual_error_rate": 0.03,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 720,
+    "avg_direct_cost": 180,
+    "systems": [
+      "ParcelPerfect",
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_SELECT_SERVICE",
+    "category": "Shipping & Courier",
+    "label": "Select service level",
+    "manual_seconds": 55,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.015,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 120,
+    "systems": [
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_GENERATE_WAYBILL",
+    "category": "Shipping & Courier",
+    "label": "Generate waybill",
+    "manual_seconds": 65,
+    "automated_seconds": 10,
+    "manual_error_rate": 0.008,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 240,
+    "avg_direct_cost": 0,
+    "systems": [
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "SC_DOWNLOAD_LABEL",
+    "category": "Shipping & Courier",
+    "label": "Download label",
+    "manual_seconds": 45,
+    "automated_seconds": 3,
+    "manual_error_rate": 0.004,
+    "automated_error_rate": 0.001,
+    "avg_fix_seconds": 120,
+    "avg_direct_cost": 0,
+    "systems": [
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_PRINT_BACKUP",
+    "category": "Shipping & Courier",
+    "label": "Print backup label",
+    "manual_seconds": 55,
+    "automated_seconds": 8,
+    "manual_error_rate": 0.006,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 180,
+    "avg_direct_cost": 40,
+    "systems": [
+      "PrintNode",
+      "ParcelPerfect"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "SC_RECONCILE_TRACKING",
+    "category": "Shipping & Courier",
+    "label": "Reconcile tracking number",
+    "manual_seconds": 70,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.018,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 120,
+    "systems": [
+      "Shopify",
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_SEND_TRACKING_EMAIL",
+    "category": "Shipping & Courier",
+    "label": "Send manual tracking email",
+    "manual_seconds": 150,
+    "automated_seconds": 12,
+    "manual_error_rate": 0.012,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 360,
+    "avg_direct_cost": 80,
+    "systems": [
+      "Email",
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_FOLLOWUP_COLLECTION",
+    "category": "Shipping & Courier",
+    "label": "Follow-up with courier collection desk",
+    "manual_seconds": 180,
+    "automated_seconds": 25,
+    "manual_error_rate": 0.01,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 600,
+    "avg_direct_cost": 60,
+    "systems": [
+      "ParcelPerfect",
+      "Dispatch",
+      "Email"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_CAPTURE_EXPORT_DOCS",
+    "category": "Shipping & Courier",
+    "label": "Capture export docs manually",
+    "manual_seconds": 210,
+    "automated_seconds": 15,
+    "manual_error_rate": 0.02,
+    "automated_error_rate": 0.004,
+    "avg_fix_seconds": 900,
+    "avg_direct_cost": 200,
+    "systems": [
+      "ParcelPerfect",
+      "FLSS",
+      "Email"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_SERVICE_OVERRIDE_APPROVAL",
+    "category": "Shipping & Courier",
+    "label": "Approve service override",
+    "manual_seconds": 85,
+    "automated_seconds": 10,
+    "manual_error_rate": 0.018,
+    "automated_error_rate": 0.004,
+    "avg_fix_seconds": 600,
+    "avg_direct_cost": 150,
+    "systems": [
+      "Dispatch",
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_WAIT_API_RETRY",
+    "category": "Shipping & Courier",
+    "label": "Retry courier API after timeout",
+    "manual_seconds": 95,
+    "automated_seconds": 15,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 0,
+    "avg_direct_cost": 0,
+    "systems": [
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "SC_MULTI_PARCEL_SPLIT",
+    "category": "Shipping & Courier",
+    "label": "Split booking into multi parcel run",
+    "manual_seconds": 140,
+    "automated_seconds": 20,
+    "manual_error_rate": 0.016,
+    "automated_error_rate": 0.004,
+    "avg_fix_seconds": 720,
+    "avg_direct_cost": 180,
+    "systems": [
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PF_FIND_PICKLIST",
+    "category": "Packing Floor",
+    "label": "Find pick list",
+    "manual_seconds": 60,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.012,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 300,
+    "avg_direct_cost": 70,
+    "systems": [
+      "Shopfloor",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PF_LOCATE_SKUS",
+    "category": "Packing Floor",
+    "label": "Locate SKUs",
+    "manual_seconds": 240,
+    "automated_seconds": 180,
+    "manual_error_rate": 0.02,
+    "automated_error_rate": 0.015,
+    "avg_fix_seconds": 900,
+    "avg_direct_cost": 120,
+    "systems": [
+      "Shopfloor"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PF_COUNT_UNITS",
+    "category": "Packing Floor",
+    "label": "Count units",
+    "manual_seconds": 90,
+    "automated_seconds": 70,
+    "manual_error_rate": 0.018,
+    "automated_error_rate": 0.014,
+    "avg_fix_seconds": 600,
+    "avg_direct_cost": 80,
+    "systems": [
+      "Shopfloor"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PF_DOUBLECHECK_QTY",
+    "category": "Packing Floor",
+    "label": "Double-check quantities",
+    "manual_seconds": 110,
+    "automated_seconds": 60,
+    "manual_error_rate": 0.02,
+    "automated_error_rate": 0.01,
+    "avg_fix_seconds": 720,
+    "avg_direct_cost": 120,
+    "systems": [
+      "Shopfloor",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PF_PACK_PARCELS",
+    "category": "Packing Floor",
+    "label": "Pack parcels",
+    "manual_seconds": 300,
+    "automated_seconds": 260,
+    "manual_error_rate": 0.03,
+    "automated_error_rate": 0.028,
+    "avg_fix_seconds": 900,
+    "avg_direct_cost": 150,
+    "systems": [
+      "Shopfloor"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PF_SEAL_STAGE",
+    "category": "Packing Floor",
+    "label": "Seal and stage parcels",
+    "manual_seconds": 120,
+    "automated_seconds": 90,
+    "manual_error_rate": 0.015,
+    "automated_error_rate": 0.012,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 80,
+    "systems": [
+      "Shopfloor"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PF_HANDOVER_DISPATCH",
+    "category": "Packing Floor",
+    "label": "Handover to dispatch bay",
+    "manual_seconds": 80,
+    "automated_seconds": 45,
+    "manual_error_rate": 0.01,
+    "automated_error_rate": 0.006,
+    "avg_fix_seconds": 300,
+    "avg_direct_cost": 60,
+    "systems": [
+      "Shopfloor",
+      "Dispatch"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PF_CONFIRM_SCAN_COMPLETION",
+    "category": "Packing Floor",
+    "label": "Confirm all parcel scans complete",
+    "manual_seconds": 55,
+    "automated_seconds": 6,
+    "manual_error_rate": 0.016,
+    "automated_error_rate": 0.003,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 120,
+    "systems": [
+      "FLSS",
+      "Shopfloor"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "PF_WAIT_STAGING_SPACE",
+    "category": "Packing Floor",
+    "label": "Wait for staging space",
+    "manual_seconds": 180,
+    "automated_seconds": 120,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 0,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Shopfloor"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  },
+  {
+    "action_code": "PF_PRINT_MISSING_LABEL",
+    "category": "Packing Floor",
+    "label": "Print missing label",
+    "manual_seconds": 90,
+    "automated_seconds": 12,
+    "manual_error_rate": 0.012,
+    "automated_error_rate": 0.002,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 90,
+    "systems": [
+      "PrintNode",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_PRICE_CORRECTION_QUERY",
+    "category": "Exceptions & Errors",
+    "label": "Pricing correction after customer query",
+    "manual_seconds": 420,
+    "automated_seconds": 40,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 1080,
+    "avg_direct_cost": 250,
+    "systems": [
+      "Shopify",
+      "Email",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_ADDRESS_CORRECTION",
+    "category": "Exceptions & Errors",
+    "label": "Address correction",
+    "manual_seconds": 300,
+    "automated_seconds": 30,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 900,
+    "avg_direct_cost": 180,
+    "systems": [
+      "Shopify",
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_COURIER_CORRECTION",
+    "category": "Exceptions & Errors",
+    "label": "Courier service correction",
+    "manual_seconds": 260,
+    "automated_seconds": 35,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 900,
+    "avg_direct_cost": 150,
+    "systems": [
+      "ParcelPerfect",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_REPRINT_LABEL",
+    "category": "Exceptions & Errors",
+    "label": "Reprint label",
+    "manual_seconds": 180,
+    "automated_seconds": 15,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 420,
+    "avg_direct_cost": 80,
+    "systems": [
+      "PrintNode",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_MISSING_SKU_RECON",
+    "category": "Exceptions & Errors",
+    "label": "Missing SKU reconciliation",
+    "manual_seconds": 480,
+    "automated_seconds": 75,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 1200,
+    "avg_direct_cost": 250,
+    "systems": [
+      "Shopify",
+      "Shopfloor",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_SPLIT_SHIPMENT_DECISION",
+    "category": "Exceptions & Errors",
+    "label": "Split shipment decision",
+    "manual_seconds": 220,
+    "automated_seconds": 25,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 720,
+    "avg_direct_cost": 180,
+    "systems": [
+      "Dispatch",
+      "FLSS",
+      "ParcelPerfect"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_CREDIT_NOTE_DECISION",
+    "category": "Exceptions & Errors",
+    "label": "Credit note decision",
+    "manual_seconds": 300,
+    "automated_seconds": 40,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 900,
+    "avg_direct_cost": 250,
+    "systems": [
+      "Shopify",
+      "Xero",
+      "FLSS"
+    ],
+    "decision_action": true,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_CUSTOMER_COMMS_REWORK",
+    "category": "Exceptions & Errors",
+    "label": "Customer communication rework",
+    "manual_seconds": 360,
+    "automated_seconds": 50,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 900,
+    "avg_direct_cost": 120,
+    "systems": [
+      "Email",
+      "Shopify",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_STALE_TAB_RECOVERY",
+    "category": "Exceptions & Errors",
+    "label": "Recover from stale browser tab state",
+    "manual_seconds": 150,
+    "automated_seconds": 20,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 300,
+    "avg_direct_cost": 0,
+    "systems": [
+      "FLSS",
+      "Shopify"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": true,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_MANAGER_ESCALATION",
+    "category": "Exceptions & Errors",
+    "label": "Escalate issue to ops manager",
+    "manual_seconds": 210,
+    "automated_seconds": 45,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 900,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Ops Manager",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_MANUAL_LOGGING",
+    "category": "Exceptions & Errors",
+    "label": "Manually log exception in sheet/email",
+    "manual_seconds": 180,
+    "automated_seconds": 15,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 300,
+    "avg_direct_cost": 40,
+    "systems": [
+      "Email",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_REPEAT_QUOTE_LOOP",
+    "category": "Exceptions & Errors",
+    "label": "Repeat quote loop due to pricing drift",
+    "manual_seconds": 600,
+    "automated_seconds": 60,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 1200,
+    "avg_direct_cost": 220,
+    "systems": [
+      "Shopify",
+      "ParcelPerfect",
+      "Email"
+    ],
+    "decision_action": true,
+    "manual_data_entry": true,
+    "load_wait_action": false,
+    "distraction_risk": true
+  },
+  {
+    "action_code": "EX_DELAYED_APPROVAL_WAIT",
+    "category": "Exceptions & Errors",
+    "label": "Delay waiting for approval handoff",
+    "manual_seconds": 7200,
+    "automated_seconds": 300,
+    "manual_error_rate": 0.0,
+    "automated_error_rate": 0.0,
+    "avg_fix_seconds": 0,
+    "avg_direct_cost": 0,
+    "systems": [
+      "Ops Manager",
+      "Shopfloor",
+      "FLSS"
+    ],
+    "decision_action": false,
+    "manual_data_entry": false,
+    "load_wait_action": false,
+    "distraction_risk": false
+  }
+]

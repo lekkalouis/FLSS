@@ -1,0 +1,11 @@
+{
+  "default_hourly_rate": 250,
+  "hourly_rate_options": [180, 250, 350],
+  "currency": "ZAR",
+  "fte_hours_per_month": 160,
+  "notes": [
+    "R180/hour = conservative direct operator cost",
+    "R250/hour = true blended ops + supervision cost",
+    "R350/hour = replacement cost for urgency and overtime"
+  ]
+}
