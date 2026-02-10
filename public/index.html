@@ -42,73 +42,36 @@
   }
   .flLayout{
     display:flex;
+    flex-direction:column;
     align-items:stretch;
     gap:0;
     flex:1;
     min-height:100dvh;
-  }
-  @media (max-width:900px){
-    .flLayout{ flex-direction:column; }
   }
   .flSide{
     background:var(--panel);
     border:1px solid var(--panel-strong);
     box-shadow:var(--shadow-soft);
     border-radius:0;
-    padding:1.2rem .9rem;
+    padding:.8rem 1.2rem;
     display:flex;
     flex-direction:column;
-    gap:1rem;
-    min-width:220px;
-    max-width:260px;
+    gap:.6rem;
+    width:100%;
     backdrop-filter:blur(12px);
-    min-height:100dvh;
   }
   .flSideHeader{
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-content:flex-start;
     gap:.75rem;
   }
-  .flHamburger{
-    width:36px;
-    height:36px;
-    border-radius:.65rem;
-    border:1px solid rgba(99,102,241,.2);
-    background:var(--panel);
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    transition:border-color .2s ease, box-shadow .2s ease;
-  }
-  .flHamburger:hover{
-    border-color:rgba(99,102,241,.5);
-    box-shadow:0 8px 18px rgba(99,102,241,.18);
-  }
-  .flHamburgerLines{
-    position:relative;
-    width:16px;
-    height:12px;
-  }
-  .flHamburgerLines::before,
-  .flHamburgerLines::after,
-  .flHamburgerLines span{
-    content:"";
-    position:absolute;
-    left:0;
-    right:0;
-    height:2px;
-    border-radius:999px;
-    background:var(--text);
-  }
-  .flHamburgerLines::before{ top:0; }
-  .flHamburgerLines span{ top:5px; }
-  .flHamburgerLines::after{ bottom:0; }
   .flNav{
     display:flex;
-    flex-direction:column;
-    gap:1rem;
+    flex-direction:row;
+    gap:.75rem;
+    align-items:center;
+    justify-content:space-between;
   }
   .flNavTitle{
     font-weight:700;
@@ -118,8 +81,9 @@
   }
   .flNavGroup{
     display:flex;
-    flex-direction:column;
-    gap:.65rem;
+    flex-direction:row;
+    flex-wrap:wrap;
+    gap:.55rem;
   }
   .flNavBtn{
     border:1px solid var(--panel-strong);
@@ -134,7 +98,7 @@
     text-decoration:none;
     display:inline-flex;
     align-items:center;
-    width:100%;
+    width:auto;
     justify-content:flex-start;
     gap:.5rem;
   }
@@ -173,38 +137,18 @@
   @media (max-width:800px){
     .flMain{ padding:1rem; }
   }
-  body.flNavCollapsed .flSide{
-    min-width:64px;
-    max-width:64px;
-    padding:.85rem .5rem;
-  }
-  body.flNavCollapsed .flNavTitle,
-  body.flNavCollapsed .flNavBtnText,
-  body.flNavCollapsed .flNavStatus{
-    display:none;
-  }
-  body.flNavCollapsed .flNavBtn{
-    justify-content:center;
-    padding:.5rem;
-  }
-  body.flNavCollapsed .flNavGroup{
-    align-items:center;
-  }
   @media (max-width:900px){
-    body.flNavCollapsed .flSide{
-      max-width:none;
-      min-width:0;
+    .flSide{
+      padding:.75rem .8rem;
+    }
+    .flNav{
+      flex-direction:column;
+      align-items:stretch;
+    }
+    .flNavGroup{
       width:100%;
-      padding:.65rem .75rem;
-      gap:.5rem;
     }
-    body.flNavCollapsed .flNavTitle{
-      display:block;
-    }
-    body.flNavCollapsed .flNavGroup,
-    body.flNavCollapsed .flNavStatus{
-      display:none;
-    }
+    .flNavBtn{ flex:1; }
   }
   .actionFlash{
     font-size:.72rem;
@@ -2142,9 +2086,6 @@
       <aside class="flSide">
         <div class="flSideHeader">
           <div class="flNavTitle">Flippen Lekka Operations</div>
-          <button id="navToggle" class="flHamburger" type="button" aria-label="Toggle navigation" aria-expanded="true">
-            <span class="flHamburgerLines"><span></span></span>
-          </button>
         </div>
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
@@ -3071,6 +3012,10 @@ npm run dev</code></pre>
                 <button class="stock-modeBtn is-active" type="button" data-mode="take">Stock take</button>
                 <button class="stock-modeBtn" type="button" data-mode="produce">Produce</button>
                 <button class="stock-modeBtn" type="button" data-mode="receive">Stock received</button>
+              </div>
+              <div class="stock-locationPicker">
+                <span class="stock-locationLabel">Location</span>
+                <div id="stock-locationButtons" class="stock-locationButtons" role="group" aria-label="Stock location"></div>
               </div>
               <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
             </div>

@@ -44,6 +44,19 @@
         grid-template-columns:1fr;
       }
     }
+    @media (max-width:900px){
+      #viewStock .stock-locationPicker{
+        margin-left:0;
+        width:100%;
+      }
+      #viewStock .stock-locationButtons{
+        width:100%;
+      }
+      #viewStock .stock-locationBtn{
+        flex:1;
+        min-width:0;
+      }
+    }
     #viewStock .stock-overviewCard{
       min-width:0;
     }
@@ -118,6 +131,46 @@
       color:#0f4c6b;
       font-size:.7rem;
       font-weight:600;
+    }
+
+    #viewStock .stock-locationPicker{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      flex-wrap:wrap;
+      margin-left:auto;
+    }
+    #viewStock .stock-locationLabel{
+      font-size:.68rem;
+      font-weight:700;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      color:var(--text-muted);
+    }
+    #viewStock .stock-locationButtons{
+      display:inline-flex;
+      border:1px solid var(--panel-strong);
+      border-radius:.6rem;
+      overflow:hidden;
+      background:#fff;
+    }
+    #viewStock .stock-locationBtn{
+      border:none;
+      border-right:1px solid var(--panel-strong);
+      background:#fff;
+      color:var(--text-muted);
+      font-size:.74rem;
+      font-weight:700;
+      padding:.36rem .72rem;
+      cursor:pointer;
+      min-width:7.6rem;
+    }
+    #viewStock .stock-locationBtn:last-child{
+      border-right:none;
+    }
+    #viewStock .stock-locationBtn.is-active{
+      background:rgba(56,189,248,.18);
+      color:#0c4a6e;
     }
     #viewStock .stock-muted{
       color:var(--text-muted);

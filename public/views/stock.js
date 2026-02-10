@@ -9,6 +9,7 @@ export function initStockView() {
 
   const LOG_STORAGE_KEY = "fl_stock_log_v1";
   const MRP_STORAGE_KEY = "fl_stock_mrp_v1";
+  const LOCATION_STORAGE_KEY = "fl_stock_location_v1";
   const API_BASE = "/api/v1/shopify";
 
   const rootView = document.getElementById("viewStock");
@@ -18,8 +19,7 @@ export function initStockView() {
   const table = document.getElementById("stock-table");
   const tableBody = document.getElementById("stock-tableBody");
   const logContainer = document.getElementById("stock-log");
-  const locationSelect = document.getElementById("stock-location");
-  const transferSelect = document.getElementById("stock-transferLocation");
+  const locationButtons = document.getElementById("stock-locationButtons");
   const focusInput = document.getElementById("stock-focusInput");
   const focusApplyBtn = document.getElementById("stock-focusApply");
   const mrpBatchName = document.getElementById("mrp-batchName");
@@ -78,6 +78,22 @@ export function initStockView() {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return "--";
     return numeric.toFixed(digits);
+  }
+
+  function getSavedLocationId() {
+    try {
+      const raw = localStorage.getItem(LOCATION_STORAGE_KEY);
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveLocationId(locationId) {
+    try {
+      localStorage.setItem(LOCATION_STORAGE_KEY, String(locationId));
+    } catch {}
   }
 
   async function loadStockLevels() {
@@ -498,8 +514,26 @@ export function initStockView() {
     printWindow.print();
   }
 
+  function pickTransferLocation() {
+    const nextLocation = locations.find((loc) => Number(loc.id) !== Number(currentLocationId));
+    transferLocationId = nextLocation ? Number(nextLocation.id) : null;
+  }
+
+  function renderLocationButtons() {
+    if (!locationButtons) return;
+    if (!locations.length) {
+      locationButtons.innerHTML = `<button class="stock-locationBtn is-active" type="button" disabled>No locations</button>`;
+      return;
+    }
+    locationButtons.innerHTML = locations
+      .map((loc) => {
+        const isActive = Number(loc.id) === Number(currentLocationId);
+        return `<button class="stock-locationBtn${isActive ? " is-active" : ""}" type="button" data-location-id="${loc.id}">${loc.name || `Location ${loc.id}`}</button>`;
+      })
+      .join("");
+  }
+
   async function loadLocations() {
-    if (!locationSelect || !transferSelect) return;
     try {
       const resp = await fetch(`${API_BASE}/locations`);
       const payload = await resp.json();
@@ -509,25 +543,16 @@ export function initStockView() {
       }
       locations = Array.isArray(payload.locations) ? payload.locations : [];
       locationNameMap = new Map(locations.map((loc) => [Number(loc.id), loc.name]));
-      const options = locations
-        .map(
-          (loc) =>
-            `<option value="${loc.id}">${loc.name || `Location ${loc.id}`}</option>`
-        )
-        .join("");
-      locationSelect.innerHTML = options;
-      transferSelect.innerHTML = `<option value="">Transfer target...</option>${options}`;
-      if (currentLocationId) {
-        locationSelect.value = String(currentLocationId);
-      } else if (locations[0]) {
-        currentLocationId = Number(locations[0].id);
-        locationSelect.value = String(currentLocationId);
+      const savedLocationId = getSavedLocationId();
+      const chosenLocation = locations.find((loc) => Number(loc.id) === Number(currentLocationId))
+        || locations.find((loc) => Number(loc.id) === Number(savedLocationId))
+        || locations[0];
+      if (chosenLocation) {
+        currentLocationId = Number(chosenLocation.id);
+        saveLocationId(currentLocationId);
       }
-      const nextLocation = locations.find((loc) => Number(loc.id) !== currentLocationId);
-      if (nextLocation) {
-        transferLocationId = Number(nextLocation.id);
-        transferSelect.value = String(transferLocationId);
-      }
+      pickTransferLocation();
+      renderLocationButtons();
     } catch (err) {
       console.error("Failed to load locations", err);
     }
@@ -796,20 +821,19 @@ export function initStockView() {
       });
     });
 
-    locationSelect?.addEventListener("change", () => {
-      const nextId = Number(locationSelect.value);
-      if (!Number.isFinite(nextId)) return;
+    locationButtons?.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-location-id]");
+      if (!button) return;
+      const nextId = Number(button.dataset.locationId);
+      if (!Number.isFinite(nextId) || Number(nextId) === Number(currentLocationId)) return;
       currentLocationId = nextId;
+      saveLocationId(currentLocationId);
+      pickTransferLocation();
+      renderLocationButtons();
       loadStockLevels().then(() => {
         renderTable();
         updateModeUI();
       });
-    });
-
-    transferSelect?.addEventListener("change", () => {
-      const nextId = Number(transferSelect.value);
-      transferLocationId = Number.isFinite(nextId) ? nextId : null;
-      updateModeUI();
     });
 
     tableBody?.addEventListener("click", (event) => {
