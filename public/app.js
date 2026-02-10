@@ -1,6 +1,7 @@
 import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
+import { initResellerDirectoryView } from "./views/reseller-directory.js";
 
 (() => {
   "use strict";
@@ -86,6 +87,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const navFlocs = $("navFlocs");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
+  const navResellerDirectory = $("navResellerDirectory");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
@@ -94,6 +96,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
+  const viewResellerDirectory = $("viewResellerDirectory");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -162,6 +165,15 @@ import { initPriceManagerView } from "./views/price-manager.js";
       type: "route",
       target: "/price-manager",
       meta: "Pricing module",
+      tag: "Module"
+    },
+    {
+      id: "reseller-directory",
+      title: "Reseller Map",
+      description: "Bird's-eye retailer and agent penetration map for South Africa.",
+      type: "route",
+      target: "/reseller-directory",
+      meta: "Sales coverage",
       tag: "Module"
     }
   ];
@@ -3708,6 +3720,7 @@ async function startOrder(orderNo) {
     const showFlocs = view === "flocs";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
+    const showResellerDirectory = view === "reseller-directory";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3737,6 +3750,10 @@ async function startOrder(orderNo) {
       viewPriceManager.hidden = !showPriceManager;
       viewPriceManager.classList.toggle("flView--active", showPriceManager);
     }
+    if (viewResellerDirectory) {
+      viewResellerDirectory.hidden = !showResellerDirectory;
+      viewResellerDirectory.classList.toggle("flView--active", showResellerDirectory);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
@@ -3745,6 +3762,7 @@ async function startOrder(orderNo) {
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
+    navResellerDirectory?.classList.toggle("flNavBtn--active", showResellerDirectory);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
@@ -3752,6 +3770,7 @@ async function startOrder(orderNo) {
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
+    navResellerDirectory?.setAttribute("aria-selected", showResellerDirectory ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
@@ -3766,6 +3785,8 @@ async function startOrder(orderNo) {
       statusExplain("Stock take ready.", "info");
     } else if (showPriceManager) {
       statusExplain("Price manager ready.", "info");
+    } else if (showResellerDirectory) {
+      statusExplain("Reseller directory ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -3779,7 +3800,8 @@ async function startOrder(orderNo) {
     ["/docs", "docs"],
     ["/flocs", "flocs"],
     ["/stock", "stock"],
-    ["/price-manager", "price-manager"]
+    ["/price-manager", "price-manager"],
+    ["/reseller-directory", "reseller-directory"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -3789,13 +3811,15 @@ async function startOrder(orderNo) {
     docs: "/docs",
     flocs: "/flocs",
     stock: "/stock",
-    "price-manager": "/price-manager"
+    "price-manager": "/price-manager",
+    "reseller-directory": "/reseller-directory"
   };
 
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
-    "price-manager": initPriceManagerView
+    "price-manager": initPriceManagerView,
+    "reseller-directory": initResellerDirectoryView
   };
 
   function normalizePath(path) {

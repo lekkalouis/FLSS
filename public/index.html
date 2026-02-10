@@ -2093,6 +2093,7 @@
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
+  <link rel="stylesheet" href="/views/reseller-directory.css">
 </head>
  <body>
   <div class="flApp">
@@ -2112,6 +2113,7 @@
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
+            <button id="navResellerDirectory" class="flNavBtn" type="button" role="tab" aria-controls="viewResellerDirectory" aria-selected="false" data-route="/reseller-directory"><span class="flNavBtnIcon" aria-hidden="true">🗺️</span><span class="flNavBtnText">Reseller map</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -3090,6 +3092,42 @@ npm run dev</code></pre>
           </section>
         </div>
         <div id="pmToast" class="pm-toast"></div>
+    </div>
+
+    <div class="flView" id="viewResellerDirectory" hidden>
+      <section class="resellerDirectory">
+        <aside class="resellerPanel">
+          <h2 style="margin:0;">Reseller Directory</h2>
+          <p style="margin:.2rem 0 0; color:#64748b; font-size:.9rem;">Bird's-eye map of South African reseller penetration (retailers + agents).</p>
+
+          <div class="resellerKpis">
+            <div class="resellerKpi"><label>Total</label><strong id="resellerTotal">0</strong></div>
+            <div class="resellerKpi"><label>Retailers</label><strong id="resellerRetailers">0</strong></div>
+            <div class="resellerKpi"><label>Agents</label><strong id="resellerAgents">0</strong></div>
+            <div class="resellerKpi"><label>Mapped</label><strong id="resellerMapped">0</strong></div>
+          </div>
+
+          <div class="resellerFilters">
+            <select id="resellerTypeFilter">
+              <option value="all">All types</option>
+              <option value="retailer">Retailers only</option>
+              <option value="agent">Agents only</option>
+            </select>
+            <input id="resellerSearch" type="search" placeholder="Search company, location, SKU..." />
+            <label style="font-size:.85rem; color:#475569; display:flex; gap:.45rem; align-items:center;">
+              <input id="resellerMappedOnly" type="checkbox" />
+              Mapped entries only
+            </label>
+            <button id="resellerRefreshBtn" type="button">Refresh directory</button>
+            <small id="resellerStatus" style="color:#64748b;"></small>
+          </div>
+
+          <div class="resellerList" id="resellerList"></div>
+        </aside>
+        <section class="resellerMapCard">
+          <div id="resellerMap" aria-label="Reseller concentration map"></div>
+        </section>
+      </section>
     </div>
 
       </main>
