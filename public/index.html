@@ -2075,6 +2075,15 @@
     text-align:center;
   }
 
+
+  .metricsShell{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:1rem;}
+  .metricsGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.8rem;}
+  .metricsCard{background:var(--panel);border:1px solid var(--panel-strong);border-radius:.8rem;padding:.9rem;}
+  .metricsLabel{font-size:.78rem;color:var(--text-muted);}
+  .metricsValue{font-size:1.35rem;font-weight:700;margin-top:.35rem;}
+  .metricsTable{width:100%;border-collapse:collapse;font-size:.84rem;background:var(--panel);border:1px solid var(--panel-strong);}
+  .metricsTable th,.metricsTable td{padding:.55rem .6rem;border-bottom:1px solid var(--panel-strong);text-align:left;}
+
 </style>
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
@@ -2096,6 +2105,7 @@
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
+            <button id="navHoursSaved" class="flNavBtn" type="button" role="tab" aria-controls="viewHoursSaved" aria-selected="false" data-route="/hours-saved"><span class="flNavBtnIcon" aria-hidden="true">⏱️</span><span class="flNavBtnText">Hours saved</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -3318,6 +3328,23 @@ npm run dev</code></pre>
         </div>
         <div id="pmToast" class="pm-toast"></div>
     </div>
+
+    <div class="flView" id="viewHoursSaved" hidden>
+      <div class="metricsShell">
+        <h2>Hours Saved Ledger</h2>
+        <div class="metricsGrid" id="hoursSavedTop"></div>
+        <div class="metricsGrid" id="hoursSavedMid"></div>
+        <div>
+          <h3>Top 10 actions by time saved</h3>
+          <table class="metricsTable"><thead><tr><th>Action</th><th>Stage</th><th>Count</th><th>Hours saved</th></tr></thead><tbody id="hoursSavedTopActions"></tbody></table>
+        </div>
+        <div>
+          <h3>Top 5 actions by error cost avoided</h3>
+          <table class="metricsTable"><thead><tr><th>Action</th><th>Stage</th><th>Error cost avoided (R)</th></tr></thead><tbody id="hoursSavedErrorActions"></tbody></table>
+        </div>
+      </div>
+    </div>
+
 
       </main>
     </div>

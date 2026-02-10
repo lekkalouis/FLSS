@@ -90,6 +90,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const navFlocs = $("navFlocs");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
+  const navHoursSaved = $("navHoursSaved");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
@@ -99,6 +100,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
+  const viewHoursSaved = $("viewHoursSaved");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -111,6 +113,10 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const kpiMode = $("kpiMode");
   const kpiTruckStatus = $("kpiTruckStatus");
   const kpiLastScan = $("kpiLastScan");
+  const hoursSavedTop = $("hoursSavedTop");
+  const hoursSavedMid = $("hoursSavedMid");
+  const hoursSavedTopActions = $("hoursSavedTopActions");
+  const hoursSavedErrorActions = $("hoursSavedErrorActions");
 
   const MAX_ORDER_AGE_HOURS = 180;
 
@@ -176,6 +182,15 @@ import { initPriceManagerView } from "./views/price-manager.js";
       type: "route",
       target: "/price-manager",
       meta: "Pricing module",
+      tag: "Module"
+    },
+    {
+      id: "hours-saved",
+      title: "Hours Saved",
+      description: "Time ledger across order, dispatch, courier, and errors.",
+      type: "route",
+      target: "/hours-saved",
+      meta: "Metrics module",
       tag: "Module"
     }
   ];
@@ -3832,6 +3847,53 @@ async function startOrder(orderNo) {
     openModuleById(moduleId);
   });
 
+  const fmtMoney = (value) => `R${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
+  async function renderHoursSavedView() {
+    if (!hoursSavedTop) return;
+    try {
+      const res = await fetch(`${API_BASE}/metrics/dashboard`, { headers: { Accept: "application/json" } });
+      if (!res.ok) throw new Error(`Metrics fetch failed: ${res.status}`);
+      const data = await res.json();
+      const topCards = [
+        ["Hours saved today", (data.today.hours_saved || 0).toFixed(2)],
+        ["Hours saved MTD", (data.month_to_date.hours_saved || 0).toFixed(2)],
+        ["Rand value unlocked", fmtMoney(data.month_to_date.rand_value_unlocked)],
+        ["Equivalent FTE avoided", (data.month_to_date.equivalent_fte_avoided || 0).toFixed(2)],
+        ["Minutes/order manual", (data.month_to_date.minutes_per_order_manual || 0).toFixed(2)],
+        ["Minutes/order FLSS", (data.month_to_date.minutes_per_order_flss || 0).toFixed(2)]
+      ];
+      hoursSavedTop.innerHTML = topCards
+        .map(([label, value]) => `<article class="metricsCard"><div class="metricsLabel">${label}</div><div class="metricsValue">${value}</div></article>`)
+        .join("");
+
+      const diag = data.diagnostics || {};
+      const midCards = [
+        ["Systems touched", (diag.systems_touched || []).join(", ") || "-"],
+        ["Decisions taken", diag.decisions_taken || 0],
+        ["Manual entries avoided", diag.manual_entries_avoided || 0],
+        ["Load wait mins saved", (diag.load_wait_minutes_saved || 0).toFixed(1)],
+        ["Distraction risk touches", diag.distraction_risk_touches || 0],
+        ["Error cost avoided", fmtMoney(data.month_to_date.error_cost_avoided)]
+      ];
+      hoursSavedMid.innerHTML = midCards
+        .map(([label, value]) => `<article class="metricsCard"><div class="metricsLabel">${label}</div><div class="metricsValue">${value}</div></article>`)
+        .join("");
+
+      hoursSavedTopActions.innerHTML = (data.top_actions_time_saved || [])
+        .map((row) => `<tr><td>${row.label}</td><td>${row.category}</td><td>${row.count}</td><td>${(row.seconds_saved / 3600).toFixed(2)}</td></tr>`)
+        .join("") || '<tr><td colspan="4">No events captured yet.</td></tr>';
+      hoursSavedErrorActions.innerHTML = (data.top_actions_error_saved || [])
+        .map((row) => `<tr><td>${row.label}</td><td>${row.category}</td><td>${fmtMoney(row.error_cost_saved)}</td></tr>`)
+        .join("") || '<tr><td colspan="3">No events captured yet.</td></tr>';
+    } catch (error) {
+      hoursSavedTop.innerHTML = `<article class="metricsCard"><div class="metricsLabel">Hours saved</div><div class="metricsValue">Metrics unavailable</div></article>`;
+      hoursSavedMid.innerHTML = `<article class="metricsCard"><div class="metricsLabel">Reason</div><div class="metricsValue">${error.message}</div></article>`;
+      hoursSavedTopActions.innerHTML = '<tr><td colspan="4">Unable to load metrics.</td></tr>';
+      hoursSavedErrorActions.innerHTML = '<tr><td colspan="3">Unable to load metrics.</td></tr>';
+    }
+  }
+
   function switchMainView(view) {
     const showDashboard = view === "dashboard";
     const showScan = view === "scan";
@@ -3841,6 +3903,7 @@ async function startOrder(orderNo) {
     const showFlocs = view === "flocs";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
+    const showHoursSaved = view === "hours-saved";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3874,6 +3937,11 @@ async function startOrder(orderNo) {
       viewPriceManager.hidden = !showPriceManager;
       viewPriceManager.classList.toggle("flView--active", showPriceManager);
     }
+    if (viewHoursSaved) {
+      viewHoursSaved.hidden = !showHoursSaved;
+      viewHoursSaved.classList.toggle("flView--active", showHoursSaved);
+      if (showHoursSaved) renderHoursSavedView();
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
@@ -3883,6 +3951,7 @@ async function startOrder(orderNo) {
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
+    navHoursSaved?.classList.toggle("flNavBtn--active", showHoursSaved);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
@@ -3891,6 +3960,7 @@ async function startOrder(orderNo) {
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
+    navHoursSaved?.setAttribute("aria-selected", showHoursSaved ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
@@ -3907,6 +3977,8 @@ async function startOrder(orderNo) {
       statusExplain("Stock take ready.", "info");
     } else if (showPriceManager) {
       statusExplain("Price manager ready.", "info");
+    } else if (showHoursSaved) {
+      statusExplain("Hours saved ledger ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -3921,7 +3993,8 @@ async function startOrder(orderNo) {
     ["/flowcharts", "flowcharts"],
     ["/flocs", "flocs"],
     ["/stock", "stock"],
-    ["/price-manager", "price-manager"]
+    ["/price-manager", "price-manager"],
+    ["/hours-saved", "hours-saved"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -3932,7 +4005,8 @@ async function startOrder(orderNo) {
     flowcharts: "/flowcharts",
     flocs: "/flocs",
     stock: "/stock",
-    "price-manager": "/price-manager"
+    "price-manager": "/price-manager",
+    "hours-saved": "/hours-saved"
   };
 
   const viewInitializers = {

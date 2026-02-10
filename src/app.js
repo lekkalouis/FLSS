@@ -14,6 +14,7 @@ import printnodeRouter from "./routes/printnode.js";
 import shopifyRouter from "./routes/shopify.js";
 import statusRouter from "./routes/status.js";
 import configRouter from "./routes/config.js";
+import metricsRouter from "./routes/metrics.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,6 +86,7 @@ export function createApp() {
   apiRouter.use(shopifyRouter);
   apiRouter.use(printnodeRouter);
   apiRouter.use(alertsRouter);
+  apiRouter.use(metricsRouter);
   app.use("/api/v1", apiRouter);
   app.use("/api/v1", (_req, res) => res.status(404).json({ error: "Not found" }));
 
