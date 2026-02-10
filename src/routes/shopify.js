@@ -163,6 +163,12 @@ function parsePageInfo(linkHeader) {
   return info;
 }
 
+function toNumberOrNull(value) {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 router.get("/shopify/customers/search", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -347,6 +353,186 @@ router.post("/shopify/customers", async (req, res) => {
     return res
       .status(502)
       .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+router.get("/shopify/reseller-directory", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const maxCustomers = Math.min(Math.max(Number(req.query.maxCustomers || 600), 50), 2000);
+    const maxOrderPages = Math.min(Math.max(Number(req.query.maxOrderPages || 4), 1), 10);
+
+    const customers = [];
+    let customerPageInfo = null;
+    while (customers.length < maxCustomers) {
+      const params = new URLSearchParams({
+        limit: "250",
+        fields: "id,first_name,last_name,email,phone,tags,addresses,default_address"
+      });
+      if (customerPageInfo) params.set("page_info", customerPageInfo);
+
+      const resp = await shopifyFetch(`${base}/customers.json?${params.toString()}`, { method: "GET" });
+      if (!resp.ok) {
+        const body = await resp.text();
+        return res.status(resp.status).json({
+          error: "SHOPIFY_UPSTREAM",
+          status: resp.status,
+          statusText: resp.statusText,
+          body
+        });
+      }
+
+      const data = await resp.json();
+      const chunk = Array.isArray(data.customers) ? data.customers : [];
+      customers.push(...chunk);
+
+      const paging = parsePageInfo(resp.headers.get("link"));
+      customerPageInfo = paging.next || null;
+      if (!customerPageInfo || !chunk.length) break;
+    }
+
+    const directoryCandidates = customers.filter((customer) => {
+      const tags = normalizeTagList(customer?.tags).map((tag) => tag.toLowerCase());
+      return tags.includes("retailer") || tags.includes("agent");
+    });
+
+    const customerIds = new Set(directoryCandidates.map((customer) => String(customer.id)));
+
+    const orderSkuMap = new Map();
+    let orderPageInfo = null;
+    for (let page = 0; page < maxOrderPages; page += 1) {
+      const params = new URLSearchParams({
+        status: "any",
+        limit: "250",
+        order: "created_at desc",
+        fields: "id,cancelled_at,customer,line_items"
+      });
+      if (orderPageInfo) params.set("page_info", orderPageInfo);
+
+      const resp = await shopifyFetch(`${base}/orders.json?${params.toString()}`, { method: "GET" });
+      if (!resp.ok) break;
+
+      const data = await resp.json();
+      const orders = Array.isArray(data.orders) ? data.orders : [];
+      orders.forEach((order) => {
+        if (order?.cancelled_at) return;
+        const customerId = String(order?.customer?.id || "");
+        if (!customerId || !customerIds.has(customerId)) return;
+        if (!orderSkuMap.has(customerId)) orderSkuMap.set(customerId, new Map());
+        const variants = orderSkuMap.get(customerId);
+        (order.line_items || []).forEach((item) => {
+          const key = item.sku || item.variant_id || item.title;
+          if (!key) return;
+          if (!variants.has(key)) {
+            variants.set(key, {
+              sku: item.sku || "",
+              title: item.title || "Untitled variant",
+              variant_title: item.variant_title || "",
+              quantity: 0,
+              orders: 0
+            });
+          }
+          const entry = variants.get(key);
+          entry.quantity += Number(item.quantity || 0);
+          entry.orders += 1;
+        });
+      });
+
+      const paging = parsePageInfo(resp.headers.get("link"));
+      orderPageInfo = paging.next || null;
+      if (!orderPageInfo || !orders.length) break;
+    }
+
+    const entries = await Promise.all(
+      directoryCandidates.map(async (customer) => {
+        let metafields = [];
+        try {
+          const metaResp = await shopifyFetch(`${base}/customers/${customer.id}/metafields.json`, {
+            method: "GET"
+          });
+          if (metaResp.ok) {
+            const metaData = await metaResp.json();
+            metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
+          }
+        } catch {
+          metafields = [];
+        }
+
+        const getMetaValue = (key) =>
+          metafields.find((field) => field.namespace === "custom" && field.key === key)?.value || null;
+
+        const tags = normalizeTagList(customer.tags);
+        const lowerTags = tags.map((tag) => tag.toLowerCase());
+        const type = lowerTags.includes("agent") ? "agent" : "retailer";
+
+        const defaultAddress = customer.default_address || customer.addresses?.[0] || null;
+        const lat =
+          toNumberOrNull(defaultAddress?.latitude) ??
+          toNumberOrNull(getMetaValue("geo_lat")) ??
+          toNumberOrNull(getMetaValue("latitude"));
+        const lng =
+          toNumberOrNull(defaultAddress?.longitude) ??
+          toNumberOrNull(getMetaValue("geo_lng")) ??
+          toNumberOrNull(getMetaValue("longitude"));
+        const radiusKm =
+          toNumberOrNull(getMetaValue("service_radius_km")) ??
+          toNumberOrNull(getMetaValue("radius_km")) ??
+          (type === "agent" ? 30 : null);
+
+        const variants = Array.from(orderSkuMap.get(String(customer.id))?.values() || []).sort(
+          (a, b) => b.quantity - a.quantity
+        );
+
+        return {
+          id: customer.id,
+          type,
+          name:
+            defaultAddress?.company ||
+            `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
+            customer.email ||
+            `Customer ${customer.id}`,
+          tags,
+          email: customer.email || "",
+          phone: customer.phone || "",
+          address: defaultAddress
+            ? {
+                address1: defaultAddress.address1 || "",
+                address2: defaultAddress.address2 || "",
+                city: defaultAddress.city || "",
+                province: defaultAddress.province || "",
+                zip: defaultAddress.zip || "",
+                country: defaultAddress.country || ""
+              }
+            : null,
+          coordinates: lat != null && lng != null ? { lat, lng } : null,
+          radius_km: radiusKm,
+          variants
+        };
+      })
+    );
+
+    const withCoordinates = entries.filter((entry) => entry.coordinates);
+    const withoutCoordinates = entries.filter((entry) => !entry.coordinates);
+
+    return res.json({
+      generatedAt: new Date().toISOString(),
+      summary: {
+        total: entries.length,
+        retailers: entries.filter((entry) => entry.type === "retailer").length,
+        agents: entries.filter((entry) => entry.type === "agent").length,
+        withCoordinates: withCoordinates.length,
+        withoutCoordinates: withoutCoordinates.length
+      },
+      entries: [...withCoordinates, ...withoutCoordinates]
+    });
+  } catch (err) {
+    console.error("Shopify reseller-directory error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
   }
 });
 
