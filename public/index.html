@@ -3062,12 +3062,14 @@ npm run dev</code></pre>
     <div class="flView" id="viewStock" hidden>
       <div class="stock-shell">
         <div class="stock-grid">
-          <section class="stock-card">
+          <section class="stock-card stock-overviewCard">
             <h2>Stock overview</h2>
             <div class="stock-toolbar">
               <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
               <div class="stock-modeToggle">
+                <button class="stock-modeBtn" type="button" data-mode="read">Read only</button>
                 <button class="stock-modeBtn is-active" type="button" data-mode="take">Stock take</button>
+                <button class="stock-modeBtn" type="button" data-mode="produce">Produce</button>
                 <button class="stock-modeBtn" type="button" data-mode="receive">Stock received</button>
               </div>
               <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
@@ -3168,6 +3170,52 @@ npm run dev</code></pre>
             <div class="stock-subsection">
               <h3>Production orders</h3>
               <div id="mrp-batchList" class="stock-batchList"></div>
+            </div>
+
+            <div class="stock-subsection">
+              <h3>Purchase orders (raw materials)</h3>
+              <form id="po-batchForm" class="stock-form">
+                <div class="stock-formRow">
+                  <label class="stock-field">
+                    <span>PO name</span>
+                    <input id="po-batchName" class="stock-input" type="text" placeholder="e.g. Monthly raw-material restock" />
+                  </label>
+                </div>
+                <div class="stock-formRow stock-formRow--compact">
+                  <label class="stock-field">
+                    <span>Raw material SKU</span>
+                    <select id="po-skuSelect" class="stock-select"></select>
+                  </label>
+                  <label class="stock-field">
+                    <span>Order qty</span>
+                    <input id="po-skuQty" class="stock-input" type="number" min="1" step="1" placeholder="0" />
+                  </label>
+                  <button id="po-addLine" class="stock-actionBtn stock-actionBtn--inline" type="button">Add line</button>
+                </div>
+                <div class="stock-lines">
+                  <table class="stock-table stock-table--compact">
+                    <thead>
+                      <tr>
+                        <th>SKU</th>
+                        <th>Material</th>
+                        <th>Qty</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="po-linesTable">
+                      <tr>
+                        <td colspan="4" class="stock-muted">Add raw material lines to create a purchase order.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="stock-formActions">
+                  <button id="po-createBatch" class="stock-primaryBtn" type="button">Create PO</button>
+                  <button id="po-clearLines" class="stock-ghostBtn" type="button">Clear lines</button>
+                </div>
+              </form>
+
+              <div id="po-batchList" class="stock-batchList"></div>
             </div>
           </section>
         </div>

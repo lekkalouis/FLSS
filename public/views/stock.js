@@ -11,6 +11,7 @@ export function initStockView() {
   const MRP_STORAGE_KEY = "fl_stock_mrp_v1";
   const API_BASE = "/api/v1/shopify";
 
+  const rootView = document.getElementById("viewStock");
   const searchInput = document.getElementById("stock-search");
   const modeButtons = document.querySelectorAll(".stock-modeBtn");
   const modeLabel = document.getElementById("stock-modeLabel");
@@ -31,8 +32,26 @@ export function initStockView() {
   const mrpClearLines = document.getElementById("mrp-clearLines");
   const mrpSummaryTable = document.getElementById("mrp-summaryTable");
   const mrpBatchList = document.getElementById("mrp-batchList");
+  const poBatchName = document.getElementById("po-batchName");
+  const poSkuSelect = document.getElementById("po-skuSelect");
+  const poSkuQty = document.getElementById("po-skuQty");
+  const poAddLine = document.getElementById("po-addLine");
+  const poLinesTable = document.getElementById("po-linesTable");
+  const poCreateBatch = document.getElementById("po-createBatch");
+  const poClearLines = document.getElementById("po-clearLines");
+  const poBatchList = document.getElementById("po-batchList");
 
-  let items = [...PRODUCT_LIST];
+  const RAW_MATERIALS = [
+    { sku: "RM-BASE-ORIG", title: "Original base blend (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
+    { sku: "RM-BASE-HOT", title: "Hot & spicy base blend (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
+    { sku: "RM-PACK-200", title: "200ml shaker packs (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
+    { sku: "RM-PACK-500", title: "500g pouches (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
+    { sku: "RM-LABEL", title: "Product labels (Draft)", variantId: null, isRawMaterial: true, isDraft: true }
+  ];
+
+  const finishedGoods = PRODUCT_LIST.filter((item) => !item.isRawMaterial);
+  const rawMaterials = RAW_MATERIALS;
+  let items = [...finishedGoods];
   let stockLevels = {};
   let currentMode = "read";
   let logEntries = [];
@@ -40,8 +59,9 @@ export function initStockView() {
   let transferLocationId = null;
   let locations = [];
   let locationNameMap = new Map();
-  let mrpState = { batches: [] };
+  let mrpState = { batches: [], purchaseOrders: [] };
   let mrpDraftLines = [];
+  let poDraftLines = [];
   const CRATE_UNITS = 102;
   const BOX_UNITS = 250;
 
@@ -61,9 +81,9 @@ export function initStockView() {
   }
 
   async function loadStockLevels() {
-    stockLevels = Object.fromEntries(PRODUCT_LIST.map((item) => [item.sku, 0]));
+    stockLevels = Object.fromEntries([...finishedGoods, ...rawMaterials].map((item) => [item.sku, Number(stockLevels[item.sku] || 0)]));
     try {
-      const variantIds = PRODUCT_LIST.map((item) => item.variantId).filter(Boolean);
+      const variantIds = finishedGoods.map((item) => item.variantId).filter(Boolean);
       if (!variantIds.length) return;
       const locationParam = currentLocationId ? `&locationId=${currentLocationId}` : "";
       const resp = await fetch(
@@ -81,7 +101,7 @@ export function initStockView() {
       const levelsByVariant = new Map(
         levels.map((level) => [Number(level.variantId), Number(level.available || 0)])
       );
-      PRODUCT_LIST.forEach((item) => {
+      finishedGoods.forEach((item) => {
         if (!item.variantId) return;
         const available = levelsByVariant.get(Number(item.variantId));
         if (available != null && Number.isFinite(available)) {
@@ -150,12 +170,15 @@ export function initStockView() {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.batches)) {
-          mrpState = parsed;
+          mrpState = {
+            batches: parsed.batches,
+            purchaseOrders: Array.isArray(parsed.purchaseOrders) ? parsed.purchaseOrders : []
+          };
           return;
         }
       }
     } catch {}
-    mrpState = { batches: [] };
+    mrpState = { batches: [], purchaseOrders: [] };
   }
 
   function saveMrpState() {
@@ -170,7 +193,7 @@ export function initStockView() {
 
   function renderMrpSkuOptions() {
     if (!mrpSkuSelect) return;
-    mrpSkuSelect.innerHTML = items
+    mrpSkuSelect.innerHTML = finishedGoods
       .map((item) => `<option value="${item.sku}">${item.sku} — ${item.title}</option>`)
       .join("");
   }
@@ -195,6 +218,70 @@ export function initStockView() {
             <td>${formatNumber(line.qty)}</td>
             <td><button class="stock-actionBtn stock-actionBtn--inline" type="button" data-mrp-remove="${line.sku}">Remove</button></td>
           </tr>
+        `;
+      })
+      .join("");
+  }
+
+  function renderPoSkuOptions() {
+    if (!poSkuSelect) return;
+    poSkuSelect.innerHTML = rawMaterials
+      .map((item) => `<option value="${item.sku}">${item.sku} — ${item.title}</option>`)
+      .join("");
+  }
+
+  function renderPoDraftLines() {
+    if (!poLinesTable) return;
+    if (!poDraftLines.length) {
+      poLinesTable.innerHTML = `
+        <tr>
+          <td colspan="4" class="stock-muted">Add raw material lines to create a purchase order.</td>
+        </tr>
+      `;
+      return;
+    }
+    poLinesTable.innerHTML = poDraftLines
+      .map((line) => {
+        const product = rawMaterials.find((entry) => entry.sku === line.sku);
+        return `
+          <tr data-sku="${line.sku}">
+            <td><strong>${line.sku}</strong></td>
+            <td>${product?.title || "Unknown"}</td>
+            <td>${formatNumber(line.qty)}</td>
+            <td><button class="stock-actionBtn stock-actionBtn--inline" type="button" data-po-remove="${line.sku}">Remove</button></td>
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
+  function renderPoBatches() {
+    if (!poBatchList) return;
+    const batches = (mrpState.purchaseOrders || []).slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (!batches.length) {
+      poBatchList.innerHTML = `<div class="stock-muted">No purchase orders yet.</div>`;
+      return;
+    }
+    poBatchList.innerHTML = batches
+      .map((batch) => {
+        const lines = batch.lines
+          .map((line) => `<li><strong>${line.sku}</strong> × ${formatNumber(line.qty)}</li>`)
+          .join("");
+        const status = batch.status === "received" ? "Received" : "Open";
+        return `
+          <div class="stock-batchCard" data-po-id="${batch.id}">
+            <div class="stock-batchHeader">
+              <div>
+                <strong>${batch.name}</strong>
+                <div class="stock-batchMeta">${status} • ${new Date(batch.createdAt).toLocaleString()}</div>
+              </div>
+              <div class="stock-batchActions">
+                ${batch.status !== "received" ? '<button type="button" class="is-primary" data-po-action="receive">Receive PO</button>' : ""}
+                <button type="button" class="is-danger" data-po-action="delete">Delete</button>
+              </div>
+            </div>
+            <ul class="stock-muted">${lines}</ul>
+          </div>
         `;
       })
       .join("");
@@ -447,9 +534,11 @@ export function initStockView() {
   }
 
   function filteredItems() {
+    const sourceItems = currentMode === "receive" ? rawMaterials : finishedGoods;
+    items = sourceItems;
     const q = (searchInput?.value || "").trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
+    if (!q) return sourceItems;
+    return sourceItems.filter(
       (item) =>
         item.sku.toLowerCase().includes(q) ||
         item.title.toLowerCase().includes(q)
@@ -530,7 +619,7 @@ export function initStockView() {
   }
 
   function updateModeUI() {
-    const isReadOnly = currentMode === "read";
+    const isReadOnly = currentMode === "read" || currentMode === "produce";
     const isReceive = currentMode === "receive";
     modeButtons.forEach((btn) => {
       if (btn.dataset.mode === currentMode) {
@@ -541,13 +630,18 @@ export function initStockView() {
     });
     if (modeLabel) {
       modeLabel.textContent = currentMode === "receive"
-        ? "Mode: Stock received"
+        ? "Mode: Stock received (raw materials)"
         : currentMode === "take"
         ? "Mode: Stock take"
+        : currentMode === "produce"
+        ? "Mode: Produce"
         : "Mode: Read only";
     }
     if (table) {
       table.dataset.mode = currentMode;
+    }
+    if (rootView) {
+      rootView.dataset.mode = currentMode;
     }
     tableBody?.querySelectorAll(".stock-actionBtn").forEach((btn) => {
       if (isReceive) {
@@ -567,6 +661,7 @@ export function initStockView() {
       if (btn.dataset.action === "transfer") {
         const canTransfer =
           !isReadOnly &&
+          !isReceive &&
           currentLocationId &&
           transferLocationId &&
           Number(currentLocationId) !== Number(transferLocationId);
@@ -588,10 +683,24 @@ export function initStockView() {
     if (!Number.isFinite(val)) {
       return;
     }
-    const item = items.find((entry) => entry.sku === sku);
-    if (!item?.variantId) return;
+    const item = [...finishedGoods, ...rawMaterials].find((entry) => entry.sku === sku);
+    if (!item) return;
 
     const oldCount = getStock(sku);
+
+    if (!item.variantId) {
+      const nextCount = currentMode === "receive" ? oldCount + Math.max(0, Math.floor(val)) : Math.max(0, Math.floor(val));
+      setStock(sku, nextCount);
+      const currentCell = row.querySelector(`[data-current="${sku}"]`);
+      if (currentCell) currentCell.textContent = String(nextCount);
+      appendLogEntry({
+        sku,
+        oldCount,
+        newCount: nextCount,
+        mode: currentMode === "receive" ? "receive" : "take"
+      });
+      return;
+    }
 
     try {
       const resp = await fetch(`${API_BASE}/inventory-levels/set`, {
@@ -682,6 +791,7 @@ export function initStockView() {
         const mode = btn.dataset.mode;
         if (!mode) return;
         currentMode = mode;
+        renderTable();
         updateModeUI();
       });
     });
@@ -794,6 +904,89 @@ export function initStockView() {
       renderMrpSummary();
     });
 
+
+    poAddLine?.addEventListener("click", () => {
+      const sku = poSkuSelect?.value;
+      const qty = Number(poSkuQty?.value);
+      if (!sku || !Number.isFinite(qty) || qty <= 0) return;
+      const existing = poDraftLines.find((line) => line.sku === sku);
+      if (existing) {
+        existing.qty += qty;
+      } else {
+        poDraftLines.push({ sku, qty });
+      }
+      if (poSkuQty) poSkuQty.value = "";
+      renderPoDraftLines();
+    });
+
+    poLinesTable?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-po-remove]");
+      if (!button) return;
+      const sku = button.dataset.poRemove;
+      poDraftLines = poDraftLines.filter((line) => line.sku !== sku);
+      renderPoDraftLines();
+    });
+
+    poClearLines?.addEventListener("click", () => {
+      poDraftLines = [];
+      renderPoDraftLines();
+    });
+
+    poCreateBatch?.addEventListener("click", () => {
+      const name = poBatchName?.value.trim();
+      if (!name || !poDraftLines.length) return;
+      const batch = {
+        id: `po-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name,
+        createdAt: new Date().toISOString(),
+        status: "open",
+        lines: poDraftLines.map((line) => ({ ...line }))
+      };
+      mrpState.purchaseOrders = mrpState.purchaseOrders || [];
+      mrpState.purchaseOrders.unshift(batch);
+      saveMrpState();
+      poDraftLines = [];
+      if (poBatchName) poBatchName.value = "";
+      renderPoDraftLines();
+      renderPoBatches();
+    });
+
+    poBatchList?.addEventListener("click", (event) => {
+      const actionBtn = event.target.closest("button[data-po-action]");
+      if (!actionBtn) return;
+      const card = actionBtn.closest("[data-po-id]");
+      if (!card) return;
+      const poId = card.dataset.poId;
+      const list = mrpState.purchaseOrders || [];
+      const po = list.find((entry) => entry.id === poId);
+      if (!po) return;
+      const action = actionBtn.dataset.poAction;
+      if (action === "delete") {
+        mrpState.purchaseOrders = list.filter((entry) => entry.id !== poId);
+        saveMrpState();
+        renderPoBatches();
+        return;
+      }
+      if (action === "receive") {
+        po.lines.forEach((line) => {
+          const oldCount = getStock(line.sku);
+          const receiveQty = Math.max(0, Math.floor(Number(line.qty) || 0));
+          setStock(line.sku, oldCount + receiveQty);
+          appendLogEntry({
+            sku: line.sku,
+            oldCount,
+            newCount: oldCount + receiveQty,
+            mode: "receive-po"
+          });
+        });
+        po.status = "received";
+        po.receivedAt = new Date().toISOString();
+        saveMrpState();
+        renderTable();
+        renderPoBatches();
+      }
+    });
+
     mrpBatchList?.addEventListener("click", (event) => {
       const actionBtn = event.target.closest("button[data-batch-action]");
       if (!actionBtn) return;
@@ -827,8 +1020,11 @@ export function initStockView() {
   renderLog();
   loadMrpState();
   renderMrpSkuOptions();
+  renderPoSkuOptions();
   renderDraftLines();
+  renderPoDraftLines();
   renderMrpBatches();
+  renderPoBatches();
   renderMrpSummary();
   renderTable();
   updateModeUI();
