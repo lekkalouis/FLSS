@@ -71,7 +71,7 @@ export function initFlocsView() {
     customer: null,
     po: "",
     deliveryDate: "",
-    delivery: "shipping",        // shipping | pickup | delivery | local
+    delivery: "shipping",        // shipping | pickup | delivery
     shippingAddressIndex: null,      // index in customer.addresses
     billingAddressIndex: null,       // index in customer.addresses
     items: {},               // sku -> qty
@@ -395,8 +395,7 @@ export function initFlocsView() {
     if (normalized === "ship" || normalized === "shipping") return "shipping";
     if (normalized === "deliver" || normalized === "delivery") return "delivery";
     if (normalized === "pickup") return "pickup";
-    if (normalized === "local") return "local";
-    return "shipping";
+        return "shipping";
   }
 
   function syncDeliveryGroup() {
@@ -670,8 +669,6 @@ export function initFlocsView() {
         ? "Pickup at Flippen Lekka"
         : delivery === "delivery"
         ? "Delivery (own vehicle)"
-        : delivery === "local"
-        ? "Local delivery"
         : "Shipping via SWE";
 
     const billToText = state.customer
@@ -704,7 +701,7 @@ ${state.customer.email || ""}${
           )}`
         : delivery === "shipping"
         ? "Shipping will be added once SWE quote is calculated"
-        : "R0.00 (pickup/delivery/local)";
+        : "R0.00 (pickup/delivery)";
 
     const itemsRows = items.length
       ? items
@@ -930,7 +927,7 @@ ${state.customer.email || ""}${
     if (currentDelivery() !== "shipping") {
       state.shippingQuote = null;
       shippingSummary.textContent =
-        "Delivery type is pickup/delivery/local – no courier shipping.";
+        "Delivery type is pickup/delivery – no courier shipping.";
       validate();
       renderInvoice();
       return;
@@ -1797,7 +1794,7 @@ ${state.customer.email || ""}${
         if (state.delivery !== "shipping") {
           state.shippingQuote = null;
           shippingSummary.textContent =
-            "No courier shipping for pickup/delivery/local.";
+            "No courier shipping for pickup/delivery.";
         }
         renderCustomerChips();
         renderInvoice();

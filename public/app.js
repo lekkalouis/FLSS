@@ -45,7 +45,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const truckBookBtn = $("truckBookBtn");
   const truckStatus = $("truckStatus");
   const truckParcelCount = $("truckParcelCount");
-  const multiShipToggle = $("multiShipToggle");
+  const dispatchCreateCombined = $("dispatchCreateCombined");
   const dispatchExpandToggle = $("dispatchExpandToggle");
   const uiBundleOrders = $("uiBundleOrders");
   const uiMultiShip = $("uiMultiShip");
@@ -64,6 +64,9 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dispatchSelectionWeight = $("dispatchSelectionWeight");
   const dispatchSelectionTime = $("dispatchSelectionTime");
   const dispatchSelectionClear = $("dispatchSelectionClear");
+  const dispatchPrintDocs = $("dispatchPrintDocs");
+  const dispatchDeliverSelected = $("dispatchDeliverSelected");
+  const dispatchMarkDelivered = $("dispatchMarkDelivered");
   const dispatchShipmentsSidebar = $("dispatchShipmentsSidebar");
   const dispatchOrderModal = $("dispatchOrderModal");
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
@@ -179,7 +182,9 @@ import { initPriceManagerView } from "./views/price-manager.js";
   let bookedOrders = new Set();
   let isAutoMode = true;
   let linkedOrders = new Map();
-  let multiShipEnabled = false;
+  const combinedShipments = new Map();
+  const combinedOrderToGroup = new Map();
+  const printedDeliveryNotes = new Set();
   const dispatchOrderCache = new Map();
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
@@ -312,6 +317,104 @@ import { initPriceManagerView } from "./views/price-manager.js";
     ]
       .filter(Boolean)
       .join("|");
+  }
+
+  
+
+  function orderNoFromName(name) {
+    return String(name || "").replace("#", "").trim();
+  }
+
+  function getDispatchOrderAddress(order) {
+    if (!order) return null;
+    return {
+      name: order.customer_name || order.name || "",
+      address1: order.shipping_address1 || "",
+      address2: order.shipping_address2 || "",
+      city: order.shipping_city || "",
+      province: order.shipping_province || "",
+      postal: order.shipping_postal || ""
+    };
+  }
+
+  function addressSignatureFromOrder(order) {
+    const addr = getDispatchOrderAddress(order);
+    if (!addr) return "";
+    return [addr.address1, addr.address2, addr.city, addr.province, addr.postal]
+      .map(normalizeAddressField)
+      .filter(Boolean)
+      .join("|");
+  }
+
+  function colorFromGroupId(groupId) {
+    const palette = ["#22d3ee", "#a78bfa", "#fb7185", "#34d399", "#f59e0b", "#60a5fa"];
+    let hash = 0;
+    for (const ch of String(groupId || "")) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+    return palette[hash % palette.length];
+  }
+
+  function getCombinedGroupForOrder(orderNo) {
+    const groupId = combinedOrderToGroup.get(String(orderNo || ""));
+    if (!groupId) return null;
+    return combinedShipments.get(groupId) || null;
+  }
+
+  async function createCombinedShipmentFromSelection() {
+    const selected = Array.from(dispatchSelectedOrders);
+    if (selected.length < 2) {
+      statusExplain("Select at least 2 orders to create a combined shipment.", "warn");
+      return;
+    }
+    const orders = selected
+      .map((orderNo) => dispatchOrderCache.get(orderNo))
+      .filter(Boolean);
+    if (orders.length < 2) {
+      statusExplain("Unable to resolve selected orders.", "warn");
+      return;
+    }
+
+    const addressOptions = [];
+    const seen = new Set();
+    for (const order of orders) {
+      const signature = addressSignatureFromOrder(order);
+      if (!signature || seen.has(signature)) continue;
+      seen.add(signature);
+      const orderNo = orderNoFromName(order.name);
+      const addr = getDispatchOrderAddress(order);
+      addressOptions.push({ orderNo, signature, address: addr });
+    }
+
+    if (!addressOptions.length) {
+      statusExplain("Selected orders are missing shipping addresses.", "warn");
+      return;
+    }
+
+    let chosen = addressOptions[0];
+    if (addressOptions.length > 1) {
+      const promptText = addressOptions
+        .map((opt, idx) => `${idx + 1}. ${opt.orderNo} - ${opt.address.address1}, ${opt.address.city}`)
+        .join("\n");
+      const raw = window.prompt(`Select shipping address for combined shipment:\n${promptText}\n\nEnter option number:`, "1");
+      const idx = Number.parseInt(String(raw || "").trim(), 10);
+      if (!Number.isInteger(idx) || idx < 1 || idx > addressOptions.length) {
+        statusExplain("Combined shipment cancelled.", "warn");
+        return;
+      }
+      chosen = addressOptions[idx - 1];
+    }
+
+    const groupId = `combined-${Date.now()}`;
+    const group = {
+      id: groupId,
+      orderNos: selected,
+      addressSignature: chosen.signature,
+      address: chosen.address,
+      color: colorFromGroupId(groupId)
+    };
+    combinedShipments.set(groupId, group);
+    selected.forEach((orderNo) => combinedOrderToGroup.set(orderNo, groupId));
+    renderDispatchBoard(dispatchOrdersLatest);
+    statusExplain(`Combined shipment created for ${selected.length} orders.`, "ok");
   }
 
   function renderServerStatusBar(data) {
@@ -738,14 +841,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
     modeToggle.setAttribute("aria-pressed", isAutoMode ? "true" : "false");
   }
 
-  function updateMultiShipToggle() {
-    if (!multiShipToggle) return;
-    multiShipToggle.textContent = `Multi-shipment override: ${multiShipEnabled ? "On" : "Off"}`;
-    multiShipToggle.classList.toggle("is-active", multiShipEnabled);
-    multiShipToggle.setAttribute("aria-pressed", multiShipEnabled ? "true" : "false");
-    if (uiMultiShip) uiMultiShip.textContent = multiShipEnabled ? "On" : "Off";
-  }
-
   function loadBookedOrders() {
     try {
       const raw = localStorage.getItem("fl_booked_orders_v1");
@@ -982,7 +1077,7 @@ function cancelAutoBookTimer() {
     cancelAutoBookTimer();
 
     if (!isAutoMode) return;
-    if (multiShipEnabled && linkedOrders.size > 0) return;
+    if (linkedOrders.size > 0 && getTotalExpectedCount()) return;
 
   // Only for untagged orders
     if (!activeOrderNo || !orderDetails) return;
@@ -1180,7 +1275,7 @@ function cancelAutoBookTimer() {
       uiBundleOrders.textContent = bundleOrderNos.length ? bundleOrderNos.join(", ") : "--";
     }
     if (uiMultiShip) {
-      uiMultiShip.textContent = multiShipEnabled ? "On" : "Off";
+      uiMultiShip.textContent = linkedOrders.size ? "On" : "Off";
     }
 
     const expected = getExpectedParcelCount(orderDetails || {});
@@ -1316,8 +1411,8 @@ ${orderDetails.province} ${orderDetails.postal}`.trim();
         uiAutoBook.textContent = "Idle";
       } else if (!isAutoMode) {
         uiAutoBook.textContent = "Manual mode";
-      } else if (multiShipEnabled && linkedOrders.size) {
-        uiAutoBook.textContent = "Multi-order: auto-book paused";
+      } else if (linkedOrders.size) {
+        uiAutoBook.textContent = getTotalExpectedCount() ? "Combined: immediate once scanned" : "Combined: set parcel counts";
       } else if (hasParcelCountTag(orderDetails)) {
         uiAutoBook.textContent = "Immediate on first scan";
       } else if (autoBookEndsAt) {
@@ -1962,34 +2057,45 @@ async function startOrder(orderNo) {
 
     if (!activeOrderNo) {
       await startOrder(parsed.orderNo);
+      const initialGroup = getCombinedGroupForOrder(parsed.orderNo);
+      if (initialGroup && initialGroup.orderNos.includes(parsed.orderNo)) {
+        for (const orderNo of initialGroup.orderNos) {
+          if (orderNo === parsed.orderNo) continue;
+          const details = await fetchShopifyOrder(orderNo);
+          if (!details) continue;
+          if (initialGroup.address) {
+            details.address1 = initialGroup.address.address1;
+            details.address2 = initialGroup.address.address2;
+            details.city = initialGroup.address.city;
+            details.province = initialGroup.address.province;
+            details.postal = initialGroup.address.postal;
+          }
+          linkedOrders.set(orderNo, details);
+        }
+      }
     } else if (parsed.orderNo !== activeOrderNo && !linkedOrders.has(parsed.orderNo)) {
       cancelAutoBookTimer();
-      if (!multiShipEnabled) {
-        statusExplain(
-          `Different order scanned (${parsed.orderNo}). Enable multi-shipment to bundle.`,
-          "warn"
-        );
+      const group = getCombinedGroupForOrder(parsed.orderNo);
+      if (!group || !group.orderNos.includes(activeOrderNo)) {
+        statusExplain(`Different order scanned (${parsed.orderNo}). Create Combined Shipment first.`, "warn");
         confirmScanFeedback("warn");
         return;
       }
 
-      const candidate = await fetchShopifyOrder(parsed.orderNo);
-      if (!candidate) {
-        statusExplain(`Order ${parsed.orderNo} not found.`, "warn");
-        confirmScanFeedback("warn");
-        return;
+      for (const orderNo of group.orderNos) {
+        if (orderNo === activeOrderNo) continue;
+        const details = await fetchShopifyOrder(orderNo);
+        if (!details) continue;
+        if (group.address) {
+          details.address1 = group.address.address1;
+          details.address2 = group.address.address2;
+          details.city = group.address.city;
+          details.province = group.address.province;
+          details.postal = group.address.postal;
+        }
+        linkedOrders.set(orderNo, details);
       }
-
-      const baseSignature = addressSignature(orderDetails);
-      const candidateSignature = addressSignature(candidate);
-      if (!baseSignature || baseSignature !== candidateSignature) {
-        statusExplain(`Different order ${parsed.orderNo} has a different address.`, "warn");
-        confirmScanFeedback("warn");
-        return;
-      }
-
-      linkedOrders.set(parsed.orderNo, candidate);
-      statusExplain(`Bundling order ${parsed.orderNo} (same address).`, "ok");
+      statusExplain(`Bundled ${group.orderNos.length} combined orders.`, "ok");
     }
 
     const parcelSet = getParcelSet(parsed.orderNo);
@@ -2004,7 +2110,7 @@ async function startOrder(orderNo) {
     const expected = getExpectedParcelCount(orderDetails);
 
     // TAGGED: auto-book immediately on first scan (single order only)
-    if (isAutoMode && hasParcelCountTag(orderDetails) && expected && !multiShipEnabled && !linkedOrders.size) {
+    if (isAutoMode && hasParcelCountTag(orderDetails) && expected && !linkedOrders.size) {
       cancelAutoBookTimer();
 
       parcelsByOrder.set(activeOrderNo, new Set(Array.from({ length: expected }, (_, i) => i + 1)));
@@ -2017,11 +2123,19 @@ async function startOrder(orderNo) {
     }
 
     const totalScanned = getTotalScannedCount();
+    const groupedExpected = getTotalExpectedCount();
+    if (isAutoMode && linkedOrders.size > 0 && groupedExpected) {
+      cancelAutoBookTimer();
+      renderSessionUI();
+      updateBookNowButton();
+      statusExplain(`Combined shipment ready (${groupedExpected} parcels). Booking now...`, "ok");
+      await doBookingNow({ manual: true, parcelCount: groupedExpected });
+      return;
+    }
     if (
       isAutoMode &&
       expected &&
       totalScanned >= expected &&
-      !multiShipEnabled &&
       !linkedOrders.size
     ) {
       cancelAutoBookTimer();
@@ -2142,7 +2256,7 @@ async function startOrder(orderNo) {
       .join(" ");
     const combined = `${tags} ${shippingTitles}`.trim();
     if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-    if (/(local delivery|same\s*day)/.test(combined)) return "delivery";
+    if (/(same\s*day|delivery)/.test(combined)) return "delivery";
     return "shipping";
   }
 
@@ -2205,14 +2319,16 @@ async function startOrder(orderNo) {
 
   function renderDispatchActions(order, laneId, orderNo) {
     const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
-    const label = normalizedLane === "pickup" ? "Ready for collection" : "Fulfil";
-    const actionType =
-      normalizedLane === "delivery"
-        ? "fulfill-delivery"
-        : normalizedLane === "pickup"
-        ? "ready-collection"
-        : "fulfill-shipping";
     const disabled = orderNo ? "" : "disabled";
+    if (normalizedLane === "delivery") {
+      const printed = orderNo && printedDeliveryNotes.has(orderNo);
+      return `
+        <button class="dispatchFulfillBtn" type="button" data-action="print-note" data-order-no="${orderNo || ""}" ${disabled}>Print delivery note</button>
+        <button class="dispatchFulfillBtn" type="button" data-action="deliver-delivery" data-order-no="${orderNo || ""}" ${!printed ? "disabled" : ""}>Deliver</button>
+      `;
+    }
+    const label = normalizedLane === "pickup" ? "Ready for collection" : "Fulfil";
+    const actionType = normalizedLane === "pickup" ? "ready-collection" : "fulfill-shipping";
     return `<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
   }
 
@@ -3087,13 +3203,15 @@ async function startOrder(orderNo) {
           ? o.parcel_count
           : fallbackParcelCount ?? "";
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
+      const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
+      const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
       }
 
       return `
-        <div class="dispatchCard ${isSelected ? "is-selected" : ""}" data-order-no="${orderNo}">
+        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""}" data-order-no="${orderNo}" ${combinedStyle}>
           <div class="dispatchCardTitle">
             <span class="dispatchCardTitleText">${title}</span>
             ${
@@ -3141,7 +3259,10 @@ async function startOrder(orderNo) {
           `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
         return `
           <div class="dispatchCol">
-            <div class="dispatchColHeader">${col.label}</div>
+            <div class="dispatchColHeader">
+              <span>${col.label}</span>
+              <label class="dispatchLaneSelectAll"><input type="checkbox" class="dispatchLaneSelectAllInput" data-lane-id="${col.id}"/>All</label>
+            </div>
             <div class="dispatchColBody">${cards}</div>
           </div>`;
       })
@@ -3948,23 +4069,44 @@ async function startOrder(orderNo) {
     statusExplain(isAutoMode ? "Auto mode enabled." : "Manual mode enabled.", "info");
   });
 
-  multiShipToggle?.addEventListener("click", () => {
-    multiShipEnabled = !multiShipEnabled;
-    cancelAutoBookTimer();
-    if (!multiShipEnabled && linkedOrders.size) {
-      const activeSet = new Set(getActiveParcelSet());
-      linkedOrders = new Map();
-      parcelsByOrder = new Map();
-      if (activeOrderNo) parcelsByOrder.set(activeOrderNo, activeSet);
+
+  
+  dispatchCreateCombined?.addEventListener("click", async () => {
+    await createCombinedShipmentFromSelection();
+  });
+
+  dispatchPrintDocs?.addEventListener("click", async () => {
+    const orders = Array.from(dispatchSelectedOrders)
+      .map((orderNo) => dispatchOrderCache.get(orderNo))
+      .filter(Boolean);
+    for (const order of orders) {
+      const orderNo = orderNoFromName(order.name);
+      const ok = await printDeliveryNote(order);
+      if (ok) printedDeliveryNotes.add(orderNo);
     }
-    updateMultiShipToggle();
-    renderSessionUI();
-    statusExplain(
-      multiShipEnabled
-        ? "Multi-shipment override enabled. Only same-address orders will bundle."
-        : "Multi-shipment override disabled.",
-      "info"
-    );
+    refreshDispatchViews();
+    statusExplain(`Printed delivery docs for ${orders.length} orders.`, "ok");
+  });
+
+  dispatchDeliverSelected?.addEventListener("click", async () => {
+    const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
+      const order = dispatchOrderCache.get(orderNo);
+      return laneFromOrder(order) === "delivery";
+    });
+    for (const orderNo of selected) {
+      await markDeliveryReady(orderNo);
+    }
+  });
+
+  dispatchMarkDelivered?.addEventListener("click", async () => {
+    const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
+      const order = dispatchOrderCache.get(orderNo);
+      return laneFromOrder(order) === "delivery";
+    });
+    for (const orderNo of selected) {
+      await markDeliveryReady(orderNo);
+    }
+    statusExplain(`Marked ${selected.length} selected delivery orders as delivered.`, "ok");
   });
 
   truckBookBtn?.addEventListener("click", async () => {
@@ -4140,20 +4282,8 @@ async function startOrder(orderNo) {
       await doBookingNow({ manual: true, parcelCount });
       return true;
     }
-    if (actionType === "fulfill-delivery") {
-      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
-      if (!orderNo || !order) {
-        statusExplain("Delivery note unavailable.", "warn");
-        logDispatchEvent("Delivery fulfil failed: order not found.");
-        return true;
-      }
-      setDispatchProgress(4, `Printing note ${orderNo}`);
-      logDispatchEvent(`Printing delivery note for order ${orderNo}.`);
-      const ok = await printDeliveryNote(order);
-      if (!ok) {
-        statusExplain("Pop-up blocked for delivery note.", "warn");
-        logDispatchEvent("Delivery note blocked by popup settings.");
-      }
+    if (actionType === "deliver-delivery") {
+      if (!orderNo) return true;
       await markDeliveryReady(orderNo);
       return true;
     }
@@ -4210,6 +4340,8 @@ async function startOrder(orderNo) {
         return true;
       }
       statusExplain(`Delivery note printed for ${orderNo}.`, "ok");
+      printedDeliveryNotes.add(orderNo);
+      refreshDispatchViews(orderNo);
       return true;
     }
     if (actionType === "book-now") {
@@ -4271,6 +4403,25 @@ async function startOrder(orderNo) {
     if (card) {
       card.classList.toggle("is-selected", checkbox.checked);
     }
+    updateDispatchSelectionSummary();
+  });
+
+  
+
+  dispatchBoard?.addEventListener("change", (e) => {
+    const laneSelect = e.target.closest(".dispatchLaneSelectAllInput");
+    if (!laneSelect) return;
+    const laneId = laneSelect.dataset.laneId;
+    const lane = laneSelect.closest(".dispatchCol");
+    if (!lane || !laneId) return;
+    lane.querySelectorAll(".dispatchCardSelectInput").forEach((checkbox) => {
+      checkbox.checked = laneSelect.checked;
+      const orderNo = checkbox.dataset.orderNo;
+      if (!orderNo) return;
+      if (laneSelect.checked) dispatchSelectedOrders.add(orderNo);
+      else dispatchSelectedOrders.delete(orderNo);
+      checkbox.closest(".dispatchCard")?.classList.toggle("is-selected", laneSelect.checked);
+    });
     updateDispatchSelectionSummary();
   });
 
@@ -4442,7 +4593,6 @@ async function startOrder(orderNo) {
     loadDailyParcelCount();
     loadTruckBooking();
     updateModeToggle();
-    updateMultiShipToggle();
     renderSessionUI();
     renderCountdown();
     renderTruckPanel();

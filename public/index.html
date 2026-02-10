@@ -925,6 +925,48 @@
   display:none;
 }
 
+.dispatchSelectionBulkActions{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:.35rem;
+}
+.dispatchSelectionBtn{
+  border:1px solid rgba(148,163,184,.7);
+  background:#fff;
+  color:#334155;
+  font-size:.7rem;
+  font-weight:700;
+  padding:.35rem .55rem;
+  border-radius:.5rem;
+  cursor:pointer;
+}
+.dispatchSelectionBtn:hover{ border-color:rgba(56,189,248,.6); color:#0c4a6e; }
+.dispatchSelectionBtn--primary{
+  border-color:rgba(34,197,94,.55);
+  background:rgba(34,197,94,.16);
+  color:#065f46;
+}
+.dispatchLaneSelectAll{
+  display:flex;
+  align-items:center;
+  gap:.3rem;
+  font-size:.62rem;
+  color:#0f172a;
+  font-weight:700;
+  text-transform:uppercase;
+}
+.dispatchColHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+}
+.dispatchCard.is-combined{
+  border-width:2px;
+  border-color:var(--combined-color, rgba(94,234,212,.8));
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--combined-color, #5eead4) 35%, transparent), 0 8px 16px rgba(15,23,42,.12);
+}
+
 .dispatchBoardLayout{
   display:grid;
   grid-template-columns:minmax(0,1fr) 320px;
@@ -2184,7 +2226,7 @@
           </div>
           <div class="dispatchTopActions">
             <button id="dispatchExpandToggle" class="btn dispatchExpandToggle btn--compact" type="button" aria-expanded="false">Expand</button>
-            <button id="multiShipToggle" class="btn btnToggle btn--compact" type="button">Multi-shipment override: Off</button>
+            <button id="dispatchCreateCombined" class="btn btnToggle btn--compact" type="button">Create Combined Shipment</button>
             <button id="modeToggle" class="btn btn--compact" type="button">MODE: AUTO</button>
             <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
           </div>
@@ -2276,6 +2318,11 @@
                   <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
                   <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
                   <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
+                </div>
+                <div class="dispatchSelectionBulkActions">
+                  <button id="dispatchPrintDocs" class="dispatchSelectionBtn" type="button">Print Delivery Docs</button>
+                  <button id="dispatchDeliverSelected" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Deliver</button>
+                  <button id="dispatchMarkDelivered" class="dispatchSelectionBtn" type="button">Mark as delivered</button>
                 </div>
               </div>
             </div>
@@ -2674,7 +2721,7 @@ PRINTNODE_PRINTER_ID=123456</code></pre>
         <h4>FLOCS flow</h4>
         <ol>
           <li>Search or create a customer.</li>
-          <li>Pick delivery method (ship/pickup/deliver), select address, and select products.</li>
+          <li>Pick delivery method (ship/pickup/delivery), select address, and select products.</li>
           <li>Optionally quote shipping (ParcelPerfect) to fill the shipping line.</li>
           <li>Create draft orders or orders in Shopify, optionally completing drafts.</li>
         </ol>
@@ -2835,7 +2882,6 @@ npm run dev</code></pre>
                           <option value="shipping">Shipping</option>
                           <option value="pickup">Pickup</option>
                           <option value="delivery">Delivery</option>
-                          <option value="local">Local delivery</option>
                         </select>
                       </div>
                       <div class="flocs-row" style="margin-top:.4rem">
@@ -2918,10 +2964,6 @@ npm run dev</code></pre>
                           <label class="flocs-radioPill">
                             <input type="radio" name="delivery" value="delivery" />
                             <span>Delivery</span>
-                          </label>
-                          <label class="flocs-radioPill">
-                            <input type="radio" name="delivery" value="local" />
-                            <span>Local delivery</span>
                           </label>
                         </div>
                       </div>
