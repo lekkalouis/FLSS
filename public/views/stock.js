@@ -543,13 +543,27 @@ export function initStockView() {
       }
       locations = Array.isArray(payload.locations) ? payload.locations : [];
       locationNameMap = new Map(locations.map((loc) => [Number(loc.id), loc.name]));
+      const options = locations
+        .map(
+          (loc) =>
+            `<option value="${loc.id}">${loc.name || `Location ${loc.id}`}</option>`
+        )
+        .join("");
+      locationSelect.innerHTML = options;
+      transferSelect.innerHTML = `<option value="">Transfer target...</option>${options}`;
       const savedLocationId = getSavedLocationId();
       const chosenLocation = locations.find((loc) => Number(loc.id) === Number(currentLocationId))
         || locations.find((loc) => Number(loc.id) === Number(savedLocationId))
         || locations[0];
       if (chosenLocation) {
         currentLocationId = Number(chosenLocation.id);
+        locationSelect.value = String(currentLocationId);
         saveLocationId(currentLocationId);
+      }
+      const nextLocation = locations.find((loc) => Number(loc.id) !== currentLocationId);
+      if (nextLocation) {
+        transferLocationId = Number(nextLocation.id);
+        transferSelect.value = String(transferLocationId);
       }
       pickTransferLocation();
       renderLocationButtons();
