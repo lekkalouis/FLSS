@@ -49,6 +49,43 @@ function resolveTierPrice(tiers, tier) {
   return Number.isFinite(fallbackPrice) ? fallbackPrice : null;
 }
 
+function normalizeTags(tags) {
+  return normalizeTagList(tags).map((tag) => tag.toLowerCase());
+}
+
+function resolveCustomerTier(tags) {
+  const normalizedTags = normalizeTags(tags);
+  const tierPriority = ["agent", "retailer", "export", "private", "fkb"];
+  return tierPriority.find((tier) => normalizedTags.includes(tier)) || null;
+}
+
+async function fetchCustomerTags(customerId) {
+  if (!customerId) return [];
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  try {
+    const resp = await shopifyFetch(`${base}/customers/${customerId}.json?fields=id,tags`, {
+      method: "GET"
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return normalizeTags(data?.customer?.tags || "");
+  } catch (err) {
+    console.warn("Customer tag fetch failed:", err);
+    return [];
+  }
+}
+
+async function getTierPriceForVariant(variantId, tier, tierCache) {
+  if (!variantId) return null;
+  const key = String(variantId);
+  if (!tierCache.has(key)) {
+    const tierData = await fetchVariantPriceTiers(key);
+    tierCache.set(key, tierData?.value || null);
+  }
+  const tiers = tierCache.get(key);
+  return resolveTierPrice(tiers, tier);
+}
+
 function requireShopifyConfigured(res) {
   if (!config.SHOPIFY_STORE || !config.SHOPIFY_CLIENT_ID || !config.SHOPIFY_CLIENT_SECRET) {
     res.status(501).json({
@@ -745,7 +782,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
       shippingAddress,
       lineItems,
       customerTags,
-      priceTier
+      allowOverrides
     } = req.body || {};
 
     if (!customerId) {
@@ -761,20 +798,25 @@ router.post("/shopify/draft-orders", async (req, res) => {
     if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
     if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
 
-    const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
+    const fetchedTags = await fetchCustomerTags(customerId);
+    const mergedTags = Array.from(
+      new Set([...fetchedTags, ...normalizeTags(customerTags)])
+    );
+    const resolvedTier = resolveCustomerTier(mergedTags);
+    const pricingTierValue = resolvedTier || "default";
     const tierCache = new Map();
+    let usedOverride = false;
     const lineItemsWithPrice = await Promise.all(
       lineItems.map(async (li) => {
-        if (!normalizedTier || li.price != null || !li.variantId) {
-          return li;
+        if (!li?.variantId) return li;
+        if (allowOverrides && li.price != null) {
+          const overridePrice = Number(li.price);
+          if (Number.isFinite(overridePrice)) {
+            usedOverride = true;
+            return { ...li, price: overridePrice };
+          }
         }
-        const variantId = String(li.variantId);
-        if (!tierCache.has(variantId)) {
-          const tierData = await fetchVariantPriceTiers(variantId);
-          tierCache.set(variantId, tierData?.value || null);
-        }
-        const tiers = tierCache.get(variantId);
-        const resolved = resolveTierPrice(tiers, normalizedTier);
+        const resolved = await getTierPriceForVariant(li.variantId, resolvedTier, tierCache);
         if (resolved == null) return li;
         return { ...li, price: resolved };
       })
@@ -842,21 +884,25 @@ router.post("/shopify/draft-orders", async (req, res) => {
           };
           if (li.variantId) {
             entry.variant_id = li.variantId;
+            if (li.price != null) {
+              entry.original_unit_price = String(li.price);
+            }
           } else {
             entry.title = li.title || li.sku || "Custom item";
             if (li.price != null) entry.price = String(li.price);
           }
           if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
           return entry;
         }),
         billing_address: billingAddress || undefined,
         shipping_address: shippingAddress || undefined,
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
-          ...(normalizedTier
-            ? [{ name: "price_tier", value: normalizedTier }]
-            : []),
+          { name: "pricing_tier", value: pricingTierValue },
+          {
+            name: "pricing_source",
+            value: usedOverride ? "manual_override" : "server_tier"
+          },
           ...(shippingQuoteNo
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : [])
@@ -1003,7 +1049,8 @@ router.post("/shopify/orders", async (req, res) => {
       billingAddress,
       shippingAddress,
       lineItems,
-      customerTags
+      customerTags,
+      allowOverrides
     } = req.body || {};
 
     if (!customerId) {
@@ -1018,6 +1065,30 @@ router.post("/shopify/orders", async (req, res) => {
     if (poNumber) noteParts.push(`PO: ${poNumber}`);
     if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
     if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
+
+    const fetchedTags = await fetchCustomerTags(customerId);
+    const mergedTags = Array.from(
+      new Set([...fetchedTags, ...normalizeTags(customerTags)])
+    );
+    const resolvedTier = resolveCustomerTier(mergedTags);
+    const pricingTierValue = resolvedTier || "default";
+    const tierCache = new Map();
+    let usedOverride = false;
+    const lineItemsWithPrice = await Promise.all(
+      lineItems.map(async (li) => {
+        if (!li?.variantId) return li;
+        if (allowOverrides && li.price != null) {
+          const overridePrice = Number(li.price);
+          if (Number.isFinite(overridePrice)) {
+            usedOverride = true;
+            return { ...li, price: overridePrice };
+          }
+        }
+        const resolved = await getTierPriceForVariant(li.variantId, resolvedTier, tierCache);
+        if (resolved == null) return li;
+        return { ...li, price: resolved };
+      })
+    );
 
     const metafields = [];
     if (deliveryDate) {
@@ -1075,24 +1146,32 @@ router.post("/shopify/orders", async (req, res) => {
       order: {
         customer: { id: customerId },
         note: noteParts.join(" | "),
-        line_items: lineItems.map((li) => {
+        line_items: lineItemsWithPrice.map((li) => {
           const entry = {
             quantity: li.quantity || 1
           };
           if (li.variantId) {
             entry.variant_id = li.variantId;
+            if (li.price != null) {
+              // TODO: If Shopify reverts variant prices for Orders, use Draft Orders + complete.
+              entry.price = String(li.price);
+            }
           } else {
             entry.title = li.title || li.sku || "Custom item";
             if (li.price != null) entry.price = String(li.price);
           }
           if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
           return entry;
         }),
         billing_address: billingAddress || undefined,
         shipping_address: shippingAddress || undefined,
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
+          { name: "pricing_tier", value: pricingTierValue },
+          {
+            name: "pricing_source",
+            value: usedOverride ? "manual_override" : "server_tier"
+          },
           ...(shippingQuoteNo
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : [])
