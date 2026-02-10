@@ -13,6 +13,7 @@ import parcelPerfectRouter from "./routes/parcelperfect.js";
 import printnodeRouter from "./routes/printnode.js";
 import shopifyRouter from "./routes/shopify.js";
 import statusRouter from "./routes/status.js";
+import metricsRouter from "./routes/metrics.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,11 +64,13 @@ export function createApp() {
   app.use(shopifyRouter);
   app.use(printnodeRouter);
   app.use(alertsRouter);
+  app.use(metricsRouter);
 
   const publicDir = path.join(__dirname, "..", "public");
   app.use(express.static(publicDir));
   app.get("/flocs", (req, res) => res.sendFile(path.join(publicDir, "flocs.html")));
   app.get("/simulate", (req, res) => res.sendFile(path.join(publicDir, "simulate.html")));
+  app.get("/hours-saved", (req, res) => res.sendFile(path.join(publicDir, "hours-saved.html")));
 
   app.get("*", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
 

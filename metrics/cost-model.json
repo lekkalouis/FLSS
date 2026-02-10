@@ -1,0 +1,7 @@
+{
+  "currency": "ZAR",
+  "default_hourly_rate": 250,
+  "hourly_rate_options": [180, 250, 350],
+  "fte_hours_per_month": 173.33,
+  "notes": "R250/hour is the recommended FLSS operations baseline."
+}
