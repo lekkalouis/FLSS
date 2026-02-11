@@ -1,3 +1,6 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Router } from "express";
 
 import { config } from "../../config.js";
@@ -12,6 +15,17 @@ import {
 } from "./shared.js";
 
 const router = Router();
+
+const COMMISSION_TAG = "flsl";
+const COMMISSION_RATE = 0.17;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const COMMISSION_PAID_FILE = path.resolve(__dirname, "../../../data/commission-paid-months.json");
+
+function normalizeMonthKey(value) {
+  const match = String(value || "").trim().match(/^(\d{4})-(\d{2})$/);
+  return match ? `${match[1]}-${match[2]}` : null;
+}
 
 function hasTag(tags, expectedTag) {
   const target = String(expectedTag || "").trim().toLowerCase();
@@ -39,6 +53,22 @@ function resolveNetAmountBeforeShippingAndTax(order) {
   return Math.max(total - shipping - tax, 0);
 }
 
+async function readCommissionPaidMonths() {
+  try {
+    const raw = await fs.readFile(COMMISSION_PAID_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed;
+  } catch (err) {
+    if (err?.code === "ENOENT") return {};
+    throw err;
+  }
+}
+
+async function writeCommissionPaidMonths(payload) {
+  await fs.mkdir(path.dirname(COMMISSION_PAID_FILE), { recursive: true });
+  await fs.writeFile(COMMISSION_PAID_FILE, JSON.stringify(payload, null, 2), "utf8");
+}
 
 async function fetchCustomerTags(base, customerId, cache) {
   const key = String(customerId || "").trim();
@@ -57,6 +87,7 @@ async function fetchCustomerTags(base, customerId, cache) {
   cache.set(key, tags);
   return tags;
 }
+
 router.post("/shopify/draft-orders", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -938,7 +969,7 @@ router.get("/shopify/commissions/flsl", async (req, res) => {
       `${base}/orders.json?status=any` +
       `&limit=${limit}` +
       `&order=processed_at+desc` +
-      `&fields=id,name,created_at,processed_at,tags,subtotal_price,current_subtotal_price,total_price,current_total_price,total_tax,current_total_tax,shipping_lines,total_shipping_price_set,current_total_shipping_price_set,currency,customer`;
+      `&fields=id,name,email,cancelled_at,created_at,processed_at,tags,subtotal_price,current_subtotal_price,total_price,current_total_price,total_tax,current_total_tax,shipping_lines,total_shipping_price_set,current_total_shipping_price_set,currency,customer`;
 
     const getNextPath = (linkHeader) => {
       if (!linkHeader) return null;
@@ -952,7 +983,8 @@ router.get("/shopify/commissions/flsl", async (req, res) => {
       }
     };
 
-    const commissionRate = 0.17;
+    const paidMonths = await readCommissionPaidMonths();
+    const customerTagCache = new Map();
     let nextPath = firstPath;
     let pageCount = 0;
     const monthlyMap = new Map();
@@ -972,17 +1004,16 @@ router.get("/shopify/commissions/flsl", async (req, res) => {
 
       const data = await resp.json();
       const orders = Array.isArray(data.orders) ? data.orders : [];
-      const customerTagCache = new Map();
 
       for (const order of orders) {
         if (order.cancelled_at) continue;
 
         const customer = order.customer || {};
-        const orderTagged = hasTag(order.tags, "flsl");
-        const customerTags = hasTag(customer.tags, "flsl")
+        const orderTagged = hasTag(order.tags, COMMISSION_TAG);
+        const customerTags = hasTag(customer.tags, COMMISSION_TAG)
           ? normalizeTagList(customer.tags)
           : await fetchCustomerTags(base, customer.id, customerTagCache);
-        const customerTagged = hasTag(customerTags, "flsl");
+        const customerTagged = hasTag(customerTags, COMMISSION_TAG);
         if (!orderTagged && !customerTagged) continue;
 
         const eventDate = order.processed_at || order.created_at;
@@ -993,16 +1024,19 @@ router.get("/shopify/commissions/flsl", async (req, res) => {
         if (!monthlyMap.has(monthKey)) {
           monthlyMap.set(monthKey, {
             month: monthKey,
+            paid: Boolean(paidMonths[monthKey]?.paid),
+            paid_at: paidMonths[monthKey]?.paid_at || null,
             currency: order.currency || "ZAR",
             total_net_amount: 0,
             total_commission: 0,
+            customers: new Map(),
             orders: []
           });
         }
 
         const monthEntry = monthlyMap.get(monthKey);
         const netAmount = resolveNetAmountBeforeShippingAndTax(order);
-        const commissionAmount = netAmount * commissionRate;
+        const commissionAmount = netAmount * COMMISSION_RATE;
         const customerName =
           `${String(customer.first_name || "").trim()} ${String(customer.last_name || "").trim()}`.trim() ||
           customer.email ||
@@ -1024,6 +1058,22 @@ router.get("/shopify/commissions/flsl", async (req, res) => {
           net_amount: netAmount,
           commission_amount: commissionAmount
         });
+
+        const customerKey = customer.id ? String(customer.id) : customerName.toLowerCase();
+        if (!monthEntry.customers.has(customerKey)) {
+          monthEntry.customers.set(customerKey, {
+            customer_id: customer.id || null,
+            customer_name: customerName,
+            customer_email: customer.email || order.email || "",
+            order_count: 0,
+            total_net_amount: 0,
+            total_commission: 0
+          });
+        }
+        const customerEntry = monthEntry.customers.get(customerKey);
+        customerEntry.order_count += 1;
+        customerEntry.total_net_amount += netAmount;
+        customerEntry.total_commission += commissionAmount;
       }
 
       nextPath = getNextPath(resp.headers.get("link"));
@@ -1033,6 +1083,14 @@ router.get("/shopify/commissions/flsl", async (req, res) => {
     const months = Array.from(monthlyMap.values())
       .map((entry) => ({
         ...entry,
+        customer_count: entry.customers.size,
+        customers: Array.from(entry.customers.values())
+          .map((customerEntry) => ({
+            ...customerEntry,
+            total_net_amount: Number(customerEntry.total_net_amount.toFixed(2)),
+            total_commission: Number(customerEntry.total_commission.toFixed(2))
+          }))
+          .sort((a, b) => b.total_commission - a.total_commission),
         total_net_amount: Number(entry.total_net_amount.toFixed(2)),
         total_commission: Number(entry.total_commission.toFixed(2)),
         orders: entry.orders
@@ -1046,14 +1104,37 @@ router.get("/shopify/commissions/flsl", async (req, res) => {
       .sort((a, b) => b.month.localeCompare(a.month));
 
     return res.json({
-      commission_tag: "flsl",
-      commission_rate: commissionRate,
+      commission_tag: COMMISSION_TAG,
+      commission_rate: COMMISSION_RATE,
       months
     });
   } catch (err) {
     console.error("Shopify commission list error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.post("/shopify/commissions/flsl/months/:month/paid", async (req, res) => {
+  try {
+    const month = normalizeMonthKey(req.params.month);
+    if (!month) return badRequest(res, "Invalid month. Expected YYYY-MM");
+
+    const paid = req.body?.paid !== false;
+    const paidMonths = await readCommissionPaidMonths();
+    paidMonths[month] = {
+      paid,
+      paid_at: paid ? new Date().toISOString() : null
+    };
+    await writeCommissionPaidMonths(paidMonths);
+
+    return res.json({ ok: true, month, ...paidMonths[month] });
+  } catch (err) {
+    console.error("Commission paid toggle error:", err);
+    return res.status(500).json({
+      error: "WRITE_FAILED",
       message: String(err?.message || err)
     });
   }

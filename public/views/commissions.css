@@ -93,3 +93,20 @@
 @media (max-width: 900px) {
   .commissionsTable { font-size: .78rem; display: block; overflow-x: auto; }
 }
+
+.commissionsTitleWrap {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+.commissionsMonthSummary {
+  font-size: .78rem;
+  color: #64748b;
+}
+.commissionsCustomerSummary {
+  padding: .65rem .9rem;
+  font-size: .8rem;
+  color: #334155;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}

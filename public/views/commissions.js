@@ -11,7 +11,7 @@ export function initCommissionsView() {
 
   if (!monthList) return;
 
-  const PAID_KEY = "flsl_commission_paid_months_v1";
+  let latestMonths = [];
 
   const money = (value, currency = "ZAR") => {
     const amount = Number(value || 0);
@@ -34,20 +34,6 @@ export function initCommissionsView() {
     return d.toLocaleString("en-ZA", { month: "long", year: "numeric" });
   };
 
-  const readPaidState = () => {
-    try {
-      const raw = localStorage.getItem(PAID_KEY);
-      const parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch (_err) {
-      return {};
-    }
-  };
-
-  const writePaidState = (state) => {
-    localStorage.setItem(PAID_KEY, JSON.stringify(state));
-  };
-
   function setStatus(text, tone = "info") {
     if (!statusEl) return;
     statusEl.textContent = text;
@@ -56,8 +42,21 @@ export function initCommissionsView() {
     if (tone === "error") statusEl.classList.add("is-error");
   }
 
+  async function setMonthPaid(month, paid) {
+    const resp = await fetch(`/api/v1/shopify/commissions/flsl/months/${encodeURIComponent(month)}/paid`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ paid })
+    });
+    if (!resp.ok) {
+      throw new Error(`Failed to update paid status (${resp.status})`);
+    }
+  }
+
   function renderMonths(months = []) {
-    const paidState = readPaidState();
     monthList.innerHTML = "";
 
     if (!Array.isArray(months) || !months.length) {
@@ -70,7 +69,7 @@ export function initCommissionsView() {
 
     months.forEach((monthData) => {
       const month = String(monthData.month || "");
-      const isPaid = Boolean(paidState[month]);
+      const isPaid = Boolean(monthData.paid);
       grandTotal += Number(monthData.total_commission || 0);
 
       const card = document.createElement("section");
@@ -79,8 +78,18 @@ export function initCommissionsView() {
       const header = document.createElement("header");
       header.className = "commissionsMonthHeader";
 
+      const titleWrap = document.createElement("div");
+      titleWrap.className = "commissionsTitleWrap";
+
       const title = document.createElement("h3");
       title.textContent = monthLabel(month);
+
+      const summary = document.createElement("div");
+      summary.className = "commissionsMonthSummary";
+      summary.textContent = `${monthData.customer_count || 0} customers • ${(monthData.orders || []).length} orders`;
+
+      titleWrap.appendChild(title);
+      titleWrap.appendChild(summary);
 
       const actions = document.createElement("div");
       actions.className = "commissionsMonthActions";
@@ -94,17 +103,34 @@ export function initCommissionsView() {
       paidBtn.className = "commissionsPaidBtn";
       paidBtn.textContent = isPaid ? "Paid ✓" : "Mark paid";
       paidBtn.classList.toggle("is-paid", isPaid);
-      paidBtn.addEventListener("click", () => {
-        const current = readPaidState();
-        current[month] = !Boolean(current[month]);
-        writePaidState(current);
-        renderMonths(months);
+      paidBtn.addEventListener("click", async () => {
+        paidBtn.disabled = true;
+        try {
+          await setMonthPaid(month, !isPaid);
+          const idx = latestMonths.findIndex((entry) => entry.month === month);
+          if (idx >= 0) latestMonths[idx].paid = !isPaid;
+          renderMonths(latestMonths);
+          setStatus(`Updated paid status for ${monthLabel(month)}.`);
+        } catch (err) {
+          setStatus(String(err?.message || err), "error");
+        } finally {
+          paidBtn.disabled = false;
+        }
       });
 
       actions.appendChild(totalBadge);
       actions.appendChild(paidBtn);
-      header.appendChild(title);
+      header.appendChild(titleWrap);
       header.appendChild(actions);
+
+      const customerSummary = document.createElement("div");
+      customerSummary.className = "commissionsCustomerSummary";
+      const topCustomers = (monthData.customers || []).slice(0, 4);
+      customerSummary.innerHTML = topCustomers.length
+        ? `Top customers: ${topCustomers
+            .map((entry) => `${entry.customer_name || "Unknown"} (${money(entry.total_commission, monthData.currency || "ZAR")})`)
+            .join(" • ")}`
+        : "No customer summary";
 
       const table = document.createElement("table");
       table.className = "commissionsTable";
@@ -139,6 +165,7 @@ export function initCommissionsView() {
       table.appendChild(tbody);
 
       card.appendChild(header);
+      card.appendChild(customerSummary);
       card.appendChild(table);
       monthList.appendChild(card);
     });
@@ -148,7 +175,7 @@ export function initCommissionsView() {
 
   async function loadCommissions() {
     setStatus("Loading FLSL commissions...");
-    refreshBtn && (refreshBtn.disabled = true);
+    if (refreshBtn) refreshBtn.disabled = true;
     try {
       const resp = await fetch("/api/v1/shopify/commissions/flsl", {
         headers: { Accept: "application/json" }
@@ -157,13 +184,15 @@ export function initCommissionsView() {
         throw new Error(`Failed to load commissions (${resp.status})`);
       }
       const data = await resp.json();
-      renderMonths(data.months || []);
+      latestMonths = data.months || [];
+      renderMonths(latestMonths);
       setStatus("Commission list loaded.");
     } catch (err) {
-      renderMonths([]);
+      latestMonths = [];
+      renderMonths(latestMonths);
       setStatus(String(err?.message || err), "error");
     } finally {
-      refreshBtn && (refreshBtn.disabled = false);
+      if (refreshBtn) refreshBtn.disabled = false;
     }
   }
 
