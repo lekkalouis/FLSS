@@ -2030,6 +2030,138 @@
     background:var(--panel-muted);
     font-weight:700;
   }
+  .automationTrackerGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));
+    gap:1rem;
+    align-items:start;
+  }
+  .automationTrackerCard{
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    background:linear-gradient(180deg,#ffffff,#f8fafc);
+    padding:1rem;
+    box-shadow:0 14px 32px rgba(15,23,42,.08);
+  }
+  .automationStatusPill{
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    border-radius:999px;
+    font-size:.7rem;
+    font-family:var(--mono);
+    font-weight:700;
+    letter-spacing:.02em;
+    padding:.2rem .55rem;
+    border:1px solid transparent;
+    text-transform:uppercase;
+  }
+  .automationStatusPill--live{
+    color:#14532d;
+    border-color:rgba(34,197,94,.45);
+    background:rgba(134,239,172,.35);
+  }
+  .automationStatusPill--pilot{
+    color:#9a3412;
+    border-color:rgba(249,115,22,.45);
+    background:rgba(254,215,170,.45);
+  }
+  .automationStatusPill--planned{
+    color:#1d4ed8;
+    border-color:rgba(59,130,246,.4);
+    background:rgba(191,219,254,.45);
+  }
+  .model3dShell{
+    margin-top:.55rem;
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    background:radial-gradient(circle at 18% 10%,rgba(56,189,248,.2),transparent 48%), #0f172a;
+    min-height:360px;
+    position:relative;
+    overflow:hidden;
+    perspective:1300px;
+  }
+  .model3dShell::after{
+    content:"";
+    position:absolute;
+    inset:auto -10% -35% -10%;
+    height:65%;
+    background:radial-gradient(ellipse at center, rgba(56,189,248,.32), rgba(15,23,42,0));
+    pointer-events:none;
+  }
+  .model3dCanvas{
+    position:relative;
+    width:100%;
+    height:360px;
+    transform-style:preserve-3d;
+    transform:rotateX(56deg) rotateZ(-15deg) translateY(12px);
+  }
+  .model3dPlane{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    transform-style:preserve-3d;
+  }
+  .model3dPlane svg{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    opacity:.58;
+    filter:drop-shadow(0 0 6px rgba(56,189,248,.38));
+  }
+  .model3dLine{
+    stroke:rgba(103,232,249,.85);
+    stroke-width:1.2;
+    stroke-dasharray:5 4;
+  }
+  .model3dNode{
+    position:absolute;
+    min-width:120px;
+    max-width:180px;
+    border:1px solid rgba(148,163,184,.45);
+    border-radius:.7rem;
+    padding:.45rem .55rem;
+    color:#e2e8f0;
+    background:rgba(15,23,42,.86);
+    box-shadow:0 15px 30px rgba(2,6,23,.45);
+    transform-style:preserve-3d;
+  }
+  .model3dNode strong{
+    display:block;
+    font-size:.72rem;
+    margin-bottom:.15rem;
+    letter-spacing:.02em;
+  }
+  .model3dNode span{
+    display:block;
+    font-size:.64rem;
+    line-height:1.3;
+    color:#cbd5e1;
+  }
+  .model3dNode--front{ transform:translate3d(0,0,110px); }
+  .model3dNode--mid{ transform:translate3d(0,0,58px); }
+  .model3dNode--back{ transform:translate3d(0,0,8px); }
+  .model3dNode--shop{ top:14%; left:8%; }
+  .model3dNode--scan{ top:30%; left:31%; }
+  .model3dNode--engine{ top:50%; left:49%; }
+  .model3dNode--ops{ top:70%; left:69%; }
+  .model3dNode--notify{ top:19%; left:67%; }
+  .model3dNode--data{ top:78%; left:23%; }
+  .model3dLegend{
+    position:absolute;
+    right:.8rem;
+    bottom:.65rem;
+    z-index:2;
+    font-size:.64rem;
+    font-family:var(--mono);
+    color:#bae6fd;
+    background:rgba(15,23,42,.65);
+    border:1px solid rgba(56,189,248,.35);
+    border-radius:999px;
+    padding:.2rem .55rem;
+  }
   .slotEgg{
     position:fixed;
     inset:0;
@@ -2900,6 +3032,97 @@ npm run dev</code></pre>
         <div class="pill">FLOW LOGIC</div>
         <h2>Packing and Dispatch Flowcharts</h2>
         <p>This page documents the operational logic for packing prediction, parcel planning, and box allocation. It separates hard rules (must obey) from soft rules (optimization preferences) so packing behavior is consistent and explainable.</p>
+
+        <h3>Automation tracker</h3>
+        <p>Use this tracker to monitor each automation stream, ownership, and what it touches in the app.</p>
+        <div class="automationTrackerGrid">
+          <div class="automationTrackerCard">
+            <table class="docsTable">
+              <thead>
+                <tr>
+                  <th>Automation</th>
+                  <th>Status</th>
+                  <th>Owner</th>
+                  <th>Primary Output</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Dispatch Auto-Booking</td>
+                  <td><span class="automationStatusPill automationStatusPill--live">Live</span></td>
+                  <td>Ops Team</td>
+                  <td>Booked shipment + labels</td>
+                </tr>
+                <tr>
+                  <td>Parcel Prediction Engine</td>
+                  <td><span class="automationStatusPill automationStatusPill--pilot">Pilot</span></td>
+                  <td>Warehouse Lead</td>
+                  <td>Parcel count + weight estimate</td>
+                </tr>
+                <tr>
+                  <td>Traceability Sync</td>
+                  <td><span class="automationStatusPill automationStatusPill--live">Live</span></td>
+                  <td>QA / Compliance</td>
+                  <td>Lot and source lineage trail</td>
+                </tr>
+                <tr>
+                  <td>Price Rule Guardrails</td>
+                  <td><span class="automationStatusPill automationStatusPill--planned">Planned</span></td>
+                  <td>Commercial Team</td>
+                  <td>Pre-flight margin warnings</td>
+                </tr>
+              </tbody>
+            </table>
+            <p class="docsMeta">Tip: duplicate rows for additional automations and keep statuses current during standups.</p>
+          </div>
+
+          <div class="automationTrackerCard">
+            <h4>Full app data model (3D view)</h4>
+            <p>The blocks represent major systems/modules and the dotted lines show data flow between them. Z-depth is used to hint at source → orchestration → outputs.</p>
+            <div class="model3dShell" aria-label="3D data model showing modules and data links">
+              <div class="model3dCanvas">
+                <div class="model3dPlane">
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <line class="model3dLine" x1="15" y1="18" x2="38" y2="35" />
+                    <line class="model3dLine" x1="38" y1="35" x2="54" y2="56" />
+                    <line class="model3dLine" x1="54" y1="56" x2="76" y2="73" />
+                    <line class="model3dLine" x1="38" y1="35" x2="72" y2="24" />
+                    <line class="model3dLine" x1="72" y1="24" x2="76" y2="73" />
+                    <line class="model3dLine" x1="54" y1="56" x2="30" y2="80" />
+                    <line class="model3dLine" x1="30" y1="80" x2="76" y2="73" />
+                  </svg>
+                  <div class="model3dNode model3dNode--shop model3dNode--front">
+                    <strong>Shopify + Inputs</strong>
+                    <span>Orders, pricing, customer signals</span>
+                  </div>
+                  <div class="model3dNode model3dNode--scan model3dNode--front">
+                    <strong>Scan Station UI</strong>
+                    <span>Parcel scans + pack confirmations</span>
+                  </div>
+                  <div class="model3dNode model3dNode--engine model3dNode--mid">
+                    <strong>Automation Engine</strong>
+                    <span>Rules, validations, booking logic</span>
+                  </div>
+                  <div class="model3dNode model3dNode--ops model3dNode--back">
+                    <strong>Dispatch + Traceability</strong>
+                    <span>Shipments, lot trails, audit state</span>
+                  </div>
+                  <div class="model3dNode model3dNode--notify model3dNode--mid">
+                    <strong>Notifications</strong>
+                    <span>Email + service updates</span>
+                  </div>
+                  <div class="model3dNode model3dNode--data model3dNode--back">
+                    <strong>Data Stores</strong>
+                    <span>Orders, stock, pricing, logs</span>
+                  </div>
+                </div>
+              </div>
+              <div class="model3dLegend">Front = Inputs • Mid = Rules • Back = Outputs/Storage</div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="docsDivider" />
 
         <h3>1) End-to-end packing orchestration</h3>
         <pre class="docsBlock"><code>flowchart TD
