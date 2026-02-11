@@ -54,6 +54,15 @@ const MODULES = [
     tag: "Module"
   },
   {
+    id: "corporate-identity",
+    title: "Corporate Identity",
+    description: "Capture and store label records, flavors, variants, and blanket designs.",
+    type: "route",
+    target: "/corporate-identity",
+    meta: "Brand module",
+    tag: "Module"
+  },
+  {
     id: "price-manager",
     title: "Price Manager",
     description: "Update tier pricing and sync to Shopify metafields.",

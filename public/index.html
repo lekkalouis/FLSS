@@ -2079,6 +2079,7 @@
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
+  <link rel="stylesheet" href="/views/corporate-identity.css">
 </head>
  <body>
   <div class="flApp">
@@ -2096,6 +2097,7 @@
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
+            <button id="navCorporateIdentity" class="flNavBtn" type="button" role="tab" aria-controls="viewCorporateIdentity" aria-selected="false" data-route="/corporate-identity"><span class="flNavBtnIcon" aria-hidden="true">🏷️</span><span class="flNavBtnText">Corporate identity</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -3317,6 +3319,50 @@ npm run dev</code></pre>
           </section>
         </div>
         <div id="pmToast" class="pm-toast"></div>
+    </div>
+
+    <div class="flView" id="viewCorporateIdentity" hidden>
+      <div class="ci-shell">
+        <header class="ci-header">
+          <h2>Corporate Identity · Labels</h2>
+          <p>Capture every label record with flavors, variants, SA nutrition/allergen details, and blanket artwork uploads.</p>
+        </header>
+
+        <div class="ci-grid">
+          <section class="ci-panel" aria-label="Label capture form">
+            <label class="ci-field">
+              <span>Label record title</span>
+              <input id="ciTitle" class="ci-input" type="text" placeholder="e.g. Retail Jar Labels 2026" />
+            </label>
+
+            <div class="ci-actions">
+              <button id="ciAddFlavor" class="ci-btn" type="button">+ Add flavor</button>
+            </div>
+
+            <div id="ciFlavors"></div>
+
+            <div class="ci-panel" style="padding:.8rem;">
+              <div class="ci-subtitle">Blanket design upload (without barcode/size)</div>
+              <label class="ci-field">
+                <span>Upload blanket design file(s)</span>
+                <input id="ciBlanketDesign" class="ci-input" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.svg" />
+              </label>
+              <div id="ciDesignList"></div>
+            </div>
+
+            <div class="ci-actions">
+              <button id="ciSave" class="ci-btn ci-btn--primary" type="button">Save label record</button>
+              <button id="ciReset" class="ci-btn" type="button">Reset form</button>
+            </div>
+            <div id="ciStatus" class="ci-recordMeta">Ready.</div>
+          </section>
+
+          <aside class="ci-panel" aria-label="Saved label records">
+            <div class="ci-subtitle">Saved records</div>
+            <div id="ciRecordList" class="ci-recordList"></div>
+          </aside>
+        </div>
+      </div>
     </div>
 
       </main>
