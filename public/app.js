@@ -2,6 +2,7 @@ import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
 import { initModuleDashboard } from "./views/dashboard.js";
+import { initCorporateIdentityView } from "./views/corporate-identity.js";
 
 (() => {
   "use strict";
@@ -91,6 +92,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const navFlocs = $("navFlocs");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
+  const navCorporateIdentity = $("navCorporateIdentity");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
@@ -100,6 +102,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
+  const viewCorporateIdentity = $("viewCorporateIdentity");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -3697,6 +3700,7 @@ async function startOrder(orderNo) {
     const showFlocs = view === "flocs";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
+    const showCorporateIdentity = view === "corporate-identity";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3730,6 +3734,10 @@ async function startOrder(orderNo) {
       viewPriceManager.hidden = !showPriceManager;
       viewPriceManager.classList.toggle("flView--active", showPriceManager);
     }
+    if (viewCorporateIdentity) {
+      viewCorporateIdentity.hidden = !showCorporateIdentity;
+      viewCorporateIdentity.classList.toggle("flView--active", showCorporateIdentity);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
@@ -3739,6 +3747,7 @@ async function startOrder(orderNo) {
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
+    navCorporateIdentity?.classList.toggle("flNavBtn--active", showCorporateIdentity);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
@@ -3747,6 +3756,7 @@ async function startOrder(orderNo) {
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
+    navCorporateIdentity?.setAttribute("aria-selected", showCorporateIdentity ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
@@ -3763,6 +3773,8 @@ async function startOrder(orderNo) {
       statusExplain("Stock take ready.", "info");
     } else if (showPriceManager) {
       statusExplain("Price manager ready.", "info");
+    } else if (showCorporateIdentity) {
+      statusExplain("Corporate identity labels ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -3777,7 +3789,8 @@ async function startOrder(orderNo) {
     ["/flowcharts", "flowcharts"],
     ["/flocs", "flocs"],
     ["/stock", "stock"],
-    ["/price-manager", "price-manager"]
+    ["/price-manager", "price-manager"],
+    ["/corporate-identity", "corporate-identity"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -3788,13 +3801,15 @@ async function startOrder(orderNo) {
     flowcharts: "/flowcharts",
     flocs: "/flocs",
     stock: "/stock",
-    "price-manager": "/price-manager"
+    "price-manager": "/price-manager",
+    "corporate-identity": "/corporate-identity"
   };
 
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
-    "price-manager": initPriceManagerView
+    "price-manager": initPriceManagerView,
+    "corporate-identity": initCorporateIdentityView
   };
 
   function normalizePath(path) {
