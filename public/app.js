@@ -3,6 +3,7 @@ import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
 import { initTraceabilityView } from "./views/traceability.js";
 import { initModuleDashboard } from "./views/dashboard.js";
+import { initFeaturePlannerView } from "./views/feature-planner.js";
 
 (() => {
   "use strict";
@@ -93,6 +94,8 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
   const navTraceability = $("navTraceability");
+  const navFeatureMap = $("navFeatureMap");
+  const navIdeas = $("navIdeas");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
@@ -103,6 +106,8 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
   const viewTraceability = $("viewTraceability");
+  const viewFeatureMap = $("viewFeatureMap");
+  const viewIdeas = $("viewIdeas");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -3712,6 +3717,8 @@ async function startOrder(orderNo) {
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
     const showTraceability = view === "traceability";
+    const showFeatureMap = view === "feature-map";
+    const showIdeas = view === "ideas";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3749,6 +3756,14 @@ async function startOrder(orderNo) {
       viewTraceability.hidden = !showTraceability;
       viewTraceability.classList.toggle("flView--active", showTraceability);
     }
+    if (viewFeatureMap) {
+      viewFeatureMap.hidden = !showFeatureMap;
+      viewFeatureMap.classList.toggle("flView--active", showFeatureMap);
+    }
+    if (viewIdeas) {
+      viewIdeas.hidden = !showIdeas;
+      viewIdeas.classList.toggle("flView--active", showIdeas);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
@@ -3759,6 +3774,8 @@ async function startOrder(orderNo) {
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
+    navFeatureMap?.classList.toggle("flNavBtn--active", showFeatureMap);
+    navIdeas?.classList.toggle("flNavBtn--active", showIdeas);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
@@ -3768,6 +3785,8 @@ async function startOrder(orderNo) {
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
     navTraceability?.setAttribute("aria-selected", showTraceability ? "true" : "false");
+    navFeatureMap?.setAttribute("aria-selected", showFeatureMap ? "true" : "false");
+    navIdeas?.setAttribute("aria-selected", showIdeas ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
@@ -3786,6 +3805,10 @@ async function startOrder(orderNo) {
       statusExplain("Price manager ready.", "info");
     } else if (showTraceability) {
       statusExplain("Traceability tools ready.", "info");
+    } else if (showFeatureMap) {
+      statusExplain("Feature map ready.", "info");
+    } else if (showIdeas) {
+      statusExplain("Ideas board ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -3801,7 +3824,9 @@ async function startOrder(orderNo) {
     ["/flocs", "flocs"],
     ["/stock", "stock"],
     ["/price-manager", "price-manager"],
-    ["/traceability", "traceability"]
+    ["/traceability", "traceability"],
+    ["/feature-map", "feature-map"],
+    ["/ideas", "ideas"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -3813,14 +3838,18 @@ async function startOrder(orderNo) {
     flocs: "/flocs",
     stock: "/stock",
     "price-manager": "/price-manager",
-    traceability: "/traceability"
+    traceability: "/traceability",
+    "feature-map": "/feature-map",
+    ideas: "/ideas"
   };
 
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
     "price-manager": initPriceManagerView,
-    traceability: initTraceabilityView
+    traceability: initTraceabilityView,
+    "feature-map": initFeaturePlannerView,
+    ideas: initFeaturePlannerView
   };
 
   function normalizePath(path) {
