@@ -217,7 +217,16 @@ UI_FEATURE_MULTI_SHIP=true
 
 ---
 
-## Running locally
+
+## Documentation
+
+- **Developer Guide**: `docs/developer-guide.md` (architecture, setup, config, deployment, troubleshooting)
+- **Operator Guide**: `docs/operator-guide.md` (daily workflows, checklists, incident handling)
+- **Price Tier Theme Notes**: `docs/price-tiers-theme.md`
+
+---
+
+## Quick start
 
 ```bash
 npm install
