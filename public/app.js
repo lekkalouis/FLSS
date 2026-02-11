@@ -115,6 +115,10 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const kpiMode = $("kpiMode");
   const kpiTruckStatus = $("kpiTruckStatus");
   const kpiLastScan = $("kpiLastScan");
+  const dailyTodoWidget = $("dailyTodoWidget");
+  const dailyTodoList = $("dailyTodoList");
+  const dailyTodoMeta = $("dailyTodoMeta");
+  const dailyTodoClose = $("dailyTodoClose");
 
   const MAX_ORDER_AGE_HOURS = 180;
 
@@ -145,11 +149,22 @@ import { initModuleDashboard } from "./views/dashboard.js";
   let dispatchModalShipmentId = null;
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
+  const DAILY_TODO_KEY = "fl_daily_todo_v1";
   let dailyParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
   let truckBookedBy = null;
   let truckBookingInFlight = false;
+  let dailyTodoDismissed = false;
+  const DAILY_TODO_SHORTCUT = "Alt+Shift+T";
+  const DAILY_TODO_ITEMS = [
+    "Stock take",
+    "Production planning",
+    "Receive stock",
+    "Dispatch checks",
+    "Warehouse housekeeping"
+  ];
+  let dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -815,6 +830,105 @@ import { initModuleDashboard } from "./views/dashboard.js";
 
   function todayKey() {
     return new Date().toISOString().slice(0, 10);
+  }
+
+  function normalizeDailyTodoState(raw) {
+    if (!Array.isArray(raw)) return DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
+    return DAILY_TODO_ITEMS.map((label, index) => {
+      const item = raw[index];
+      return {
+        label,
+        done: Boolean(item && item.done)
+      };
+    });
+  }
+
+  function saveDailyTodoState() {
+    try {
+      localStorage.setItem(
+        DAILY_TODO_KEY,
+        JSON.stringify({
+          date: todayKey(),
+          dismissed: dailyTodoDismissed,
+          items: dailyTodoState
+        })
+      );
+    } catch {}
+  }
+
+  function updateDailyTodoVisibility() {
+    if (!dailyTodoWidget) return;
+    const completed = dailyTodoState.filter((item) => item.done).length;
+    const allDone = completed === dailyTodoState.length;
+    const shouldShow = !allDone && !dailyTodoDismissed;
+    dailyTodoWidget.hidden = !shouldShow;
+    dailyTodoWidget.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+  }
+
+  function renderDailyTodo() {
+    if (!dailyTodoList || !dailyTodoMeta) return;
+    dailyTodoList.innerHTML = "";
+    dailyTodoState.forEach((item, index) => {
+      const row = document.createElement("label");
+      row.className = "todoWidgetItem";
+      row.classList.toggle("is-done", item.done);
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = item.done;
+      checkbox.dataset.todoIndex = String(index);
+
+      const text = document.createElement("span");
+      text.textContent = item.label;
+
+      row.appendChild(checkbox);
+      row.appendChild(text);
+      dailyTodoList.appendChild(row);
+    });
+    const completed = dailyTodoState.filter((item) => item.done).length;
+    dailyTodoMeta.textContent = `${completed} of ${dailyTodoState.length} complete · Shortcut: ${DAILY_TODO_SHORTCUT}`;
+    updateDailyTodoVisibility();
+  }
+
+  function loadDailyTodoState() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(DAILY_TODO_KEY) || "{}");
+      if (stored.date === todayKey()) {
+        dailyTodoDismissed = Boolean(stored.dismissed);
+        dailyTodoState = normalizeDailyTodoState(stored.items);
+      } else {
+        dailyTodoDismissed = false;
+        dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
+      }
+    } catch {
+      dailyTodoDismissed = false;
+      dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
+    }
+    saveDailyTodoState();
+    renderDailyTodo();
+  }
+
+  function handleDailyTodoToggle(index, done) {
+    if (!Number.isInteger(index) || !dailyTodoState[index]) return;
+    dailyTodoState[index].done = done;
+    dailyTodoDismissed = false;
+    saveDailyTodoState();
+    renderDailyTodo();
+  }
+
+  function closeDailyTodoWidget() {
+    dailyTodoDismissed = true;
+    saveDailyTodoState();
+    updateDailyTodoVisibility();
+    statusExplain(`Daily to-do hidden. Press ${DAILY_TODO_SHORTCUT} to reopen.`, "info");
+  }
+
+  function toggleDailyTodoWidget() {
+    const completed = dailyTodoState.filter((item) => item.done).length;
+    if (completed === dailyTodoState.length) return;
+    dailyTodoDismissed = !dailyTodoDismissed;
+    saveDailyTodoState();
+    updateDailyTodoVisibility();
   }
 
   function loadDailyParcelCount() {
@@ -4467,7 +4581,25 @@ async function startOrder(orderNo) {
     savePackingState();
   });
 
+  dailyTodoList?.addEventListener("change", (e) => {
+    const target = e.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.type !== "checkbox") return;
+    const todoIndex = Number(target.dataset.todoIndex);
+    if (!Number.isInteger(todoIndex)) return;
+    handleDailyTodoToggle(todoIndex, target.checked);
+  });
+
+  dailyTodoClose?.addEventListener("click", () => {
+    closeDailyTodoWidget();
+  });
+
   document.addEventListener("keydown", (e) => {
+    if (e.altKey && e.shiftKey && e.key.toLowerCase() === "t") {
+      e.preventDefault();
+      toggleDailyTodoWidget();
+      return;
+    }
     if (e.key === "Escape") {
       closeDispatchOrderModal();
       closeDispatchShipmentModal();
@@ -4499,6 +4631,7 @@ async function startOrder(orderNo) {
     loadModePreference();
     loadDailyParcelCount();
     loadTruckBooking();
+    loadDailyTodoState();
     updateModeToggle();
     renderSessionUI();
     renderCountdown();
