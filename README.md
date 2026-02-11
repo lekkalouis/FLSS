@@ -219,6 +219,10 @@ UI_FEATURE_MULTI_SHIP=true
 
 ## Running locally
 
+## Planning docs
+
+- [`docs/production-shopfloor.md`](docs/production-shopfloor.md) — blueprint for a Production/Shopfloor module (production sessions, staff targets, overtime requests, hardware triggers, and smart scale weight capture).
+
 ```bash
 npm install
 npm run dev
