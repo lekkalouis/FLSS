@@ -3261,6 +3261,17 @@ async function startOrder(orderNo) {
     }
   }
 
+  function getDispatchParcelCountInputValue(orderNo) {
+    if (!orderNo) return null;
+    const input = dispatchBoard?.querySelector(`.dispatchParcelCountInput[data-order-no="${orderNo}"]`);
+    if (!input) return null;
+    const raw = String(input.value || "").trim();
+    if (!raw) return null;
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed <= 0) return null;
+    return parsed;
+  }
+
   function printOppDocument(order, docType) {
     const normalizedType =
       docType === "picklist" ? "picklist" : docType === "packing-slip" ? "packing-slip" : null;
@@ -4136,10 +4147,12 @@ async function startOrder(orderNo) {
         return true;
       }
       const order = dispatchOrderCache.get(orderNo);
+      const parcelCountFromInput = getDispatchParcelCountInputValue(orderNo);
       const presetCount =
-        typeof order?.parcel_count === "number" && order.parcel_count > 0
+        parcelCountFromInput ||
+        (typeof order?.parcel_count === "number" && order.parcel_count > 0
           ? order.parcel_count
-          : getAutoParcelCountForOrder(order?.line_items);
+          : getAutoParcelCountForOrder(order?.line_items));
       await startOrder(orderNo);
       let parcelCount = getExpectedParcelCount(orderDetails);
       if (!parcelCount && presetCount) {
@@ -4228,7 +4241,8 @@ async function startOrder(orderNo) {
         statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
         return true;
       }
-      const count = promptManualParcelCount(orderNo);
+      const presetCount = getDispatchParcelCountInputValue(orderNo);
+      const count = presetCount || promptManualParcelCount(orderNo);
       if (!count) {
         statusExplain("Parcel count required (cancelled).", "warn");
         return true;
