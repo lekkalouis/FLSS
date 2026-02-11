@@ -219,20 +219,38 @@ router.get("/shopify/products/collection", async (req, res) => {
       return res.status(404).json({ error: "NOT_FOUND", message: "Collection not found" });
     }
 
-    const productUrl = `${base}/collections/${collectionId}/products.json?limit=100&fields=id,title,variants`;
-    const prodResp = await shopifyFetch(productUrl, { method: "GET" });
-    if (!prodResp.ok) {
-      const body = await prodResp.text();
-      return res.status(502).json({
-        error: "SHOPIFY_UPSTREAM",
-        status: prodResp.status,
-        statusText: prodResp.statusText,
-        body
-      });
-    }
+    const limit = Math.min(Math.max(Number(req.query.limit || 250), 1), 250);
+    const products = [];
+    let nextPageInfo = "";
+    let page = 0;
+    const maxPages = 20;
 
-    const prodData = await prodResp.json();
-    const products = Array.isArray(prodData.products) ? prodData.products : [];
+    do {
+      const params = new URLSearchParams({
+        limit: String(limit),
+        fields: "id,title,variants"
+      });
+      if (nextPageInfo) params.set("page_info", nextPageInfo);
+      const productUrl = `${base}/collections/${collectionId}/products.json?${params.toString()}`;
+      const prodResp = await shopifyFetch(productUrl, { method: "GET" });
+      if (!prodResp.ok) {
+        const body = await prodResp.text();
+        return res.status(502).json({
+          error: "SHOPIFY_UPSTREAM",
+          status: prodResp.status,
+          statusText: prodResp.statusText,
+          body
+        });
+      }
+
+      const prodData = await prodResp.json();
+      const pageProducts = Array.isArray(prodData.products) ? prodData.products : [];
+      products.push(...pageProducts);
+      const paging = parsePageInfo(prodResp.headers.get("link"));
+      nextPageInfo = paging?.next || "";
+      page += 1;
+    } while (nextPageInfo && page < maxPages);
+
     const normalized = [];
     const seen = new Set();
 

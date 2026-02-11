@@ -106,6 +106,34 @@
       min-width:200px;
     }
 
+    #viewPriceManager .pm-toolbar{
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:.75rem;
+    }
+
+    #viewPriceManager .pm-field--grow{
+      flex:1 1 320px;
+      min-width:240px;
+    }
+
+    #viewPriceManager .pm-check{
+      display:inline-flex;
+      align-items:center;
+      gap:.45rem;
+      font-size:.78rem;
+      text-transform:none;
+      letter-spacing:0;
+      color:var(--text);
+      margin-bottom:.15rem;
+    }
+
+    #viewPriceManager .pm-check input{
+      width:auto;
+      margin:0;
+      accent-color:#0ea5e9;
+    }
+
     #viewPriceManager label{
       font-size:.7rem;
       text-transform:uppercase;
