@@ -61,6 +61,15 @@ const MODULES = [
     target: "/price-manager",
     meta: "Pricing module",
     tag: "Module"
+  },
+  {
+    id: "commissions",
+    title: "Commissions",
+    description: "List FLSL commissions by month and mark monthly payouts as paid.",
+    type: "route",
+    target: "/commissions",
+    meta: "Finance module",
+    tag: "Module"
   }
 ];
 

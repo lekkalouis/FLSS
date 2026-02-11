@@ -12,6 +12,51 @@ import {
 } from "./shared.js";
 
 const router = Router();
+
+function hasTag(tags, expectedTag) {
+  const target = String(expectedTag || "").trim().toLowerCase();
+  if (!target) return false;
+  return normalizeTagList(tags).some((tag) => String(tag).trim().toLowerCase() === target);
+}
+
+function parseMoney(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function resolveNetAmountBeforeShippingAndTax(order) {
+  const subtotal = parseMoney(order?.current_subtotal_price ?? order?.subtotal_price);
+  if (subtotal != null) return subtotal;
+
+  const total = parseMoney(order?.current_total_price ?? order?.total_price) ?? 0;
+  const shipping =
+    parseMoney(order?.total_shipping_price_set?.shop_money?.amount) ??
+    parseMoney(order?.current_total_shipping_price_set?.shop_money?.amount) ??
+    (Array.isArray(order?.shipping_lines)
+      ? order.shipping_lines.reduce((sum, line) => sum + (parseMoney(line?.price) ?? 0), 0)
+      : 0);
+  const tax = parseMoney(order?.current_total_tax ?? order?.total_tax) ?? 0;
+  return Math.max(total - shipping - tax, 0);
+}
+
+
+async function fetchCustomerTags(base, customerId, cache) {
+  const key = String(customerId || "").trim();
+  if (!key) return [];
+  if (cache.has(key)) return cache.get(key);
+
+  const resp = await shopifyFetch(`${base}/customers/${key}.json?fields=id,tags`, {
+    method: "GET"
+  });
+  if (!resp.ok) {
+    cache.set(key, []);
+    return [];
+  }
+  const data = await resp.json();
+  const tags = normalizeTagList(data?.customer?.tags);
+  cache.set(key, tags);
+  return tags;
+}
 router.post("/shopify/draft-orders", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -875,6 +920,138 @@ router.get("/shopify/orders/list", async (req, res) => {
     return res.json({ orders });
   } catch (err) {
     console.error("Shopify order-list error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.get("/shopify/commissions/flsl", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const limit = 250;
+    const maxPages = Math.min(Math.max(Number(req.query.max_pages || 12), 1), 24);
+    const firstPath =
+      `${base}/orders.json?status=any` +
+      `&limit=${limit}` +
+      `&order=processed_at+desc` +
+      `&fields=id,name,created_at,processed_at,tags,subtotal_price,current_subtotal_price,total_price,current_total_price,total_tax,current_total_tax,shipping_lines,total_shipping_price_set,current_total_shipping_price_set,currency,customer`;
+
+    const getNextPath = (linkHeader) => {
+      if (!linkHeader) return null;
+      const match = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+      if (!match) return null;
+      try {
+        const url = new URL(match[1]);
+        return `${url.pathname}${url.search}`;
+      } catch (_err) {
+        return match[1].replace(/^https?:\/\/[^/]+/, "");
+      }
+    };
+
+    const commissionRate = 0.17;
+    let nextPath = firstPath;
+    let pageCount = 0;
+    const monthlyMap = new Map();
+
+    while (nextPath && pageCount < maxPages) {
+      const resp = await shopifyFetch(nextPath, { method: "GET" });
+
+      if (!resp.ok) {
+        const body = await resp.text();
+        return res.status(resp.status).json({
+          error: "SHOPIFY_UPSTREAM",
+          status: resp.status,
+          statusText: resp.statusText,
+          body
+        });
+      }
+
+      const data = await resp.json();
+      const orders = Array.isArray(data.orders) ? data.orders : [];
+      const customerTagCache = new Map();
+
+      for (const order of orders) {
+        if (order.cancelled_at) continue;
+
+        const customer = order.customer || {};
+        const orderTagged = hasTag(order.tags, "flsl");
+        const customerTags = hasTag(customer.tags, "flsl")
+          ? normalizeTagList(customer.tags)
+          : await fetchCustomerTags(base, customer.id, customerTagCache);
+        const customerTagged = hasTag(customerTags, "flsl");
+        if (!orderTagged && !customerTagged) continue;
+
+        const eventDate = order.processed_at || order.created_at;
+        const parsedDate = eventDate ? new Date(eventDate) : null;
+        if (!parsedDate || Number.isNaN(parsedDate.getTime())) continue;
+
+        const monthKey = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, "0")}`;
+        if (!monthlyMap.has(monthKey)) {
+          monthlyMap.set(monthKey, {
+            month: monthKey,
+            currency: order.currency || "ZAR",
+            total_net_amount: 0,
+            total_commission: 0,
+            orders: []
+          });
+        }
+
+        const monthEntry = monthlyMap.get(monthKey);
+        const netAmount = resolveNetAmountBeforeShippingAndTax(order);
+        const commissionAmount = netAmount * commissionRate;
+        const customerName =
+          `${String(customer.first_name || "").trim()} ${String(customer.last_name || "").trim()}`.trim() ||
+          customer.email ||
+          order.email ||
+          "Unknown customer";
+
+        monthEntry.total_net_amount += netAmount;
+        monthEntry.total_commission += commissionAmount;
+        monthEntry.orders.push({
+          order_id: order.id,
+          order_name: order.name || "",
+          created_at: eventDate,
+          customer_name: customerName,
+          customer_id: customer.id || null,
+          customer_email: customer.email || order.email || "",
+          customer_tags: customerTags,
+          order_tags: normalizeTagList(order.tags),
+          commission_trigger: customerTagged ? "customer_tag" : "order_tag",
+          net_amount: netAmount,
+          commission_amount: commissionAmount
+        });
+      }
+
+      nextPath = getNextPath(resp.headers.get("link"));
+      pageCount += 1;
+    }
+
+    const months = Array.from(monthlyMap.values())
+      .map((entry) => ({
+        ...entry,
+        total_net_amount: Number(entry.total_net_amount.toFixed(2)),
+        total_commission: Number(entry.total_commission.toFixed(2)),
+        orders: entry.orders
+          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+          .map((orderEntry) => ({
+            ...orderEntry,
+            net_amount: Number(orderEntry.net_amount.toFixed(2)),
+            commission_amount: Number(orderEntry.commission_amount.toFixed(2))
+          }))
+      }))
+      .sort((a, b) => b.month.localeCompare(a.month));
+
+    return res.json({
+      commission_tag: "flsl",
+      commission_rate: commissionRate,
+      months
+    });
+  } catch (err) {
+    console.error("Shopify commission list error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)
