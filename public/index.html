@@ -2079,6 +2079,7 @@
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
+  <link rel="stylesheet" href="/views/traceability.css">
 </head>
  <body>
   <div class="flApp">
@@ -2096,6 +2097,7 @@
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
+            <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -3274,6 +3276,102 @@ npm run dev</code></pre>
               <div id="po-batchList" class="stock-batchList"></div>
             </div>
           </section>
+        </div>
+      </div>
+    </div>
+
+
+
+    <div class="flView" id="viewTraceability" hidden>
+      <div class="trace-shell">
+        <section class="trace-card">
+          <h2>Traceability Hub</h2>
+          <p class="trace-status" id="trace-status">Manage invoices, COAs, incoming inspections, and finished-good links.</p>
+        </section>
+
+        <div class="trace-grid">
+          <section class="trace-card">
+            <h3>1) Open purchase orders</h3>
+            <form id="trace-poForm" class="trace-form">
+              <input name="poNumber" placeholder="PO number" required />
+              <input name="supplier" placeholder="Supplier" />
+              <input name="flavor" placeholder="Flavor" />
+              <input name="expectedDate" type="date" />
+              <button type="submit">Add open PO</button>
+            </form>
+          </section>
+
+          <section class="trace-card">
+            <h3>2) Invoice register (PDF link + items)</h3>
+            <form id="trace-invoiceForm" class="trace-form">
+              <input name="invoiceNumber" placeholder="Invoice number" required />
+              <select id="trace-invoicePoNumber" name="poNumber" required></select>
+              <input name="supplier" placeholder="Supplier" />
+              <input name="flavor" placeholder="Flavor" />
+              <input name="receivedBatchNumber" placeholder="Received batch number" />
+              <input name="receivedQty" type="number" min="0" step="1" placeholder="Received quantity" />
+              <input name="pdfUrl" placeholder="Invoice PDF URL or file path" />
+              <textarea name="items" rows="4" placeholder="item | lot batch | qty | unit (one per line)"></textarea>
+              <button type="submit">Save invoice + auto-create inspection</button>
+            </form>
+          </section>
+
+          <section class="trace-card">
+            <h3>3) COA register (PDF link)</h3>
+            <form id="trace-coaForm" class="trace-form">
+              <input name="coaNumber" placeholder="COA number" required />
+              <input name="productName" placeholder="Product name" />
+              <input name="batchNumber" placeholder="Batch number on COA" required />
+              <input name="supplier" placeholder="Supplier" />
+              <input name="pdfUrl" placeholder="COA PDF URL or file path" />
+              <button type="submit">Save COA</button>
+            </form>
+          </section>
+
+          <section class="trace-card">
+            <h3>4) Incoming inspection (mobile log equivalent)</h3>
+            <form id="trace-inspectionForm" class="trace-form">
+              <select id="trace-inspectionSelect" name="inspectionId" required></select>
+              <input name="vehicleReg" placeholder="Vehicle registration" />
+              <input name="driverName" placeholder="Driver name" />
+              <input name="receivedQty" type="number" min="0" step="1" placeholder="Confirmed quantity" />
+              <select name="quantityConfirmed"><option value="yes">Quantity confirmed - Yes</option><option value="no">Quantity confirmed - No</option></select>
+              <select name="packagingIntact"><option value="yes">Packaging intact - Yes</option><option value="no">Packaging intact - No</option></select>
+              <select name="sealIntact"><option value="yes">Seal intact - Yes</option><option value="no">Seal intact - No</option></select>
+              <select name="coaAttached"><option value="yes">COA attached - Yes</option><option value="no">COA attached - No</option></select>
+              <textarea name="comments" rows="3" placeholder="Comments"></textarea>
+              <input name="signature" placeholder="Digital signature (receiver name)" />
+              <button type="submit">Submit inspection</button>
+            </form>
+          </section>
+
+          <section class="trace-card">
+            <h3>5) Link finished-good batch</h3>
+            <form id="trace-finishedBatchForm" class="trace-form">
+              <input name="finishedBatchNumber" placeholder="Finished batch number" required />
+              <input name="flavor" placeholder="Flavor" required />
+              <input name="productionDate" type="date" />
+              <textarea name="components" rows="4" placeholder="item | source batch | invoice number (one per line)"></textarea>
+              <textarea name="notes" rows="2" placeholder="Notes"></textarea>
+              <button type="submit">Save finished batch mapping</button>
+            </form>
+          </section>
+
+          <section class="trace-card">
+            <h3>6) Audit lookup</h3>
+            <form id="trace-lookupForm" class="trace-form">
+              <input name="batchNumber" placeholder="Finished batch number" required />
+              <input name="flavor" placeholder="Flavor" required />
+              <button type="submit">Run traceability lookup</button>
+            </form>
+            <div id="trace-lookupOutput" class="trace-meta" style="margin-top:0.75rem;">Run a lookup to see linked records.</div>
+          </section>
+        </div>
+
+        <div class="trace-grid">
+          <section class="trace-card"><h3>Invoices</h3><div id="trace-invoices"></div></section>
+          <section class="trace-card"><h3>COAs</h3><div id="trace-coas"></div></section>
+          <section class="trace-card"><h3>Inspections</h3><div id="trace-inspections"></div></section>
         </div>
       </div>
     </div>

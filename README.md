@@ -12,6 +12,7 @@ FLSS is a single-page operations console for Flippen Lekka that runs on a Node/E
 - **FLOCS / Order Capture** (`/flocs`) — create customers, search products, quote shipping, and create draft orders/orders.
 - **Stock Take** (`/stock`) — load Shopify inventory levels, apply stock take/receive adjustments, and keep an activity log in `localStorage`.
 - **Price Manager** (`/price-manager`) — review price tiers, sync tiers to Shopify metafields, and optionally update storefront pricing.
+- **Traceability** (`/traceability`) — register open POs, invoices and COAs, capture incoming inspection + signature, map finished-good batches, and run audit lookups.
 
 `/stock.html` and `/price-manager.html` are static entrypoints that redirect into the SPA routes for those modules.
 
@@ -132,6 +133,12 @@ The server uses Shopify OAuth client credentials (Admin API) with token caching 
 - Reads and writes `custom.price_tiers` variant metafields.
 - Optionally syncs pricing tiers into the Shopify variant `price` field.
 
+### Traceability
+
+- Maintains a traceability store for open purchase orders, invoices, COAs, incoming inspections, and finished-good batch mappings.
+- Auto-generates an incoming inspection record whenever an invoice is captured.
+- Resolves full traceability chains via batch number + flavor lookup for audit readiness.
+
 ---
 
 ## API reference (server)
@@ -169,6 +176,16 @@ All endpoints are available under `http://localhost:3000/api/v1` by default.
 ### Alerts
 
 - `POST /alerts/book-truck` — send truck booking email when parcel thresholds are reached.
+
+### Traceability
+
+- `GET /traceability/state` — full traceability datastore snapshot.
+- `GET/POST /traceability/open-pos` — manage selectable open purchase orders.
+- `GET/POST /traceability/invoices` — register invoices (creates a pending incoming inspection automatically).
+- `GET/POST /traceability/coas` — register certificate-of-analysis metadata and PDF links.
+- `GET /traceability/inspections`, `POST /traceability/inspections/:inspectionId/submit` — complete inspection checks and capture signature.
+- `POST /traceability/finished-batches` — map finished-good batches to source inputs/invoices.
+- `GET /traceability/lookup?batchNumber=...&flavor=...` — return linked finished-batch, invoice, COA, and inspection records.
 
 ---
 
