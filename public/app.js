@@ -1,6 +1,7 @@
 import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
+import { initTraceabilityView } from "./views/traceability.js";
 import { initModuleDashboard } from "./views/dashboard.js";
 
 (() => {
@@ -91,6 +92,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const navFlocs = $("navFlocs");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
+  const navTraceability = $("navTraceability");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
@@ -100,6 +102,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
+  const viewTraceability = $("viewTraceability");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -3708,6 +3711,7 @@ async function startOrder(orderNo) {
     const showFlocs = view === "flocs";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
+    const showTraceability = view === "traceability";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3741,6 +3745,10 @@ async function startOrder(orderNo) {
       viewPriceManager.hidden = !showPriceManager;
       viewPriceManager.classList.toggle("flView--active", showPriceManager);
     }
+    if (viewTraceability) {
+      viewTraceability.hidden = !showTraceability;
+      viewTraceability.classList.toggle("flView--active", showTraceability);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
@@ -3750,6 +3758,7 @@ async function startOrder(orderNo) {
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
+    navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
@@ -3758,6 +3767,7 @@ async function startOrder(orderNo) {
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
+    navTraceability?.setAttribute("aria-selected", showTraceability ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
@@ -3774,6 +3784,8 @@ async function startOrder(orderNo) {
       statusExplain("Stock take ready.", "info");
     } else if (showPriceManager) {
       statusExplain("Price manager ready.", "info");
+    } else if (showTraceability) {
+      statusExplain("Traceability tools ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -3788,7 +3800,8 @@ async function startOrder(orderNo) {
     ["/flowcharts", "flowcharts"],
     ["/flocs", "flocs"],
     ["/stock", "stock"],
-    ["/price-manager", "price-manager"]
+    ["/price-manager", "price-manager"],
+    ["/traceability", "traceability"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -3799,13 +3812,15 @@ async function startOrder(orderNo) {
     flowcharts: "/flowcharts",
     flocs: "/flocs",
     stock: "/stock",
-    "price-manager": "/price-manager"
+    "price-manager": "/price-manager",
+    traceability: "/traceability"
   };
 
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
-    "price-manager": initPriceManagerView
+    "price-manager": initPriceManagerView,
+    traceability: initTraceabilityView
   };
 
   function normalizePath(path) {
