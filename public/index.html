@@ -1862,6 +1862,44 @@
     padding:1rem;
     background:var(--panel);
   }
+  .docsTopNav{
+    position:sticky;
+    top:.75rem;
+    z-index:3;
+    display:flex;
+    flex-wrap:wrap;
+    gap:.45rem;
+    margin:.9rem 0 1.2rem;
+    padding:.55rem;
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    background:color-mix(in srgb, var(--panel) 92%, #ffffff);
+    backdrop-filter:blur(4px);
+  }
+  .docsTopNav a{
+    display:inline-flex;
+    align-items:center;
+    border:1px solid var(--panel-strong);
+    border-radius:999px;
+    padding:.3rem .7rem;
+    font-size:.74rem;
+    color:var(--text-muted);
+    text-decoration:none;
+    font-family:var(--mono);
+    transition:all .15s ease;
+  }
+  .docsTopNav a:hover,
+  .docsTopNav a:focus-visible{
+    color:#075985;
+    border-color:#7dd3fc;
+    background:#e0f2fe;
+    outline:none;
+  }
+  .docsInlineLink{
+    color:#075985;
+    text-decoration:underline;
+    text-underline-offset:2px;
+  }
   .docsMeta{
     font-family:var(--mono);
     font-size:.78rem;
@@ -2317,7 +2355,45 @@
         <div class="pill">README</div>
         <h2>Flippen Lekka Scan Station (FLSS)</h2>
 
-        <h3>Scope and purpose</h3>
+        <nav class="docsTopNav" aria-label="Documentation sections">
+          <a href="#docs-readmes">Repository READMEs</a>
+          <a href="#docs-scope">Scope</a>
+          <a href="#docs-architecture">Architecture</a>
+          <a href="#docs-backend">Backend</a>
+          <a href="#docs-modules">Frontend</a>
+          <a href="#docs-api">API</a>
+          <a href="#docs-config">Config</a>
+          <a href="#docs-running">Running locally</a>
+          <a href="#docs-dev-guide">Developer guide</a>
+          <a href="#docs-file-map">File map</a>
+        </nav>
+
+        <h3 id="docs-readmes">Repository READMEs</h3>
+        <p>This documentation page now features every tracked repository README. Current README files in this repository:</p>
+        <div class="docsGrid">
+          <article class="docsCard">
+            <h4>FLSS main README</h4>
+            <div class="docsMeta"><span class="docsCode">README.md</span></div>
+            <p>Primary product and operations documentation for the FLSS platform, including architecture, API endpoints, environment variables, and usage guidance.</p>
+            <p><a class="docsInlineLink" href="#docs-scope">Jump to the embedded summary below</a></p>
+          </article>
+        </div>
+
+        <h4>Additional docs included in the docs folder</h4>
+        <div class="docsGrid">
+          <article class="docsCard">
+            <h4>Theme price tiers guide</h4>
+            <div class="docsMeta"><span class="docsCode">docs/price-tiers-theme.md</span></div>
+            <p>Explains Shopify theme-only rendering for customer-tier pricing based on <span class="docsCode">custom.price_tiers</span>.</p>
+          </article>
+          <article class="docsCard">
+            <h4>Raspberry Pi station guide</h4>
+            <div class="docsMeta"><span class="docsCode">docs/raspberry-pi-physical-station.md</span></div>
+            <p>Buildable Raspberry Pi physical station patterns for dispatch control, pick-to-light, and camera guard workflows.</p>
+          </article>
+        </div>
+
+        <h3 id="docs-scope">Scope and purpose</h3>
         <p>FLSS is a single-page operations console for Flippen Lekka that combines three operator workflows behind one Node/Express backend:</p>
         <ul>
           <li><strong>Scan Station</strong> for booking ParcelPerfect shipments based on scanned parcel barcodes and Shopify order data.</li>
@@ -2329,7 +2405,7 @@
 
         <hr class="docsDivider" />
 
-        <h3>High-level architecture</h3>
+        <h3 id="docs-architecture">High-level architecture</h3>
         <pre class="docsBlock"><code>flowchart LR
   subgraph Browser
     Scan[Scan Station UI]
@@ -2377,7 +2453,7 @@
 
         <hr class="docsDivider" />
 
-        <h3>Backend responsibilities (Express)</h3>
+        <h3 id="docs-backend">Backend responsibilities (Express)</h3>
         <h4>Core infrastructure</h4>
         <ul>
           <li><strong>Config + env</strong>: server config is read from environment variables (host/port, ParcelPerfect, Shopify, PrintNode, CORS origins).【F:server.js†L18-L60】</li>
@@ -2407,7 +2483,7 @@
 
         <hr class="docsDivider" />
 
-        <h3>Frontend modules</h3>
+        <h3 id="docs-modules">Frontend modules</h3>
         <h4>1) Scan Station (index + app.js)</h4>
         <p>Primary operator workflow for scanning parcel barcodes and booking shipments.</p>
         <p><strong>Key responsibilities</strong></p>
@@ -2585,7 +2661,7 @@
 
         <hr class="docsDivider" />
 
-        <h3>API reference (server)</h3>
+        <h3 id="docs-api">API reference (server)</h3>
         <p><em>All endpoints are served from the same origin as the frontend (default <span class="docsCode">http://localhost:3000</span>).</em></p>
         <h4>ParcelPerfect</h4>
         <ul>
@@ -2618,7 +2694,7 @@
 
         <hr class="docsDivider" />
 
-        <h3>Configuration</h3>
+        <h3 id="docs-config">Configuration</h3>
         <p>Configuration comes from environment variables. The server expects these at runtime (example values shown):</p>
         <pre class="docsBlock"><code>PORT=3000
 HOST=0.0.0.0
@@ -2679,14 +2755,14 @@ PRINTNODE_PRINTER_ID=123456</code></pre>
 
         <hr class="docsDivider" />
 
-        <h3>Running locally</h3>
+        <h3 id="docs-running">Running locally</h3>
         <pre class="docsBlock"><code>npm install
 npm run dev</code></pre>
         <p>Open <span class="docsCode">http://localhost:3000</span> for Scan Station/Dispatch/Docs, <span class="docsCode">http://localhost:3000/flocs</span> for order capture, and <span class="docsCode">http://localhost:3000/stock.html</span> for stock take. The server listens on <span class="docsCode">HOST</span>/<span class="docsCode">PORT</span> and logs allowed origins on boot.【F:package.json†L1-L16】【F:server.js†L1-L17】</p>
 
         <hr class="docsDivider" />
 
-        <h3>Developer guide</h3>
+        <h3 id="docs-dev-guide">Developer guide</h3>
         <h4>Backend structure (refactored)</h4>
         <p>The backend is now organized into focused modules under <span class="docsCode">src/</span>:</p>
         <ul>
@@ -2721,7 +2797,7 @@ npm run dev</code></pre>
 
         <hr class="docsDivider" />
 
-        <h3>File map</h3>
+        <h3 id="docs-file-map">File map</h3>
         <ul>
           <li><span class="docsCode">server.js</span> — Entrypoint that starts the Express app. 【F:server.js†L1-L17】</li>
           <li><span class="docsCode">src/app.js</span> — Express middleware + route registration + static hosting. 【F:src/app.js†L1-L65】</li>
