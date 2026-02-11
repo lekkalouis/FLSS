@@ -217,6 +217,15 @@ UI_FEATURE_MULTI_SHIP=true
 
 ---
 
+### Raspberry Pi physical station kits
+
+If you want to run hardware-assisted workflows (buttons, LEDs, PIR, camera) on a Raspberry Pi 4, see:
+
+- `docs/raspberry-pi-physical-station.md`
+- `pi_station/dispatch_console.py`
+- `pi_station/pick_to_light.py`
+- `pi_station/camera_guard.py`
+
 ## Running locally
 
 ```bash
