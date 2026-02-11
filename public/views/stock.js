@@ -65,6 +65,14 @@ export function initStockView() {
   const CRATE_UNITS = 102;
   const BOX_UNITS = 250;
 
+  function crateIconMarkup() {
+    return `<svg class="stock-crateIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="2.5" y="5" width="19" height="15" rx="1.8" />
+      <path d="M6.25 9.2H17.75M6.25 12H17.75M6.25 14.8H17.75" />
+      <path d="M8.2 8.1V17.1M12 8.1V17.1M15.8 8.1V17.1" />
+    </svg>`;
+  }
+
   function getStock(sku) {
     const val = Number(stockLevels[sku] || 0);
     return Number.isFinite(val) ? val : 0;
@@ -639,7 +647,7 @@ export function initStockView() {
             </td>
             <td class="stock-quickCol">
               <span class="stock-iconGroup stock-crateGroup">
-                <button class="stock-iconBtn" type="button" data-action="crate" data-sku="${item.sku}" title="Add crate (${CRATE_UNITS})">🧺</button>
+                <button class="stock-iconBtn" type="button" data-action="crate" data-sku="${item.sku}" title="Add crate (${CRATE_UNITS})" aria-label="Add crate (${CRATE_UNITS})">${crateIconMarkup()}</button>
                 <span class="stock-iconCount" data-unit-count="crate">0</span>
               </span>
               <span class="stock-iconGroup stock-boxGroup">
