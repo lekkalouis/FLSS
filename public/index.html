@@ -2079,6 +2079,7 @@
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
+  <link rel="stylesheet" href="/views/commissions.css">
 </head>
  <body>
   <div class="flApp">
@@ -2096,6 +2097,7 @@
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
+            <button id="navCommissions" class="flNavBtn" type="button" role="tab" aria-controls="viewCommissions" aria-selected="false" data-route="/commissions"><span class="flNavBtnIcon" aria-hidden="true">🧾</span><span class="flNavBtnText">Commissions</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -3318,6 +3320,21 @@ npm run dev</code></pre>
         </div>
         <div id="pmToast" class="pm-toast"></div>
     </div>
+
+    <div class="flView" id="viewCommissions" hidden>
+      <div class="commissionsShell">
+        <div class="commissionsHeader">
+          <h2>FLSL Commissions</h2>
+          <div class="commissionsActions">
+            <div class="commissionsGrandTotal">Grand total: <strong id="commissionsGrandTotal">R0.00</strong></div>
+            <button id="commissionsRefreshBtn" class="commissionsRefreshBtn" type="button">Refresh</button>
+          </div>
+        </div>
+        <div id="commissionsStatus" class="commissionsStatus" role="status" aria-live="polite">Loading FLSL commissions...</div>
+        <div id="commissionsMonthList" class="commissionsMonthList"></div>
+      </div>
+    </div>
+
 
       </main>
     </div>
