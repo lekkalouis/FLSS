@@ -14,6 +14,7 @@ const DEFAULT_STORE = {
   openPurchaseOrders: [],
   invoices: [],
   coas: [],
+  documentCaptures: [],
   incomingInspections: [],
   finishedBatches: []
 };
@@ -28,6 +29,7 @@ async function readStore() {
       openPurchaseOrders: Array.isArray(parsed?.openPurchaseOrders) ? parsed.openPurchaseOrders : [],
       invoices: Array.isArray(parsed?.invoices) ? parsed.invoices : [],
       coas: Array.isArray(parsed?.coas) ? parsed.coas : [],
+      documentCaptures: Array.isArray(parsed?.documentCaptures) ? parsed.documentCaptures : [],
       incomingInspections: Array.isArray(parsed?.incomingInspections) ? parsed.incomingInspections : [],
       finishedBatches: Array.isArray(parsed?.finishedBatches) ? parsed.finishedBatches : []
     };
@@ -44,6 +46,128 @@ async function writeStore(store) {
 const normalize = (value) => String(value || "").trim();
 const keyify = (value) => normalize(value).toLowerCase();
 const boolFrom = (value) => Boolean(value);
+
+function toPdfText(value) {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+}
+
+function buildVehicleInspectionSheetPdf(inspection) {
+  const lines = [
+    "FLSS DRIVER VEHICLE INSPECTION SHEET",
+    "",
+    `Inspection ID: ${inspection.inspectionId || "N/A"}`,
+    `Purchase Order: ${inspection.poNumber || "N/A"}`,
+    `Invoice Number: ${inspection.invoiceNumber || "N/A"}`,
+    `Supplier: ${inspection.supplier || "N/A"}`,
+    `Printed At: ${new Date().toISOString()}`,
+    "",
+    "Driver Name: _________________________________",
+    "Vehicle Registration: _________________________",
+    "",
+    "PRE-TRIP CHECKLIST (tick when complete)",
+    "[ ] Tyres / wheels visual check",
+    "[ ] Lights and indicators functional",
+    "[ ] Mirrors and windshield clear",
+    "[ ] Brakes and steering feel normal",
+    "[ ] No fluid leaks visible",
+    "[ ] Delivery docs loaded and secured",
+    "",
+    "CARGO / DELIVERY CHECKS",
+    "[ ] Quantity delivered matches invoice",
+    "[ ] Packaging intact",
+    "[ ] Seal intact (if applicable)",
+    "[ ] COA attached (if required)",
+    "",
+    "Comments:",
+    "________________________________________________",
+    "________________________________________________",
+    "",
+    "Driver signature: ______________________________",
+    "Ops signature: _________________________________"
+  ];
+
+  const operations = ["BT", "/F1 11 Tf", "50 790 Td", "14 TL"];
+  lines.forEach((line, index) => {
+    if (index === 0) {
+      operations.push(`(${toPdfText(line)}) Tj`);
+      return;
+    }
+    operations.push("T*");
+    operations.push(`(${toPdfText(line)}) Tj`);
+  });
+  operations.push("ET");
+
+  const contentStream = operations.join("\n");
+  const contentLength = Buffer.byteLength(contentStream, "utf8");
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    `5 0 obj\n<< /Length ${contentLength} >>\nstream\n${contentStream}\nendstream\nendobj\n`
+  ];
+
+  let offset = "%PDF-1.4\n".length;
+  const xrefEntries = ["0000000000 65535 f "];
+  for (const object of objects) {
+    xrefEntries.push(`${String(offset).padStart(10, "0")} 00000 n `);
+    offset += Buffer.byteLength(object, "utf8");
+  }
+
+  const xrefStart = offset;
+  const xref = `xref\n0 ${objects.length + 1}\n${xrefEntries.join("\n")}\n`;
+  const trailer = `trailer\n<< /Root 1 0 R /Size ${objects.length + 1} >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  const pdf = `%PDF-1.4\n${objects.join("")}${xref}${trailer}`;
+  return Buffer.from(pdf, "utf8").toString("base64");
+}
+
+async function sendPrintNodeJob({ pdfBase64, title }) {
+  const printNodeApiKey = process.env.PRINTNODE_API_KEY;
+  const printNodePrinterId = process.env.PRINTNODE_PRINTER_ID;
+  if (!printNodeApiKey || !printNodePrinterId) {
+    return {
+      ok: false,
+      status: 500,
+      body: { error: "PRINTNODE_NOT_CONFIGURED", message: "Missing PRINTNODE env settings" }
+    };
+  }
+
+  const auth = Buffer.from(printNodeApiKey + ":").toString("base64");
+  const payload = {
+    printerId: Number(printNodePrinterId),
+    title: title || "Driver vehicle inspection sheet",
+    contentType: "pdf_base64",
+    content: String(pdfBase64 || "").replace(/\s/g, ""),
+    source: "Flippen Lekka Traceability"
+  };
+
+  const upstream = await fetch("https://api.printnode.com/printjobs", {
+    method: "POST",
+    headers: {
+      Authorization: "Basic " + auth,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const rawBody = await upstream.text();
+  let parsedBody;
+  try {
+    parsedBody = JSON.parse(rawBody);
+  } catch {
+    parsedBody = { raw: rawBody };
+  }
+
+  return {
+    ok: upstream.ok,
+    status: upstream.status,
+    statusText: upstream.statusText,
+    body: parsedBody
+  };
+}
 
 router.get("/traceability/state", async (_req, res) => {
   const store = await readStore();
@@ -161,6 +285,62 @@ router.get("/traceability/invoices", async (_req, res) => {
   res.json({ invoices: store.invoices });
 });
 
+router.post("/traceability/document-captures", async (req, res) => {
+  const poNumber = normalize(req.body?.poNumber);
+  const invoiceNumber = normalize(req.body?.invoiceNumber);
+  const imagePath = normalize(req.body?.imagePath);
+  const source = normalize(req.body?.source) || "pi-doc-station";
+  const capturedAt = normalize(req.body?.capturedAt) || new Date().toISOString();
+
+  if (!poNumber || !invoiceNumber || !imagePath) {
+    return res.status(400).json({
+      error: "poNumber, invoiceNumber and imagePath are required"
+    });
+  }
+
+  const store = await readStore();
+  const capture = {
+    captureId: `CAP-${Date.now()}`,
+    poNumber,
+    invoiceNumber,
+    imagePath,
+    source,
+    capturedAt,
+    createdAt: new Date().toISOString()
+  };
+  store.documentCaptures.unshift(capture);
+
+  const matchedInvoice = store.invoices.find(
+    (invoice) => keyify(invoice.invoiceNumber) === keyify(invoiceNumber)
+  );
+  if (matchedInvoice) {
+    matchedInvoice.captureImagePath = imagePath;
+    matchedInvoice.captureLoggedAt = capture.capturedAt;
+  }
+
+  const matchedPo = store.openPurchaseOrders.find((po) => keyify(po.poNumber) === keyify(poNumber));
+  if (matchedPo) {
+    matchedPo.captureImagePath = imagePath;
+    matchedPo.captureLoggedAt = capture.capturedAt;
+  }
+
+  const matchedInspection = store.incomingInspections.find(
+    (inspection) => keyify(inspection.poNumber) === keyify(poNumber)
+  );
+  if (matchedInspection) {
+    matchedInspection.captureImagePath = imagePath;
+    matchedInspection.captureLoggedAt = capture.capturedAt;
+  }
+
+  await writeStore(store);
+  return res.status(201).json({ capture, inspection: matchedInspection || null });
+});
+
+router.get("/traceability/document-captures", async (_req, res) => {
+  const store = await readStore();
+  return res.json({ captures: store.documentCaptures || [] });
+});
+
 router.post("/traceability/coas", async (req, res) => {
   const coaNumber = normalize(req.body?.coaNumber);
   const productName = normalize(req.body?.productName);
@@ -230,6 +410,41 @@ router.post("/traceability/inspections/:inspectionId/submit", async (req, res) =
 
   await writeStore(store);
   res.json({ inspection });
+});
+
+router.post("/traceability/inspections/:inspectionId/print-sheet", async (req, res) => {
+  const inspectionId = normalize(req.params?.inspectionId);
+  if (!inspectionId) {
+    return res.status(400).json({ error: "inspectionId is required" });
+  }
+
+  const store = await readStore();
+  const inspection = store.incomingInspections.find(
+    (item) => keyify(item.inspectionId) === keyify(inspectionId)
+  );
+  if (!inspection) {
+    return res.status(404).json({ error: "Inspection not found" });
+  }
+
+  const pdfBase64 = buildVehicleInspectionSheetPdf(inspection);
+  const printResult = await sendPrintNodeJob({
+    pdfBase64,
+    title: `Vehicle inspection ${inspection.inspectionId}`
+  });
+
+  if (!printResult.ok) {
+    return res.status(printResult.status || 502).json({
+      error: "PRINT_FAILED",
+      statusText: printResult.statusText,
+      body: printResult.body
+    });
+  }
+
+  inspection.printedAt = new Date().toISOString();
+  inspection.printJob = printResult.body;
+  await writeStore(store);
+
+  return res.json({ ok: true, inspection, printJob: printResult.body, pdfBase64 });
 });
 
 router.post("/traceability/finished-batches", async (req, res) => {
