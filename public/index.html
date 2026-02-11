@@ -3386,6 +3386,17 @@ npm run dev</code></pre>
           </header>
 
           <section class="pm-panel">
+            <div class="pm-row pm-toolbar">
+              <div class="pm-field pm-field--grow">
+                <label for="pmSearch">Search products</label>
+                <input id="pmSearch" type="search" placeholder="Search SKU, title, or flavour…" autocomplete="off" />
+              </div>
+              <label class="pm-check">
+                <input id="pmKnownOnly" type="checkbox" />
+                Show known catalogue only
+              </label>
+              <button id="pmReload" class="pm-btn" type="button">Reload full list</button>
+            </div>
             <div class="pm-row">
               <span id="pmStatus" class="pm-muted">Loading product list…</span>
             </div>

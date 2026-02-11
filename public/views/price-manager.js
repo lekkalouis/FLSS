@@ -29,13 +29,19 @@ export function initPriceManagerView() {
     PRODUCT_LIST.map((product) => [product.sku, product])
   );
   const state = {
+    allProducts: [],
     products: [],
-    loading: false
+    loading: false,
+    searchTerm: "",
+    knownOnly: false
   };
 
   const tableBody = document.getElementById("pmTableBody");
   const statusEl = document.getElementById("pmStatus");
   const toast = document.getElementById("pmToast");
+  const searchInput = document.getElementById("pmSearch");
+  const knownOnlyInput = document.getElementById("pmKnownOnly");
+  const reloadBtn = document.getElementById("pmReload");
 
   function showToast(message, tone = "ok") {
     if (!toast) return;
@@ -78,12 +84,49 @@ export function initPriceManagerView() {
     return `<span class="pm-flavourBadge" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span>`;
   }
 
+  function sortProducts(products = []) {
+    return [...products].sort((a, b) => {
+      const aRank = skuOrder.has(a.sku) ? skuOrder.get(a.sku) : Number.MAX_SAFE_INTEGER;
+      const bRank = skuOrder.has(b.sku) ? skuOrder.get(b.sku) : Number.MAX_SAFE_INTEGER;
+      if (aRank !== bRank) return aRank - bRank;
+      return String(a.sku || a.title || "").localeCompare(String(b.sku || b.title || ""));
+    });
+  }
+
+  function applyFilters() {
+    const search = state.searchTerm.trim().toLowerCase();
+    const filtered = state.allProducts.filter((product) => {
+      if (state.knownOnly && !skuOrder.has(product.sku)) return false;
+      if (!search) return true;
+      const meta = productMeta.get(product.sku) || {};
+      const haystack = [
+        product.sku,
+        product.title,
+        product.flavour,
+        meta.flavour,
+        meta.title
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(search);
+    });
+
+    state.products = sortProducts(filtered);
+    renderTable();
+    setStatus(
+      `Showing ${state.products.length} of ${state.allProducts.length} products${
+        state.knownOnly ? " (known catalogue)" : ""
+      }.`
+    );
+  }
+
   function renderTable() {
     if (!tableBody) return;
     if (!state.products.length) {
       tableBody.innerHTML = `
         <tr>
-          <td colspan="9" class="pm-muted">No products found.</td>
+          <td colspan="9" class="pm-muted">No products found for the current filters.</td>
         </tr>
       `;
       return;
@@ -190,7 +233,7 @@ export function initPriceManagerView() {
   }
 
   async function loadProducts(url, contextLabel) {
-    if (state.loading) return;
+    if (state.loading) return 0;
     state.loading = true;
     setStatus(`Loading ${contextLabel}…`);
     tableBody.innerHTML = `
@@ -203,17 +246,18 @@ export function initPriceManagerView() {
       const resp = await fetch(url);
       const payload = await resp.json();
       const list = Array.isArray(payload.products) ? payload.products : [];
-      const filteredList = list
-        .filter((product) => skuOrder.has(product.sku))
-        .sort(
-          (a, b) => skuOrder.get(a.sku) - skuOrder.get(b.sku)
-        );
-      state.products = filteredList;
-      renderTable();
-      setStatus(
-        filteredList.length ? `Loaded ${filteredList.length} SKUs.` : "No products found."
-      );
-      return filteredList.length;
+      const deduped = [];
+      const seen = new Set();
+      list.forEach((product) => {
+        const key = String(product.variantId || product.sku || "");
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        deduped.push(product);
+      });
+
+      state.allProducts = sortProducts(deduped);
+      applyFilters();
+      return deduped.length;
     } catch (err) {
       console.error("Load failed", err);
       setStatus("Error loading products.");
@@ -227,10 +271,10 @@ export function initPriceManagerView() {
   async function loadDefaultProducts() {
     const collectionUrl = `/api/v1/shopify/products/collection?handle=${encodeURIComponent(
       DEFAULT_COLLECTION_HANDLE
-    )}&includePriceTiers=1`;
+    )}&includePriceTiers=1&limit=250`;
     const count = await loadProducts(collectionUrl, "product list");
     if (count) return;
-    const fallbackUrl = `/api/v1/shopify/products/search?q=${encodeURIComponent("FL")}&includePriceTiers=1`;
+    const fallbackUrl = `/api/v1/shopify/products/search?q=${encodeURIComponent("FL")}&includePriceTiers=1&limit=50`;
     await loadProducts(fallbackUrl, "product list");
   }
 
@@ -242,6 +286,26 @@ export function initPriceManagerView() {
         const row = target.closest("tr");
         if (row) saveRow(row);
       }
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      state.searchTerm = searchInput.value || "";
+      applyFilters();
+    });
+  }
+
+  if (knownOnlyInput) {
+    knownOnlyInput.addEventListener("change", () => {
+      state.knownOnly = knownOnlyInput.checked;
+      applyFilters();
+    });
+  }
+
+  if (reloadBtn) {
+    reloadBtn.addEventListener("click", () => {
+      loadDefaultProducts();
     });
   }
 
