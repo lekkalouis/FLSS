@@ -8,7 +8,7 @@ All examples assume your FLSS server is reachable at:
 
 ---
 
-## 1) Smart Dispatch Console (buttons + status LEDs + buzzer)
+## 1) Smart Dispatch Console (buttons + rotary encoder + status LEDs + buzzer)
 
 ### What it does
 
@@ -17,6 +17,11 @@ A desk-mounted control panel with:
 - **Book Truck button** → triggers `/alerts/book-truck`
 - **Refresh Status button** → polls `/statusz`
 - **Ready-for-Collection button** → sends `/shopify/ready-for-pickup` for the active order
+- **Rotary knob workflow** for packers:
+  - rotate to move between open orders,
+  - click to open contextual actions,
+  - if packing has started, step through **Mark next item packed**,
+  - finish packing and send **Ready for collection** without touching keyboard/mouse.
 - **RGB LED** shows system state:
   - Green: all integrations healthy
   - Yellow: degraded
@@ -28,6 +33,7 @@ This gives operators a one-touch fallback when the main UI is busy.
 ### Suggested parts from your kit
 
 - 3 momentary buttons
+- 1 rotary encoder module with push switch (ex: KY-040)
 - 1 RGB LED module (or 3 single LEDs)
 - 1 active buzzer module
 - Jumper wires + breadboard
@@ -40,12 +46,26 @@ This gives operators a one-touch fallback when the main UI is busy.
 | Book Truck button | 17 | Use internal pull-up, button to GND |
 | Refresh button | 27 | Use internal pull-up, button to GND |
 | Ready button | 22 | Use internal pull-up, button to GND |
+| Rotary CLK/A | 23 | Encoder A output |
+| Rotary DT/B | 24 | Encoder B output |
+| Rotary switch | 25 | Use internal pull-up, switch to GND |
 | LED Green | 5 | Through resistor |
 | LED Yellow | 6 | Through resistor |
 | LED Red | 13 | Through resistor |
 | Buzzer | 19 | Active buzzer module input |
 
 ### Python implementation (`pi_station/dispatch_console.py`)
+
+The repository version of `pi_station/dispatch_console.py` now supports both legacy button-only mode and rotary navigation mode.
+
+Use these environment variables when deploying:
+
+```bash
+ROTARY_ENABLED=true
+PACKING_STATE_FILE=pi_station/packing_state.json
+```
+
+`PACKING_STATE_FILE` stores local per-order packing progress so a packing session can continue after a restart.
 
 ```python
 #!/usr/bin/env python3
