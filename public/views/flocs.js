@@ -85,7 +85,8 @@ export function initFlocsView() {
     filters: { flavour: "", size: "200ml" },
     priceOverrides: {},
     priceOverrideEnabled: {},
-    azLetters: []
+    azLetters: [],
+    priceResolutionByKey: {}
   };
 
   const FLAVOUR_COLORS = {
@@ -111,6 +112,7 @@ export function initFlocsView() {
       ? `<span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span>`
       : "—";
   let priceTierLoading = false;
+  let resolverPreviewLoading = false;
 
   // ===== HELPERS =====
   const money = (v) =>
@@ -210,6 +212,12 @@ export function initFlocsView() {
 
   function priceForCustomer(product) {
     if (!product) return null;
+    const key = productKey(product);
+    const preview = state.priceResolutionByKey?.[key];
+    if (preview && Number.isFinite(Number(preview.unitPrice))) {
+      return Number(preview.unitPrice);
+    }
+
     const tier = state.priceTier;
     const tiers = normalizePriceTiers(product);
     if (tier && tiers && tiers[tier] != null) {
@@ -527,6 +535,57 @@ export function initFlocsView() {
       `;
       })
       .join("");
+  }
+
+  async function previewPriceResolution(products) {
+    if (resolverPreviewLoading) return;
+    const contexts = products
+      .filter((p) => p && (p.variantId || p.sku))
+      .map((p) => ({
+        variantId: p.variantId,
+        sku: p.sku,
+        quantity: Number(state.items[productKey(p)] || 1) || 1,
+        customerTags: state.customerTags,
+        currency: "ZAR",
+        salesChannel: "flocs",
+        basePrice: p.price != null ? Number(p.price) : null
+      }));
+
+    if (!contexts.length) return;
+
+    resolverPreviewLoading = true;
+    try {
+      const resp = await fetch("/api/v1/pricing/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contexts })
+      });
+      if (!resp.ok) return;
+      const payload = await resp.json();
+      const map = {};
+      (payload?.results || []).forEach((result) => {
+        const variantId = result?.context?.variantId;
+        const sku = result?.context?.sku;
+        const product = products.find(
+          (item) => String(item.variantId || "") === String(variantId || "") ||
+            (sku && String(item.sku || "") === String(sku))
+        );
+        if (!product) return;
+        map[productKey(product)] = {
+          unitPrice: result.unitPrice,
+          matchedRuleId: result.matchedRuleId,
+          fallbackReason: result.fallbackReason
+        };
+      });
+      state.priceResolutionByKey = map;
+      renderProductsTable();
+      renderInvoice();
+      validate();
+    } catch (err) {
+      console.warn("Pricing resolver preview failed:", err);
+    } finally {
+      resolverPreviewLoading = false;
+    }
   }
 
   async function hydratePriceTiersForProducts(products) {
@@ -1299,6 +1358,7 @@ ${state.customer.email || ""}${
     renderInvoice();
     validate();
     hydratePriceTiersForProducts(state.products);
+    previewPriceResolution(state.products);
     updateDeliveryPrompt(hasDeliveryMethod);
     scheduleAutoQuote();
   }
@@ -2009,6 +2069,7 @@ ${state.customer.email || ""}${
     renderProductsTable();
     resetForm();
     hydratePriceTiersForProducts(state.products);
+    previewPriceResolution(state.products);
     initEvents();
   }
 
