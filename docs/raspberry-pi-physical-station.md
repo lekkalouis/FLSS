@@ -428,3 +428,54 @@ sudo systemctl status flss-dispatch-console.service
 4. Add `/iot/events` backend endpoint last for long-term scalability.
 
 That sequence gets you something useful quickly, then layers sophistication.
+
+---
+
+## 9) Document Capture Stand (PO/Invoice imaging + auto inspection print)
+
+### What it does
+
+When a document is placed on your stand:
+
+1. A GPIO document-presence sensor triggers the Pi.
+2. The Pi camera captures an image to local storage.
+3. The Pi calls FLSS `POST /traceability/document-captures` to attach image metadata to the purchase order and invoice records.
+4. FLSS finds the linked incoming inspection and automatically prints a driver's vehicle inspection sheet through PrintNode.
+
+### New Pi script
+
+Use `pi_station/document_capture_station.py`.
+
+Required environment variables:
+
+- `FLSS_BASE` (example: `http://192.168.1.40:3000/api/v1`)
+- `DOC_PO_NUMBER` (PO number to link)
+- `DOC_INVOICE_NUMBER` (invoice number to link)
+
+Optional:
+
+- `OUT_DIR` (capture folder, default `/home/pi/captures`)
+- `DOC_SOURCE` (capture source tag)
+- `DOC_SENSOR_GPIO` (sensor pin, default `24`)
+- `DOC_SENSOR_ACTIVE_LOW` (default `true`)
+- `DOC_TRIGGER_COOLDOWN_SEC` (default `2.0`)
+
+Example run:
+
+```bash
+export FLSS_BASE=http://192.168.1.40:3000/api/v1
+export DOC_PO_NUMBER=PO-24001
+export DOC_INVOICE_NUMBER=INV-9011
+python3 pi_station/document_capture_station.py
+```
+
+### Backend endpoints used
+
+- `POST /api/v1/traceability/document-captures`
+- `GET /api/v1/traceability/document-captures`
+- `POST /api/v1/traceability/inspections/:inspectionId/print-sheet`
+
+### Notes
+
+- Ensure PrintNode credentials are set in FLSS (`PRINTNODE_API_KEY`, `PRINTNODE_PRINTER_ID`).
+- The script intentionally captures once per placement event; remove/reinsert the page to trigger a new capture.

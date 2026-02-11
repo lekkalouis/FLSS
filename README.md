@@ -135,7 +135,7 @@ The server uses Shopify OAuth client credentials (Admin API) with token caching 
 
 ### Traceability
 
-- Maintains a traceability store for open purchase orders, invoices, COAs, incoming inspections, and finished-good batch mappings.
+- Maintains a traceability store for open purchase orders, invoices, document captures, COAs, incoming inspections, and finished-good batch mappings.
 - Auto-generates an incoming inspection record whenever an invoice is captured.
 - Resolves full traceability chains via batch number + flavor lookup for audit readiness.
 
@@ -182,8 +182,10 @@ All endpoints are available under `http://localhost:3000/api/v1` by default.
 - `GET /traceability/state` — full traceability datastore snapshot.
 - `GET/POST /traceability/open-pos` — manage selectable open purchase orders.
 - `GET/POST /traceability/invoices` — register invoices (creates a pending incoming inspection automatically).
+- `GET/POST /traceability/document-captures` — register camera capture metadata against PO/invoice records for receiving traceability.
 - `GET/POST /traceability/coas` — register certificate-of-analysis metadata and PDF links.
 - `GET /traceability/inspections`, `POST /traceability/inspections/:inspectionId/submit` — complete inspection checks and capture signature.
+- `POST /traceability/inspections/:inspectionId/print-sheet` — generate and print a driver vehicle inspection PDF via PrintNode.
 - `POST /traceability/finished-batches` — map finished-good batches to source inputs/invoices.
 - `GET /traceability/lookup?batchNumber=...&flavor=...` — return linked finished-batch, invoice, COA, and inspection records.
 
@@ -242,6 +244,7 @@ If you want to run hardware-assisted workflows (buttons, LEDs, PIR, camera) on a
 - `pi_station/dispatch_console.py`
 - `pi_station/pick_to_light.py`
 - `pi_station/camera_guard.py`
+- `pi_station/document_capture_station.py`
 
 ## Running locally
 
