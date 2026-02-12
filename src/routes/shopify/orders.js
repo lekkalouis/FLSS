@@ -12,6 +12,9 @@ import {
   resolveTierPrice
 } from "./shared.js";
 
+const ORDER_PARCEL_NAMESPACE = "custom";
+const ORDER_PARCEL_KEY = "parcel_count";
+
 const router = Router();
 router.post("/shopify/draft-orders", async (req, res) => {
   try {
