@@ -3262,10 +3262,16 @@ async function startOrder(orderNo) {
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
       const fallbackParcelCount = getAutoParcelCountForOrder(o.line_items);
-      const parcelCountValue =
-        typeof o.parcel_count === "number" && o.parcel_count >= 0
-          ? o.parcel_count
+      const actualParcelCountValue =
+        typeof o.parcel_count === "number" && o.parcel_count >= 0 ? o.parcel_count : "";
+      const estimatedParcelCountValue =
+        typeof o.estimated_parcels === "number" && o.estimated_parcels >= 0
+          ? o.estimated_parcels
           : fallbackParcelCount ?? "";
+      const parcelCountPlaceholder =
+        actualParcelCountValue === "" && estimatedParcelCountValue !== ""
+          ? `Est: ${estimatedParcelCountValue}`
+          : "--";
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
@@ -3298,9 +3304,10 @@ async function startOrder(orderNo) {
               inputmode="numeric"
               data-order-no="${orderNo}"
               data-order-id="${o.id || ""}"
-              data-last-value="${parcelCountValue}"
-              value="${parcelCountValue}"
-              placeholder="--"
+              data-last-value="${actualParcelCountValue}"
+              data-estimated-value="${estimatedParcelCountValue}"
+              value="${actualParcelCountValue}"
+              placeholder="${parcelCountPlaceholder}"
             />
           </div>
           <div class="dispatchCardLines">${lines}</div>
@@ -4281,6 +4288,8 @@ async function startOrder(orderNo) {
         parcelCountFromInput ||
         (typeof order?.parcel_count === "number" && order.parcel_count > 0
           ? order.parcel_count
+          : typeof order?.estimated_parcels === "number" && order.estimated_parcels > 0
+          ? order.estimated_parcels
           : getAutoParcelCountForOrder(order?.line_items));
       await startOrder(orderNo);
       let parcelCount = getExpectedParcelCount(orderDetails);
@@ -4370,7 +4379,14 @@ async function startOrder(orderNo) {
         statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
         return true;
       }
-      const presetCount = getDispatchParcelCountInputValue(orderNo);
+      const order = dispatchOrderCache.get(orderNo);
+      const presetCount =
+        getDispatchParcelCountInputValue(orderNo) ||
+        (typeof order?.parcel_count === "number" && order.parcel_count > 0
+          ? order.parcel_count
+          : typeof order?.estimated_parcels === "number" && order.estimated_parcels > 0
+          ? order.estimated_parcels
+          : getAutoParcelCountForOrder(order?.line_items));
       const count = presetCount || promptManualParcelCount(orderNo);
       if (!count) {
         statusExplain("Parcel count required (cancelled).", "warn");

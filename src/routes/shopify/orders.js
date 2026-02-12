@@ -4,12 +4,16 @@ import { config } from "../../config.js";
 import { fetchVariantPriceTiers, shopifyFetch } from "../../services/shopify.js";
 import { badRequest } from "../../utils/http.js";
 import {
+  fetchOrderEstimatedParcels,
   fetchOrderParcelCount,
   fetchOrderParcelMetafield,
   normalizeTagList,
   requireShopifyConfigured,
   resolveTierPrice
 } from "./shared.js";
+
+const ORDER_PARCEL_NAMESPACE = "custom";
+const ORDER_PARCEL_KEY = "parcel_count";
 
 const router = Router();
 router.post("/shopify/draft-orders", async (req, res) => {
@@ -734,11 +738,15 @@ router.get("/shopify/orders/open", async (req, res) => {
     }
 
     const filteredOrders = ordersRaw.filter((o) => !o.cancelled_at);
-    const parcelCounts = await Promise.all(
-      filteredOrders.map((o) => fetchOrderParcelCount(base, o.id))
+    const parcelCounts = await Promise.all(filteredOrders.map((o) => fetchOrderParcelCount(base, o.id)));
+    const estimatedParcelCounts = await Promise.all(
+      filteredOrders.map((o) => fetchOrderEstimatedParcels(base, o.id))
     );
     const parcelCountMap = new Map(
       filteredOrders.map((o, idx) => [o.id, parcelCounts[idx]])
+    );
+    const estimatedParcelCountMap = new Map(
+      filteredOrders.map((o, idx) => [o.id, estimatedParcelCounts[idx]])
     );
 
     const orders = filteredOrders.map((o) => {
@@ -775,6 +783,7 @@ router.get("/shopify/orders/open", async (req, res) => {
           (o.name ? o.name.replace(/^#/, "") : "");
 
         const parcelCountFromMeta = parcelCountMap.get(o.id) ?? null;
+        const estimatedParcelsFromMeta = estimatedParcelCountMap.get(o.id) ?? null;
 
         return {
           id: o.id,
@@ -799,6 +808,7 @@ router.get("/shopify/orders/open", async (req, res) => {
           shipping_phone: shipping.phone || "",
           shipping_name: shipping.name || customer_name,
           parcel_count: parcelCountFromMeta ?? parcelCountFromTag,
+          estimated_parcels: estimatedParcelsFromMeta,
           line_items: (o.line_items || []).map((li) => ({
             title: li.title,
             variant_title: li.variant_title,
