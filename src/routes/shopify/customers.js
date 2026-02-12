@@ -101,6 +101,87 @@ router.get("/shopify/customers/search", async (req, res) => {
   }
 });
 
+
+router.get("/shopify/customers", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const tierFilter = String(req.query.tier || "").trim().toLowerCase();
+    const provinceFilter = String(req.query.province || "").trim().toLowerCase();
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const limit = Math.min(Math.max(Number(req.query.limit || 250), 1), 250);
+
+    const resp = await shopifyFetch(`${base}/customers.json?limit=${limit}&fields=id,first_name,last_name,email,phone,addresses,default_address,tags`, {
+      method: "GET"
+    });
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body
+      });
+    }
+
+    const data = await resp.json();
+    const customers = Array.isArray(data.customers) ? data.customers : [];
+
+    const withMetafields = await Promise.all(
+      customers.map(async (cust) => {
+        try {
+          const metaUrl = `${base}/customers/${cust.id}/metafields.json`;
+          const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
+          if (!metaResp.ok) return { customer: cust, metafields: {} };
+          const metaData = await metaResp.json();
+          const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
+          const getValue = (key) =>
+            metafields.find((mf) => mf.namespace === "custom" && mf.key === key)?.value || null;
+          return {
+            customer: cust,
+            metafields: {
+              delivery_method: getValue("delivery_method"),
+              delivery_instructions: getValue("delivery_instructions"),
+              company_name: getValue("company_name"),
+              vat_number: getValue("vat_number"),
+              tier: getValue("tier")
+            }
+          };
+        } catch {
+          return { customer: cust, metafields: {} };
+        }
+      })
+    );
+
+    const normalized = withMetafields
+      .map(({ customer, metafields }) => {
+        const norm = normalizeCustomer(customer, metafields);
+        const defaultAddress = norm?.default_address || norm?.addresses?.[0] || null;
+        const province = defaultAddress?.province || "";
+        const inferredTier = String(norm?.tier || "").trim().toLowerCase() ||
+          String(norm?.tags || "").split(",").map((t) => t.trim().toLowerCase()).find((t) => ["agent", "retail", "export", "private", "fkb"].includes(t)) || "";
+        return {
+          ...norm,
+          province,
+          tier: inferredTier || null
+        };
+      })
+      .filter(Boolean)
+      .filter((cust) => {
+        if (tierFilter && String(cust.tier || "").toLowerCase() !== tierFilter) return false;
+        if (provinceFilter && String(cust.province || "").toLowerCase() !== provinceFilter) return false;
+        return true;
+      });
+
+    return res.json({ customers: normalized });
+  } catch (err) {
+    console.error("Shopify customers list error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 router.post("/shopify/customers", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;

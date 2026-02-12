@@ -87,6 +87,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const navDashboard = $("navDashboard");
   const navScan = $("navScan");
   const navFulfillmentHistory = $("navFulfillmentHistory");
+  const navContacts = $("navContacts");
   const navOps = $("navOps");
   const navDocs = $("navDocs");
   const navFlowcharts = $("navFlowcharts");
@@ -98,6 +99,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
   const viewFulfillmentHistory = $("viewFulfillmentHistory");
+  const viewContacts = $("viewContacts");
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
   const viewFlowcharts = $("viewFlowcharts");
@@ -126,6 +128,11 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const fulfillmentRecentlyShipped = $("fulfillmentRecentlyShipped");
   const fulfillmentRecentlyDelivered = $("fulfillmentRecentlyDelivered");
   const fulfillmentRecentlyCollected = $("fulfillmentRecentlyCollected");
+  const contactsSearch = $("contactsSearch");
+  const contactsTierFilter = $("contactsTierFilter");
+  const contactsProvinceFilter = $("contactsProvinceFilter");
+  const contactsMeta = $("contactsMeta");
+  const contactsList = $("contactsList");
 
   let activeOrderNo = null;
   let orderDetails = null;
@@ -157,6 +164,24 @@ import { initModuleDashboard } from "./views/dashboard.js";
       collected: []
     }
   };
+  const contactsState = {
+    query: "",
+    tier: "",
+    province: "",
+    customers: [],
+    loaded: false
+  };
+  const SA_PROVINCES = [
+    "Eastern Cape",
+    "Free State",
+    "Gauteng",
+    "KwaZulu-Natal",
+    "Limpopo",
+    "Mpumalanga",
+    "North West",
+    "Northern Cape",
+    "Western Cape"
+  ];
   let dispatchModalOrderNo = null;
   let dispatchModalShipmentId = null;
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
@@ -3217,11 +3242,16 @@ async function startOrder(orderNo) {
         const name = shipment.customer_name || shipment.order_name || "Unknown";
         const tracking = shipment.tracking_number || "—";
         const status = formatShipmentStatus(shipment.shipment_status);
+        const trackingUrl = shipment.tracking_url || "";
         return `
           <div class="dispatchShipmentRow" data-shipment-key="${key}">
             <div class="dispatchShipmentCell dispatchShipmentCell--name">${name}</div>
             <div class="dispatchShipmentCell dispatchShipmentCell--tracking">${tracking}</div>
             <div class="dispatchShipmentCell dispatchShipmentCell--status">${status}</div>
+            <div class="dispatchShipmentCell dispatchShipmentCell--actions">
+              <button class="dispatchShipmentActionBtn" type="button" data-action="view-shipment" data-shipment-key="${key}">Details</button>
+              ${trackingUrl ? `<a class="dispatchShipmentActionBtn dispatchShipmentActionBtn--link" href="${trackingUrl}" target="_blank" rel="noopener noreferrer">Track</a>` : ""}
+            </div>
           </div>
         `;
       })
@@ -3233,10 +3263,63 @@ async function startOrder(orderNo) {
           <div class="dispatchShipmentCell dispatchShipmentCell--name">Customer</div>
           <div class="dispatchShipmentCell dispatchShipmentCell--tracking">Tracking #</div>
           <div class="dispatchShipmentCell dispatchShipmentCell--status">Latest event</div>
+          <div class="dispatchShipmentCell dispatchShipmentCell--actions">Actions</div>
         </div>
         ${rows || `<div class="dispatchShipmentEmpty">${emptyLabel}</div>`}
       </div>
     `;
+  }
+
+  function renderContacts() {
+    if (contactsTierFilter) {
+      const tiers = [...new Set(contactsState.customers.map((c) => String(c.tier || "").trim()).filter(Boolean))].sort();
+      contactsTierFilter.innerHTML = `<option value="">All tiers</option>${tiers.map((tier) => `<option value="${tier}" ${contactsState.tier === tier ? "selected" : ""}>${tier}</option>`).join("")}`;
+    }
+    if (contactsProvinceFilter) {
+      contactsProvinceFilter.innerHTML = `<option value="">All provinces</option>${SA_PROVINCES.map((province) => `<option value="${province}" ${contactsState.province === province ? "selected" : ""}>${province}</option>`).join("")}`;
+    }
+
+    const q = contactsState.query.toLowerCase();
+    const filtered = contactsState.customers.filter((cust) => {
+      if (contactsState.tier && String(cust.tier || "").toLowerCase() !== contactsState.tier.toLowerCase()) return false;
+      if (contactsState.province && String(cust.province || "").toLowerCase() !== contactsState.province.toLowerCase()) return false;
+      if (!q) return true;
+      return [cust.name, cust.phone, cust.email, cust.companyName].some((v) => String(v || "").toLowerCase().includes(q));
+    });
+
+    if (contactsMeta) contactsMeta.textContent = `Showing ${filtered.length} of ${contactsState.customers.length} customers.`;
+    if (!contactsList) return;
+    contactsList.innerHTML = `
+      <div class="dispatchShipmentTable">
+        <div class="dispatchShipmentRow dispatchShipmentRow--header">
+          <div class="dispatchShipmentCell">Customer</div>
+          <div class="dispatchShipmentCell">Contact number</div>
+          <div class="dispatchShipmentCell">Tier</div>
+          <div class="dispatchShipmentCell">Province</div>
+        </div>
+        ${filtered.map((cust) => `
+          <div class="dispatchShipmentRow">
+            <div class="dispatchShipmentCell">${cust.name || "Unknown"}<br><small>${cust.email || ""}</small></div>
+            <div class="dispatchShipmentCell contactsPhone">${cust.phone || "—"}</div>
+            <div class="dispatchShipmentCell">${cust.tier || "—"}</div>
+            <div class="dispatchShipmentCell">${cust.province || "—"}</div>
+          </div>
+        `).join("") || `<div class="dispatchShipmentEmpty">No customers found.</div>`}
+      </div>
+    `;
+  }
+
+  async function refreshContacts() {
+    if (contactsMeta) contactsMeta.textContent = "Loading contacts…";
+    const params = new URLSearchParams();
+    if (contactsState.tier) params.set("tier", contactsState.tier);
+    if (contactsState.province) params.set("province", contactsState.province);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers${suffix}`);
+    const data = res.ok ? await res.json() : { customers: [] };
+    contactsState.customers = Array.isArray(data.customers) ? data.customers : [];
+    contactsState.loaded = true;
+    renderContacts();
   }
 
   function renderFulfillmentHistory() {
@@ -3896,6 +3979,7 @@ async function startOrder(orderNo) {
     const showDashboard = view === "dashboard";
     const showScan = view === "scan";
     const showFulfillmentHistory = view === "fulfillment-history";
+    const showContacts = view === "contacts";
     const showOps = view === "ops";
     const showDocs = view === "docs";
     const showFlowcharts = view === "flowcharts";
@@ -3915,6 +3999,10 @@ async function startOrder(orderNo) {
     if (viewFulfillmentHistory) {
       viewFulfillmentHistory.hidden = !showFulfillmentHistory;
       viewFulfillmentHistory.classList.toggle("flView--active", showFulfillmentHistory);
+    }
+    if (viewContacts) {
+      viewContacts.hidden = !showContacts;
+      viewContacts.classList.toggle("flView--active", showContacts);
     }
     if (viewOps) {
       viewOps.hidden = !showOps;
@@ -3948,6 +4036,7 @@ async function startOrder(orderNo) {
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navFulfillmentHistory?.classList.toggle("flNavBtn--active", showFulfillmentHistory);
+    navContacts?.classList.toggle("flNavBtn--active", showContacts);
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navFlowcharts?.classList.toggle("flNavBtn--active", showFlowcharts);
@@ -3958,6 +4047,7 @@ async function startOrder(orderNo) {
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navFulfillmentHistory?.setAttribute("aria-selected", showFulfillmentHistory ? "true" : "false");
+    navContacts?.setAttribute("aria-selected", showContacts ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
     navFlowcharts?.setAttribute("aria-selected", showFlowcharts ? "true" : "false");
@@ -3973,6 +4063,12 @@ async function startOrder(orderNo) {
       scanInput?.focus();
     } else if (showFulfillmentHistory) {
       statusExplain("Viewing fulfillment history.", "info");
+    } else if (showContacts) {
+      statusExplain("Viewing customer contacts.", "info");
+      if (!contactsState.loaded) refreshContacts().catch((err) => {
+        appendDebug("Contacts refresh failed: " + String(err));
+        if (contactsMeta) contactsMeta.textContent = "Contacts unavailable.";
+      });
     } else if (showDocs) {
       statusExplain("Viewing operator documentation", "info");
     } else if (showFlocs) {
@@ -3995,6 +4091,7 @@ async function startOrder(orderNo) {
     ["/dashboard", "dashboard"],
     ["/scan", "scan"],
     ["/fulfillment-history", "fulfillment-history"],
+    ["/contacts", "contacts"],
     ["/ops", "scan"],
     ["/docs", "docs"],
     ["/flowcharts", "flowcharts"],
@@ -4008,6 +4105,7 @@ async function startOrder(orderNo) {
     dashboard: "/",
     scan: "/scan",
     "fulfillment-history": "/fulfillment-history",
+    contacts: "/contacts",
     ops: "/scan",
     docs: "/docs",
     flowcharts: "/flowcharts",
@@ -4596,6 +4694,12 @@ async function startOrder(orderNo) {
   });
 
   viewFulfillmentHistory?.addEventListener("click", async (e) => {
+    if (e.target.closest("a.dispatchShipmentActionBtn--link")) return;
+    const actionBtn = e.target.closest("[data-action=\"view-shipment\"]");
+    if (actionBtn?.dataset?.shipmentKey) {
+      await openDispatchShipmentModal(actionBtn.dataset.shipmentKey);
+      return;
+    }
     const shipmentRow = e.target.closest(".dispatchShipmentRow");
     if (shipmentRow && !shipmentRow.classList.contains("dispatchShipmentRow--header")) {
       const shipmentKeyId = shipmentRow.dataset.shipmentKey;
@@ -4606,6 +4710,7 @@ async function startOrder(orderNo) {
   });
 
   let fulfillmentSearchTimer = null;
+  let contactsSearchTimer = null;
   fulfillmentHistorySearch?.addEventListener("input", () => {
     if (fulfillmentSearchTimer) clearTimeout(fulfillmentSearchTimer);
     fulfillmentSearchTimer = setTimeout(() => {
@@ -4615,6 +4720,30 @@ async function startOrder(orderNo) {
         if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History unavailable.";
       });
     }, 250);
+  });
+
+  contactsSearch?.addEventListener("input", () => {
+    if (contactsSearchTimer) clearTimeout(contactsSearchTimer);
+    contactsSearchTimer = setTimeout(() => {
+      contactsState.query = contactsSearch.value.trim();
+      renderContacts();
+    }, 150);
+  });
+
+  contactsTierFilter?.addEventListener("change", () => {
+    contactsState.tier = contactsTierFilter.value || "";
+    refreshContacts().catch((err) => {
+      appendDebug("Contacts refresh failed: " + String(err));
+      if (contactsMeta) contactsMeta.textContent = "Contacts unavailable.";
+    });
+  });
+
+  contactsProvinceFilter?.addEventListener("change", () => {
+    contactsState.province = contactsProvinceFilter.value || "";
+    refreshContacts().catch((err) => {
+      appendDebug("Contacts refresh failed: " + String(err));
+      if (contactsMeta) contactsMeta.textContent = "Contacts unavailable.";
+    });
   });
 
   dispatchOrderModal?.addEventListener("click", async (e) => {
