@@ -2327,6 +2327,47 @@
     text-align:center;
   }
 
+
+  .plannerShell{
+    width:100%;
+    max-width:1200px;
+    margin:0 auto;
+    background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92));
+    border:1px solid rgba(99,102,241,.18);
+    border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-soft);
+    padding:1rem;
+  }
+  .plannerHeader h2{ margin:.2rem 0 .4rem; }
+  .plannerHeader p{ margin:0; color:var(--text-muted); }
+  .plannerForm{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:.75rem;
+    margin-top:1rem;
+    align-items:end;
+  }
+  .plannerField{ display:flex; flex-direction:column; gap:.35rem; }
+  .plannerField label{ font-weight:600; font-size:.85rem; color:#1f2a44; }
+  .plannerInput,.plannerTextarea,.plannerSelect{
+    width:100%; border:1px solid var(--panel-strong); border-radius:.65rem;
+    padding:.6rem .7rem; font:inherit; background:#fff; color:var(--text);
+  }
+  .plannerTextarea{ min-height:90px; resize:vertical; }
+  .plannerActions{ display:flex; gap:.6rem; flex-wrap:wrap; }
+  .plannerBtn{
+    border:1px solid var(--panel-strong); background:#fff; color:var(--text); border-radius:.7rem;
+    padding:.58rem .9rem; font-weight:600; cursor:pointer;
+  }
+  .plannerBtn--primary{ background:linear-gradient(130deg, var(--accent), var(--accent-strong)); border-color:transparent; }
+  .plannerStatus{ margin-top:.75rem; font-size:.85rem; color:var(--text-muted); }
+  .plannerList{ margin-top:1rem; display:grid; gap:.8rem; }
+  .plannerCard{ border:1px solid var(--panel-strong); background:#fff; border-radius:.8rem; padding:.8rem; }
+  .plannerCardHead{ display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap; }
+  .plannerTag{ background:var(--accent-soft); color:#312e81; border-radius:999px; padding:.2rem .55rem; font-size:.72rem; font-weight:700; }
+  .plannerImage{ margin-top:.6rem; max-width:100%; max-height:220px; border-radius:.65rem; border:1px solid var(--panel-strong); object-fit:contain; background:var(--panel-muted); }
+  .plannerEmpty{ padding:1rem; border:1px dashed var(--panel-strong); border-radius:.7rem; color:var(--text-muted); text-align:center; }
+
 </style>
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
@@ -2352,6 +2393,8 @@
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
             <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
+            <button id="navFeatureMap" class="flNavBtn" type="button" role="tab" aria-controls="viewFeatureMap" aria-selected="false" data-route="/feature-map"><span class="flNavBtnIcon" aria-hidden="true">🗺️</span><span class="flNavBtnText">Feature map</span></button>
+            <button id="navIdeas" class="flNavBtn" type="button" role="tab" aria-controls="viewIdeas" aria-selected="false" data-route="/ideas"><span class="flNavBtnIcon" aria-hidden="true">💡</span><span class="flNavBtnText">Ideas</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -3787,6 +3830,77 @@ npm run dev</code></pre>
         </div>
         <div id="pmToast" class="pm-toast"></div>
     </div>
+
+
+        <div class="flView" id="viewFeatureMap" hidden>
+          <div class="plannerShell" data-planner-scope="feature-map">
+            <div class="plannerHeader">
+              <div class="pill">PLANNING</div>
+              <h2>Feature map</h2>
+              <p>Map planned features and attach a reference image to each entry.</p>
+            </div>
+            <form class="plannerForm" data-planner-form="feature-map">
+              <div class="plannerField">
+                <label for="featureMapTitle">Feature title</label>
+                <input id="featureMapTitle" class="plannerInput" name="title" required placeholder="Example: Dispatch smart batching" />
+              </div>
+              <div class="plannerField">
+                <label for="featureMapPriority">Priority</label>
+                <select id="featureMapPriority" class="plannerSelect" name="priority">
+                  <option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option>
+                </select>
+              </div>
+              <div class="plannerField" style="grid-column:1/-1;">
+                <label for="featureMapNotes">Notes</label>
+                <textarea id="featureMapNotes" class="plannerTextarea" name="notes" placeholder="Describe scope, milestones, and blockers..."></textarea>
+              </div>
+              <div class="plannerField">
+                <label for="featureMapImage">Image</label>
+                <input id="featureMapImage" class="plannerInput" type="file" name="image" accept="image/*" required />
+              </div>
+              <div class="plannerActions">
+                <button type="submit" class="plannerBtn plannerBtn--primary">Add to map</button>
+              </div>
+            </form>
+            <div class="plannerStatus" data-planner-status="feature-map">Ready.</div>
+            <div class="plannerList" data-planner-list="feature-map"></div>
+          </div>
+        </div>
+
+        <div class="flView" id="viewIdeas" hidden>
+          <div class="plannerShell" data-planner-scope="ideas">
+            <div class="plannerHeader">
+              <div class="pill">PLANNING</div>
+              <h2>Ideas log</h2>
+              <p>Capture ideas quickly with notes and one image attachment per idea.</p>
+            </div>
+            <form class="plannerForm" data-planner-form="ideas">
+              <div class="plannerField">
+                <label for="ideasTitle">Idea title</label>
+                <input id="ideasTitle" class="plannerInput" name="title" required placeholder="Example: WhatsApp dispatch alerts" />
+              </div>
+              <div class="plannerField">
+                <label for="ideasPriority">Potential impact</label>
+                <select id="ideasPriority" class="plannerSelect" name="priority">
+                  <option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option>
+                </select>
+              </div>
+              <div class="plannerField" style="grid-column:1/-1;">
+                <label for="ideasNotes">Notes</label>
+                <textarea id="ideasNotes" class="plannerTextarea" name="notes" placeholder="Problem statement, audience, and rough solution..."></textarea>
+              </div>
+              <div class="plannerField">
+                <label for="ideasImage">Image</label>
+                <input id="ideasImage" class="plannerInput" type="file" name="image" accept="image/*" required />
+              </div>
+              <div class="plannerActions">
+                <button type="submit" class="plannerBtn plannerBtn--primary">Log idea</button>
+              </div>
+            </form>
+            <div class="plannerStatus" data-planner-status="ideas">Ready.</div>
+            <div class="plannerList" data-planner-list="ideas"></div>
+          </div>
+        </div>
 
       </main>
     </div>

@@ -54,6 +54,24 @@ const MODULES = [
     tag: "Module"
   },
   {
+    id: "feature-map",
+    title: "Feature Map",
+    description: "Map planned features and upload one image per feature entry.",
+    type: "route",
+    target: "/feature-map",
+    meta: "Planning module",
+    tag: "Plan"
+  },
+  {
+    id: "ideas",
+    title: "Ideas",
+    description: "Log ideas with notes and an image attachment for each idea.",
+    type: "route",
+    target: "/ideas",
+    meta: "Planning module",
+    tag: "Plan"
+  },
+  {
     id: "price-manager",
     title: "Price Manager",
     description: "Update tier pricing and sync to Shopify metafields.",
