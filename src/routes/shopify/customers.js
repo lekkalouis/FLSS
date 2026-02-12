@@ -112,12 +112,18 @@ router.post("/shopify/customers", async (req, res) => {
       vatNumber,
       deliveryInstructions,
       deliveryMethod,
+      customerTier,
       address
     } =
       req.body || {};
 
     if (!firstName && !lastName && !email && !phone) {
       return badRequest(res, "Provide at least a name, email, or phone number");
+    }
+
+    const tier = String(customerTier || "").trim();
+    if (!tier) {
+      return badRequest(res, "Customer tier is required");
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
@@ -178,7 +184,16 @@ router.post("/shopify/customers", async (req, res) => {
             ]
           : [],
         note: vatNumber ? `VAT ID: ${vatNumber}` : undefined,
-        metafields
+        tags: tier,
+        metafields: [
+          ...metafields,
+          {
+            namespace: "custom",
+            key: "tier",
+            type: "single_line_text_field",
+            value: tier
+          }
+        ]
       }
     };
 

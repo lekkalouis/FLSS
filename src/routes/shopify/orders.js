@@ -47,10 +47,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const noteParts = [];
-    if (poNumber) noteParts.push(`PO: ${poNumber}`);
-    if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
-    if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
+    const orderNote = poNumber ? `PO: ${poNumber}` : "";
 
     const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
     const tierCache = new Map();
@@ -126,7 +123,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
     const payload = {
       draft_order: {
         customer: { id: customerId },
-        note: noteParts.join(" | "),
+        note: orderNote,
         line_items: lineItemsWithPrice.map((li) => {
           const entry = {
             quantity: li.quantity || 1
@@ -305,10 +302,7 @@ router.post("/shopify/orders", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const noteParts = [];
-    if (poNumber) noteParts.push(`PO: ${poNumber}`);
-    if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
-    if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
+    const orderNote = poNumber ? `PO: ${poNumber}` : "";
 
     const metafields = [];
     if (deliveryDate) {
@@ -365,7 +359,7 @@ router.post("/shopify/orders", async (req, res) => {
     const orderPayload = {
       order: {
         customer: { id: customerId },
-        note: noteParts.join(" | "),
+        note: orderNote,
         line_items: lineItems.map((li) => {
           const entry = {
             quantity: li.quantity || 1
@@ -694,11 +688,11 @@ router.get("/shopify/orders/open", async (req, res) => {
     if (!requireShopifyConfigured(res)) return;
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const limit = 100;
-    const maxPages = Math.min(Math.max(Number(req.query.max_pages || 5), 1), 10);
+    const limit = 250;
+    const cutoffDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
     const firstPath =
-      `${base}/orders.json?status=open` +
+      `${base}/orders.json?status=any` +
       `&fulfillment_status=unfulfilled,in_progress,partial` +
       `&limit=${limit}&order=created_at+desc`;
 
@@ -718,7 +712,7 @@ router.get("/shopify/orders/open", async (req, res) => {
       }
     };
 
-    while (nextPath && pageCount < maxPages) {
+    while (nextPath) {
       const resp = await shopifyFetch(nextPath, { method: "GET" });
 
       if (!resp.ok) {
@@ -735,9 +729,20 @@ router.get("/shopify/orders/open", async (req, res) => {
       if (Array.isArray(data.orders)) ordersRaw.push(...data.orders);
       nextPath = getNextPath(resp.headers.get("link"));
       pageCount += 1;
+      if (pageCount > 500) {
+        console.error("Shopify open-orders cursor pagination exceeded 500 pages; stopping to avoid runaway loop.");
+        break;
+      }
     }
 
-    const filteredOrders = ordersRaw.filter((o) => !o.cancelled_at);
+    const filteredOrders = ordersRaw.filter((o) => {
+      if (o.cancelled_at) return false;
+      const status = String(o.status || "").toLowerCase();
+      const createdAt = new Date(o.created_at || o.processed_at || 0);
+      const isRecent = Number.isFinite(createdAt.getTime()) && createdAt >= cutoffDate;
+      const isOpen = status === "open";
+      return isRecent || isOpen;
+    });
     const parcelCounts = await Promise.all(filteredOrders.map((o) => fetchOrderParcelCount(base, o.id)));
     const estimatedParcelCounts = await Promise.all(
       filteredOrders.map((o) => fetchOrderEstimatedParcels(base, o.id))
@@ -748,6 +753,41 @@ router.get("/shopify/orders/open", async (req, res) => {
     const estimatedParcelCountMap = new Map(
       filteredOrders.map((o, idx) => [o.id, estimatedParcelCounts[idx]])
     );
+
+    const isPriorityOrder = (order) => {
+      const tags = String(order?.tags || "").toLowerCase();
+      const urgentByTag = tags.includes("priority") || tags.includes("urgent");
+      if (urgentByTag) return true;
+
+      const dueCandidates = [
+        order?.due_date,
+        order?.closed_at,
+        order?.updated_at
+      ].filter(Boolean);
+      const nextDue = dueCandidates
+        .map((value) => new Date(value))
+        .filter((date) => Number.isFinite(date.getTime()))
+        .sort((a, b) => a.getTime() - b.getTime())[0];
+      if (!nextDue) return false;
+      return nextDue.getTime() - Date.now() <= 24 * 60 * 60 * 1000;
+    };
+
+    const routeLane = (order) => {
+      const deliveryMethod = String(
+        order?.shipping_lines?.[0]?.code || order?.shipping_lines?.[0]?.title || ""
+      ).toLowerCase();
+      const tags = String(order?.tags || "").toLowerCase();
+      const financialStatus = String(order?.financial_status || "").toLowerCase();
+      if (/(pickup|collect|collection)/.test(deliveryMethod) || /(pickup|collect|collection)/.test(tags)) {
+        return "pickup";
+      }
+      if (/(local|delivery)/.test(deliveryMethod) || tags.includes("local_delivery")) {
+        return "delivery";
+      }
+      if (financialStatus && financialStatus !== "paid") return "shipping_awaiting_payment";
+      if (isPriorityOrder(order)) return "shipping_priority";
+      return "shipping_medium";
+    };
 
     const orders = filteredOrders.map((o) => {
         const shipping = o.shipping_address || {};
@@ -785,6 +825,14 @@ router.get("/shopify/orders/open", async (req, res) => {
         const parcelCountFromMeta = parcelCountMap.get(o.id) ?? null;
         const estimatedParcelsFromMeta = estimatedParcelCountMap.get(o.id) ?? null;
 
+        const eligibleForDispatch =
+          String(o.fulfillment_status || "").toLowerCase() !== "fulfilled";
+        let assignedLane = eligibleForDispatch ? routeLane(o) : null;
+        if (eligibleForDispatch && !assignedLane) {
+          console.error(`Dispatch lane missing for eligible order ${o.name || o.id}; assigning UNASSIGNED lane.`);
+          assignedLane = "UNASSIGNED";
+        }
+
         return {
           id: o.id,
           name: o.name,
@@ -792,6 +840,10 @@ router.get("/shopify/orders/open", async (req, res) => {
           email: o.email || customer.email || "",
           created_at: o.processed_at || o.created_at,
           fulfillment_status: o.fulfillment_status,
+          financial_status: o.financial_status || "",
+          status: o.status || "",
+          eligible_for_dispatch: eligibleForDispatch,
+          assigned_lane: assignedLane,
           tags: o.tags || "",
           total_weight_kg: totalWeightKg,
           shipping_lines: (o.shipping_lines || []).map((line) => ({
@@ -999,7 +1051,6 @@ router.get("/shopify/shipments/recent", async (req, res) => {
         const shipmentStatus = String(
           fulfillment.shipment_status || fulfillment.status || ""
         ).toLowerCase();
-        if (shipmentStatus === "delivered") return;
 
         const trackingNumbers = Array.isArray(fulfillment.tracking_numbers)
           ? fulfillment.tracking_numbers.filter(Boolean)
@@ -1065,5 +1116,80 @@ router.get("/shopify/shipments/recent", async (req, res) => {
   }
 });
 
+
+router.get("/shopify/fulfillment-history", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const searchOrder = String(req.query.order || "").trim().toLowerCase();
+    const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const url =
+      `${base}/orders.json?status=any` +
+      `&fulfillment_status=fulfilled` +
+      `&limit=250&order=updated_at+desc`;
+
+    const resp = await shopifyFetch(url, { method: "GET" });
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body
+      });
+    }
+
+    const data = await resp.json();
+    const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
+    const shipped = [];
+    const delivered = [];
+    const collected = [];
+
+    ordersRaw.forEach((o) => {
+      if (o.cancelled_at) return;
+      const orderName = String(o.name || "").replace(/^#/, "");
+      if (searchOrder && !orderName.toLowerCase().includes(searchOrder)) return;
+      const fulfillments = Array.isArray(o.fulfillments) ? o.fulfillments : [];
+      const tags = String(o.tags || "").toLowerCase();
+      const pickupOrder = tags.includes("pickup") || tags.includes("collect");
+
+      fulfillments.forEach((f) => {
+        const eventAt = new Date(f.created_at || f.updated_at || o.updated_at || o.created_at || 0);
+        if (!Number.isFinite(eventAt.getTime()) || eventAt < cutoffDate) return;
+        const shipmentStatus = String(f.shipment_status || f.status || "shipped").toLowerCase();
+        const item = {
+          order_id: o.id,
+          order_name: o.name,
+          customer_name: o.customer?.first_name || "",
+          fulfillment_id: f.id,
+          shipment_status: shipmentStatus,
+          shipped_at: f.created_at || f.updated_at || o.updated_at || o.created_at
+        };
+        if (pickupOrder || shipmentStatus.includes("pickup") || shipmentStatus.includes("collected")) {
+          collected.push(item);
+        } else if (shipmentStatus === "delivered") {
+          delivered.push(item);
+        } else {
+          shipped.push(item);
+        }
+      });
+    });
+
+    const sortByDate = (arr) => arr.sort((a,b)=>new Date(b.shipped_at||0)-new Date(a.shipped_at||0));
+    return res.json({
+      shipped: sortByDate(shipped),
+      delivered: sortByDate(delivered),
+      collected: sortByDate(collected)
+    });
+  } catch (err) {
+    console.error("Shopify fulfillment-history error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
 
 export default router;

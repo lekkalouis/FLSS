@@ -30,6 +30,7 @@ export function initFlocsView() {
   const customerPhone    = document.getElementById("flocs-customerPhone");
   const customerCompany  = document.getElementById("flocs-customerCompany");
   const customerVat      = document.getElementById("flocs-customerVat");
+  const customerTier     = document.getElementById("flocs-customerTier");
   const customerDeliveryNotes = document.getElementById("flocs-customerDeliveryNotes");
   const customerDelivery = document.getElementById("flocs-customerDelivery");
   const customerAddr1    = document.getElementById("flocs-customerAddr1");
@@ -1234,6 +1235,15 @@ ${state.customer.email || ""}${
       return;
     }
 
+    const selectedTier = customerTier?.value || "";
+    if (!selectedTier) {
+      showToast("Customer tier is required.", "err");
+      if (customerCreateStatus) {
+        customerCreateStatus.textContent = "Customer tier is required.";
+      }
+      return;
+    }
+
     customerCreateBtn.disabled = true;
     if (customerCreateStatus) {
       customerCreateStatus.textContent = "Creating customer…";
@@ -1248,6 +1258,7 @@ ${state.customer.email || ""}${
       vatNumber,
       deliveryInstructions,
       deliveryMethod,
+      customerTier: selectedTier,
       address: address1 || address2 || city || province || zip || country
         ? { address1, address2, city, province, zip, country }
         : null
@@ -1308,6 +1319,7 @@ ${state.customer.email || ""}${
     if (customerPhone) customerPhone.value = "";
     if (customerCompany) customerCompany.value = "";
     if (customerVat) customerVat.value = "";
+    if (customerTier) customerTier.value = "";
     if (customerDeliveryNotes) customerDeliveryNotes.value = "";
     if (customerDelivery) customerDelivery.value = "";
     if (customerAddr1) customerAddr1.value = "";
