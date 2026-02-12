@@ -2550,23 +2550,23 @@
               <p>Latest fulfillment outcomes over the last 30 days.</p>
             </div>
           </div>
-          <div class="dispatchSearchRow">
-            <label for="fulfillmentHistorySearch" class="dispatchSearchLabel">Order number</label>
-            <input id="fulfillmentHistorySearch" class="dispatchSearchInput" type="search" placeholder="Search by order number…" autocomplete="off" />
+          <div class="dispatchSearchRow" style="grid-template-columns:repeat(2,minmax(0,1fr));">
+            <div>
+              <label for="fulfillmentHistorySearch" class="dispatchSearchLabel">Search order</label>
+              <input id="fulfillmentHistorySearch" class="dispatchSearchInput" type="search" placeholder="Search by order number…" autocomplete="off" />
+            </div>
+            <div>
+              <label for="fulfillmentHistoryStatusFilter" class="dispatchSearchLabel">Status</label>
+              <select id="fulfillmentHistoryStatusFilter" class="dispatchSearchInput">
+                <option value="all">All statuses</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="collected">Collected</option>
+              </select>
+            </div>
           </div>
           <div id="fulfillmentHistoryMeta" class="dispatchShipmentInfo">Loading history…</div>
-          <section>
-            <div class="sectionTitle"><span>Recently Shipped</span></div>
-            <div id="fulfillmentRecentlyShipped" class="dispatchShipmentsBody"></div>
-          </section>
-          <section>
-            <div class="sectionTitle"><span>Recently Delivered</span></div>
-            <div id="fulfillmentRecentlyDelivered" class="dispatchShipmentsBody"></div>
-          </section>
-          <section>
-            <div class="sectionTitle"><span>Recently Collected</span></div>
-            <div id="fulfillmentRecentlyCollected" class="dispatchShipmentsBody"></div>
-          </section>
+          <div id="fulfillmentHistoryList" class="dispatchShipmentsBody"></div>
         </div>
       </div>
       <div class="flView" id="viewContacts" hidden>

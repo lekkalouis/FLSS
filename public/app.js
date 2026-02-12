@@ -125,9 +125,8 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const dailyTodoClose = $("dailyTodoClose");
   const fulfillmentHistorySearch = $("fulfillmentHistorySearch");
   const fulfillmentHistoryMeta = $("fulfillmentHistoryMeta");
-  const fulfillmentRecentlyShipped = $("fulfillmentRecentlyShipped");
-  const fulfillmentRecentlyDelivered = $("fulfillmentRecentlyDelivered");
-  const fulfillmentRecentlyCollected = $("fulfillmentRecentlyCollected");
+  const fulfillmentHistoryStatusFilter = $("fulfillmentHistoryStatusFilter");
+  const fulfillmentHistoryList = $("fulfillmentHistoryList");
   const contactsSearch = $("contactsSearch");
   const contactsTierFilter = $("contactsTierFilter");
   const contactsProvinceFilter = $("contactsProvinceFilter");
@@ -158,6 +157,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   let dispatchOrdersLatest = [];
   const fulfillmentHistoryState = {
     query: "",
+    statusFilter: "all",
     streams: {
       shipped: [],
       delivered: [],
@@ -169,7 +169,8 @@ import { initModuleDashboard } from "./views/dashboard.js";
     tier: "",
     province: "",
     customers: [],
-    loaded: false
+    loaded: false,
+    retryTimer: null
   };
   const SA_PROVINCES = [
     "Eastern Cape",
@@ -3322,40 +3323,70 @@ async function startOrder(orderNo) {
   }
 
   async function refreshContacts() {
+    if (contactsState.retryTimer) {
+      clearTimeout(contactsState.retryTimer);
+      contactsState.retryTimer = null;
+    }
     if (contactsMeta) contactsMeta.textContent = "Loading contacts…";
-    const params = new URLSearchParams();
-    if (contactsState.tier) params.set("tier", contactsState.tier);
-    if (contactsState.province) params.set("province", contactsState.province);
-    const suffix = params.toString() ? `?${params.toString()}` : "";
-    const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers${suffix}`);
-    const data = res.ok ? await res.json() : { customers: [] };
-    contactsState.customers = Array.isArray(data.customers) ? data.customers : [];
-    contactsState.loaded = true;
-    renderContacts();
+    try {
+      const params = new URLSearchParams();
+      if (contactsState.tier) params.set("tier", contactsState.tier);
+      if (contactsState.province) params.set("province", contactsState.province);
+      const suffix = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers${suffix}`);
+      if (!res.ok) throw new Error(`Contacts request failed (${res.status})`);
+      const data = await res.json();
+      if (!Array.isArray(data.customers)) {
+        throw new Error("Contacts response missing customers array");
+      }
+      contactsState.customers = data.customers;
+      contactsState.loaded = true;
+      renderContacts();
+      if (contactsMeta && !contactsState.customers.length) {
+        contactsMeta.textContent = "No customer contacts were returned from Shopify.";
+      }
+    } catch (err) {
+      contactsState.loaded = false;
+      if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
+      contactsState.retryTimer = setTimeout(() => {
+        refreshContacts().catch((refreshErr) => {
+          appendDebug("Contacts retry failed: " + String(refreshErr));
+        });
+      }, 30000);
+      throw err;
+    }
   }
 
   function renderFulfillmentHistory() {
-    if (fulfillmentRecentlyShipped) {
-      fulfillmentRecentlyShipped.innerHTML = renderShipmentList(
-        fulfillmentHistoryState.streams.shipped,
-        "No shipped orders in the last 30 days."
+    const streamEntries = Object.entries(fulfillmentHistoryState.streams || {});
+    const allShipments = streamEntries
+      .flatMap(([stream, shipments]) =>
+        (Array.isArray(shipments) ? shipments : []).map((shipment) => ({
+          ...shipment,
+          stream
+        }))
+      )
+      .sort((a, b) => new Date(b.shipped_at || 0).getTime() - new Date(a.shipped_at || 0).getTime());
+
+    const visibleShipments =
+      fulfillmentHistoryState.statusFilter === "all"
+        ? allShipments
+        : allShipments.filter((shipment) => shipment.stream === fulfillmentHistoryState.statusFilter);
+
+    if (fulfillmentHistoryList) {
+      fulfillmentHistoryList.innerHTML = renderShipmentList(
+        visibleShipments,
+        "No fulfillment history found for the selected filters."
       );
     }
-    if (fulfillmentRecentlyDelivered) {
-      fulfillmentRecentlyDelivered.innerHTML = renderShipmentList(
-        fulfillmentHistoryState.streams.delivered,
-        "No delivered orders in the last 30 days."
-      );
-    }
-    if (fulfillmentRecentlyCollected) {
-      fulfillmentRecentlyCollected.innerHTML = renderShipmentList(
-        fulfillmentHistoryState.streams.collected,
-        "No collected orders in the last 30 days."
-      );
-    }
+
     if (fulfillmentHistoryMeta) {
       const q = fulfillmentHistoryState.query ? ` for “${fulfillmentHistoryState.query}”` : "";
-      fulfillmentHistoryMeta.textContent = `Showing 30-day history${q}.`;
+      const status =
+        fulfillmentHistoryState.statusFilter === "all"
+          ? "all statuses"
+          : `${fulfillmentHistoryState.statusFilter}`;
+      fulfillmentHistoryMeta.textContent = `Showing ${visibleShipments.length} shipments (${status})${q}.`;
     }
   }
 
@@ -3392,6 +3423,10 @@ async function startOrder(orderNo) {
     if ([shippedRes, deliveredRes, collectedRes].some((res) => res.status === 429)) {
       if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History rate-limited. Retrying shortly…";
       return false;
+    }
+
+    if (![shippedRes, deliveredRes, collectedRes].some((res) => res.ok)) {
+      throw new Error("All fulfillment history endpoints failed");
     }
 
     const shippedData = shippedRes.ok ? await shippedRes.json() : { shipments: [] };
@@ -4115,9 +4150,9 @@ async function startOrder(orderNo) {
       statusExplain("Viewing fulfillment history.", "info");
     } else if (showContacts) {
       statusExplain("Viewing customer contacts.", "info");
-      if (!contactsState.loaded) refreshContacts().catch((err) => {
+      if (!contactsState.loaded || !contactsState.customers.length) refreshContacts().catch((err) => {
         appendDebug("Contacts refresh failed: " + String(err));
-        if (contactsMeta) contactsMeta.textContent = "Contacts unavailable.";
+        if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
       });
     } else if (showDocs) {
       statusExplain("Viewing operator documentation", "info");
@@ -4772,6 +4807,11 @@ async function startOrder(orderNo) {
     }, 250);
   });
 
+  fulfillmentHistoryStatusFilter?.addEventListener("change", () => {
+    fulfillmentHistoryState.statusFilter = fulfillmentHistoryStatusFilter.value || "all";
+    renderFulfillmentHistory();
+  });
+
   contactsSearch?.addEventListener("input", () => {
     if (contactsSearchTimer) clearTimeout(contactsSearchTimer);
     contactsSearchTimer = setTimeout(() => {
@@ -4784,7 +4824,7 @@ async function startOrder(orderNo) {
     contactsState.tier = contactsTierFilter.value || "";
     refreshContacts().catch((err) => {
       appendDebug("Contacts refresh failed: " + String(err));
-      if (contactsMeta) contactsMeta.textContent = "Contacts unavailable.";
+      if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
     });
   });
 
@@ -4792,7 +4832,7 @@ async function startOrder(orderNo) {
     contactsState.province = contactsProvinceFilter.value || "";
     refreshContacts().catch((err) => {
       appendDebug("Contacts refresh failed: " + String(err));
-      if (contactsMeta) contactsMeta.textContent = "Contacts unavailable.";
+      if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
     });
   });
 
