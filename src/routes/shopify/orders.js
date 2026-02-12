@@ -739,40 +739,22 @@ router.get("/shopify/orders/open", async (req, res) => {
       nextPath = getNextPath(resp.headers.get("link"));
     }
 
-    const isOrderEligibleForDispatch = (order) => {
-      if (order.cancelled_at) return false;
+    const filteredOrders = ordersRaw.filter((o) => {
+      if (o.cancelled_at) return false;
 
-      const fulfillmentStatus = String(order.fulfillment_status || "").toLowerCase();
+      const fulfillmentStatus = String(o.fulfillment_status || "").toLowerCase();
       const isFulfilled = fulfillmentStatus === "fulfilled";
 
       const isExplicitlyOpen =
-        String(order.status || "").toLowerCase() === "open" || !order.closed_at;
+        String(o.status || "").toLowerCase() === "open" || !o.closed_at;
 
       if (isExplicitlyOpen) return true;
       if (isFulfilled) return false;
 
-      const createdAtMs = new Date(order.created_at || 0).getTime();
+      const createdAtMs = new Date(o.created_at || 0).getTime();
       if (!Number.isFinite(createdAtMs)) return false;
 
       return createdAtMs >= createdAtCutoffMs;
-    };
-
-    const resolveDispatchLane = (order) => {
-      const tags = String(order?.tags || "").toLowerCase();
-      const shippingTitles = (order?.shipping_lines || [])
-        .map((line) => String(line?.title || "").toLowerCase())
-        .join(" ")
-        .trim();
-      const combined = `${tags} ${shippingTitles}`.trim();
-
-      if (!combined) return null;
-      if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-      if (/(same\s*day|delivery)/.test(combined)) return "delivery";
-      return "shipping";
-    };
-
-    const filteredOrders = ordersRaw.filter((o) => {
-      return isOrderEligibleForDispatch(o);
     });
     const parcelCounts = await Promise.all(filteredOrders.map((o) => fetchOrderParcelCount(base, o.id)));
     const estimatedParcelCounts = await Promise.all(
@@ -821,21 +803,9 @@ router.get("/shopify/orders/open", async (req, res) => {
         const parcelCountFromMeta = parcelCountMap.get(o.id) ?? null;
         const estimatedParcelsFromMeta = estimatedParcelCountMap.get(o.id) ?? null;
 
-        const eligibleForDispatch = isOrderEligibleForDispatch(o);
-        let assignedLane = resolveDispatchLane(o);
-        if (eligibleForDispatch && !assignedLane) {
-          assignedLane = "UNASSIGNED";
-          console.warn("Eligible dispatch order missing lane assignment", {
-            orderId: o.id,
-            orderName: o.name
-          });
-        }
-
         return {
           id: o.id,
           name: o.name,
-          eligible_for_dispatch: eligibleForDispatch,
-          assigned_lane: assignedLane,
           customer_name,
           email: o.email || customer.email || "",
           created_at: o.processed_at || o.created_at,
