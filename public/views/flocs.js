@@ -51,8 +51,7 @@ export function initFlocsView() {
   const billingAddrPreview = document.getElementById("flocs-billingAddressPreview");
 
   const productsBody     = document.getElementById("flocs-productsBody");
-  const filterFlavour    = document.getElementById("flocs-filterFlavour");
-  const filterSize       = document.getElementById("flocs-filterSize");
+  const filterCategory   = document.getElementById("flocs-filterCategory");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
@@ -82,9 +81,7 @@ export function initFlocsView() {
     lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
-    filters: { flavour: "", size: "200ml" },
-    priceOverrides: {},
-    priceOverrideEnabled: {},
+    filters: { category: "Spices" },
     azLetters: [],
     priceResolutionByKey: {}
   };
@@ -166,7 +163,6 @@ export function initFlocsView() {
     String(p.variantId || p.sku || p.title || "").trim();
 
   const PRICE_TAGS = ["agent", "retailer", "export", "private", "fkb"];
-  const QUICK_QTY = [1, 3, 6, 10, 12, 24, 50, 100];
   const AUTO_QUOTE_DELAY_MS = 3000;
   let autoQuoteTimer = null;
   const deliveryHintDefault = deliveryHint ? deliveryHint.textContent : "";
@@ -233,21 +229,8 @@ export function initFlocsView() {
     return null;
   }
 
-  function priceOverrideForKey(key) {
-    if (!key) return null;
-    const enabled = state.priceOverrideEnabled[key];
-    const raw = state.priceOverrides[key];
-    if (!enabled) return null;
-    const numeric = Number(raw);
-    if (Number.isFinite(numeric)) return numeric;
-    return null;
-  }
-
   function resolveLinePrice(product) {
     if (!product) return null;
-    const key = productKey(product);
-    const override = priceOverrideForKey(key);
-    if (override != null) return override;
     return priceForCustomer(product);
   }
 
@@ -446,96 +429,102 @@ export function initFlocsView() {
     }, AUTO_QUOTE_DELAY_MS);
   }
 
+
+  function categoryForProduct(product) {
+    const title = String(product?.title || "").toLowerCase();
+    if (title.includes("popcorn sprinkle")) return "Popcorn Sprinkle";
+    if (title.includes("spice") || title.includes("seasoning")) return "Spices";
+    return "Other";
+  }
+
+  function groupNameForProduct(product) {
+    const title = displayProductTitle(product);
+    return title
+      .replace(/\b\d+(?:\.\d+)?\s*(ml|g|kg)(?:\s*tub)?\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
+  function sizeRank(size) {
+    const raw = String(size || "").toLowerCase().trim();
+    const ml = raw.match(/^(\d+(?:\.\d+)?)\s*ml/);
+    if (ml) return Number(ml[1]);
+    const g = raw.match(/^(\d+(?:\.\d+)?)\s*g/);
+    if (g) return Number(g[1]) * 10;
+    const kg = raw.match(/^(\d+(?:\.\d+)?)\s*kg/);
+    if (kg) return Number(kg[1]) * 10000;
+    return Number.MAX_SAFE_INTEGER;
+  }
+
   // ===== UI: products table rendering =====
   function renderProductsTable() {
     if (!productsBody) return;
-    const flavourFilter = (state.filters.flavour || "").toLowerCase();
-    const sizeFilter = (state.filters.size || "").toLowerCase();
+    const selectedCategory = state.filters.category || "Spices";
+    const filtered = state.products.filter(
+      (product) => categoryForProduct(product) === selectedCategory
+    );
 
-    const filtered = state.products.filter((p) => {
-      const flavour = (p.flavour || "").toLowerCase();
-      const size = (p.size || "").toLowerCase();
-      if (flavourFilter && flavour !== flavourFilter) return false;
-      if (sizeFilter) {
-        if (sizeFilter === "other") {
-          if (size === "100ml" || size === "200ml") return false;
-        } else if (size !== sizeFilter) {
-          return false;
-        }
-      }
-      return true;
+    const sizes = Array.from(
+      new Set(filtered.map((product) => String(product.size || "—").trim()))
+    ).sort((a, b) => {
+      const rankDiff = sizeRank(a) - sizeRank(b);
+      if (rankDiff !== 0) return rankDiff;
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
     });
 
-    productsBody.innerHTML = filtered
-      .map((p) => {
-        const name = displayProductTitle(p);
-        const key = productKey(p);
-        const value = state.items[key] || "";
-        const qty = Number(state.items[key] || 0);
-        const unitPrice = resolveLinePrice(p);
-        const lineTotal =
-          unitPrice != null && qty > 0 ? unitPrice * qty : null;
-        const overrideEnabled = !!state.priceOverrideEnabled[key];
-        const overrideValue =
-          state.priceOverrides[key] != null ? state.priceOverrides[key] : "";
-        const overridePrice = priceOverrideForKey(key);
-        const rowStyle = p.flavour ? ` style="--flavour-color:${flavourColor(p.flavour)}"` : "";
-        const quickButtons = QUICK_QTY.map(
-          (qty) =>
-            `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
-        ).join("");
+    const groups = new Map();
+    filtered.forEach((product) => {
+      const groupName = groupNameForProduct(product) || displayProductTitle(product);
+      const flavour = product.flavour || "—";
+      const groupKey = `${flavour}__${groupName}`;
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, { groupName, flavour, variants: new Map() });
+      }
+      groups.get(groupKey).variants.set(String(product.size || "—").trim(), product);
+    });
+
+    const rows = Array.from(groups.values()).sort((a, b) => {
+      const flavourCmp = String(a.flavour).localeCompare(String(b.flavour), undefined, { sensitivity: "base" });
+      if (flavourCmp !== 0) return flavourCmp;
+      return String(a.groupName).localeCompare(String(b.groupName), undefined, { sensitivity: "base" });
+    });
+
+    const headerRow = document.getElementById("flocs-productsHeadRow");
+    if (headerRow) {
+      headerRow.innerHTML = [
+        "<th>Description</th>",
+        "<th>Flavour</th>",
+        ...sizes.map((size) => `<th>${size}</th>`),
+        "<th>Action</th>"
+      ].join("");
+    }
+
+    productsBody.innerHTML = rows
+      .map((row) => {
+        const rowStyle = row.flavour && row.flavour !== "—"
+          ? ` style="--flavour-color:${flavourColor(row.flavour)}"`
+          : "";
+        const sizeInputs = sizes
+          .map((size) => {
+            const product = row.variants.get(size);
+            if (!product) return '<td class="flocs-sizeCell flocs-sizeCell--empty">—</td>';
+            const key = productKey(product);
+            const value = state.items[key] || "";
+            const title = `${displayProductTitle(product)} (${product.sku || ""})`;
+            return `<td class="flocs-sizeCell"><input class="flocs-qtyInput" type="text" pattern="[0-9]*" inputmode="numeric" data-key="${key}" data-sku="${product.sku || ""}" aria-label="Qty ${title}" value="${value}" /></td>`;
+          })
+          .join("");
         return `
         <tr${rowStyle}>
-          <td><code>${p.sku}</code></td>
-          <td><span class="flocs-productName" title="${name}">${name}</span></td>
-          <td>${flavourTag(p.flavour)}</td>
-          <td>${p.size || "—"}</td>
-          <td>${unitPrice != null ? money(unitPrice) : "—"}</td>
-          <td>${lineTotal != null ? money(lineTotal) : "—"}</td>
-          <td>
-            <div class="flocs-overrideWrap">
-              <button class="flocs-overrideBtn ${overrideEnabled ? "is-active" : ""}" type="button" data-action="toggle-override" data-key="${key}">
-                ${overrideEnabled ? "Custom" : "Override"}
-              </button>
-              <input class="flocs-overrideInput"
-                     type="number"
-                     min="0"
-                     step="0.01"
-                     inputmode="decimal"
-                     placeholder="R0.00"
-                     data-action="override-input"
-                     data-key="${key}"
-                     value="${overrideValue}"
-                     ${overrideEnabled ? "" : "disabled"} />
-            </div>
-            <div class="flocs-overrideHint">
-              ${overridePrice != null ? `Using ${money(overridePrice)}` : "Auto price"}
-            </div>
-          </td>
-          <td>
-            <div class="flocs-qtyArea">
-              <div class="flocs-qtyQuick">
-                ${quickButtons}
-              </div>
-              <div class="flocs-qtyWrap">
-                <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
-                <input class="flocs-qtyInput"
-                       type="number"
-                       min="0"
-                       step="1"
-                       data-key="${key}"
-                       data-sku="${p.sku || ""}"
-                       inputmode="numeric"
-                       value="${value}" />
-                <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
-              </div>
-            </div>
-          </td>
-        </tr>
-      `;
+          <td><span class="flocs-productName" title="${row.groupName}">${row.groupName}</span></td>
+          <td>${flavourTag(row.flavour === "—" ? "" : row.flavour)}</td>
+          ${sizeInputs}
+          <td><button class="flocs-actionBtn" type="button" data-action="clear-row" data-row-key="${row.flavour}__${row.groupName}">Clear</button></td>
+        </tr>`;
       })
       .join("");
   }
+
 
   async function previewPriceResolution(products) {
     if (resolverPreviewLoading) return;
@@ -778,15 +767,9 @@ ${state.customer.email || ""}${
           .join("")
       : "";
 
-    const overrideCount = Object.keys(state.priceOverrideEnabled || {}).filter(
-      (key) => priceOverrideForKey(key) != null
-    ).length;
     const pricingNote = state.priceTier
       ? `Pricing tier: ${state.priceTier}`
       : "Pricing tier: default";
-    const overrideNote = overrideCount
-      ? ` · ${overrideCount} price override${overrideCount === 1 ? "" : "s"}`
-      : "";
 
     invoice.innerHTML = `
       <div class="flocs-invoiceHeader">
@@ -842,7 +825,7 @@ ${state.customer.email || ""}${
       </div>
 
       <div class="flocs-invoiceNote">
-        ${pricingNote}${overrideNote}. Final pricing and tax are still controlled in Shopify.
+        ${pricingNote}. Final pricing and tax are still controlled in Shopify.
       </div>
     `;
   }
@@ -1378,71 +1361,16 @@ ${state.customer.email || ""}${
   }
 
   function updateFiltersFromProducts() {
-    if (!filterFlavour || !filterSize) return;
-    const flavours = new Set();
-    const sizes = new Set();
-    const flavourStats = new Map();
-    state.products.forEach((p) => {
-      if (p.flavour) {
-        flavours.add(p.flavour);
-        const stats = flavourStats.get(p.flavour) || {
-          hasPopcorn: false,
-          hasNonPopcorn: false
-        };
-        const isPopcorn = String(p.title || "")
-          .toLowerCase()
-          .includes("popcorn sprinkle");
-        if (isPopcorn) {
-          stats.hasPopcorn = true;
-        } else {
-          stats.hasNonPopcorn = true;
-        }
-        flavourStats.set(p.flavour, stats);
-      }
-      if (p.size) sizes.add(p.size);
-    });
-    const flavourOptions = [
-      "",
-      ...Array.from(flavours)
-        .filter((flavour) => {
-          const stats = flavourStats.get(flavour);
-          return !(stats?.hasPopcorn && !stats.hasNonPopcorn);
-        })
-        .sort()
-    ];
-    const sizeOptions = ["", "100ml", "200ml", "Other"].filter((s) => {
-      if (!s) return true;
-      if (s === "Other") {
-        return Array.from(sizes).some(
-          (size) => !["100ml", "200ml"].includes(String(size).toLowerCase())
-        );
-      }
-      return Array.from(sizes).some(
-        (size) => String(size).toLowerCase() === s.toLowerCase()
-      );
-    });
-
-    filterFlavour.innerHTML = flavourOptions
-      .map((f) => {
-        const label = f || "All flavours";
-        const active = (state.filters.flavour || "") === f;
-        const flavourStyle = f
-          ? ` style="--flavour-color:${flavourColor(f)}"`
-          : "";
-        const neutralClass = f ? "" : " is-neutral";
-        return `<button class="flocs-filterBtn flocs-filterBtn--flavour${neutralClass} ${
-          active ? "is-active" : ""
-        }" type="button" data-filter="flavour" data-value="${f}"${flavourStyle}>${label}</button>`;
-      })
-      .join("");
-    filterSize.innerHTML = sizeOptions
-      .map((s) => {
-        const label = s || "All sizes";
-        const active = (state.filters.size || "") === s;
-        return `<button class="flocs-filterBtn ${active ? "is-active" : ""}" type="button" data-filter="size" data-value="${s}">${label}</button>`;
+    if (!filterCategory) return;
+    const categories = ["Spices", "Popcorn Sprinkle", "Other"];
+    filterCategory.innerHTML = categories
+      .map((category) => {
+        const active = (state.filters.category || "Spices") === category;
+        return `<button class="flocs-filterBtn ${active ? "is-active" : ""}" type="button" data-filter="category" data-value="${category}">${category}</button>`;
       })
       .join("");
   }
+
 
   async function createDraftOrder() {
     if (state.errors.length) {
@@ -1700,9 +1628,7 @@ ${state.customer.email || ""}${
     }
     state.customerTags = [];
     state.priceTier = null;
-    state.filters = { flavour: "", size: "200ml" };
-    state.priceOverrides = {};
-    state.priceOverrideEnabled = {};
+    state.filters = { category: "Spices" };
     state.azLetters = [];
 
     if (customerSearch) customerSearch.value = "";
@@ -1903,23 +1829,18 @@ ${state.customer.email || ""}${
         if (!(t instanceof HTMLInputElement)) return;
         const key = t.dataset.key;
         if (!key) return;
-        if (t.dataset.action === "override-input") {
-          const raw = t.value;
-          if (raw === "") {
-            delete state.priceOverrides[key];
-          } else {
-            const num = Number(raw);
-            if (Number.isFinite(num)) {
-              state.priceOverrides[key] = num;
-            }
-          }
+        const digitsOnly = String(t.value || "").replace(/\D/g, "");
+        if (digitsOnly === "") {
+          delete state.items[key];
+          t.value = "";
         } else {
-          const v = Number(t.value || 0);
-          if (!v || v < 0) {
+          const qty = Number(digitsOnly);
+          if (!Number.isFinite(qty) || qty <= 0) {
             delete state.items[key];
+            t.value = "";
           } else {
-            state.items[key] = Math.floor(v);
-            t.value = String(Math.floor(v));
+            state.items[key] = Math.floor(qty);
+            t.value = String(Math.floor(qty));
           }
         }
         renderInvoice();
@@ -1928,66 +1849,27 @@ ${state.customer.email || ""}${
       });
 
       productsBody.addEventListener("click", (e) => {
-        const btn = e.target.closest("[data-action]");
+        const btn = e.target.closest("[data-action='clear-row']");
         if (!btn) return;
-        const action = btn.dataset.action;
-        const key = btn.dataset.key;
-        if (!key) return;
-        const current = Number(state.items[key] || 0);
-        if (action === "toggle-override") {
-          state.priceOverrideEnabled[key] = !state.priceOverrideEnabled[key];
-          if (!state.priceOverrideEnabled[key]) {
-            delete state.priceOverrides[key];
-          }
-          renderProductsTable();
-          renderInvoice();
-          validate();
-          return;
-        }
-        if (action === "quick-add") {
-          const amount = Number(btn.dataset.amount || 0);
-          if (Number.isFinite(amount) && amount > 0) {
-            state.items[key] = current + amount;
-          }
-        } else if (action === "inc") {
-          state.items[key] = current + 1;
-        } else if (action === "dec") {
-          const next = Math.max(0, current - 1);
-          if (next === 0) {
-            delete state.items[key];
-          } else {
-            state.items[key] = next;
-          }
-        } else {
-          return;
-        }
-        const input = productsBody.querySelector(
-          `.flocs-qtyInput[data-key="${CSS.escape(key)}"]`
-        );
-        if (input) {
-          input.value = state.items[key] ? String(state.items[key]) : "";
-        }
+        const row = btn.closest("tr");
+        if (!row) return;
+        row.querySelectorAll("input[data-key]").forEach((input) => {
+          const key = input.dataset.key;
+          if (!key) return;
+          delete state.items[key];
+          input.value = "";
+        });
         renderInvoice();
         validate();
         scheduleAutoQuote();
       });
     }
 
-    if (filterFlavour) {
-      filterFlavour.addEventListener("click", (e) => {
-        const btn = e.target.closest("[data-filter='flavour']");
+    if (filterCategory) {
+      filterCategory.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-filter='category']");
         if (!btn) return;
-        state.filters.flavour = btn.dataset.value || "";
-        updateFiltersFromProducts();
-        renderProductsTable();
-      });
-    }
-
-    if (filterSize) {
-      filterSize.addEventListener("click", (e) => {
-        const btn = e.target.closest("[data-filter='size']");
-        if (!btn) return;
-        state.filters.size = btn.dataset.value || "";
+        state.filters.category = btn.dataset.value || "Spices";
         updateFiltersFromProducts();
         renderProductsTable();
       });
