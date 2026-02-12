@@ -7,9 +7,11 @@ import { initModuleDashboard } from "./views/dashboard.js";
 (() => {
   "use strict";
 
+  // Runtime UI config seeded from defaults and enriched by `/api/v1/config` on boot.
   const CONFIG = {
     PROGRESS_STEP_DELAY_MS: 450
   };
+  // Single API root used across all SPA modules.
   const API_BASE = "/api/v1";
 
   const loadConfig = async () => {
@@ -134,6 +136,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const contactsMeta = $("contactsMeta");
   const contactsList = $("contactsList");
 
+  // Scan-session state (current order, linked orders, and scanned parcels).
   let activeOrderNo = null;
   let orderDetails = null;
   let parcelsByOrder = new Map();
@@ -156,6 +159,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const dispatchSelectedOrders = new Set();
   let activeDispatchOrderNo = null;
   let dispatchOrdersLatest = [];
+  // Lightweight per-view state containers keep modules decoupled without adding a framework.
   const fulfillmentHistoryState = {
     query: "",
     streams: {
@@ -196,6 +200,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   let truckBookingInFlight = false;
   let dailyTodoDismissed = false;
   const DAILY_TODO_SHORTCUT = "Alt+Shift+T";
+  // Operations checklist shown on dashboard; persisted per-browser in localStorage.
   const DAILY_TODO_ITEMS = [
     "Stock take",
     "Production planning",
@@ -204,6 +209,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
     "Warehouse housekeeping"
   ];
   let dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
+  // Shared dispatch progress timeline used in scan and board views.
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -255,6 +261,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
     debugLog.scrollTop = debugLog.scrollHeight;
   };
 
+  // Human-friendly service names for status chips and diagnostics.
   const SERVICE_LABELS = {
     server: "FL Server",
     shopify: "Shopify API",
@@ -4025,6 +4032,7 @@ async function startOrder(orderNo) {
     }
   }
 
+  // Centralized SPA view switch so nav states, URL, and section visibility remain consistent.
   function switchMainView(view) {
     const showDashboard = view === "dashboard";
     const showScan = view === "scan";
@@ -4198,6 +4206,7 @@ async function startOrder(orderNo) {
     initViewIfNeeded(view);
   }
 
+  // Router entrypoint used by nav buttons and deep links.
   function navigateTo(path, { replace = false } = {}) {
     const next = normalizePath(path);
     if (replace) {
