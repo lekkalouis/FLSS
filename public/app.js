@@ -2311,6 +2311,14 @@ async function startOrder(orderNo) {
   }
 
   function laneFromOrder(order) {
+    const assignedLane = String(order?.assigned_lane || "").trim().toLowerCase();
+    if (assignedLane === "delivery" || assignedLane === "pickup" || assignedLane === "shipping") {
+      return assignedLane;
+    }
+    if (assignedLane === "unassigned") {
+      return "unassigned";
+    }
+
     const tags = String(order?.tags || "").toLowerCase();
     const urgentFlag = Boolean(order?.urgent || order?.is_urgent || order?.rush_order);
     const slaHours = Number(order?.sla_hours ?? order?.slaHours ?? order?.sla_target_hours);
@@ -3226,7 +3234,7 @@ async function startOrder(orderNo) {
     }
 
     if (!list.length) {
-      dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
+      dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open dispatch orders right now.</div>`;
       dispatchSelectedOrders.clear();
       updateDispatchSelectionSummary();
       return;
@@ -3296,6 +3304,7 @@ async function startOrder(orderNo) {
             }
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
+          ${String(o.assigned_lane || "").trim().toLowerCase() === "unassigned" ? '<div class="dispatchCardMeta" style="color:#b91c1c;font-weight:700;">⚠️ Lane unresolved (UNASSIGNED)</div>' : ""}
           <div class="dispatchCardParcel">
             <label for="dispatchParcel-${orderNo}">Parcels</label>
             <input
