@@ -20,6 +20,8 @@ export function initStockView() {
   const tableBody = document.getElementById("stock-tableBody");
   const logContainer = document.getElementById("stock-log");
   const locationButtons = document.getElementById("stock-locationButtons");
+  const locationSelect = document.getElementById("stock-location");
+  const transferSelect = document.getElementById("stock-transferLocation");
   const focusInput = document.getElementById("stock-focusInput");
   const focusApplyBtn = document.getElementById("stock-focusApply");
   const mrpBatchName = document.getElementById("mrp-batchName");
@@ -71,7 +73,7 @@ export function initStockView() {
   }
 
   function setStock(sku, value) {
-    stockLevels[sku] = Math.max(0, Math.floor(value));
+    stockLevels[sku] = Math.floor(value);
   }
 
   function formatNumber(value, digits = 0) {
@@ -121,7 +123,7 @@ export function initStockView() {
         if (!item.variantId) return;
         const available = levelsByVariant.get(Number(item.variantId));
         if (available != null && Number.isFinite(available)) {
-          stockLevels[item.sku] = Math.max(0, Math.floor(available));
+          stockLevels[item.sku] = Math.floor(available);
         }
       });
     } catch (err) {
@@ -549,21 +551,21 @@ export function initStockView() {
             `<option value="${loc.id}">${loc.name || `Location ${loc.id}`}</option>`
         )
         .join("");
-      locationSelect.innerHTML = options;
-      transferSelect.innerHTML = `<option value="">Transfer target...</option>${options}`;
+      if (locationSelect) locationSelect.innerHTML = options;
+      if (transferSelect) transferSelect.innerHTML = `<option value="">Transfer target...</option>${options}`;
       const savedLocationId = getSavedLocationId();
       const chosenLocation = locations.find((loc) => Number(loc.id) === Number(currentLocationId))
         || locations.find((loc) => Number(loc.id) === Number(savedLocationId))
         || locations[0];
       if (chosenLocation) {
         currentLocationId = Number(chosenLocation.id);
-        locationSelect.value = String(currentLocationId);
+        if (locationSelect) locationSelect.value = String(currentLocationId);
         saveLocationId(currentLocationId);
       }
       const nextLocation = locations.find((loc) => Number(loc.id) !== currentLocationId);
       if (nextLocation) {
         transferLocationId = Number(nextLocation.id);
-        transferSelect.value = String(transferLocationId);
+        if (transferSelect) transferSelect.value = String(transferLocationId);
       }
       pickTransferLocation();
       renderLocationButtons();
@@ -601,6 +603,18 @@ export function initStockView() {
     if (totalInput) totalInput.value = String(Math.max(0, Math.floor(total)));
   }
 
+  function applyCurrentCellState(cell, value) {
+    if (!cell) return;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      cell.textContent = "0";
+      cell.classList.remove("is-negative");
+      return;
+    }
+    cell.textContent = String(numeric);
+    cell.classList.toggle("is-negative", numeric < 0);
+  }
+
   function resetRowCounts(row) {
     row.querySelectorAll("input[data-count]").forEach((input) => {
       input.value = "";
@@ -624,7 +638,7 @@ export function initStockView() {
           <tr data-sku="${item.sku}" data-crate-clicks="0" data-box-clicks="0">
             <td><strong>${item.sku}</strong></td>
             <td>${item.title}</td>
-            <td class="stock-currentCol" data-current="${item.sku}">${current}</td>
+            <td class="stock-currentCol${current < 0 ? " is-negative" : ""}" data-current="${item.sku}">${current}</td>
             <td class="stock-adjustCol">
               <input class="stock-qtyInput" type="number" min="0" step="1" data-sku="${item.sku}" data-count="1" />
             </td>
@@ -731,7 +745,7 @@ export function initStockView() {
       const nextCount = currentMode === "receive" ? oldCount + Math.max(0, Math.floor(val)) : Math.max(0, Math.floor(val));
       setStock(sku, nextCount);
       const currentCell = row.querySelector(`[data-current="${sku}"]`);
-      if (currentCell) currentCell.textContent = String(nextCount);
+      applyCurrentCellState(currentCell, nextCount);
       appendLogEntry({
         sku,
         oldCount,
@@ -761,7 +775,7 @@ export function initStockView() {
       if (!Number.isFinite(newCount)) return;
       setStock(sku, newCount);
       const currentCell = row.querySelector(`[data-current="${sku}"]`);
-      if (currentCell) currentCell.textContent = String(newCount);
+      applyCurrentCellState(currentCell, newCount);
       appendLogEntry({
         sku,
         oldCount,
@@ -803,7 +817,7 @@ export function initStockView() {
       if (Number.isFinite(available)) {
         setStock(sku, available);
         const currentCell = row.querySelector(`[data-current="${sku}"]`);
-        if (currentCell) currentCell.textContent = String(available);
+        applyCurrentCellState(currentCell, available);
       }
       const modeLabelText = `transfer → ${
         locationNameMap.get(Number(transferLocationId)) || "destination"
@@ -848,6 +862,28 @@ export function initStockView() {
         renderTable();
         updateModeUI();
       });
+    });
+
+    locationSelect?.addEventListener("change", () => {
+      const nextId = Number(locationSelect.value);
+      if (!Number.isFinite(nextId) || Number(nextId) === Number(currentLocationId)) return;
+      currentLocationId = nextId;
+      saveLocationId(currentLocationId);
+      pickTransferLocation();
+      if (transferSelect && transferLocationId != null) {
+        transferSelect.value = String(transferLocationId);
+      }
+      renderLocationButtons();
+      loadStockLevels().then(() => {
+        renderTable();
+        updateModeUI();
+      });
+    });
+
+    transferSelect?.addEventListener("change", () => {
+      const nextId = Number(transferSelect.value);
+      transferLocationId = Number.isFinite(nextId) ? nextId : null;
+      updateModeUI();
     });
 
     tableBody?.addEventListener("click", (event) => {

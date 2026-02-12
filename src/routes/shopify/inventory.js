@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import { config } from "../../config.js";
 import {
   adjustInventoryLevel,
   fetchInventoryItemIdsForVariants,
