@@ -2211,6 +2211,7 @@
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
             <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch</span></button>
+            <button id="navFulfillmentHistory" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillmentHistory" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnIcon" aria-hidden="true">🕘</span><span class="flNavBtnText">Fulfillment History</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
             <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Flowcharts</span></button>
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
@@ -2389,15 +2390,6 @@
                 </div>
               </div>
             </div>
-            <div class="dispatchShipmentsPanel">
-              <div class="dispatchShipmentsHeader">
-                <span>Recently shipped</span>
-                <span class="dispatchStamp">Latest activity</span>
-              </div>
-              <div id="dispatchShipmentsSidebar" class="dispatchShipmentsBody">
-                <div class="dispatchShipmentEmpty">Loading recent shipments…</div>
-              </div>
-            </div>
           </aside>
         </div>
       </div>
@@ -2428,6 +2420,18 @@
         </div>
       </div>
     </div>
+
+        <div class="flView" id="viewFulfillmentHistory" hidden>
+          <div class="dispatchBoardPanel" style="margin:1rem">
+            <div class="sectionTitle" style="margin-top:.4rem">
+              <span>Fulfillment History</span>
+              <input id="fulfillmentHistorySearch" class="flocs-input" style="max-width:260px" placeholder="Search by order #"/>
+            </div>
+            <div id="fulfillmentHistoryBoard" class="dispatchBoard">
+              <div class="dispatchBoardEmpty">Loading fulfillment history…</div>
+            </div>
+          </div>
+        </div>
 
         <div class="flView" id="viewOps" hidden></div>
 
@@ -3097,6 +3101,13 @@ npm run dev</code></pre>
                       </div>
                       <div class="flocs-row" style="margin-top:.4rem">
                         <input id="flocs-customerVat" class="flocs-input" type="text" placeholder="VAT number (optional)" />
+                        <select id="flocs-customerTier" class="flocs-select">
+                          <option value="">Customer tier (required)</option>
+                          <option value="Agent">Agent</option>
+                          <option value="Retail">Retail</option>
+                          <option value="Export">Export</option>
+                          <option value="Internal">Internal</option>
+                        </select>
                       </div>
                       <div class="flocs-row" style="margin-top:.4rem">
                         <textarea id="flocs-customerDeliveryNotes" class="flocs-input" rows="2" placeholder="Delivery instructions (optional)"></textarea>

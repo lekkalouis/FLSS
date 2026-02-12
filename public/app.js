@@ -70,6 +70,8 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const dispatchDeliverSelected = $("dispatchDeliverSelected");
   const dispatchMarkDelivered = $("dispatchMarkDelivered");
   const dispatchShipmentsSidebar = $("dispatchShipmentsSidebar");
+  const fulfillmentHistoryBoard = $("fulfillmentHistoryBoard");
+  const fulfillmentHistorySearch = $("fulfillmentHistorySearch");
   const dispatchOrderModal = $("dispatchOrderModal");
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
   const dispatchOrderModalTitle = $("dispatchOrderModalTitle");
@@ -86,6 +88,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
 
   const navDashboard = $("navDashboard");
   const navScan = $("navScan");
+  const navFulfillmentHistory = $("navFulfillmentHistory");
   const navOps = $("navOps");
   const navDocs = $("navDocs");
   const navFlowcharts = $("navFlowcharts");
@@ -96,6 +99,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
+  const viewFulfillmentHistory = $("viewFulfillmentHistory");
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
   const viewFlowcharts = $("viewFlowcharts");
@@ -2314,14 +2318,14 @@ async function startOrder(orderNo) {
   }
 
   function laneFromOrder(order) {
-    const tags = String(order?.tags || "").toLowerCase();
-    const shippingTitles = (order?.shipping_lines || [])
-      .map((line) => String(line.title || "").toLowerCase())
-      .join(" ");
-    const combined = `${tags} ${shippingTitles}`.trim();
-    if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-    if (/(same\s*day|delivery)/.test(combined)) return "delivery";
-    return "shipping";
+    const assigned = String(order?.assigned_lane || "").toLowerCase();
+    if (assigned === "shipping_priority") return "shipping_priority";
+    if (assigned === "shipping_medium") return "shipping_medium";
+    if (assigned === "shipping_awaiting_payment") return "shipping_awaiting_payment";
+    if (assigned === "pickup") return "pickup";
+    if (assigned === "delivery") return "delivery";
+    if (assigned === "unassigned") return "unassigned";
+    return "shipping_medium";
   }
 
   function renderDispatchLineItems(order, packingState) {
@@ -2382,7 +2386,7 @@ async function startOrder(orderNo) {
   }
 
   function renderDispatchActions(order, laneId, orderNo) {
-    const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
+    const normalizedLane = laneId;
     const disabled = orderNo ? "" : "disabled";
     if (normalizedLane === "delivery") {
       const printed = orderNo && printedDeliveryNotes.has(orderNo);
@@ -3229,25 +3233,26 @@ async function startOrder(orderNo) {
     }
 
     const cols = [
-      { id: "delivery", label: "Delivery", type: "cards" },
-      { id: "shippingA", label: "Shipping", type: "cards" },
-      { id: "shippingB", label: "Shipping", type: "cards" },
-      { id: "pickup", label: "Pickup / Collection", type: "cards" }
+      { id: "shipping_priority", label: "Shipping – Priority", type: "cards" },
+      { id: "shipping_medium", label: "Shipping – Medium", type: "cards" },
+      { id: "shipping_awaiting_payment", label: "Shipping – Awaiting Payment", type: "cards" },
+      { id: "pickup", label: "Pickup", type: "cards" },
+      { id: "delivery", label: "Delivery (Local)", type: "cards" },
+      { id: "unassigned", label: "UNASSIGNED", type: "cards" }
     ];
     const lanes = {
+      shipping_priority: [],
+      shipping_medium: [],
+      shipping_awaiting_payment: [],
+      pickup: [],
       delivery: [],
-      shipping: [],
-      pickup: []
+      unassigned: []
     };
 
     list.forEach((o) => {
       const laneId = laneFromOrder(o);
-      (lanes[laneId] || lanes.shipping).push(o);
+      (lanes[laneId] || lanes.unassigned).push(o);
     });
-
-    const shippingSplitIndex = Math.ceil(lanes.shipping.length / 2);
-    const shippingA = lanes.shipping.slice(0, shippingSplitIndex);
-    const shippingB = lanes.shipping.slice(shippingSplitIndex);
 
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
@@ -3319,12 +3324,7 @@ async function startOrder(orderNo) {
 
     dispatchBoard.innerHTML = cols
       .map((col) => {
-        const laneOrders =
-          col.id === "shippingA"
-            ? shippingA
-            : col.id === "shippingB"
-            ? shippingB
-            : lanes[col.id] || [];
+        const laneOrders = lanes[col.id] || [];
         const cards =
           laneOrders.map((order) => cardHTML(order, col.id)).join("") ||
           `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
@@ -3803,17 +3803,41 @@ async function startOrder(orderNo) {
     return true;
   }
 
+
+  function renderFulfillmentHistory(history) {
+    if (!fulfillmentHistoryBoard) return;
+    const sections = [
+      { id: "shipped", label: "Recently Shipped" },
+      { id: "delivered", label: "Recently Delivered" },
+      { id: "collected", label: "Recently Collected (Pickups)" }
+    ];
+    const sectionHtml = sections.map((section) => {
+      const rows = Array.isArray(history?.[section.id]) ? history[section.id] : [];
+      const cards = rows.slice(0, 150).map((item) => `
+        <div class="dispatchCard">
+          <div class="dispatchCardTitle"><span class="dispatchCardTitleText">${item.order_name || ""}</span></div>
+          <div class="dispatchCardMeta">${item.shipment_status || section.label} · ${new Date(item.shipped_at || Date.now()).toLocaleString()}</div>
+        </div>`).join("") || `<div class="dispatchBoardEmptyCol">No records.</div>`;
+      return `<div class="dispatchCol"><div class="dispatchColHeader"><span>${section.label}</span></div><div class="dispatchColBody">${cards}</div></div>`;
+    }).join("");
+    fulfillmentHistoryBoard.innerHTML = sectionHtml;
+  }
+
   async function refreshDispatchData() {
     try {
-      const [ordersRes, shipmentsRes] = await Promise.all([
+      const search = fulfillmentHistorySearch?.value?.trim() || "";
+      const [ordersRes, shipmentsRes, historyRes] = await Promise.all([
         fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`),
-        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/shipments/recent`)
+        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/shipments/recent`),
+        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?order=${encodeURIComponent(search)}`)
       ]);
       const data = ordersRes.ok ? await ordersRes.json() : { orders: [] };
       const shipmentsData = shipmentsRes.ok ? await shipmentsRes.json() : { shipments: [] };
+      const historyData = historyRes.ok ? await historyRes.json() : { shipped: [], delivered: [], collected: [] };
       dispatchOrdersLatest = data.orders || [];
       dispatchShipmentsLatest = shipmentsData.shipments || [];
       renderDispatchBoard(dispatchOrdersLatest);
+      renderFulfillmentHistory(historyData);
       updateDashboardKpis();
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
     } catch (e) {
@@ -3826,6 +3850,7 @@ async function startOrder(orderNo) {
   function switchMainView(view) {
     const showDashboard = view === "dashboard";
     const showScan = view === "scan";
+    const showFulfillmentHistory = view === "fulfillment-history";
     const showOps = view === "ops";
     const showDocs = view === "docs";
     const showFlowcharts = view === "flowcharts";
@@ -3841,6 +3866,10 @@ async function startOrder(orderNo) {
     if (viewScan) {
       viewScan.hidden = !showScan;
       viewScan.classList.toggle("flView--active", showScan);
+    }
+    if (viewFulfillmentHistory) {
+      viewFulfillmentHistory.hidden = !showFulfillmentHistory;
+      viewFulfillmentHistory.classList.toggle("flView--active", showFulfillmentHistory);
     }
     if (viewOps) {
       viewOps.hidden = !showOps;
@@ -3873,6 +3902,7 @@ async function startOrder(orderNo) {
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
+    navFulfillmentHistory?.classList.toggle("flNavBtn--active", showFulfillmentHistory);
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navFlowcharts?.classList.toggle("flNavBtn--active", showFlowcharts);
@@ -3882,6 +3912,7 @@ async function startOrder(orderNo) {
     navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
+    navFulfillmentHistory?.setAttribute("aria-selected", showFulfillmentHistory ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
     navFlowcharts?.setAttribute("aria-selected", showFlowcharts ? "true" : "false");
@@ -3895,6 +3926,8 @@ async function startOrder(orderNo) {
     } else if (showScan) {
       statusExplain("Ready to scan orders…", "info");
       scanInput?.focus();
+    } else if (showFulfillmentHistory) {
+      statusExplain("Viewing fulfillment history", "info");
     } else if (showDocs) {
       statusExplain("Viewing operator documentation", "info");
     } else if (showFlocs) {
@@ -3917,6 +3950,7 @@ async function startOrder(orderNo) {
     ["/dashboard", "dashboard"],
     ["/scan", "scan"],
     ["/ops", "scan"],
+    ["/fulfillment-history", "fulfillment-history"],
     ["/docs", "docs"],
     ["/flowcharts", "flowcharts"],
     ["/flocs", "flocs"],
@@ -3928,6 +3962,7 @@ async function startOrder(orderNo) {
   const VIEW_ROUTE_MAP = {
     dashboard: "/",
     scan: "/scan",
+    "fulfillment-history": "/fulfillment-history",
     ops: "/scan",
     docs: "/docs",
     flowcharts: "/flowcharts",
@@ -4291,6 +4326,12 @@ async function startOrder(orderNo) {
           : typeof order?.estimated_parcels === "number" && order.estimated_parcels > 0
           ? order.estimated_parcels
           : getAutoParcelCountForOrder(order?.line_items));
+      document.querySelectorAll(".dispatchCard.is-active").forEach((el)=>el.classList.remove("is-active"));
+      const activeCard = document.querySelector(`.dispatchCard[data-order-no="${orderNo}"]`);
+      if (activeCard) {
+        activeCard.classList.add("is-active");
+        activeCard.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
       await startOrder(orderNo);
       let parcelCount = getExpectedParcelCount(orderDetails);
       if (!parcelCount && presetCount) {
@@ -4392,6 +4433,12 @@ async function startOrder(orderNo) {
         statusExplain("Parcel count required (cancelled).", "warn");
         return true;
       }
+      document.querySelectorAll(".dispatchCard.is-active").forEach((el)=>el.classList.remove("is-active"));
+      const activeCard = document.querySelector(`.dispatchCard[data-order-no="${orderNo}"]`);
+      if (activeCard) {
+        activeCard.classList.add("is-active");
+        activeCard.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
       await startOrder(orderNo);
       orderDetails.manualParcelCount = count;
       renderSessionUI();
@@ -4491,6 +4538,10 @@ async function startOrder(orderNo) {
 
     const ok = await updateDispatchParcelCount({ orderId, orderNo, value: parsed });
     if (ok) input.dataset.lastValue = String(parsed);
+  });
+
+  fulfillmentHistorySearch?.addEventListener("input", () => {
+    refreshDispatchData();
   });
 
   dispatchShipmentsSidebar?.addEventListener("click", async (e) => {
