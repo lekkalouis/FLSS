@@ -69,7 +69,6 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const dispatchPrintDocs = $("dispatchPrintDocs");
   const dispatchDeliverSelected = $("dispatchDeliverSelected");
   const dispatchMarkDelivered = $("dispatchMarkDelivered");
-  const dispatchShipmentsSidebar = $("dispatchShipmentsSidebar");
   const dispatchOrderModal = $("dispatchOrderModal");
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
   const dispatchOrderModalTitle = $("dispatchOrderModalTitle");
@@ -86,6 +85,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
 
   const navDashboard = $("navDashboard");
   const navScan = $("navScan");
+  const navFulfillmentHistory = $("navFulfillmentHistory");
   const navOps = $("navOps");
   const navDocs = $("navDocs");
   const navFlowcharts = $("navFlowcharts");
@@ -96,6 +96,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
+  const viewFulfillmentHistory = $("viewFulfillmentHistory");
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
   const viewFlowcharts = $("viewFlowcharts");
@@ -119,6 +120,11 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const dailyTodoList = $("dailyTodoList");
   const dailyTodoMeta = $("dailyTodoMeta");
   const dailyTodoClose = $("dailyTodoClose");
+  const fulfillmentHistorySearch = $("fulfillmentHistorySearch");
+  const fulfillmentHistoryMeta = $("fulfillmentHistoryMeta");
+  const fulfillmentRecentlyShipped = $("fulfillmentRecentlyShipped");
+  const fulfillmentRecentlyDelivered = $("fulfillmentRecentlyDelivered");
+  const fulfillmentRecentlyCollected = $("fulfillmentRecentlyCollected");
 
   let activeOrderNo = null;
   let orderDetails = null;
@@ -141,7 +147,14 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const dispatchPackingState = new Map();
   const dispatchSelectedOrders = new Set();
   let dispatchOrdersLatest = [];
-  let dispatchShipmentsLatest = [];
+  const fulfillmentHistoryState = {
+    query: "",
+    streams: {
+      shipped: [],
+      delivered: [],
+      collected: []
+    }
+  };
   let dispatchModalOrderNo = null;
   let dispatchModalShipmentId = null;
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
@@ -999,7 +1012,9 @@ import { initModuleDashboard } from "./views/dashboard.js";
   function updateDashboardKpis() {
     if (kpiParcels) kpiParcels.textContent = String(dailyParcelCount || 0);
     if (kpiOpenOrders) kpiOpenOrders.textContent = String(dispatchOrdersLatest.length || 0);
-    if (kpiRecentShipments) kpiRecentShipments.textContent = String(dispatchShipmentsLatest.length || 0);
+    if (kpiRecentShipments) {
+      kpiRecentShipments.textContent = String(fulfillmentHistoryState.streams.shipped.length || 0);
+    }
     if (kpiMode) kpiMode.textContent = isAutoMode ? "Auto" : "Manual";
     if (kpiTruckStatus) kpiTruckStatus.textContent = truckBooked ? "Booked" : "Not booked";
     if (kpiLastScan) {
@@ -3189,7 +3204,7 @@ async function startOrder(orderNo) {
     return `${base}${tracking}`;
   }
 
-  function renderShipmentList(shipments) {
+  function renderShipmentList(shipments, emptyLabel = "No recent shipments found.") {
     const rows = shipments
       .map((shipment) => {
         const key = shipmentKey(shipment);
@@ -3214,25 +3229,68 @@ async function startOrder(orderNo) {
           <div class="dispatchShipmentCell dispatchShipmentCell--tracking">Tracking #</div>
           <div class="dispatchShipmentCell dispatchShipmentCell--status">Latest event</div>
         </div>
-        ${rows || `<div class="dispatchShipmentEmpty">No recent shipments awaiting delivery.</div>`}
+        ${rows || `<div class="dispatchShipmentEmpty">${emptyLabel}</div>`}
       </div>
     `;
+  }
+
+  function renderFulfillmentHistory() {
+    if (fulfillmentRecentlyShipped) {
+      fulfillmentRecentlyShipped.innerHTML = renderShipmentList(
+        fulfillmentHistoryState.streams.shipped,
+        "No shipped orders in the last 30 days."
+      );
+    }
+    if (fulfillmentRecentlyDelivered) {
+      fulfillmentRecentlyDelivered.innerHTML = renderShipmentList(
+        fulfillmentHistoryState.streams.delivered,
+        "No delivered orders in the last 30 days."
+      );
+    }
+    if (fulfillmentRecentlyCollected) {
+      fulfillmentRecentlyCollected.innerHTML = renderShipmentList(
+        fulfillmentHistoryState.streams.collected,
+        "No collected orders in the last 30 days."
+      );
+    }
+    if (fulfillmentHistoryMeta) {
+      const q = fulfillmentHistoryState.query ? ` for “${fulfillmentHistoryState.query}”` : "";
+      fulfillmentHistoryMeta.textContent = `Showing 30-day history${q}.`;
+    }
+  }
+
+  async function refreshFulfillmentHistory() {
+    const params = new URLSearchParams();
+    if (fulfillmentHistoryState.query) params.set("q", fulfillmentHistoryState.query);
+    const querySuffix = params.toString() ? `&${params.toString()}` : "";
+
+    if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "Loading history…";
+    const [shippedRes, deliveredRes, collectedRes] = await Promise.all([
+      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=shipped${querySuffix}`),
+      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=delivered${querySuffix}`),
+      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=collected${querySuffix}`)
+    ]);
+
+    const shippedData = shippedRes.ok ? await shippedRes.json() : { shipments: [] };
+    const deliveredData = deliveredRes.ok ? await deliveredRes.json() : { shipments: [] };
+    const collectedData = collectedRes.ok ? await collectedRes.json() : { shipments: [] };
+
+    fulfillmentHistoryState.streams.shipped = shippedData.shipments || [];
+    fulfillmentHistoryState.streams.delivered = deliveredData.shipments || [];
+    fulfillmentHistoryState.streams.collected = collectedData.shipments || [];
+
+    renderFulfillmentHistory();
+    updateDashboardKpis();
   }
 
   function renderDispatchBoard(orders) {
     if (!dispatchBoard) return;
 
     dispatchOrderCache.clear();
-    dispatchShipmentCache.clear();
     const activeOrders = new Set();
 
     const list = Array.isArray(orders) ? [...orders] : [];
     list.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-    const shipments = Array.isArray(dispatchShipmentsLatest) ? dispatchShipmentsLatest : [];
-    if (dispatchShipmentsSidebar) {
-      dispatchShipmentsSidebar.innerHTML = renderShipmentList(shipments);
-    }
-
     if (!list.length) {
       dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open dispatch orders right now.</div>`;
       dispatchSelectedOrders.clear();
@@ -3812,14 +3870,9 @@ async function startOrder(orderNo) {
 
   async function refreshDispatchData() {
     try {
-      const [ordersRes, shipmentsRes] = await Promise.all([
-        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`),
-        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/shipments/recent`)
-      ]);
+      const ordersRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`);
       const data = ordersRes.ok ? await ordersRes.json() : { orders: [] };
-      const shipmentsData = shipmentsRes.ok ? await shipmentsRes.json() : { shipments: [] };
       dispatchOrdersLatest = data.orders || [];
-      dispatchShipmentsLatest = shipmentsData.shipments || [];
       renderDispatchBoard(dispatchOrdersLatest);
       updateDashboardKpis();
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
@@ -3833,6 +3886,7 @@ async function startOrder(orderNo) {
   function switchMainView(view) {
     const showDashboard = view === "dashboard";
     const showScan = view === "scan";
+    const showFulfillmentHistory = view === "fulfillment-history";
     const showOps = view === "ops";
     const showDocs = view === "docs";
     const showFlowcharts = view === "flowcharts";
@@ -3848,6 +3902,10 @@ async function startOrder(orderNo) {
     if (viewScan) {
       viewScan.hidden = !showScan;
       viewScan.classList.toggle("flView--active", showScan);
+    }
+    if (viewFulfillmentHistory) {
+      viewFulfillmentHistory.hidden = !showFulfillmentHistory;
+      viewFulfillmentHistory.classList.toggle("flView--active", showFulfillmentHistory);
     }
     if (viewOps) {
       viewOps.hidden = !showOps;
@@ -3880,6 +3938,7 @@ async function startOrder(orderNo) {
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
+    navFulfillmentHistory?.classList.toggle("flNavBtn--active", showFulfillmentHistory);
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navFlowcharts?.classList.toggle("flNavBtn--active", showFlowcharts);
@@ -3889,6 +3948,7 @@ async function startOrder(orderNo) {
     navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
+    navFulfillmentHistory?.setAttribute("aria-selected", showFulfillmentHistory ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
     navFlowcharts?.setAttribute("aria-selected", showFlowcharts ? "true" : "false");
@@ -3902,6 +3962,8 @@ async function startOrder(orderNo) {
     } else if (showScan) {
       statusExplain("Ready to scan orders…", "info");
       scanInput?.focus();
+    } else if (showFulfillmentHistory) {
+      statusExplain("Viewing fulfillment history.", "info");
     } else if (showDocs) {
       statusExplain("Viewing operator documentation", "info");
     } else if (showFlocs) {
@@ -3923,6 +3985,7 @@ async function startOrder(orderNo) {
     ["/", "dashboard"],
     ["/dashboard", "dashboard"],
     ["/scan", "scan"],
+    ["/fulfillment-history", "fulfillment-history"],
     ["/ops", "scan"],
     ["/docs", "docs"],
     ["/flowcharts", "flowcharts"],
@@ -3935,6 +3998,7 @@ async function startOrder(orderNo) {
   const VIEW_ROUTE_MAP = {
     dashboard: "/",
     scan: "/scan",
+    "fulfillment-history": "/fulfillment-history",
     ops: "/scan",
     docs: "/docs",
     flowcharts: "/flowcharts",
@@ -4418,14 +4482,6 @@ async function startOrder(orderNo) {
       const handled = await handleDispatchAction(action);
       if (handled) return;
     }
-    const shipmentRow = e.target.closest(".dispatchShipmentRow");
-    if (shipmentRow && !shipmentRow.classList.contains("dispatchShipmentRow--header")) {
-      const shipmentKeyId = shipmentRow.dataset.shipmentKey;
-      if (shipmentKeyId) {
-        await openDispatchShipmentModal(shipmentKeyId);
-        return;
-      }
-    }
     const card = e.target.closest(".dispatchCard");
     if (card && !e.target.closest("button") && !e.target.closest("input")) {
       const orderNo = card.dataset.orderNo;
@@ -4500,7 +4556,7 @@ async function startOrder(orderNo) {
     if (ok) input.dataset.lastValue = String(parsed);
   });
 
-  dispatchShipmentsSidebar?.addEventListener("click", async (e) => {
+  viewFulfillmentHistory?.addEventListener("click", async (e) => {
     const shipmentRow = e.target.closest(".dispatchShipmentRow");
     if (shipmentRow && !shipmentRow.classList.contains("dispatchShipmentRow--header")) {
       const shipmentKeyId = shipmentRow.dataset.shipmentKey;
@@ -4508,6 +4564,18 @@ async function startOrder(orderNo) {
         await openDispatchShipmentModal(shipmentKeyId);
       }
     }
+  });
+
+  let fulfillmentSearchTimer = null;
+  fulfillmentHistorySearch?.addEventListener("input", () => {
+    if (fulfillmentSearchTimer) clearTimeout(fulfillmentSearchTimer);
+    fulfillmentSearchTimer = setTimeout(() => {
+      fulfillmentHistoryState.query = fulfillmentHistorySearch.value.trim();
+      refreshFulfillmentHistory().catch((err) => {
+        appendDebug("Fulfillment history refresh failed: " + String(err));
+        if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History unavailable.";
+      });
+    }, 250);
   });
 
   dispatchOrderModal?.addEventListener("click", async (e) => {
@@ -4665,7 +4733,16 @@ async function startOrder(orderNo) {
     initDispatchProgress();
     setDispatchProgress(0, "Idle", { silent: true });
     initAddressSearch();
+    refreshFulfillmentHistory().catch((err) => {
+      appendDebug("Fulfillment history refresh failed: " + String(err));
+      if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History unavailable.";
+    });
     refreshDispatchData();
+    setInterval(() => {
+      refreshFulfillmentHistory().catch((err) => {
+        appendDebug("Fulfillment history refresh failed: " + String(err));
+      });
+    }, 30000);
     setInterval(refreshDispatchData, 30000);
     refreshServerStatus();
     setInterval(refreshServerStatus, 20000);

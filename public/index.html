@@ -2211,6 +2211,7 @@
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
             <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch</span></button>
+            <button id="navFulfillmentHistory" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillmentHistory" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnIcon" aria-hidden="true">🧾</span><span class="flNavBtnText">Fulfillment History</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
             <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Flowcharts</span></button>
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
@@ -2389,16 +2390,34 @@
                 </div>
               </div>
             </div>
-            <div class="dispatchShipmentsPanel">
-              <div class="dispatchShipmentsHeader">
-                <span>Recently shipped</span>
-                <span class="dispatchStamp">Latest activity</span>
-              </div>
-              <div id="dispatchShipmentsSidebar" class="dispatchShipmentsBody">
-                <div class="dispatchShipmentEmpty">Loading recent shipments…</div>
-              </div>
-            </div>
           </aside>
+        </div>
+      </div>
+      <div class="flView" id="viewFulfillmentHistory" hidden>
+        <div class="dashboardShell">
+          <div class="dashboardHeader">
+            <div>
+              <h1>Fulfillment History</h1>
+              <p>Latest fulfillment outcomes over the last 30 days.</p>
+            </div>
+          </div>
+          <div class="dispatchSearchRow">
+            <label for="fulfillmentHistorySearch" class="dispatchSearchLabel">Order number</label>
+            <input id="fulfillmentHistorySearch" class="dispatchSearchInput" type="search" placeholder="Search by order number…" autocomplete="off" />
+          </div>
+          <div id="fulfillmentHistoryMeta" class="dispatchShipmentInfo">Loading history…</div>
+          <section>
+            <div class="sectionTitle"><span>Recently Shipped</span></div>
+            <div id="fulfillmentRecentlyShipped" class="dispatchShipmentsBody"></div>
+          </section>
+          <section>
+            <div class="sectionTitle"><span>Recently Delivered</span></div>
+            <div id="fulfillmentRecentlyDelivered" class="dispatchShipmentsBody"></div>
+          </section>
+          <section>
+            <div class="sectionTitle"><span>Recently Collected</span></div>
+            <div id="fulfillmentRecentlyCollected" class="dispatchShipmentsBody"></div>
+          </section>
         </div>
       </div>
       <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
