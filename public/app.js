@@ -131,6 +131,9 @@ import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
   const fulfillmentHistoryMeta = $("fulfillmentHistoryMeta");
   const fulfillmentHistoryStatusFilter = $("fulfillmentHistoryStatusFilter");
   const fulfillmentHistoryList = $("fulfillmentHistoryList");
+  const fulfillmentHistoryShipped = $("fulfillmentHistoryShipped");
+  const fulfillmentHistoryDelivered = $("fulfillmentHistoryDelivered");
+  const fulfillmentHistoryCollected = $("fulfillmentHistoryCollected");
   const contactsSearch = $("contactsSearch");
   const contactsTierFilter = $("contactsTierFilter");
   const contactsProvinceFilter = $("contactsProvinceFilter");
@@ -4078,7 +4081,10 @@ async function startOrder(orderNo) {
       fulfillmentHistorySearch,
       fulfillmentHistoryMeta,
       fulfillmentHistoryStatusFilter,
-      fulfillmentHistoryList
+      fulfillmentHistoryList,
+      fulfillmentHistoryShipped,
+      fulfillmentHistoryDelivered,
+      fulfillmentHistoryCollected
     },
     getProxyBase: () => CONFIG.SHOPIFY.PROXY_BASE,
     fetchImpl: fetch,

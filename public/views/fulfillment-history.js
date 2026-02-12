@@ -11,7 +11,10 @@ export function initFulfillmentHistoryView({
     fulfillmentHistorySearch,
     fulfillmentHistoryMeta,
     fulfillmentHistoryStatusFilter,
-    fulfillmentHistoryList
+    fulfillmentHistoryList,
+    fulfillmentHistoryShipped,
+    fulfillmentHistoryDelivered,
+    fulfillmentHistoryCollected
   } = elements;
 
   let fulfillmentSearchTimer = null;
@@ -30,6 +33,19 @@ export function initFulfillmentHistoryView({
     const visibleShipments =
       state.statusFilter === "all" ? allShipments : allShipments.filter((shipment) => shipment.stream === state.statusFilter);
 
+    const renderColumn = (container, shipments, emptyMessage) => {
+      if (!container) return;
+      if (!shipments.length) {
+        container.innerHTML = `<div class="dispatchBoardEmptyCol">${emptyMessage}</div>`;
+        return;
+      }
+      container.innerHTML = renderShipmentList(shipments, emptyMessage);
+    };
+
+    renderColumn(fulfillmentHistoryShipped, state.streams?.shipped || [], "No shipped records.");
+    renderColumn(fulfillmentHistoryDelivered, state.streams?.delivered || [], "No delivered records.");
+    renderColumn(fulfillmentHistoryCollected, state.streams?.collected || [], "No collected pickup records.");
+
     if (fulfillmentHistoryList) {
       fulfillmentHistoryList.innerHTML = renderShipmentList(
         visibleShipments,
@@ -39,8 +55,7 @@ export function initFulfillmentHistoryView({
 
     if (fulfillmentHistoryMeta) {
       const q = state.query ? ` for “${state.query}”` : "";
-      const status = state.statusFilter === "all" ? "all statuses" : `${state.statusFilter}`;
-      fulfillmentHistoryMeta.textContent = `Showing ${visibleShipments.length} shipments (${status})${q}.`;
+      fulfillmentHistoryMeta.textContent = `Showing ${visibleShipments.length} shipments${q}.`;
     }
   }
 
