@@ -2543,55 +2543,46 @@
         </div>
       </div>
       <div class="flView" id="viewFulfillmentHistory" hidden>
-        <div class="dashboardShell">
-          <div class="dashboardHeader">
-            <div>
-              <h1>Fulfillment History</h1>
-              <p>Latest fulfillment outcomes over the last 30 days.</p>
+        <div class="dispatchBoardPanel" style="margin:1rem">
+          <div class="sectionTitle" style="margin-top:.4rem">
+            <span>Fulfillment History</span>
+            <input id="fulfillmentHistorySearch" class="flocs-input" style="max-width:260px" placeholder="Search by order #" />
+          </div>
+          <div id="fulfillmentHistoryMeta" class="dispatchShipmentInfo" style="margin-bottom:.6rem">Loading history…</div>
+          <div id="fulfillmentHistoryBoard" class="dispatchBoard">
+            <div class="dispatchCol">
+              <div class="dispatchColHeader"><span>Recently Shipped</span></div>
+              <div class="dispatchColBody" id="fulfillmentHistoryShipped"><div class="dispatchBoardEmptyCol">No records.</div></div>
+            </div>
+            <div class="dispatchCol">
+              <div class="dispatchColHeader"><span>Recently Delivered</span></div>
+              <div class="dispatchColBody" id="fulfillmentHistoryDelivered"><div class="dispatchBoardEmptyCol">No records.</div></div>
+            </div>
+            <div class="dispatchCol">
+              <div class="dispatchColHeader"><span>Recently Collected (Pickups)</span></div>
+              <div class="dispatchColBody" id="fulfillmentHistoryCollected"><div class="dispatchBoardEmptyCol">No records.</div></div>
             </div>
           </div>
-          <div class="dispatchSearchRow" style="grid-template-columns:repeat(2,minmax(0,1fr));">
-            <div>
-              <label for="fulfillmentHistorySearch" class="dispatchSearchLabel">Search order</label>
-              <input id="fulfillmentHistorySearch" class="dispatchSearchInput" type="search" placeholder="Search by order number…" autocomplete="off" />
-            </div>
-            <div>
-              <label for="fulfillmentHistoryStatusFilter" class="dispatchSearchLabel">Status</label>
-              <select id="fulfillmentHistoryStatusFilter" class="dispatchSearchInput">
-                <option value="all">All statuses</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                <option value="collected">Collected</option>
-              </select>
-            </div>
-          </div>
-          <div id="fulfillmentHistoryMeta" class="dispatchShipmentInfo">Loading history…</div>
-          <div id="fulfillmentHistoryList" class="dispatchShipmentsBody"></div>
+          <div id="fulfillmentHistoryList" class="dispatchShipmentsBody" hidden></div>
+          <select id="fulfillmentHistoryStatusFilter" class="dispatchSearchInput" hidden>
+            <option value="all" selected>All statuses</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="collected">Collected</option>
+          </select>
         </div>
       </div>
       <div class="flView" id="viewContacts" hidden>
-        <div class="dashboardShell">
-          <div class="dashboardHeader">
-            <div>
-              <h1>Customer Contacts</h1>
-              <p>All Shopify customers with contact number, tier, and province filters.</p>
-            </div>
+        <div class="dispatchBoardPanel" style="margin:1rem">
+          <div class="sectionTitle" style="margin-top:.4rem">
+            <span>Contacts</span>
+            <input id="contactsSearch" class="flocs-input" style="max-width:300px" placeholder="Search customer, phone, or email" />
           </div>
-          <div class="dispatchSearchRow" style="grid-template-columns:repeat(3,minmax(0,1fr));">
-            <div>
-              <label for="contactsSearch" class="dispatchSearchLabel">Search</label>
-              <input id="contactsSearch" class="dispatchSearchInput" type="search" placeholder="Search customer, phone, or email…" autocomplete="off" />
-            </div>
-            <div>
-              <label for="contactsTierFilter" class="dispatchSearchLabel">Tier</label>
-              <select id="contactsTierFilter" class="dispatchSearchInput"><option value="">All tiers</option></select>
-            </div>
-            <div>
-              <label for="contactsProvinceFilter" class="dispatchSearchLabel">Province</label>
-              <select id="contactsProvinceFilter" class="dispatchSearchInput"><option value="">All provinces</option></select>
-            </div>
+          <div class="dispatchSearchRow" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:.5rem;">
+            <select id="contactsTierFilter" class="dispatchSearchInput"><option value="">All tiers</option></select>
+            <select id="contactsProvinceFilter" class="dispatchSearchInput"><option value="">All provinces</option></select>
           </div>
-          <div id="contactsMeta" class="dispatchShipmentInfo">Loading contacts…</div>
+          <div id="contactsMeta" class="dispatchShipmentInfo" style="margin-top:.55rem">Loading contacts…</div>
           <div id="contactsList" class="dispatchShipmentsBody"></div>
         </div>
       </div>
