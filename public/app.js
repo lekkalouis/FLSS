@@ -184,6 +184,8 @@ import { initModuleDashboard } from "./views/dashboard.js";
   ];
   let dispatchModalOrderNo = null;
   let dispatchModalShipmentId = null;
+  let fulfillmentHistoryRefreshTimer = null;
+  let serverStatusRefreshTimer = null;
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
   const DAILY_TODO_KEY = "fl_daily_todo_v1";
@@ -440,16 +442,26 @@ import { initModuleDashboard } from "./views/dashboard.js";
   }
 
   async function refreshServerStatus() {
-    if (!serverStatusBar) return;
+    if (!serverStatusBar) return false;
     try {
       const res = await fetch(`${API_BASE}/statusz`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Status error");
       renderServerStatusBar(data);
+      return true;
     } catch (err) {
       appendDebug("Status refresh failed: " + String(err));
       renderServerStatusBar(null);
+      return false;
     }
+  }
+
+  function scheduleServerStatusRefresh(delayMs = 20000) {
+    if (serverStatusRefreshTimer) clearTimeout(serverStatusRefreshTimer);
+    serverStatusRefreshTimer = setTimeout(async () => {
+      const ok = await refreshServerStatus();
+      scheduleServerStatusRefresh(ok ? 20000 : 60000);
+    }, delayMs);
   }
 
   let dispatchAudioCtx = null;
@@ -3350,14 +3362,37 @@ async function startOrder(orderNo) {
   async function refreshFulfillmentHistory() {
     const params = new URLSearchParams();
     if (fulfillmentHistoryState.query) params.set("q", fulfillmentHistoryState.query);
-    const querySuffix = params.toString() ? `&${params.toString()}` : "";
+    const querySuffix = params.toString() ? `?${params.toString()}` : "";
 
     if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "Loading history…";
+
+    const bundleRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history-bundle${querySuffix}`);
+    if (bundleRes.ok) {
+      const bundleData = await bundleRes.json();
+      fulfillmentHistoryState.streams.shipped = bundleData?.streams?.shipped || [];
+      fulfillmentHistoryState.streams.delivered = bundleData?.streams?.delivered || [];
+      fulfillmentHistoryState.streams.collected = bundleData?.streams?.collected || [];
+      renderFulfillmentHistory();
+      updateDashboardKpis();
+      return true;
+    }
+
+    if (bundleRes.status === 429) {
+      if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History rate-limited. Retrying shortly…";
+      return false;
+    }
+
+    const legacySuffix = params.toString() ? `&${params.toString()}` : "";
     const [shippedRes, deliveredRes, collectedRes] = await Promise.all([
-      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=shipped${querySuffix}`),
-      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=delivered${querySuffix}`),
-      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=collected${querySuffix}`)
+      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=shipped${legacySuffix}`),
+      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=delivered${legacySuffix}`),
+      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=collected${legacySuffix}`)
     ]);
+
+    if ([shippedRes, deliveredRes, collectedRes].some((res) => res.status === 429)) {
+      if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History rate-limited. Retrying shortly…";
+      return false;
+    }
 
     const shippedData = shippedRes.ok ? await shippedRes.json() : { shipments: [] };
     const deliveredData = deliveredRes.ok ? await deliveredRes.json() : { shipments: [] };
@@ -3369,6 +3404,21 @@ async function startOrder(orderNo) {
 
     renderFulfillmentHistory();
     updateDashboardKpis();
+    return true;
+  }
+
+  function scheduleFulfillmentHistoryRefresh(delayMs = 30000) {
+    if (fulfillmentHistoryRefreshTimer) clearTimeout(fulfillmentHistoryRefreshTimer);
+    fulfillmentHistoryRefreshTimer = setTimeout(async () => {
+      try {
+        const ok = await refreshFulfillmentHistory();
+        scheduleFulfillmentHistoryRefresh(ok ? 30000 : 60000);
+      } catch (err) {
+        appendDebug("Fulfillment history refresh failed: " + String(err));
+        if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History unavailable.";
+        scheduleFulfillmentHistoryRefresh(60000);
+      }
+    }, delayMs);
   }
 
   function renderDispatchBoard(orders) {
@@ -4901,19 +4951,10 @@ async function startOrder(orderNo) {
     initDispatchProgress();
     setDispatchProgress(0, "Idle", { silent: true });
     initAddressSearch();
-    refreshFulfillmentHistory().catch((err) => {
-      appendDebug("Fulfillment history refresh failed: " + String(err));
-      if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History unavailable.";
-    });
+    scheduleFulfillmentHistoryRefresh(0);
     refreshDispatchData();
-    setInterval(() => {
-      refreshFulfillmentHistory().catch((err) => {
-        appendDebug("Fulfillment history refresh failed: " + String(err));
-      });
-    }, 30000);
     setInterval(refreshDispatchData, 30000);
-    refreshServerStatus();
-    setInterval(refreshServerStatus, 20000);
+    scheduleServerStatusRefresh(0);
     initModuleDashboard({ moduleGrid, navigateTo, routeForView });
     renderRoute(window.location.pathname);
 

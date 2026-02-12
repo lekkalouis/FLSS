@@ -1139,6 +1139,40 @@ async function fetchFulfillmentHistoryStream({ stream, query }) {
   return shipments;
 }
 
+router.get("/shopify/fulfillment-history-bundle", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const [shipped, delivered, collected] = await Promise.all([
+      fetchFulfillmentHistoryStream({ stream: "shipped", query: req.query.q }),
+      fetchFulfillmentHistoryStream({ stream: "delivered", query: req.query.q }),
+      fetchFulfillmentHistoryStream({ stream: "collected", query: req.query.q })
+    ]);
+
+    return res.json({
+      streams: {
+        shipped,
+        delivered,
+        collected
+      }
+    });
+  } catch (err) {
+    if (err?.message === "SHOPIFY_UPSTREAM") {
+      return res.status(err.status || 502).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: err.status,
+        statusText: err.statusText,
+        body: err.body
+      });
+    }
+    console.error("Shopify fulfillment-history-bundle error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
 router.get("/shopify/fulfillment-history", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
