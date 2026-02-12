@@ -1,3 +1,0 @@
-(() => {
-  window.location.replace("/stock");
-})();

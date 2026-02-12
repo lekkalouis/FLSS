@@ -2791,8 +2791,8 @@
         </ul>
         <h4>5) Price Manager</h4>
         <ul>
-          <li>Dedicated price-tier editor (<span class="docsCode">/price-manager.html</span>) to review SKU pricing tiers and sync tiers into Shopify variant metafields (<span class="docsCode">custom.price_tiers</span>).</li>
-          <li>Supports optional public price sync to update storefront pricing by writing the variant price through the Admin API.【F:public/price-manager.js†L1-L201】【F:server.js†L289-L366】</li>
+          <li>Dedicated price-tier editor (<span class="docsCode">/price-manager</span>) to review SKU pricing tiers and sync tiers into Shopify variant metafields (<span class="docsCode">custom.price_tiers</span>).</li>
+          <li>Supports optional public price sync to update storefront pricing by writing the variant price through the Admin API.【F:public/views/price-manager.js†L1-L260】【F:src/routes/shopify.js†L1-L220】</li>
           <li>Theme-only pricing logic (no extra app) can be implemented by reading <span class="docsCode">custom.price_tiers</span> in your Shopify theme and resolving prices from customer tags. See <span class="docsCode">docs/price-tiers-theme.md</span>.</li>
         </ul>
 
@@ -3033,7 +3033,7 @@ PRINTNODE_PRINTER_ID=123456</code></pre>
         <h3 id="docs-running">Running locally</h3>
         <pre class="docsBlock"><code>npm install
 npm run dev</code></pre>
-        <p>Open <span class="docsCode">http://localhost:3000</span> for Scan Station/Dispatch/Docs, <span class="docsCode">http://localhost:3000/flocs</span> for order capture, and <span class="docsCode">http://localhost:3000/stock.html</span> for stock take. The server listens on <span class="docsCode">HOST</span>/<span class="docsCode">PORT</span> and logs allowed origins on boot.【F:package.json†L1-L16】【F:server.js†L1-L17】</p>
+        <p>Open <span class="docsCode">http://localhost:3000</span> for Scan Station/Dispatch/Docs, <span class="docsCode">http://localhost:3000/flocs</span> for order capture, and <span class="docsCode">http://localhost:3000/stock</span> for stock take. The server listens on <span class="docsCode">HOST</span>/<span class="docsCode">PORT</span> and logs allowed origins on boot.【F:package.json†L1-L16】【F:server.js†L1-L17】</p>
 
         <hr class="docsDivider" />
 
@@ -3082,8 +3082,8 @@ npm run dev</code></pre>
           <li><span class="docsCode">src/utils/http.js</span> — Shared HTTP helpers (bad request, status). 【F:src/utils/http.js†L1-L6】</li>
           <li><span class="docsCode">public/index.html</span> + <span class="docsCode">public/app.js</span> — Scan Station + Dispatch Board + embedded docs. 【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】</li>
           <li><span class="docsCode">public/views/flocs.js</span> — FLOCS order capture logic (SPA view). 【F:public/views/flocs.js†L1-L200】</li>
-          <li><span class="docsCode">public/price-manager.html</span> + <span class="docsCode">public/price-manager.js</span> — Price manager for tier pricing and storefront sync. 【F:public/price-manager.html†L1-L200】【F:public/price-manager.js†L1-L201】</li>
-          <li><span class="docsCode">public/stock.html</span> + <span class="docsCode">public/views/stock.js</span> — Stock take tool. 【F:public/views/stock.js†L1-L229】</li>
+          <li><span class="docsCode">public/views/price-manager.js</span> — Price manager SPA module for tier pricing and storefront sync. 【F:public/views/price-manager.js†L1-L260】</li>
+          <li><span class="docsCode">public/views/stock.js</span> — Stock take SPA module. 【F:public/views/stock.js†L1-L229】</li>
           <li><span class="docsCode">.env.example</span> — Example environment config. 【F:.env.example†L1-L18】</li>
           <li><span class="docsCode">package.json</span> — Scripts and dependencies. 【F:package.json†L1-L16】</li>
         </ul>

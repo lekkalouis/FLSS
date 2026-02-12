@@ -20,6 +20,7 @@ import traceabilityRouter from "./routes/traceability.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Allow local/LAN origins during development so handheld scanners and shop-floor stations can connect without manually whitelisting each device.
 function isPrivateHostname(hostname) {
   if (!hostname) return false;
   if (hostname === "localhost" || hostname === "127.0.0.1") return true;
@@ -31,8 +32,10 @@ function isPrivateHostname(hostname) {
   return false;
 }
 
+// Build and configure the Express application used by both `npm run dev` and production startup.
 export function createApp() {
   const app = express();
+  // Group API routes under a versioned prefix to keep the browser SPA and service endpoints isolated.
   const apiRouter = express.Router();
 
   app.disable("x-powered-by");
@@ -48,6 +51,7 @@ export function createApp() {
   );
   const allowAllOrigins = allowedOrigins.has("*");
 
+  // CORS is strict in production but development allows private network origins to simplify local testing.
   app.use(
     cors({
       origin: (origin, cb) => {
@@ -70,6 +74,7 @@ export function createApp() {
   );
   app.options("*", (_req, res) => res.sendStatus(204));
 
+  // Coarse global API limit to reduce accidental floods from scanner loops or browser retries.
   app.use(
     rateLimit({
       windowMs: 60 * 1000,
@@ -81,6 +86,7 @@ export function createApp() {
 
   app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
 
+  // Route registration order is intentionally explicit for maintainability.
   apiRouter.use(statusRouter);
   apiRouter.use(configRouter);
   apiRouter.use(parcelPerfectRouter);
@@ -92,6 +98,7 @@ export function createApp() {
   app.use("/api/v1", apiRouter);
   app.use("/api/v1", (_req, res) => res.status(404).json({ error: "Not found" }));
 
+  // Serve the frontend SPA bundle and let client-side routing handle all non-API paths.
   const publicDir = path.join(__dirname, "..", "public");
   app.use(express.static(publicDir));
 
