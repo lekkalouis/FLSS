@@ -20,6 +20,8 @@ export function initStockView() {
   const tableBody = document.getElementById("stock-tableBody");
   const logContainer = document.getElementById("stock-log");
   const locationButtons = document.getElementById("stock-locationButtons");
+  const locationSelect = document.getElementById("stock-location");
+  const transferSelect = document.getElementById("stock-transferLocation");
   const focusInput = document.getElementById("stock-focusInput");
   const focusApplyBtn = document.getElementById("stock-focusApply");
   const mrpBatchName = document.getElementById("mrp-batchName");
@@ -549,21 +551,21 @@ export function initStockView() {
             `<option value="${loc.id}">${loc.name || `Location ${loc.id}`}</option>`
         )
         .join("");
-      locationSelect.innerHTML = options;
-      transferSelect.innerHTML = `<option value="">Transfer target...</option>${options}`;
+      if (locationSelect) locationSelect.innerHTML = options;
+      if (transferSelect) transferSelect.innerHTML = `<option value="">Transfer target...</option>${options}`;
       const savedLocationId = getSavedLocationId();
       const chosenLocation = locations.find((loc) => Number(loc.id) === Number(currentLocationId))
         || locations.find((loc) => Number(loc.id) === Number(savedLocationId))
         || locations[0];
       if (chosenLocation) {
         currentLocationId = Number(chosenLocation.id);
-        locationSelect.value = String(currentLocationId);
+        if (locationSelect) locationSelect.value = String(currentLocationId);
         saveLocationId(currentLocationId);
       }
       const nextLocation = locations.find((loc) => Number(loc.id) !== currentLocationId);
       if (nextLocation) {
         transferLocationId = Number(nextLocation.id);
-        transferSelect.value = String(transferLocationId);
+        if (transferSelect) transferSelect.value = String(transferLocationId);
       }
       pickTransferLocation();
       renderLocationButtons();
@@ -848,6 +850,28 @@ export function initStockView() {
         renderTable();
         updateModeUI();
       });
+    });
+
+    locationSelect?.addEventListener("change", () => {
+      const nextId = Number(locationSelect.value);
+      if (!Number.isFinite(nextId) || Number(nextId) === Number(currentLocationId)) return;
+      currentLocationId = nextId;
+      saveLocationId(currentLocationId);
+      pickTransferLocation();
+      if (transferSelect && transferLocationId != null) {
+        transferSelect.value = String(transferLocationId);
+      }
+      renderLocationButtons();
+      loadStockLevels().then(() => {
+        renderTable();
+        updateModeUI();
+      });
+    });
+
+    transferSelect?.addEventListener("change", () => {
+      const nextId = Number(transferSelect.value);
+      transferLocationId = Number.isFinite(nextId) ? nextId : null;
+      updateModeUI();
     });
 
     tableBody?.addEventListener("click", (event) => {
