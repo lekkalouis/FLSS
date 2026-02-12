@@ -134,6 +134,71 @@
     gap:1rem;
     padding:1.25rem 1.75rem 1.75rem;
   }
+  .sharedStickyHeader{
+    position:sticky;
+    top:0;
+    z-index:40;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:stretch;
+    gap:.75rem;
+    padding:.35rem;
+    border-radius:var(--radius-lg);
+    border:1px solid var(--panel-strong);
+    background:color-mix(in srgb, var(--bg) 82%, #fff 18%);
+    backdrop-filter:blur(14px);
+  }
+  .sharedHeaderSection{
+    flex:1 1 300px;
+    min-width:0;
+    display:flex;
+  }
+  .sharedStatusBar,
+  .sharedDispatchControls{
+    width:100%;
+    min-height:100%;
+  }
+  .sharedDispatchControls{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:.55rem;
+  }
+  .sharedControlCard{
+    flex:1 1 140px;
+    min-height:48px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:.45rem;
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    background:var(--panel);
+    padding:.5rem .7rem;
+    font-weight:700;
+    font-size:.76rem;
+    color:var(--text);
+  }
+  .sharedControlCardLabel{
+    font-size:.64rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    font-weight:700;
+    color:var(--text-muted);
+  }
+  @media (max-width:900px){
+    .sharedStickyHeader{
+      top:.2rem;
+      gap:.55rem;
+      padding:.3rem;
+    }
+    .sharedHeaderSection{
+      flex-basis:100%;
+    }
+    .sharedControlCard{
+      flex:1 1 calc(33.333% - .4rem);
+    }
+  }
   @media (max-width:800px){
     .flMain{ padding:1rem; }
   }
@@ -618,14 +683,15 @@
     gap:.85rem;
   }
   .dispatchTruckIndicator{
-    margin-left:auto;
     display:flex;
     align-items:center;
-    gap:.75rem;
+    gap:.55rem;
+    width:100%;
   }
   .dispatchTruckButton{
     display:flex;
     align-items:center;
+    justify-content:center;
     gap:.5rem;
     border:1px solid rgba(239,68,68,.6);
     background:rgba(239,68,68,.08);
@@ -637,6 +703,8 @@
     text-transform:uppercase;
     letter-spacing:.06em;
     cursor:pointer;
+    min-height:48px;
+    width:100%;
   }
   .dispatchTruckButton.is-booked{
     border-color:rgba(34,197,94,.6);
@@ -649,11 +717,12 @@
     display:inline-flex;
   }
   .dispatchTruckMeta{
-    display:flex;
+    display:inline-flex;
     align-items:center;
     gap:.35rem;
-    font-size:.72rem;
-    color:var(--text-muted);
+    font-size:.76rem;
+    color:var(--text);
+    width:100%;
   }
   .dispatchTruckBox{
     display:inline-flex;
@@ -661,6 +730,12 @@
     gap:.35rem;
     font-weight:700;
     color:var(--text);
+    width:100%;
+    justify-content:center;
+  }
+  .dispatchTruckBox svg{
+    width:16px;
+    height:16px;
   }
   .btn{
     border:1px solid rgba(99,102,241,.45);
@@ -2233,9 +2308,37 @@
         </nav>
       </aside>
       <main class="flMain">
-        <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite">
-          <span class="statusBarLabel">Connections</span>
-          <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
+        <div class="sharedStickyHeader" aria-label="Shared dispatch and connection controls">
+          <div class="sharedHeaderSection">
+            <div id="serverStatusBar" class="statusBar sharedStatusBar" role="status" aria-live="polite">
+              <span class="statusBarLabel">Connections</span>
+              <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
+            </div>
+          </div>
+          <div class="sharedHeaderSection">
+            <div class="sharedDispatchControls" aria-live="polite">
+              <button id="truckBookBtn" class="dispatchTruckButton is-unbooked sharedControlCard" type="button" aria-pressed="false">
+                <span class="dispatchTruckIcon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h9.5A1.75 1.75 0 0 1 16 6.75V14h1.25c.41 0 .8.18 1.06.49l2.5 3a1.75 1.75 0 0 1 .44 1.13v1.13A1.25 1.25 0 0 1 20 21h-1.1a2.5 2.5 0 0 1-4.9 0H9a2.5 2.5 0 0 1-4.9 0H3.75A.75.75 0 0 1 3 20.25zM16 14V6.75a.25.25 0 0 0-.25-.25h-9.5a.25.25 0 0 0-.25.25V14zm1.8 0h2.25l-2-2.4zm-11.4 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2m10.4-1a1 1 0 1 0-2 0 1 1 0 0 0 2 0"/>
+                  </svg>
+                </span>
+                <span id="truckStatus">Not booked</span>
+              </button>
+              <div class="dispatchTruckMeta sharedControlCard" aria-label="Truck parcel count">
+                <span class="dispatchTruckBox">
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M6.75 3.5A1.75 1.75 0 0 0 5 5.25v13.5c0 .97.78 1.75 1.75 1.75h10.5A1.75 1.75 0 0 0 19 18.75V5.25a1.75 1.75 0 0 0-1.75-1.75zm0 1.5h10.5a.25.25 0 0 1 .25.25v2.6l-5.5 2.67-5.5-2.67v-2.6a.25.25 0 0 1 .25-.25m-.25 4.5 4.75 2.3v7.2h-4.5a.25.25 0 0 1-.25-.25zm6.25 9.5v-7.2l4.75-2.3v9.25a.25.25 0 0 1-.25.25z"/>
+                  </svg>
+                  <span id="truckParcelCount">0</span>
+                </span>
+              </div>
+              <div class="sharedControlCard" aria-label="Selected parcel and box count">
+                <span class="sharedControlCardLabel">Selected boxes</span>
+                <strong id="dispatchSelectionBoxes">0</strong>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="flView flView--active" id="viewDashboard">
@@ -2301,19 +2404,6 @@
             <button id="dispatchCreateCombined" class="btn btnToggle btn--compact" type="button">Create Combined Shipment</button>
             <button id="modeToggle" class="btn btn--compact" type="button">MODE: AUTO</button>
             <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
-          </div>
-          <div class="dispatchTruckIndicator">
-            <button id="truckBookBtn" class="dispatchTruckButton is-unbooked" type="button" aria-pressed="false">
-              <span class="dispatchTruckIcon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h9.5A1.75 1.75 0 0 1 16 6.75V14h1.25c.41 0 .8.18 1.06.49l2.5 3a1.75 1.75 0 0 1 .44 1.13v1.13A1.25 1.25 0 0 1 20 21h-1.1a2.5 2.5 0 0 1-4.9 0H9a2.5 2.5 0 0 1-4.9 0H3.75A.75.75 0 0 1 3 20.25zM16 14V6.75a.25.25 0 0 0-.25-.25h-9.5a.25.25 0 0 0-.25.25V14zm1.8 0h2.25l-2-2.4zm-11.4 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2m10.4-1a1 1 0 1 0-2 0 1 1 0 0 0 2 0"/>
-                </svg>
-              </span>
-              <span id="truckStatus">Not booked</span>
-            </button>
-            <div class="dispatchTruckMeta">
-              <span class="dispatchTruckBox"><span aria-hidden="true">📦</span>Truck:<span id="truckParcelCount">0</span></span>
-            </div>
           </div>
         </div>
         <div class="dispatchTopDetails">
@@ -2387,7 +2477,7 @@
                   </div>
                 </div>
                 <div class="dispatchSelectionMeta">
-                  <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
+                  <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxesReadonly">0</strong></div>
                   <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
                   <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
                 </div>

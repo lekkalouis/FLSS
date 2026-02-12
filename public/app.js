@@ -63,6 +63,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const dispatchSelectionCount = $("dispatchSelectionCount");
   const dispatchSelectionUnits = $("dispatchSelectionUnits");
   const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
+  const dispatchSelectionBoxesReadonly = $("dispatchSelectionBoxesReadonly");
   const dispatchSelectionWeight = $("dispatchSelectionWeight");
   const dispatchSelectionTime = $("dispatchSelectionTime");
   const dispatchSelectionClear = $("dispatchSelectionClear");
@@ -2946,6 +2947,9 @@ async function startOrder(orderNo) {
     }
     if (dispatchSelectionBoxes) {
       dispatchSelectionBoxes.textContent = String(totals.totalBoxes || 0);
+    }
+    if (dispatchSelectionBoxesReadonly) {
+      dispatchSelectionBoxesReadonly.textContent = String(totals.totalBoxes || 0);
     }
     if (dispatchSelectionWeight) {
       dispatchSelectionWeight.textContent =
