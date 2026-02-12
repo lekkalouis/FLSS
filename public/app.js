@@ -2311,6 +2311,14 @@ async function startOrder(orderNo) {
   }
 
   function laneFromOrder(order) {
+    const assignedLane = String(order?.assigned_lane || "").trim().toLowerCase();
+    if (assignedLane === "delivery" || assignedLane === "pickup" || assignedLane === "shipping") {
+      return assignedLane;
+    }
+    if (assignedLane === "unassigned") {
+      return "unassigned";
+    }
+
     const tags = String(order?.tags || "").toLowerCase();
     const shippingTitles = (order?.shipping_lines || [])
       .map((line) => String(line.title || "").toLowerCase())
@@ -3208,7 +3216,7 @@ async function startOrder(orderNo) {
     }
 
     if (!list.length) {
-      dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
+      dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open dispatch orders right now.</div>`;
       dispatchSelectedOrders.clear();
       updateDispatchSelectionSummary();
       return;
@@ -3218,12 +3226,14 @@ async function startOrder(orderNo) {
       { id: "delivery", label: "Delivery", type: "cards" },
       { id: "shippingA", label: "Shipping", type: "cards" },
       { id: "shippingB", label: "Shipping", type: "cards" },
-      { id: "pickup", label: "Pickup / Collection", type: "cards" }
+      { id: "pickup", label: "Pickup / Collection", type: "cards" },
+      { id: "unassigned", label: "⚠️ UNASSIGNED", type: "cards" }
     ];
     const lanes = {
       delivery: [],
       shipping: [],
-      pickup: []
+      pickup: [],
+      unassigned: []
     };
 
     list.forEach((o) => {
@@ -3279,6 +3289,7 @@ async function startOrder(orderNo) {
             }
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
+          ${o.assigned_lane === "UNASSIGNED" ? '<div class="dispatchCardMeta" style="color:#b91c1c;font-weight:700;">⚠️ Lane unresolved (UNASSIGNED)</div>' : ""}
           <div class="dispatchCardParcel">
             <label for="dispatchParcel-${orderNo}">Parcels</label>
             <input
