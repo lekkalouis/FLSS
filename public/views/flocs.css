@@ -219,6 +219,33 @@
       margin-bottom:0;
     }
 
+    #viewFlocs .flocs-addressRegion{
+      display:grid;
+      grid-template-columns:repeat(2, minmax(0, 1fr));
+      gap:.75rem;
+      align-items:start;
+    }
+    #viewFlocs .flocs-addressField{
+      display:flex;
+      flex-direction:column;
+      margin-bottom:0;
+      padding-bottom:0;
+      border-bottom:none;
+      min-height:100%;
+    }
+    #viewFlocs .flocs-addressField .flocs-select{
+      max-width:none;
+      min-height:2.2rem;
+    }
+    @media (max-width:900px){
+      #viewFlocs .flocs-addressRegion{
+        grid-template-columns:1fr;
+      }
+      #viewFlocs .flocs-addressField + .flocs-addressField{
+        margin-top:.5rem;
+      }
+    }
+
     #viewFlocs .flocs-labelRow{
       display:flex;
       justify-content:space-between;

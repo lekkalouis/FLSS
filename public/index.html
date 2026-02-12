@@ -3176,7 +3176,7 @@ npm run dev</code></pre>
                     </div>
                     <div class="flocs-labelRow">
                       <span>Customer</span>
-                      <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
+                      <span class="flocs-hint" id="flocs-customerStatus">Customer search</span>
                     </div>
                     <div class="flocs-searchRow">
                       <input id="flocs-customerSearch" class="flocs-input" type="text"
@@ -3249,26 +3249,26 @@ npm run dev</code></pre>
                     </div>
                   </div>
 
-                  <!-- Billing address selector -->
-                  <div class="flocs-formSection" id="flocs-billSection">
-                    <div class="flocs-labelRow">
-                      <span>Billing address</span>
-                      <span class="flocs-hint">Pulled from customer’s Shopify addresses</span>
+                  <div class="flocs-addressRegion" aria-label="Billing and shipping addresses">
+                    <!-- Billing address selector -->
+                    <div class="flocs-formSection flocs-addressField" id="flocs-billSection">
+                      <div class="flocs-labelRow">
+                        <span>Billing address</span>
+                      </div>
+                      <select id="flocs-billingAddressSelect" class="flocs-select">
+                        <option value="">Select a customer first…</option>
+                      </select>
                     </div>
-                    <select id="flocs-billingAddressSelect" class="flocs-select">
-                      <option value="">Select a customer first…</option>
-                    </select>
-                  </div>
 
-                  <!-- Shipping address selector -->
-                  <div class="flocs-formSection" id="flocs-shipSection">
-                    <div class="flocs-labelRow">
-                      <span>Shipping address</span>
-                      <span class="flocs-hint">Saved to the draft order even for pickup/deliver</span>
+                    <!-- Shipping address selector -->
+                    <div class="flocs-formSection flocs-addressField" id="flocs-shipSection">
+                      <div class="flocs-labelRow">
+                        <span>Shipping address</span>
+                      </div>
+                      <select id="flocs-addressSelect" class="flocs-select">
+                        <option value="">Select a customer first…</option>
+                      </select>
                     </div>
-                    <select id="flocs-addressSelect" class="flocs-select">
-                      <option value="">Select a customer first…</option>
-                    </select>
                   </div>
                 </div>
 
@@ -3279,16 +3279,13 @@ npm run dev</code></pre>
                       <div>
                         <div class="flocs-labelRow">
                           <span>Customer PO</span>
-                          <span class="flocs-hint">Stored on draft order note & metafield</span>
                         </div>
                         <input id="flocs-po" class="flocs-input" type="text" placeholder="PO / reference (optional)" />
                       </div>
                       <div>
                         <div class="flocs-labelRow">
                           <span>Delivery type</span>
-                          <span class="flocs-hint" id="flocs-deliveryHint">
-                            Uses customer metafield custom.delivery_method if set
-                          </span>
+                          <span class="flocs-hint" id="flocs-deliveryHint">Delivery method</span>
                         </div>
                         <div class="flocs-radioGroup" id="flocs-deliveryGroup">
                           <label class="flocs-radioPill">
