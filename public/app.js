@@ -3234,7 +3234,7 @@ async function startOrder(orderNo) {
 
     const cols = [
       { id: "shipping_priority", label: "Shipping · Priority", type: "cards" },
-      { id: "shipping_medium", label: "Shipping · Medium", type: "cards" },
+      { id: "shipping_medium", label: "Shipping · Standard", type: "cards" },
       { id: "shipping_awaiting_payment", label: "Shipping · Awaiting payment", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" },
       { id: "delivery_local", label: "Delivery", type: "cards" }
