@@ -47,11 +47,6 @@ router.post("/shopify/draft-orders", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const noteParts = [];
-    if (poNumber) noteParts.push(`PO: ${poNumber}`);
-    if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
-    if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
-
     const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
     const tierCache = new Map();
     const lineItemsWithPrice = await Promise.all(
@@ -126,7 +121,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
     const payload = {
       draft_order: {
         customer: { id: customerId },
-        note: noteParts.join(" | "),
+        note: poNumber ? `PO: ${poNumber}` : "",
         line_items: lineItemsWithPrice.map((li) => {
           const entry = {
             quantity: li.quantity || 1
@@ -305,11 +300,6 @@ router.post("/shopify/orders", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const noteParts = [];
-    if (poNumber) noteParts.push(`PO: ${poNumber}`);
-    if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
-    if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
-
     const metafields = [];
     if (deliveryDate) {
       metafields.push({
@@ -365,7 +355,7 @@ router.post("/shopify/orders", async (req, res) => {
     const orderPayload = {
       order: {
         customer: { id: customerId },
-        note: noteParts.join(" | "),
+        note: poNumber ? `PO: ${poNumber}` : "",
         line_items: lineItems.map((li) => {
           const entry = {
             quantity: li.quantity || 1
