@@ -146,6 +146,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
   const dispatchSelectedOrders = new Set();
+  let activeDispatchOrderNo = null;
   let dispatchOrdersLatest = [];
   const fulfillmentHistoryState = {
     query: "",
@@ -3419,6 +3420,10 @@ async function startOrder(orderNo) {
         selectionPruned = true;
       }
     });
+    if (activeDispatchOrderNo && !activeOrders.has(activeDispatchOrderNo)) {
+      activeDispatchOrderNo = null;
+    }
+    setActiveDispatchCard(activeDispatchOrderNo);
     updateDispatchSelectionSummary();
   }
 
@@ -4081,6 +4086,31 @@ async function startOrder(orderNo) {
     }
   }
 
+  function setActiveDispatchCard(orderNo, { scrollIntoViewIfNeeded = false } = {}) {
+    activeDispatchOrderNo = orderNo || null;
+    if (!dispatchBoard) return;
+    let activeCard = null;
+    dispatchBoard.querySelectorAll(".dispatchCard").forEach((card) => {
+      const isActive = !!orderNo && card.dataset.orderNo === orderNo;
+      card.classList.toggle("is-active-card", isActive);
+      if (isActive) activeCard = card;
+    });
+    if (!scrollIntoViewIfNeeded || !activeCard) return;
+    const rect = activeCard.getBoundingClientRect();
+    const viewportHeight =
+      window.innerHeight || document.documentElement?.clientHeight || rect.height || 0;
+    const isVisible = rect.top >= 0 && rect.bottom <= viewportHeight;
+    if (!isVisible) {
+      activeCard.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }
+
+  function afterDomUpdate() {
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
   if (dispatchExpandToggle) {
     setDispatchExpanded(false);
     dispatchExpandToggle.addEventListener("click", () => {
@@ -4362,6 +4392,9 @@ async function startOrder(orderNo) {
           : typeof order?.estimated_parcels === "number" && order.estimated_parcels > 0
           ? order.estimated_parcels
           : getAutoParcelCountForOrder(order?.line_items));
+      setDispatchExpanded(true);
+      setActiveDispatchCard(orderNo, { scrollIntoViewIfNeeded: true });
+      await afterDomUpdate();
       await startOrder(orderNo);
       let parcelCount = getExpectedParcelCount(orderDetails);
       if (!parcelCount && presetCount) {
@@ -4378,6 +4411,8 @@ async function startOrder(orderNo) {
       orderDetails.manualParcelCount = parcelCount;
       renderSessionUI();
       navigateTo("/scan", { replace: true });
+      await afterDomUpdate();
+      scanInput?.focus();
       statusExplain(`Booking order ${orderNo} (${parcelCount} parcels).`, "info");
       await doBookingNow({ manual: true, parcelCount });
       return true;
