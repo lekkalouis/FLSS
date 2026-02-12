@@ -1000,111 +1000,164 @@ router.post("/shopify/orders/run-flow", async (req, res) => {
   }
 });
 
+function toHistoryShipmentEntries(order, fulfillment) {
+  const shipping = order.shipping_address || {};
+  const customer = order.customer || {};
+
+  const companyName =
+    (shipping.company && shipping.company.trim()) ||
+    (customer?.default_address?.company && customer.default_address.company.trim());
+
+  const customer_name =
+    companyName ||
+    shipping.name ||
+    `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
+    (order.name ? order.name.replace(/^#/, "") : "");
+
+  const trackingNumbers = Array.isArray(fulfillment.tracking_numbers)
+    ? fulfillment.tracking_numbers.filter(Boolean)
+    : [];
+  if (!trackingNumbers.length && fulfillment.tracking_number) {
+    trackingNumbers.push(fulfillment.tracking_number);
+  }
+
+  const trackingInfo = Array.isArray(fulfillment.tracking_info) ? fulfillment.tracking_info : [];
+  const trackingUrl =
+    trackingInfo.find((info) => info.url)?.url || fulfillment.tracking_url || "";
+  const trackingCompany =
+    trackingInfo.find((info) => info.company)?.company || fulfillment.tracking_company || "";
+  const shippedAt =
+    fulfillment.created_at || fulfillment.updated_at || order.processed_at || order.created_at;
+
+  if (!trackingNumbers.length) {
+    return [
+      {
+        order_id: order.id,
+        order_name: order.name,
+        customer_name,
+        tracking_number: "",
+        tracking_url: trackingUrl,
+        tracking_company: trackingCompany,
+        fulfillment_id: fulfillment.id,
+        shipment_status: String(fulfillment.shipment_status || fulfillment.status || "").toLowerCase() || "shipped",
+        shipped_at: shippedAt
+      }
+    ];
+  }
+
+  return trackingNumbers.map((trackingNumber) => ({
+    order_id: order.id,
+    order_name: order.name,
+    customer_name,
+    tracking_number: trackingNumber,
+    tracking_url: trackingUrl,
+    tracking_company: trackingCompany,
+    fulfillment_id: fulfillment.id,
+    shipment_status: String(fulfillment.shipment_status || fulfillment.status || "").toLowerCase() || "shipped",
+    shipped_at: shippedAt
+  }));
+}
+
+async function fetchFulfillmentHistoryStream({ stream, query }) {
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const normalizedQuery = String(query || "").trim().replace(/^#/, "").toLowerCase();
+  const sourceUrl =
+    `${base}/orders.json?status=any` +
+    `&fulfillment_status=fulfilled` +
+    `&limit=250&order=updated_at+desc`;
+
+  const resp = await shopifyFetch(sourceUrl, { method: "GET" });
+  if (!resp.ok) {
+    const body = await resp.text();
+    const err = new Error("SHOPIFY_UPSTREAM");
+    err.status = resp.status;
+    err.statusText = resp.statusText;
+    err.body = body;
+    throw err;
+  }
+
+  const data = await resp.json();
+  const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
+  const shipments = [];
+
+  ordersRaw.forEach((order) => {
+    if (order.cancelled_at) return;
+
+    const orderNo = String(order.name || "").replace(/^#/, "").trim().toLowerCase();
+    if (normalizedQuery && !orderNo.includes(normalizedQuery)) return;
+
+    const fulfillments = Array.isArray(order.fulfillments) ? order.fulfillments : [];
+    fulfillments.forEach((fulfillment) => {
+      const shipmentStatus = String(fulfillment.shipment_status || fulfillment.status || "").toLowerCase();
+      const shippedAtRaw =
+        fulfillment.created_at || fulfillment.updated_at || order.processed_at || order.created_at;
+      const shippedAtTs = new Date(shippedAtRaw || 0).getTime();
+      if (!Number.isFinite(shippedAtTs) || shippedAtTs < cutoff) return;
+
+      const isDelivered = shipmentStatus === "delivered";
+      const isCollected = shipmentStatus === "ready_for_pickup" || shipmentStatus === "confirmed";
+      const include =
+        stream === "delivered"
+          ? isDelivered
+          : stream === "collected"
+            ? isCollected
+            : !isDelivered && !isCollected;
+      if (!include) return;
+
+      shipments.push(...toHistoryShipmentEntries(order, fulfillment));
+    });
+  });
+
+  shipments.sort(
+    (a, b) => new Date(b.shipped_at || 0).getTime() - new Date(a.shipped_at || 0).getTime()
+  );
+  return shipments;
+}
+
+router.get("/shopify/fulfillment-history", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const stream = String(req.query.stream || "shipped").toLowerCase();
+    if (!["shipped", "delivered", "collected"].includes(stream)) {
+      return badRequest(res, "Invalid stream. Use shipped, delivered, or collected.");
+    }
+
+    const shipments = await fetchFulfillmentHistoryStream({ stream, query: req.query.q });
+    return res.json({ stream, shipments });
+  } catch (err) {
+    if (err?.message === "SHOPIFY_UPSTREAM") {
+      return res.status(err.status || 502).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: err.status,
+        statusText: err.statusText,
+        body: err.body
+      });
+    }
+    console.error("Shopify fulfillment-history error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
 router.get("/shopify/shipments/recent", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
-    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-
-    const url =
-      `${base}/orders.json?status=any` +
-      `&fulfillment_status=fulfilled` +
-      `&limit=50&order=updated_at+desc`;
-
-    const resp = await shopifyFetch(url, { method: "GET" });
-
-    if (!resp.ok) {
-      const body = await resp.text();
-      return res.status(resp.status).json({
-        error: "SHOPIFY_UPSTREAM",
-        status: resp.status,
-        statusText: resp.statusText,
-        body
-      });
-    }
-
-    const data = await resp.json();
-    const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
-    const shipments = [];
-
-    ordersRaw.forEach((o) => {
-      if (o.cancelled_at) return;
-      const shipping = o.shipping_address || {};
-      const customer = o.customer || {};
-      const fulfillments = Array.isArray(o.fulfillments) ? o.fulfillments : [];
-
-      const companyName =
-        (shipping.company && shipping.company.trim()) ||
-        (customer?.default_address?.company && customer.default_address.company.trim());
-
-      const customer_name =
-        companyName ||
-        shipping.name ||
-        `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
-        (o.name ? o.name.replace(/^#/, "") : "");
-
-      fulfillments.forEach((fulfillment) => {
-        const shipmentStatus = String(
-          fulfillment.shipment_status || fulfillment.status || ""
-        ).toLowerCase();
-        if (shipmentStatus === "delivered") return;
-
-        const trackingNumbers = Array.isArray(fulfillment.tracking_numbers)
-          ? fulfillment.tracking_numbers.filter(Boolean)
-          : [];
-        if (!trackingNumbers.length && fulfillment.tracking_number) {
-          trackingNumbers.push(fulfillment.tracking_number);
-        }
-
-        const trackingInfo = Array.isArray(fulfillment.tracking_info)
-          ? fulfillment.tracking_info
-          : [];
-        const trackingUrl =
-          trackingInfo.find((info) => info.url)?.url || fulfillment.tracking_url || "";
-        const trackingCompany =
-          trackingInfo.find((info) => info.company)?.company ||
-          fulfillment.tracking_company ||
-          "";
-
-        const shippedAt =
-          fulfillment.created_at || fulfillment.updated_at || o.processed_at || o.created_at;
-
-        if (trackingNumbers.length) {
-          trackingNumbers.forEach((trackingNumber) => {
-            shipments.push({
-              order_id: o.id,
-              order_name: o.name,
-              customer_name,
-              tracking_number: trackingNumber,
-              tracking_url: trackingUrl,
-              tracking_company: trackingCompany,
-              fulfillment_id: fulfillment.id,
-              shipment_status: shipmentStatus || "shipped",
-              shipped_at: shippedAt
-            });
-          });
-        } else {
-          shipments.push({
-            order_id: o.id,
-            order_name: o.name,
-            customer_name,
-            tracking_number: "",
-            tracking_url: trackingUrl,
-            tracking_company: trackingCompany,
-            fulfillment_id: fulfillment.id,
-            shipment_status: shipmentStatus || "shipped",
-            shipped_at: shippedAt
-          });
-        }
-      });
-    });
-
-    shipments.sort(
-      (a, b) => new Date(b.shipped_at || 0).getTime() - new Date(a.shipped_at || 0).getTime()
-    );
-
+    const shipments = await fetchFulfillmentHistoryStream({ stream: "shipped", query: req.query.q });
     return res.json({ shipments });
   } catch (err) {
+    if (err?.message === "SHOPIFY_UPSTREAM") {
+      return res.status(err.status || 502).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: err.status,
+        statusText: err.statusText,
+        body: err.body
+      });
+    }
     console.error("Shopify shipments error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
