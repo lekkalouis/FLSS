@@ -3,6 +3,8 @@ import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
 import { initTraceabilityView } from "./views/traceability.js";
 import { initModuleDashboard } from "./views/dashboard.js";
+import { initContactsView } from "./views/contacts.js";
+import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
 
 (() => {
   "use strict";
@@ -3283,170 +3285,11 @@ async function startOrder(orderNo) {
     `;
   }
 
-  function renderContacts() {
-    if (contactsTierFilter) {
-      const tiers = [...new Set(contactsState.customers.map((c) => String(c.tier || "").trim()).filter(Boolean))].sort();
-      contactsTierFilter.innerHTML = `<option value="">All tiers</option>${tiers.map((tier) => `<option value="${tier}" ${contactsState.tier === tier ? "selected" : ""}>${tier}</option>`).join("")}`;
-    }
-    if (contactsProvinceFilter) {
-      contactsProvinceFilter.innerHTML = `<option value="">All provinces</option>${SA_PROVINCES.map((province) => `<option value="${province}" ${contactsState.province === province ? "selected" : ""}>${province}</option>`).join("")}`;
-    }
-
-    const q = contactsState.query.toLowerCase();
-    const filtered = contactsState.customers.filter((cust) => {
-      if (contactsState.tier && String(cust.tier || "").toLowerCase() !== contactsState.tier.toLowerCase()) return false;
-      if (contactsState.province && String(cust.province || "").toLowerCase() !== contactsState.province.toLowerCase()) return false;
-      if (!q) return true;
-      return [cust.name, cust.phone, cust.email, cust.companyName].some((v) => String(v || "").toLowerCase().includes(q));
-    });
-
-    if (contactsMeta) contactsMeta.textContent = `Showing ${filtered.length} of ${contactsState.customers.length} customers.`;
-    if (!contactsList) return;
-    contactsList.innerHTML = `
-      <div class="dispatchShipmentTable">
-        <div class="dispatchShipmentRow dispatchShipmentRow--header">
-          <div class="dispatchShipmentCell">Customer</div>
-          <div class="dispatchShipmentCell">Contact number</div>
-          <div class="dispatchShipmentCell">Tier</div>
-          <div class="dispatchShipmentCell">Province</div>
-        </div>
-        ${filtered.map((cust) => `
-          <div class="dispatchShipmentRow">
-            <div class="dispatchShipmentCell">${cust.name || "Unknown"}<br><small>${cust.email || ""}</small></div>
-            <div class="dispatchShipmentCell contactsPhone">${cust.phone || "—"}</div>
-            <div class="dispatchShipmentCell">${cust.tier || "—"}</div>
-            <div class="dispatchShipmentCell">${cust.province || "—"}</div>
-          </div>
-        `).join("") || `<div class="dispatchShipmentEmpty">No customers found.</div>`}
-      </div>
-    `;
-  }
-
-  async function refreshContacts() {
-    if (contactsState.retryTimer) {
-      clearTimeout(contactsState.retryTimer);
-      contactsState.retryTimer = null;
-    }
-    if (contactsMeta) contactsMeta.textContent = "Loading contacts…";
-    try {
-      const params = new URLSearchParams();
-      if (contactsState.tier) params.set("tier", contactsState.tier);
-      if (contactsState.province) params.set("province", contactsState.province);
-      const suffix = params.toString() ? `?${params.toString()}` : "";
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers${suffix}`);
-      if (!res.ok) throw new Error(`Contacts request failed (${res.status})`);
-      const data = await res.json();
-      if (!Array.isArray(data.customers)) {
-        throw new Error("Contacts response missing customers array");
-      }
-      contactsState.customers = data.customers;
-      contactsState.loaded = true;
-      renderContacts();
-      if (contactsMeta && !contactsState.customers.length) {
-        contactsMeta.textContent = "No customer contacts were returned from Shopify.";
-      }
-    } catch (err) {
-      contactsState.loaded = false;
-      if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
-      contactsState.retryTimer = setTimeout(() => {
-        refreshContacts().catch((refreshErr) => {
-          appendDebug("Contacts retry failed: " + String(refreshErr));
-        });
-      }, 30000);
-      throw err;
-    }
-  }
-
-  function renderFulfillmentHistory() {
-    const streamEntries = Object.entries(fulfillmentHistoryState.streams || {});
-    const allShipments = streamEntries
-      .flatMap(([stream, shipments]) =>
-        (Array.isArray(shipments) ? shipments : []).map((shipment) => ({
-          ...shipment,
-          stream
-        }))
-      )
-      .sort((a, b) => new Date(b.shipped_at || 0).getTime() - new Date(a.shipped_at || 0).getTime());
-
-    const visibleShipments =
-      fulfillmentHistoryState.statusFilter === "all"
-        ? allShipments
-        : allShipments.filter((shipment) => shipment.stream === fulfillmentHistoryState.statusFilter);
-
-    if (fulfillmentHistoryList) {
-      fulfillmentHistoryList.innerHTML = renderShipmentList(
-        visibleShipments,
-        "No fulfillment history found for the selected filters."
-      );
-    }
-
-    if (fulfillmentHistoryMeta) {
-      const q = fulfillmentHistoryState.query ? ` for “${fulfillmentHistoryState.query}”` : "";
-      const status =
-        fulfillmentHistoryState.statusFilter === "all"
-          ? "all statuses"
-          : `${fulfillmentHistoryState.statusFilter}`;
-      fulfillmentHistoryMeta.textContent = `Showing ${visibleShipments.length} shipments (${status})${q}.`;
-    }
-  }
-
-  async function refreshFulfillmentHistory() {
-    const params = new URLSearchParams();
-    if (fulfillmentHistoryState.query) params.set("q", fulfillmentHistoryState.query);
-    const querySuffix = params.toString() ? `?${params.toString()}` : "";
-
-    if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "Loading history…";
-
-    const bundleRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history-bundle${querySuffix}`);
-    if (bundleRes.ok) {
-      const bundleData = await bundleRes.json();
-      fulfillmentHistoryState.streams.shipped = bundleData?.streams?.shipped || [];
-      fulfillmentHistoryState.streams.delivered = bundleData?.streams?.delivered || [];
-      fulfillmentHistoryState.streams.collected = bundleData?.streams?.collected || [];
-      renderFulfillmentHistory();
-      updateDashboardKpis();
-      return true;
-    }
-
-    if (bundleRes.status === 429) {
-      if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History rate-limited. Retrying shortly…";
-      return false;
-    }
-
-    const legacySuffix = params.toString() ? `&${params.toString()}` : "";
-    const [shippedRes, deliveredRes, collectedRes] = await Promise.all([
-      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=shipped${legacySuffix}`),
-      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=delivered${legacySuffix}`),
-      fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-history?stream=collected${legacySuffix}`)
-    ]);
-
-    if ([shippedRes, deliveredRes, collectedRes].some((res) => res.status === 429)) {
-      if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History rate-limited. Retrying shortly…";
-      return false;
-    }
-
-    if (![shippedRes, deliveredRes, collectedRes].some((res) => res.ok)) {
-      throw new Error("All fulfillment history endpoints failed");
-    }
-
-    const shippedData = shippedRes.ok ? await shippedRes.json() : { shipments: [] };
-    const deliveredData = deliveredRes.ok ? await deliveredRes.json() : { shipments: [] };
-    const collectedData = collectedRes.ok ? await collectedRes.json() : { shipments: [] };
-
-    fulfillmentHistoryState.streams.shipped = shippedData.shipments || [];
-    fulfillmentHistoryState.streams.delivered = deliveredData.shipments || [];
-    fulfillmentHistoryState.streams.collected = collectedData.shipments || [];
-
-    renderFulfillmentHistory();
-    updateDashboardKpis();
-    return true;
-  }
-
   function scheduleFulfillmentHistoryRefresh(delayMs = 30000) {
     if (fulfillmentHistoryRefreshTimer) clearTimeout(fulfillmentHistoryRefreshTimer);
     fulfillmentHistoryRefreshTimer = setTimeout(async () => {
       try {
-        const ok = await refreshFulfillmentHistory();
+        const ok = await fulfillmentHistoryView.refreshFulfillmentHistory();
         scheduleFulfillmentHistoryRefresh(ok ? 30000 : 60000);
       } catch (err) {
         appendDebug("Fulfillment history refresh failed: " + String(err));
@@ -4150,7 +3993,7 @@ async function startOrder(orderNo) {
       statusExplain("Viewing fulfillment history.", "info");
     } else if (showContacts) {
       statusExplain("Viewing customer contacts.", "info");
-      if (!contactsState.loaded || !contactsState.customers.length) refreshContacts().catch((err) => {
+      if (!contactsState.loaded || !contactsState.customers.length) contactsView.refreshContacts().catch((err) => {
         appendDebug("Contacts refresh failed: " + String(err));
         if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
       });
@@ -4206,6 +4049,36 @@ async function startOrder(orderNo) {
     "price-manager": initPriceManagerView,
     traceability: initTraceabilityView
   };
+  const contactsView = initContactsView({
+    state: contactsState,
+    elements: {
+      contactsSearch,
+      contactsTierFilter,
+      contactsProvinceFilter,
+      contactsMeta,
+      contactsList
+    },
+    getProxyBase: () => CONFIG.SHOPIFY.PROXY_BASE,
+    fetchImpl: fetch,
+    provinces: SA_PROVINCES,
+    appendDebug
+  });
+
+  const fulfillmentHistoryView = initFulfillmentHistoryView({
+    state: fulfillmentHistoryState,
+    elements: {
+      fulfillmentHistorySearch,
+      fulfillmentHistoryMeta,
+      fulfillmentHistoryStatusFilter,
+      fulfillmentHistoryList
+    },
+    getProxyBase: () => CONFIG.SHOPIFY.PROXY_BASE,
+    fetchImpl: fetch,
+    renderShipmentList,
+    updateDashboardKpis,
+    appendDebug
+  });
+
 
   function normalizePath(path) {
     if (!path) return "/";
@@ -4792,48 +4665,6 @@ async function startOrder(orderNo) {
         await openDispatchShipmentModal(shipmentKeyId);
       }
     }
-  });
-
-  let fulfillmentSearchTimer = null;
-  let contactsSearchTimer = null;
-  fulfillmentHistorySearch?.addEventListener("input", () => {
-    if (fulfillmentSearchTimer) clearTimeout(fulfillmentSearchTimer);
-    fulfillmentSearchTimer = setTimeout(() => {
-      fulfillmentHistoryState.query = fulfillmentHistorySearch.value.trim();
-      refreshFulfillmentHistory().catch((err) => {
-        appendDebug("Fulfillment history refresh failed: " + String(err));
-        if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History unavailable.";
-      });
-    }, 250);
-  });
-
-  fulfillmentHistoryStatusFilter?.addEventListener("change", () => {
-    fulfillmentHistoryState.statusFilter = fulfillmentHistoryStatusFilter.value || "all";
-    renderFulfillmentHistory();
-  });
-
-  contactsSearch?.addEventListener("input", () => {
-    if (contactsSearchTimer) clearTimeout(contactsSearchTimer);
-    contactsSearchTimer = setTimeout(() => {
-      contactsState.query = contactsSearch.value.trim();
-      renderContacts();
-    }, 150);
-  });
-
-  contactsTierFilter?.addEventListener("change", () => {
-    contactsState.tier = contactsTierFilter.value || "";
-    refreshContacts().catch((err) => {
-      appendDebug("Contacts refresh failed: " + String(err));
-      if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
-    });
-  });
-
-  contactsProvinceFilter?.addEventListener("change", () => {
-    contactsState.province = contactsProvinceFilter.value || "";
-    refreshContacts().catch((err) => {
-      appendDebug("Contacts refresh failed: " + String(err));
-      if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
-    });
   });
 
   dispatchOrderModal?.addEventListener("click", async (e) => {
