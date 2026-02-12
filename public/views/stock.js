@@ -73,7 +73,7 @@ export function initStockView() {
   }
 
   function setStock(sku, value) {
-    stockLevels[sku] = Math.max(0, Math.floor(value));
+    stockLevels[sku] = Math.floor(value);
   }
 
   function formatNumber(value, digits = 0) {
@@ -123,7 +123,7 @@ export function initStockView() {
         if (!item.variantId) return;
         const available = levelsByVariant.get(Number(item.variantId));
         if (available != null && Number.isFinite(available)) {
-          stockLevels[item.sku] = Math.max(0, Math.floor(available));
+          stockLevels[item.sku] = Math.floor(available);
         }
       });
     } catch (err) {
@@ -603,6 +603,18 @@ export function initStockView() {
     if (totalInput) totalInput.value = String(Math.max(0, Math.floor(total)));
   }
 
+  function applyCurrentCellState(cell, value) {
+    if (!cell) return;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      cell.textContent = "0";
+      cell.classList.remove("is-negative");
+      return;
+    }
+    cell.textContent = String(numeric);
+    cell.classList.toggle("is-negative", numeric < 0);
+  }
+
   function resetRowCounts(row) {
     row.querySelectorAll("input[data-count]").forEach((input) => {
       input.value = "";
@@ -626,7 +638,7 @@ export function initStockView() {
           <tr data-sku="${item.sku}" data-crate-clicks="0" data-box-clicks="0">
             <td><strong>${item.sku}</strong></td>
             <td>${item.title}</td>
-            <td class="stock-currentCol" data-current="${item.sku}">${current}</td>
+            <td class="stock-currentCol${current < 0 ? " is-negative" : ""}" data-current="${item.sku}">${current}</td>
             <td class="stock-adjustCol">
               <input class="stock-qtyInput" type="number" min="0" step="1" data-sku="${item.sku}" data-count="1" />
             </td>
@@ -733,7 +745,7 @@ export function initStockView() {
       const nextCount = currentMode === "receive" ? oldCount + Math.max(0, Math.floor(val)) : Math.max(0, Math.floor(val));
       setStock(sku, nextCount);
       const currentCell = row.querySelector(`[data-current="${sku}"]`);
-      if (currentCell) currentCell.textContent = String(nextCount);
+      applyCurrentCellState(currentCell, nextCount);
       appendLogEntry({
         sku,
         oldCount,
@@ -763,7 +775,7 @@ export function initStockView() {
       if (!Number.isFinite(newCount)) return;
       setStock(sku, newCount);
       const currentCell = row.querySelector(`[data-current="${sku}"]`);
-      if (currentCell) currentCell.textContent = String(newCount);
+      applyCurrentCellState(currentCell, newCount);
       appendLogEntry({
         sku,
         oldCount,
@@ -805,7 +817,7 @@ export function initStockView() {
       if (Number.isFinite(available)) {
         setStock(sku, available);
         const currentCell = row.querySelector(`[data-current="${sku}"]`);
-        if (currentCell) currentCell.textContent = String(available);
+        applyCurrentCellState(currentCell, available);
       }
       const modeLabelText = `transfer → ${
         locationNameMap.get(Number(transferLocationId)) || "destination"
