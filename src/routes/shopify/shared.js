@@ -58,17 +58,39 @@ export function requireCustomerEmailConfigured(res) {
 
 const ORDER_PARCEL_NAMESPACE = "custom";
 const ORDER_PARCEL_KEY = "parcel_count";
+const ORDER_ESTIMATED_PARCELS_KEY = "estimated_parcels";
 
-export async function fetchOrderParcelMetafield(base, orderId) {
-  if (!orderId) return null;
-  const metaUrl = `${base}/orders/${orderId}/metafields.json?namespace=${ORDER_PARCEL_NAMESPACE}&key=${ORDER_PARCEL_KEY}`;
+export async function fetchOrderParcelMetafields(base, orderId) {
+  if (!orderId) return [];
+  const metaUrl = `${base}/orders/${orderId}/metafields.json?namespace=${ORDER_PARCEL_NAMESPACE}`;
   const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
-  if (!metaResp.ok) return null;
+  if (!metaResp.ok) return [];
   const metaData = await metaResp.json();
   const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
+  return metafields.filter((mf) => mf.namespace === ORDER_PARCEL_NAMESPACE);
+}
+
+export async function fetchOrderParcelMetafield(base, orderId) {
+  const metafields = await fetchOrderParcelMetafields(base, orderId);
   return metafields.find(
     (mf) => mf.namespace === ORDER_PARCEL_NAMESPACE && mf.key === ORDER_PARCEL_KEY
   ) || null;
+}
+
+export async function fetchOrderEstimatedParcels(base, orderId) {
+  try {
+    const metafields = await fetchOrderParcelMetafields(base, orderId);
+    const metafield =
+      metafields.find(
+        (mf) => mf.namespace === ORDER_PARCEL_NAMESPACE && mf.key === ORDER_ESTIMATED_PARCELS_KEY
+      ) || null;
+    if (!metafield || metafield.value == null) return null;
+    const parsed = Number(metafield.value);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch (err) {
+    console.warn("Order estimated parcels metafield fetch failed:", err);
+    return null;
+  }
 }
 
 export async function fetchOrderParcelCount(base, orderId) {
