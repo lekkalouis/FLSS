@@ -695,16 +695,18 @@ router.get("/shopify/orders/open", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const limit = 100;
-    const maxPages = Math.min(Math.max(Number(req.query.max_pages || 5), 1), 10);
+    const now = Date.now();
+    const eligibleAgeMs = 90 * 24 * 60 * 60 * 1000;
+    const createdAtCutoffMs = now - eligibleAgeMs;
 
     const firstPath =
-      `${base}/orders.json?status=open` +
+      `${base}/orders.json?status=any` +
       `&fulfillment_status=unfulfilled,in_progress,partial` +
       `&limit=${limit}&order=created_at+desc`;
 
     const ordersRaw = [];
     let nextPath = firstPath;
-    let pageCount = 0;
+    const visitedPaths = new Set();
 
     const getNextPath = (linkHeader) => {
       if (!linkHeader) return null;
@@ -718,7 +720,8 @@ router.get("/shopify/orders/open", async (req, res) => {
       }
     };
 
-    while (nextPath && pageCount < maxPages) {
+    while (nextPath && !visitedPaths.has(nextPath)) {
+      visitedPaths.add(nextPath);
       const resp = await shopifyFetch(nextPath, { method: "GET" });
 
       if (!resp.ok) {
@@ -734,10 +737,25 @@ router.get("/shopify/orders/open", async (req, res) => {
       const data = await resp.json();
       if (Array.isArray(data.orders)) ordersRaw.push(...data.orders);
       nextPath = getNextPath(resp.headers.get("link"));
-      pageCount += 1;
     }
 
-    const filteredOrders = ordersRaw.filter((o) => !o.cancelled_at);
+    const filteredOrders = ordersRaw.filter((o) => {
+      if (o.cancelled_at) return false;
+
+      const fulfillmentStatus = String(o.fulfillment_status || "").toLowerCase();
+      const isFulfilled = fulfillmentStatus === "fulfilled";
+
+      const isExplicitlyOpen =
+        String(o.status || "").toLowerCase() === "open" || !o.closed_at;
+
+      if (isExplicitlyOpen) return true;
+      if (isFulfilled) return false;
+
+      const createdAtMs = new Date(o.created_at || 0).getTime();
+      if (!Number.isFinite(createdAtMs)) return false;
+
+      return createdAtMs >= createdAtCutoffMs;
+    });
     const parcelCounts = await Promise.all(filteredOrders.map((o) => fetchOrderParcelCount(base, o.id)));
     const estimatedParcelCounts = await Promise.all(
       filteredOrders.map((o) => fetchOrderEstimatedParcels(base, o.id))

@@ -120,9 +120,6 @@ import { initModuleDashboard } from "./views/dashboard.js";
   const dailyTodoMeta = $("dailyTodoMeta");
   const dailyTodoClose = $("dailyTodoClose");
 
-  const MAX_ORDER_AGE_HOURS = 180;
-
-
   let activeOrderNo = null;
   let orderDetails = null;
   let parcelsByOrder = new Map();
@@ -3199,23 +3196,12 @@ async function startOrder(orderNo) {
   function renderDispatchBoard(orders) {
     if (!dispatchBoard) return;
 
-    const now = Date.now();
-    const maxAgeMs = MAX_ORDER_AGE_HOURS * 60 * 60 * 1000;
     dispatchOrderCache.clear();
     dispatchShipmentCache.clear();
     const activeOrders = new Set();
 
-    const filtered = (orders || []).filter((o) => {
-      const fs = (o.fulfillment_status || "").toLowerCase();
-      if (fs && fs !== "unfulfilled" && fs !== "in_progress") return false;
-      if (!o.created_at) return true;
-      const createdMs = new Date(o.created_at).getTime();
-      if (!Number.isFinite(createdMs)) return true;
-      return now - createdMs <= maxAgeMs;
-    });
-
-    filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-    const list = filtered.slice(0, 60);
+    const list = Array.isArray(orders) ? [...orders] : [];
+    list.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     const shipments = Array.isArray(dispatchShipmentsLatest) ? dispatchShipmentsLatest : [];
     if (dispatchShipmentsSidebar) {
       dispatchShipmentsSidebar.innerHTML = renderShipmentList(shipments);
