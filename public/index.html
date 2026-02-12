@@ -1561,7 +1561,7 @@
 
   .dispatchShipmentRow{
     display:grid;
-    grid-template-columns: 1.2fr 1fr 1fr;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
     gap:.5rem;
     padding:.55rem .6rem;
     border-bottom:1px solid var(--panel-strong);
@@ -1589,6 +1589,38 @@
 
   .dispatchShipmentCell--status{
     color:var(--text-muted);
+  }
+
+  .dispatchShipmentCell--actions{
+    display:flex;
+    gap:.35rem;
+    justify-content:flex-end;
+    align-items:center;
+  }
+
+  .dispatchShipmentActionBtn{
+    border:1px solid rgba(30,64,175,.25);
+    background:#eff6ff;
+    color:#1e3a8a;
+    border-radius:.45rem;
+    font-size:.68rem;
+    font-weight:700;
+    padding:.25rem .45rem;
+    cursor:pointer;
+  }
+
+  .dispatchShipmentActionBtn:hover{
+    background:#dbeafe;
+  }
+
+  .dispatchShipmentActionBtn--link{
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+  }
+
+  .contactsPhone{
+    font-family:var(--mono);
   }
 
   .dispatchShipmentEmpty{
@@ -2295,6 +2327,7 @@
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
             <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch</span></button>
             <button id="navFulfillmentHistory" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillmentHistory" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnIcon" aria-hidden="true">🧾</span><span class="flNavBtnText">Fulfillment History</span></button>
+            <button id="navContacts" class="flNavBtn" type="button" role="tab" aria-controls="viewContacts" aria-selected="false" data-route="/contacts"><span class="flNavBtnIcon" aria-hidden="true">📇</span><span class="flNavBtnText">Contacts</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
             <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Flowcharts</span></button>
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
@@ -2516,6 +2549,32 @@
             <div class="sectionTitle"><span>Recently Collected</span></div>
             <div id="fulfillmentRecentlyCollected" class="dispatchShipmentsBody"></div>
           </section>
+        </div>
+      </div>
+      <div class="flView" id="viewContacts" hidden>
+        <div class="dashboardShell">
+          <div class="dashboardHeader">
+            <div>
+              <h1>Customer Contacts</h1>
+              <p>All Shopify customers with contact number, tier, and province filters.</p>
+            </div>
+          </div>
+          <div class="dispatchSearchRow" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+            <div>
+              <label for="contactsSearch" class="dispatchSearchLabel">Search</label>
+              <input id="contactsSearch" class="dispatchSearchInput" type="search" placeholder="Search customer, phone, or email…" autocomplete="off" />
+            </div>
+            <div>
+              <label for="contactsTierFilter" class="dispatchSearchLabel">Tier</label>
+              <select id="contactsTierFilter" class="dispatchSearchInput"><option value="">All tiers</option></select>
+            </div>
+            <div>
+              <label for="contactsProvinceFilter" class="dispatchSearchLabel">Province</label>
+              <select id="contactsProvinceFilter" class="dispatchSearchInput"><option value="">All provinces</option></select>
+            </div>
+          </div>
+          <div id="contactsMeta" class="dispatchShipmentInfo">Loading contacts…</div>
+          <div id="contactsList" class="dispatchShipmentsBody"></div>
         </div>
       </div>
       <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
@@ -3234,7 +3293,18 @@ npm run dev</code></pre>
                       </div>
                       <div class="flocs-row" style="margin-top:.4rem">
                         <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
-                        <input id="flocs-customerProvince" class="flocs-input" type="text" placeholder="Province" />
+                        <select id="flocs-customerProvince" class="flocs-select">
+                          <option value="">Province</option>
+                          <option>Eastern Cape</option>
+                          <option>Free State</option>
+                          <option>Gauteng</option>
+                          <option>KwaZulu-Natal</option>
+                          <option>Limpopo</option>
+                          <option>Mpumalanga</option>
+                          <option>North West</option>
+                          <option>Northern Cape</option>
+                          <option>Western Cape</option>
+                        </select>
                       </div>
                       <div class="flocs-row" style="margin-top:.4rem">
                         <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />

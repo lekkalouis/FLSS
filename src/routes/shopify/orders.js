@@ -14,8 +14,41 @@ import {
 
 const ORDER_PARCEL_NAMESPACE = "custom";
 const ORDER_PARCEL_KEY = "parcel_count";
+const CUSTOMER_DELIVERY_KEY = "delivery_method";
 
 const router = Router();
+
+async function ensureCustomerDeliveryType({ base, customerId, shippingMethod }) {
+  const method = String(shippingMethod || "").trim().toLowerCase();
+  if (!customerId || !method) return;
+
+  const allowed = new Set(["shipping", "pickup", "local", "delivery", "collection"]);
+  if (!allowed.has(method)) return;
+
+  const metaResp = await shopifyFetch(`${base}/customers/${customerId}/metafields.json`, {
+    method: "GET"
+  });
+  if (!metaResp.ok) return;
+  const metaData = await metaResp.json();
+  const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
+  const existing = metafields.find(
+    (mf) => mf.namespace === "custom" && mf.key === CUSTOMER_DELIVERY_KEY
+  );
+  if (existing?.value) return;
+
+  await shopifyFetch(`${base}/customers/${customerId}/metafields.json`, {
+    method: "POST",
+    body: JSON.stringify({
+      metafield: {
+        namespace: "custom",
+        key: CUSTOMER_DELIVERY_KEY,
+        type: "single_line_text_field",
+        value: method
+      }
+    })
+  });
+}
+
 router.post("/shopify/draft-orders", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -47,6 +80,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    await ensureCustomerDeliveryType({ base, customerId, shippingMethod });
     const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
     const tierCache = new Map();
     const lineItemsWithPrice = await Promise.all(
