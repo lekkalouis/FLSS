@@ -29,6 +29,7 @@ export function initFlocsView() {
   const customerEmail    = document.getElementById("flocs-customerEmail");
   const customerPhone    = document.getElementById("flocs-customerPhone");
   const customerCompany  = document.getElementById("flocs-customerCompany");
+  const customerTier     = document.getElementById("flocs-customerTier");
   const customerVat      = document.getElementById("flocs-customerVat");
   const customerDeliveryNotes = document.getElementById("flocs-customerDeliveryNotes");
   const customerDelivery = document.getElementById("flocs-customerDelivery");
@@ -162,10 +163,17 @@ export function initFlocsView() {
   const productKey = (p) =>
     String(p.variantId || p.sku || p.title || "").trim();
 
-  const PRICE_TAGS = ["agent", "retailer", "export", "private", "fkb"];
+  const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
   const AUTO_QUOTE_DELAY_MS = 3000;
   let autoQuoteTimer = null;
   const deliveryHintDefault = deliveryHint ? deliveryHint.textContent : "";
+  const CUSTOMER_TIER_OPTIONS = ["agent", "retail", "export", "private", "fkb"];
+
+  function normalizeCustomerTier(value) {
+    const tier = String(value || "").trim().toLowerCase();
+    if (!tier) return "";
+    return CUSTOMER_TIER_OPTIONS.includes(tier) ? tier : "";
+  }
 
   function normalizeTags(tags) {
     if (!tags) return [];
@@ -183,9 +191,8 @@ export function initFlocsView() {
 
   function resolvePriceTier(tags) {
     const normalized = tags.map((t) => t.toLowerCase());
-    return (
-      PRICE_TAGS.find((tag) => normalized.includes(tag)) || null
-    );
+    const tier = PRICE_TAGS.find((tag) => normalized.includes(tag)) || null;
+    return tier === "retailer" ? "retail" : tier;
   }
 
   function normalizePriceTiers(product) {
@@ -263,6 +270,12 @@ export function initFlocsView() {
     createOrderBtn.classList.toggle("is-ready", ready && !state.isSubmitting);
   }
 
+  function updateCreateCustomerButtonState() {
+    if (!customerCreateBtn) return;
+    const tier = normalizeCustomerTier(customerTier?.value);
+    customerCreateBtn.disabled = !tier;
+  }
+
   function setCustomerCreateVisible(visible) {
     if (customerCreatePanel) {
       customerCreatePanel.hidden = !visible;
@@ -275,6 +288,7 @@ export function initFlocsView() {
     if (visible && customerFirst) {
       customerFirst.focus();
     }
+    updateCreateCustomerButtonState();
   }
 
   function currentDelivery() {
@@ -1171,7 +1185,7 @@ ${state.customer.email || ""}${
               c.delivery_method
                 ? ` · default delivery: ${c.delivery_method}`
                 : ""
-            }${c.tags ? ` · tags: ${c.tags}` : ""}
+            }${c.tier ? ` · tier: ${c.tier}` : ""}${c.tags ? ` · tags: ${c.tags}` : ""}
           </div>
         </div>
       `
@@ -1198,6 +1212,7 @@ ${state.customer.email || ""}${
     const email = customerEmail?.value?.trim() || "";
     const phone = customerPhone?.value?.trim() || "";
     const company = customerCompany?.value?.trim() || "";
+    const tier = normalizeCustomerTier(customerTier?.value);
     const vatNumber = customerVat?.value?.trim() || "";
     const deliveryInstructions = customerDeliveryNotes?.value?.trim() || "";
     const deliveryMethod = customerDelivery?.value || "";
@@ -1207,6 +1222,15 @@ ${state.customer.email || ""}${
     const province = customerProvince?.value?.trim() || "";
     const zip = customerZip?.value?.trim() || "";
     const country = customerCountry?.value?.trim() || "";
+
+    if (!tier) {
+      showToast("Customer tier is required.", "err");
+      if (customerCreateStatus) {
+        customerCreateStatus.textContent =
+          "Select a customer tier before creating.";
+      }
+      return;
+    }
 
     if (!firstName && !lastName && !email && !phone) {
       showToast("Provide at least a name, email, or phone.", "err");
@@ -1228,6 +1252,8 @@ ${state.customer.email || ""}${
       email,
       phone,
       company,
+      tier,
+      createTierMetafield: true,
       vatNumber,
       deliveryInstructions,
       deliveryMethod,
@@ -1268,7 +1294,7 @@ ${state.customer.email || ""}${
       applySelectedCustomer(data.customer);
       if (customerCreateStatus) {
         customerCreateStatus.textContent =
-          `Created: ${data.customer.name}`;
+          `Created: ${data.customer.name} (${data.customer.tier || tier})`;
       }
       showToast("Customer created.", "ok");
       resetCustomerForm();
@@ -1280,7 +1306,7 @@ ${state.customer.email || ""}${
         customerCreateStatus.textContent = String(e?.message || e);
       }
     } finally {
-      customerCreateBtn.disabled = false;
+      updateCreateCustomerButtonState();
     }
   }
 
@@ -1290,6 +1316,7 @@ ${state.customer.email || ""}${
     if (customerEmail) customerEmail.value = "";
     if (customerPhone) customerPhone.value = "";
     if (customerCompany) customerCompany.value = "";
+    if (customerTier) customerTier.value = "";
     if (customerVat) customerVat.value = "";
     if (customerDeliveryNotes) customerDeliveryNotes.value = "";
     if (customerDelivery) customerDelivery.value = "";
@@ -1303,6 +1330,7 @@ ${state.customer.email || ""}${
       customerCreateStatus.textContent =
         "Add a customer if search returns nothing.";
     }
+    updateCreateCustomerButtonState();
   }
 
   function resolveDefaultAddressIndex(addresses, defaultAddress) {
@@ -1744,6 +1772,12 @@ ${state.customer.email || ""}${
       });
     }
 
+    if (customerTier) {
+      customerTier.addEventListener("change", () => {
+        updateCreateCustomerButtonState();
+      });
+    }
+
     if (customerResetBtn) {
       customerResetBtn.addEventListener("click", () => {
         resetCustomerForm();
@@ -1953,6 +1987,7 @@ ${state.customer.email || ""}${
     hydratePriceTiersForProducts(state.products);
     previewPriceResolution(state.products);
     initEvents();
+    updateCreateCustomerButtonState();
   }
 
   if (document.readyState === "loading") {

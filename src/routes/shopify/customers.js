@@ -29,7 +29,8 @@ function normalizeCustomer(customer, metafields = {}) {
     delivery_method: metafields.delivery_method || null,
     deliveryInstructions: metafields.delivery_instructions || null,
     companyName: metafields.company_name || null,
-    vatNumber: metafields.vat_number || null
+    vatNumber: metafields.vat_number || null,
+    tier: metafields.tier || null
   };
 }
 router.get("/shopify/customers/search", async (req, res) => {
@@ -78,7 +79,8 @@ router.get("/shopify/customers/search", async (req, res) => {
             delivery_method: getValue("delivery_method"),
             delivery_instructions: getValue("delivery_instructions"),
             company_name: getValue("company_name"),
-            vat_number: getValue("vat_number")
+            vat_number: getValue("vat_number"),
+            tier: getValue("tier")
           };
         } catch {
           return null;
@@ -109,9 +111,11 @@ router.post("/shopify/customers", async (req, res) => {
       email,
       phone,
       company,
+      tier,
       vatNumber,
       deliveryInstructions,
       deliveryMethod,
+      createTierMetafield,
       address
     } =
       req.body || {};
@@ -121,6 +125,13 @@ router.post("/shopify/customers", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const normalizedTier = String(tier || "").trim().toLowerCase();
+    const shouldCreateTierMetafield = createTierMetafield !== false;
+    const allowedTiers = new Set(["agent", "retail", "export", "private", "fkb"]);
+    if (!allowedTiers.has(normalizedTier)) {
+      return badRequest(res, "Customer tier is required and must be one of: agent, retail, export, private, fkb");
+    }
+
     const metafields = [];
     if (deliveryMethod) {
       metafields.push({
@@ -154,6 +165,14 @@ router.post("/shopify/customers", async (req, res) => {
         value: vatNumber
       });
     }
+    if (shouldCreateTierMetafield && normalizedTier) {
+      metafields.push({
+        namespace: "custom",
+        key: "tier",
+        type: "single_line_text_field",
+        value: normalizedTier
+      });
+    }
 
     const payload = {
       customer: {
@@ -178,6 +197,7 @@ router.post("/shopify/customers", async (req, res) => {
             ]
           : [],
         note: vatNumber ? `VAT ID: ${vatNumber}` : undefined,
+        tags: normalizedTier,
         metafields
       }
     };
@@ -208,7 +228,8 @@ router.post("/shopify/customers", async (req, res) => {
       delivery_method: deliveryMethod || null,
       delivery_instructions: deliveryInstructions || null,
       company_name: company || null,
-      vat_number: vatNumber || null
+      vat_number: vatNumber || null,
+      tier: normalizedTier || null
     });
     return res.json({ ok: true, customer });
   } catch (err) {

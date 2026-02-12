@@ -3205,6 +3205,16 @@ npm run dev</code></pre>
                       </div>
                       <div class="flocs-row" style="margin-top:.4rem">
                         <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
+                        <select id="flocs-customerTier" class="flocs-select" required>
+                          <option value="">Customer tier (required)</option>
+                          <option value="agent">Agent</option>
+                          <option value="retail">Retail</option>
+                          <option value="export">Export</option>
+                          <option value="private">Private (internal)</option>
+                          <option value="fkb">FKB (internal)</option>
+                        </select>
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
                         <select id="flocs-customerDelivery" class="flocs-select">
                           <option value="">Default delivery (optional)</option>
                           <option value="shipping">Shipping</option>
