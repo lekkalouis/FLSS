@@ -222,6 +222,10 @@
       font-size:.68rem;
       color:var(--text-muted);
     }
+    #viewStock .stock-currentCol.is-negative{
+      color:#dc2626;
+      font-weight:700;
+    }
     #viewStock .stock-table tbody tr:hover{
       background:rgba(34,211,238,.08);
     }
