@@ -628,15 +628,31 @@ export function initStockView() {
     updateRowTotal(row);
   }
 
+  function getHealthMeta(current) {
+    if (current <= 0) {
+      return { label: "Critical", className: "stock-skuTag--critical" };
+    }
+    if (current < CRATE_UNITS) {
+      return { label: "Low", className: "stock-skuTag--low" };
+    }
+    return { label: "Healthy", className: "stock-skuTag--good" };
+  }
+
   function renderTable() {
     if (!tableBody) return;
     const list = filteredItems();
     tableBody.innerHTML = list
       .map((item) => {
         const current = getStock(item.sku);
+        const health = getHealthMeta(current);
         return `
           <tr data-sku="${item.sku}" data-crate-clicks="0" data-box-clicks="0">
-            <td><strong>${item.sku}</strong></td>
+            <td>
+              <div class="stock-skuCell">
+                <strong>${item.sku}</strong>
+                <span class="stock-skuTag ${health.className}">${health.label}</span>
+              </div>
+            </td>
             <td>${item.title}</td>
             <td class="stock-currentCol${current < 0 ? " is-negative" : ""}" data-current="${item.sku}">${current}</td>
             <td class="stock-adjustCol">
@@ -652,14 +668,18 @@ export function initStockView() {
               <input class="stock-qtyInput stock-totalInput" type="number" min="0" step="1" data-total="true" readonly value="0" />
             </td>
             <td class="stock-quickCol">
-              <span class="stock-iconGroup stock-crateGroup">
-                <button class="stock-iconBtn" type="button" data-action="crate" data-sku="${item.sku}" title="Add crate (${CRATE_UNITS})">🧺</button>
-                <span class="stock-iconCount" data-unit-count="crate">0</span>
-              </span>
-              <span class="stock-iconGroup stock-boxGroup">
-                <button class="stock-iconBtn" type="button" data-action="box" data-sku="${item.sku}" title="Add box (${BOX_UNITS})">📦</button>
-                <span class="stock-iconCount" data-unit-count="box">0</span>
-              </span>
+              <div class="stock-quickStack">
+                <div class="stock-quickItem">
+                  <button class="stock-iconBtn" type="button" data-action="crate" data-sku="${item.sku}" title="Add crate (${CRATE_UNITS})">+C</button>
+                  <span class="stock-quickLabel">Crate (${CRATE_UNITS})</span>
+                  <span class="stock-iconCount" data-unit-count="crate">0</span>
+                </div>
+                <div class="stock-iconGroup stock-boxGroup stock-quickItem">
+                  <button class="stock-iconBtn" type="button" data-action="box" data-sku="${item.sku}" title="Add box (${BOX_UNITS})">+B</button>
+                  <span class="stock-quickLabel">Box (${BOX_UNITS})</span>
+                  <span class="stock-iconCount" data-unit-count="box">0</span>
+                </div>
+              </div>
             </td>
             <td class="stock-actionCol">
               <button class="stock-actionBtn" type="button" data-action="apply" data-sku="${item.sku}">Set</button>

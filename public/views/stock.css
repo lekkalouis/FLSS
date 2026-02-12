@@ -1,12 +1,19 @@
 #viewStock{
-      --bg:#f5f7fb;
+      --bg:#f1f5f9;
       --panel:#ffffff;
-      --panel-muted:#f1f5f9;
-      --panel-strong:#e2e8f0;
+      --panel-muted:#eef2f7;
+      --panel-strong:#d6deea;
       --text:#0f172a;
-      --text-muted:#5b6b7f;
-      --accent:#38bdf8;
-      --accent-soft:rgba(56,189,248,.15);
+      --text-muted:#52627a;
+      --accent:#2563eb;
+      --accent-soft:rgba(37,99,235,.15);
+      --accent-strong:#1d4ed8;
+      --ok-soft:#dcfce7;
+      --ok-text:#166534;
+      --warn-soft:#fef3c7;
+      --warn-text:#92400e;
+      --critical-soft:#fee2e2;
+      --critical-text:#b91c1c;
       --success:#22c55e;
       --warning:#f59e0b;
       --radius-lg:.85rem;
@@ -18,8 +25,8 @@
     #viewStock{
       margin:0;
       min-height:100vh;
-      background:radial-gradient(circle at 12% 12%, rgba(56,189,248,.12) 0%, rgba(245,247,251,0) 55%),
-                 radial-gradient(circle at 88% 10%, rgba(168,85,247,.08) 0%, rgba(245,247,251,0) 60%),
+      background:radial-gradient(circle at 12% 12%, rgba(37,99,235,.11) 0%, rgba(241,245,249,0) 55%),
+                 radial-gradient(circle at 88% 10%, rgba(14,165,233,.08) 0%, rgba(241,245,249,0) 60%),
                  var(--bg);
       color:var(--text);
       font-family:var(--sans);
@@ -103,7 +110,7 @@
       display:inline-flex;
       gap:.35rem;
       padding:.2rem;
-      background:var(--panel-muted);
+      background:#e8eef8;
       border-radius:999px;
       border:1px solid var(--panel-strong);
     }
@@ -118,17 +125,17 @@
       font-weight:600;
     }
     #viewStock .stock-modeBtn.is-active{
-      background:#fff;
+      background:linear-gradient(135deg, #ffffff, #f8fbff);
       color:var(--text);
-      box-shadow:0 0 0 1px var(--panel-strong);
+      box-shadow:0 0 0 1px rgba(37,99,235,.25);
     }
     #viewStock .stock-pill{
       display:inline-flex;
       align-items:center;
       padding:.25rem .6rem;
       border-radius:999px;
-      background:rgba(56,189,248,.12);
-      color:#0f4c6b;
+      background:rgba(37,99,235,.12);
+      color:#1e3a8a;
       font-size:.7rem;
       font-weight:600;
     }
@@ -169,8 +176,8 @@
       border-right:none;
     }
     #viewStock .stock-locationBtn.is-active{
-      background:rgba(56,189,248,.18);
-      color:#0c4a6e;
+      background:rgba(37,99,235,.15);
+      color:#1d4ed8;
     }
     #viewStock .stock-muted{
       color:var(--text-muted);
@@ -216,7 +223,7 @@
       text-align:left;
     }
     #viewStock .stock-table th{
-      background:var(--panel-muted);
+      background:#e8eef8;
       text-transform:uppercase;
       letter-spacing:.05em;
       font-size:.68rem;
@@ -227,7 +234,38 @@
       font-weight:700;
     }
     #viewStock .stock-table tbody tr:hover{
-      background:rgba(34,211,238,.08);
+      background:rgba(37,99,235,.07);
+    }
+    #viewStock .stock-skuCell{
+      display:flex;
+      flex-direction:column;
+      gap:.2rem;
+    }
+    #viewStock .stock-skuTag{
+      display:inline-flex;
+      width:max-content;
+      padding:.08rem .38rem;
+      border-radius:999px;
+      font-size:.58rem;
+      font-weight:700;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      border:1px solid transparent;
+    }
+    #viewStock .stock-skuTag--good{
+      background:var(--ok-soft);
+      color:var(--ok-text);
+      border-color:rgba(22,101,52,.2);
+    }
+    #viewStock .stock-skuTag--low{
+      background:var(--warn-soft);
+      color:var(--warn-text);
+      border-color:rgba(146,64,14,.2);
+    }
+    #viewStock .stock-skuTag--critical{
+      background:var(--critical-soft);
+      color:var(--critical-text);
+      border-color:rgba(185,28,28,.22);
     }
     #viewStock .stock-qtyInput{
       width:4.5rem;
@@ -245,8 +283,8 @@
     }
     #viewStock .stock-actionBtn{
       border-radius:999px;
-      border:1px solid rgba(34,197,94,.6);
-      background:rgba(34,197,94,.15);
+      border:1px solid rgba(16,185,129,.52);
+      background:rgba(16,185,129,.16);
       color:#065f46;
       font-size:.7rem;
       font-weight:700;
@@ -258,9 +296,64 @@
       height:2.2rem;
     }
     #viewStock .stock-actionBtn.receive{
-      border-color:rgba(59,130,246,.6);
-      background:rgba(59,130,246,.15);
+      border-color:rgba(37,99,235,.55);
+      background:rgba(37,99,235,.14);
       color:#1e3a8a;
+    }
+    #viewStock .stock-quickCol{
+      min-width:10.2rem;
+    }
+    #viewStock .stock-quickStack{
+      display:flex;
+      flex-direction:column;
+      gap:.32rem;
+    }
+    #viewStock .stock-quickItem{
+      display:grid;
+      grid-template-columns:auto 1fr auto;
+      align-items:center;
+      gap:.4rem;
+      padding:.2rem .36rem;
+      border:1px solid rgba(148,163,184,.34);
+      border-radius:.45rem;
+      background:#f8fafc;
+    }
+    #viewStock .stock-quickLabel{
+      font-size:.62rem;
+      color:var(--text-muted);
+      font-weight:700;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+    }
+    #viewStock .stock-iconBtn{
+      width:1.45rem;
+      height:1.45rem;
+      border-radius:.4rem;
+      border:1px solid rgba(37,99,235,.35);
+      background:#fff;
+      color:#1d4ed8;
+      font-size:.76rem;
+      line-height:1;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:800;
+    }
+    #viewStock .stock-iconBtn:hover{
+      background:#eff6ff;
+      border-color:rgba(37,99,235,.5);
+    }
+    #viewStock .stock-iconBtn:disabled{
+      cursor:not-allowed;
+      opacity:.45;
+    }
+    #viewStock .stock-iconCount{
+      min-width:1.4rem;
+      text-align:right;
+      font-size:.72rem;
+      font-weight:800;
+      color:#0f172a;
     }
     #viewStock .stock-primaryBtn{
       border-radius:999px;
