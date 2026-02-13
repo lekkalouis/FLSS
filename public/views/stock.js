@@ -65,7 +65,6 @@ export function initStockView() {
   let mrpDraftLines = [];
   let poDraftLines = [];
   const CRATE_UNITS = 102;
-  const BOX_UNITS = 250;
 
   function getStock(sku) {
     const val = Number(stockLevels[sku] || 0);
@@ -596,9 +595,7 @@ export function initStockView() {
 
   function updateRowTotal(row) {
     const crateClicks = Number(row.dataset.crateClicks || 0);
-    const boxClicks = Number(row.dataset.boxClicks || 0);
-    const total =
-      sumRowCounts(row) + crateClicks * CRATE_UNITS + boxClicks * BOX_UNITS;
+    const total = sumRowCounts(row) + crateClicks * CRATE_UNITS;
     const totalInput = row.querySelector("input[data-total]");
     if (totalInput) totalInput.value = String(Math.max(0, Math.floor(total)));
   }
@@ -620,11 +617,8 @@ export function initStockView() {
       input.value = "";
     });
     row.dataset.crateClicks = "0";
-    row.dataset.boxClicks = "0";
     const crateCount = row.querySelector("[data-unit-count='crate']");
     if (crateCount) crateCount.textContent = "0";
-    const boxCount = row.querySelector("[data-unit-count='box']");
-    if (boxCount) boxCount.textContent = "0";
     updateRowTotal(row);
   }
 
@@ -646,7 +640,7 @@ export function initStockView() {
         const current = getStock(item.sku);
         const health = getHealthMeta(current);
         return `
-          <tr data-sku="${item.sku}" data-crate-clicks="0" data-box-clicks="0">
+          <tr data-sku="${item.sku}" data-crate-clicks="0">
             <td>
               <div class="stock-skuCell">
                 <strong>${item.sku}</strong>
@@ -670,14 +664,13 @@ export function initStockView() {
             <td class="stock-quickCol">
               <div class="stock-quickStack">
                 <div class="stock-quickItem">
-                  <button class="stock-iconBtn" type="button" data-action="crate" data-sku="${item.sku}" title="Add crate (${CRATE_UNITS})">+C</button>
+                  <button class="stock-iconBtn" type="button" data-action="crate" data-sku="${item.sku}" title="Add crate (${CRATE_UNITS})" aria-label="Add crate (${CRATE_UNITS})">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M3 7.2 12 3l9 4.2v9.6L12 21l-9-4.2V7.2Zm9-.6L6.08 9.36 12 12.1l5.92-2.74L12 6.6Zm-7 4.03v4.77l6 2.8v-4.77l-6-2.8Zm8 7.57 6-2.8v-4.77l-6 2.8v4.77Z" />
+                    </svg>
+                  </button>
                   <span class="stock-quickLabel">Crate (${CRATE_UNITS})</span>
                   <span class="stock-iconCount" data-unit-count="crate">0</span>
-                </div>
-                <div class="stock-iconGroup stock-boxGroup stock-quickItem">
-                  <button class="stock-iconBtn" type="button" data-action="box" data-sku="${item.sku}" title="Add box (${BOX_UNITS})">+B</button>
-                  <span class="stock-quickLabel">Box (${BOX_UNITS})</span>
-                  <span class="stock-iconCount" data-unit-count="box">0</span>
                 </div>
               </div>
             </td>
@@ -912,12 +905,10 @@ export function initStockView() {
       const action = actionBtn.dataset.action;
       const row = actionBtn.closest("tr");
       if (!row) return;
-      if (action === "crate" || action === "box") {
-        const datasetKey = action === "crate" ? "crateClicks" : "boxClicks";
-        const countKey = action === "crate" ? "crate" : "box";
-        const nextClicks = Number(row.dataset[datasetKey] || 0) + 1;
-        row.dataset[datasetKey] = String(nextClicks);
-        const countEl = row.querySelector(`[data-unit-count='${countKey}']`);
+      if (action === "crate") {
+        const nextClicks = Number(row.dataset.crateClicks || 0) + 1;
+        row.dataset.crateClicks = String(nextClicks);
+        const countEl = row.querySelector("[data-unit-count='crate']");
         if (countEl) countEl.textContent = String(nextClicks);
         updateRowTotal(row);
         return;
