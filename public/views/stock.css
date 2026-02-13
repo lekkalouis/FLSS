@@ -211,14 +211,14 @@
     #viewStock .stock-table{
       width:100%;
       border-collapse:collapse;
-      font-size:.78rem;
+      font-size:.74rem;
       border:1px solid var(--panel-strong);
       border-radius:.6rem;
       overflow:hidden;
       background:#fff;
     }
     #viewStock .stock-table th, #viewStock .stock-table td{
-      padding:.4rem .5rem;
+      padding:.26rem .42rem;
       border-bottom:1px solid rgba(148,163,184,.2);
       text-align:left;
     }
@@ -268,10 +268,10 @@
       border-color:rgba(185,28,28,.22);
     }
     #viewStock .stock-qtyInput{
-      width:4.5rem;
+      width:4rem;
       border-radius:.45rem;
       border:1px solid var(--panel-strong);
-      padding:.2rem .35rem;
+      padding:.15rem .32rem;
       text-align:right;
       font-size:.78rem;
       background:#fff;
@@ -301,37 +301,37 @@
       color:#1e3a8a;
     }
     #viewStock .stock-quickCol{
-      min-width:10.2rem;
+      min-width:8.2rem;
     }
     #viewStock .stock-quickStack{
       display:flex;
       flex-direction:column;
-      gap:.32rem;
+      gap:.2rem;
     }
     #viewStock .stock-quickItem{
       display:grid;
       grid-template-columns:auto 1fr auto;
       align-items:center;
       gap:.4rem;
-      padding:.2rem .36rem;
+      padding:.12rem .28rem;
       border:1px solid rgba(148,163,184,.34);
       border-radius:.45rem;
       background:#f8fafc;
     }
     #viewStock .stock-quickLabel{
-      font-size:.62rem;
+      font-size:.58rem;
       color:var(--text-muted);
       font-weight:700;
       letter-spacing:.04em;
       text-transform:uppercase;
     }
     #viewStock .stock-iconBtn{
-      width:1.45rem;
-      height:1.45rem;
-      border-radius:.4rem;
-      border:1px solid rgba(37,99,235,.35);
+      width:1.38rem;
+      height:1.38rem;
+      border-radius:.35rem;
+      border:1px solid rgba(15,23,42,.22);
       background:#fff;
-      color:#1d4ed8;
+      color:#0f172a;
       font-size:.76rem;
       line-height:1;
       cursor:pointer;
@@ -339,10 +339,16 @@
       align-items:center;
       justify-content:center;
       font-weight:800;
+      padding:0;
+    }
+    #viewStock .stock-iconBtn svg{
+      width:.96rem;
+      height:.96rem;
+      fill:currentColor;
     }
     #viewStock .stock-iconBtn:hover{
-      background:#eff6ff;
-      border-color:rgba(37,99,235,.5);
+      background:#f8fafc;
+      border-color:rgba(15,23,42,.38);
     }
     #viewStock .stock-iconBtn:disabled{
       cursor:not-allowed;
