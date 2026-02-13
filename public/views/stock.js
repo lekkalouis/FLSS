@@ -24,6 +24,7 @@ export function initStockView() {
   const transferSelect = document.getElementById("stock-transferLocation");
   const focusInput = document.getElementById("stock-focusInput");
   const focusApplyBtn = document.getElementById("stock-focusApply");
+  const createCountBtn = document.getElementById("stock-createCount");
   const mrpBatchName = document.getElementById("mrp-batchName");
   const mrpSampleWeight = document.getElementById("mrp-sampleWeight");
   const mrpSkuSelect = document.getElementById("mrp-skuSelect");
@@ -55,7 +56,7 @@ export function initStockView() {
   const rawMaterials = RAW_MATERIALS;
   let items = [...finishedGoods];
   let stockLevels = {};
-  let currentMode = "read";
+  let currentMode = "count";
   let logEntries = [];
   let currentLocationId = null;
   let transferLocationId = null;
@@ -293,7 +294,7 @@ export function initStockView() {
                 <div class="stock-batchMeta">${status} • ${new Date(batch.createdAt).toLocaleString()}</div>
               </div>
               <div class="stock-batchActions">
-                ${batch.status !== "received" ? '<button type="button" class="is-primary" data-po-action="receive">Receive PO</button>' : ""}
+                ${batch.status !== "received" ? '<button type="button" class="is-primary" data-po-action="receive">Receive purchase order</button>' : ""}
                 <button type="button" class="is-danger" data-po-action="delete">Delete</button>
               </div>
             </div>
@@ -351,7 +352,7 @@ export function initStockView() {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
     if (!batches.length) {
-      mrpBatchList.innerHTML = `<div class="stock-muted">No production orders yet.</div>`;
+      mrpBatchList.innerHTML = `<div class="stock-muted">No manufacturing orders yet.</div>`;
       return;
     }
     mrpBatchList.innerHTML = batches
@@ -381,7 +382,7 @@ export function initStockView() {
                 <div class="stock-batchMeta">${statusLabel} • ${new Date(batch.createdAt).toLocaleString()}</div>
               </div>
               <div class="stock-batchActions">
-                <button type="button" class="is-primary" data-batch-action="receive">Receive batch</button>
+                <button type="button" class="is-primary" data-batch-action="receive">Receive finished goods</button>
                 <button type="button" data-batch-action="print">Print order</button>
                 <button type="button" class="is-danger" data-batch-action="delete">Delete</button>
               </div>
@@ -448,7 +449,7 @@ export function initStockView() {
     renderMrpSummary();
   }
 
-  function printProductionOrder(batch) {
+  function printManufacturingOrder(batch) {
     if (!batch) return;
     const linesMarkup = batch.lines
       .map((line) => {
@@ -474,7 +475,7 @@ export function initStockView() {
       <html lang="en">
       <head>
         <meta charset="UTF-8" />
-        <title>Production Order - ${batch.name}</title>
+        <title>Manufacturing Order - ${batch.name}</title>
         <style>
           body{ font-family:Arial, sans-serif; color:#0f172a; padding:24px; }
           h1{ margin:0 0 8px 0; font-size:20px; }
@@ -486,7 +487,7 @@ export function initStockView() {
         </style>
       </head>
       <body>
-        <h1>Production order: ${batch.name}</h1>
+        <h1>Manufacturing order: ${batch.name}</h1>
         <div class="meta">Created: ${new Date(batch.createdAt).toLocaleString()} • Sample weight: ${sampleWeightLabel}</div>
         <table>
           <thead>
@@ -502,7 +503,7 @@ export function initStockView() {
             ${linesMarkup}
           </tbody>
         </table>
-        <div class="footer">Printed from Stock Take MRP.</div>
+        <div class="footer">Printed from Inventory manufacturing.</div>
       </body>
       </html>
     `;
@@ -574,7 +575,7 @@ export function initStockView() {
   }
 
   function filteredItems() {
-    const sourceItems = currentMode === "receive" ? rawMaterials : finishedGoods;
+    const sourceItems = currentMode === "buy" ? rawMaterials : finishedGoods;
     items = sourceItems;
     const q = (searchInput?.value || "").trim().toLowerCase();
     if (!q) return sourceItems;
@@ -685,8 +686,9 @@ export function initStockView() {
   }
 
   function updateModeUI() {
-    const isReadOnly = currentMode === "read" || currentMode === "produce";
+    const isReadOnly = currentMode === "make" || currentMode === "buy";
     const isReceive = currentMode === "receive";
+    const isCountMode = currentMode === "count" || currentMode === "stock";
     modeButtons.forEach((btn) => {
       if (btn.dataset.mode === currentMode) {
         btn.classList.add("is-active");
@@ -695,13 +697,15 @@ export function initStockView() {
       }
     });
     if (modeLabel) {
-      modeLabel.textContent = currentMode === "receive"
-        ? "Mode: Stock received (raw materials)"
-        : currentMode === "take"
-        ? "Mode: Stock take"
-        : currentMode === "produce"
-        ? "Mode: Produce"
-        : "Mode: Read only";
+      modeLabel.textContent = currentMode === "stock"
+        ? "Mode: Stock accounting"
+        : currentMode === "count"
+        ? "Mode: Count (stock take)"
+        : currentMode === "make"
+        ? "Mode: Make (manufacturing orders)"
+        : currentMode === "buy"
+        ? "Mode: Buy (raw materials)"
+        : "Mode: Receive";
     }
     if (table) {
       table.dataset.mode = currentMode;
@@ -742,6 +746,14 @@ export function initStockView() {
     if (adjustLabel) {
       adjustLabel.textContent = isReceive ? "Receive qty" : "New count";
     }
+    if (createCountBtn) {
+      createCountBtn.hidden = !isCountMode;
+      createCountBtn.disabled = !isCountMode;
+    }
+    document.querySelectorAll("#viewStock [data-panel]").forEach((section) => {
+      const modes = String(section.getAttribute("data-panel") || "").split(/\s+/).filter(Boolean);
+      section.hidden = !modes.includes(currentMode);
+    });
   }
 
   async function handleApply(row, sku, totalValue) {
@@ -763,7 +775,7 @@ export function initStockView() {
         sku,
         oldCount,
         newCount: nextCount,
-        mode: currentMode === "receive" ? "receive" : "take"
+        mode: currentMode === "receive" ? "receive" : "count"
       });
       return;
     }
@@ -793,7 +805,7 @@ export function initStockView() {
         sku,
         oldCount,
         newCount,
-        mode: currentMode === "receive" ? "receive" : "take"
+        mode: currentMode === "receive" ? "receive" : "count"
       });
     } catch (err) {
       console.error("Stock update failed", err);
@@ -927,6 +939,17 @@ export function initStockView() {
           resetRowCounts(row);
         });
       }
+    });
+
+
+    createCountBtn?.addEventListener("click", () => {
+      const timestamp = new Date().toLocaleString();
+      appendLogEntry({
+        sku: "--",
+        oldCount: "--",
+        newCount: "--",
+        mode: `count session created @ ${timestamp}`
+      });
     });
 
     tableBody?.addEventListener("input", (event) => {
@@ -1082,7 +1105,7 @@ export function initStockView() {
       if (!batch) return;
       const action = actionBtn.dataset.batchAction;
       if (action === "print") {
-        printProductionOrder(batch);
+        printManufacturingOrder(batch);
         return;
       }
       if (action === "delete") {
