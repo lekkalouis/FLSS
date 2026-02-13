@@ -208,7 +208,7 @@ import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
   const DAILY_TODO_SHORTCUT = "Alt+Shift+T";
   // Operations checklist shown on dashboard; persisted per-browser in localStorage.
   const DAILY_TODO_ITEMS = [
-    "Stock take",
+    "Inventory count",
     "Production planning",
     "Receive stock",
     "Dispatch checks",
@@ -4015,7 +4015,7 @@ async function startOrder(orderNo) {
     } else if (showFlowcharts) {
       statusExplain("Flowchart logic reference loaded.", "info");
     } else if (showStock) {
-      statusExplain("Stock take ready.", "info");
+      statusExplain("Inventory ready.", "info");
     } else if (showPriceManager) {
       statusExplain("Price manager ready.", "info");
     } else if (showTraceability) {

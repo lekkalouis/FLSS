@@ -2349,7 +2349,7 @@
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
             <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Flowcharts</span></button>
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
-            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
+            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Inventory</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
             <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
           </div>
@@ -3469,20 +3469,22 @@ npm run dev</code></pre>
       <div class="stock-shell">
         <div class="stock-grid">
           <section class="stock-card stock-overviewCard">
-            <h2>Stock overview</h2>
+            <h2>Inventory overview</h2>
             <div class="stock-toolbar">
               <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
               <div class="stock-modeToggle">
-                <button class="stock-modeBtn" type="button" data-mode="read">Read only</button>
-                <button class="stock-modeBtn is-active" type="button" data-mode="take">Stock take</button>
-                <button class="stock-modeBtn" type="button" data-mode="produce">Produce</button>
-                <button class="stock-modeBtn" type="button" data-mode="receive">Stock received</button>
+                <button class="stock-modeBtn" type="button" data-mode="stock">Stock</button>
+                <button class="stock-modeBtn is-active" type="button" data-mode="count">Count</button>
+                <button class="stock-modeBtn" type="button" data-mode="make">Make</button>
+                <button class="stock-modeBtn" type="button" data-mode="buy">Buy</button>
+                <button class="stock-modeBtn" type="button" data-mode="receive">Receive</button>
               </div>
+              <button id="stock-createCount" class="stock-primaryBtn stock-createBtn" type="button">Create</button>
               <div class="stock-locationPicker">
                 <span class="stock-locationLabel">Location</span>
                 <div id="stock-locationButtons" class="stock-locationButtons" role="group" aria-label="Stock location"></div>
               </div>
-              <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
+              <span class="stock-pill" id="stock-modeLabel">Mode: Count (stock take)</span>
             </div>
             <table class="stock-table" id="stock-table">
               <thead>
@@ -3507,13 +3509,13 @@ npm run dev</code></pre>
           <section class="stock-card stock-mrpCard">
             <div class="stock-mrpHeader">
               <div>
-                <h2>MRP / Production batches</h2>
-                <p class="stock-muted">Plan production, capture sample weight, and receive batches directly into stock.</p>
+                <h2>Manufacturing &amp; buying</h2>
+                <p class="stock-muted">Create manufacturing orders, plan buying, and receive open orders.</p>
               </div>
               <span class="stock-pill">Live plan</span>
             </div>
 
-            <form id="mrp-batchForm" class="stock-form">
+            <form id="mrp-batchForm" class="stock-form" data-panel="make">
               <div class="stock-formRow">
                 <label class="stock-field">
                   <span>Batch name</span>
@@ -3553,12 +3555,12 @@ npm run dev</code></pre>
                 </table>
               </div>
               <div class="stock-formActions">
-                <button id="mrp-createBatch" class="stock-primaryBtn" type="button">Create batch</button>
+                <button id="mrp-createBatch" class="stock-primaryBtn" type="button">Create manufacturing order</button>
                 <button id="mrp-clearLines" class="stock-ghostBtn" type="button">Clear lines</button>
               </div>
             </form>
 
-            <div class="stock-subsection">
+            <div class="stock-subsection" data-panel="make">
               <h3>Committed &amp; missing items</h3>
               <table class="stock-table stock-table--compact">
                 <thead>
@@ -3577,12 +3579,12 @@ npm run dev</code></pre>
               </table>
             </div>
 
-            <div class="stock-subsection">
-              <h3>Production orders</h3>
+            <div class="stock-subsection" data-panel="make receive">
+              <h3>Manufacturing orders</h3>
               <div id="mrp-batchList" class="stock-batchList"></div>
             </div>
 
-            <div class="stock-subsection">
+            <div class="stock-subsection" data-panel="buy receive">
               <h3>Purchase orders (raw materials)</h3>
               <form id="po-batchForm" class="stock-form">
                 <div class="stock-formRow">

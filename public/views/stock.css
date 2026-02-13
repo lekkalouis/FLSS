@@ -77,7 +77,9 @@
       overflow:auto;
       display:none;
     }
-    #viewStock[data-mode="produce"] .stock-mrpCard{
+    #viewStock[data-mode="make"] .stock-mrpCard,
+    #viewStock[data-mode="buy"] .stock-mrpCard,
+    #viewStock[data-mode="receive"] .stock-mrpCard{
       display:block;
     }
     @media (max-width:1200px){
@@ -102,7 +104,7 @@
     #viewStock .stock-toolbar{
       display:flex;
       flex-wrap:wrap;
-      gap:.5rem;
+      gap:.6rem;
       align-items:center;
       margin-bottom:.75rem;
     }
@@ -129,6 +131,11 @@
       color:var(--text);
       box-shadow:0 0 0 1px rgba(37,99,235,.25);
     }
+
+    #viewStock .stock-createBtn{
+      white-space:nowrap;
+    }
+
     #viewStock .stock-pill{
       display:inline-flex;
       align-items:center;
@@ -143,9 +150,10 @@
     #viewStock .stock-locationPicker{
       display:inline-flex;
       align-items:center;
-      gap:.45rem;
+      gap:.55rem;
       flex-wrap:wrap;
       margin-left:auto;
+      order:5;
     }
     #viewStock .stock-locationLabel{
       font-size:.68rem;
@@ -157,20 +165,21 @@
     #viewStock .stock-locationButtons{
       display:inline-flex;
       border:1px solid var(--panel-strong);
-      border-radius:.6rem;
+      border-radius:.75rem;
       overflow:hidden;
       background:#fff;
+      box-shadow:0 1px 3px rgba(15,23,42,.08);
     }
     #viewStock .stock-locationBtn{
       border:none;
       border-right:1px solid var(--panel-strong);
       background:#fff;
       color:var(--text-muted);
-      font-size:.74rem;
+      font-size:.82rem;
       font-weight:700;
-      padding:.36rem .72rem;
+      padding:.54rem .95rem;
       cursor:pointer;
-      min-width:7.6rem;
+      min-width:9.25rem;
     }
     #viewStock .stock-locationBtn:last-child{
       border-right:none;
