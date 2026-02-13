@@ -3468,7 +3468,7 @@ npm run dev</code></pre>
     <div class="flView" id="viewStock" hidden>
       <div class="stock-shell">
         <div class="stock-grid">
-          <section class="stock-card stock-overviewCard">
+          <section class="stock-card stock-overviewCard" id="stock-overviewCard">
             <h2>Inventory overview</h2>
             <div class="stock-toolbar">
               <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
@@ -3506,11 +3506,11 @@ npm run dev</code></pre>
             <div id="stock-log" class="stock-log"></div>
           </section>
 
-          <section class="stock-card stock-mrpCard">
+          <section class="stock-card stock-mrpCard" id="stock-mrpCard">
             <div class="stock-mrpHeader">
               <div>
-                <h2>Manufacturing &amp; buying</h2>
-                <p class="stock-muted">Create manufacturing orders, plan buying, and receive open orders.</p>
+                <h2>Manufacturing order creator</h2>
+                <p class="stock-muted">Select finished goods, calculate raw materials and operation time, then create and print manufacturing orders.</p>
               </div>
               <span class="stock-pill">Live plan</span>
             </div>
@@ -3559,6 +3559,28 @@ npm run dev</code></pre>
                 <button id="mrp-clearLines" class="stock-ghostBtn" type="button">Clear lines</button>
               </div>
             </form>
+
+
+            <div class="stock-subsection" data-panel="make">
+              <h3>Manufacturing calculator</h3>
+              <table class="stock-table stock-table--compact">
+                <thead>
+                  <tr>
+                    <th>Raw material SKU</th>
+                    <th>Description</th>
+                    <th>Required</th>
+                  </tr>
+                </thead>
+                <tbody id="mrp-requirementsTable">
+                  <tr>
+                    <td colspan="3" class="stock-muted">Select finished goods and qty to calculate raw materials.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div id="mrp-opsSummary" class="stock-opsSummary">
+                <span class="stock-muted">Operational time will appear after adding lines.</span>
+              </div>
+            </div>
 
             <div class="stock-subsection" data-panel="make">
               <h3>Committed &amp; missing items</h3>

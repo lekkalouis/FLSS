@@ -34,6 +34,8 @@ export function initStockView() {
   const mrpCreateBatch = document.getElementById("mrp-createBatch");
   const mrpClearLines = document.getElementById("mrp-clearLines");
   const mrpSummaryTable = document.getElementById("mrp-summaryTable");
+  const mrpRequirementsTable = document.getElementById("mrp-requirementsTable");
+  const mrpOpsSummary = document.getElementById("mrp-opsSummary");
   const mrpBatchList = document.getElementById("mrp-batchList");
   const poBatchName = document.getElementById("po-batchName");
   const poSkuSelect = document.getElementById("po-skuSelect");
@@ -66,6 +68,17 @@ export function initStockView() {
   let mrpDraftLines = [];
   let poDraftLines = [];
   const CRATE_UNITS = 102;
+  const OPS_SETUP_MINUTES = 20;
+  const OPS_LINE_CHANGEOVER_MINUTES = 10;
+  const RECIPE_BY_SIZE = {
+    "100ml": { packSku: "RM-PACK-200", baseKgPerUnit: 0.08, minutesPerUnit: 0.25 },
+    "200ml": { packSku: "RM-PACK-200", baseKgPerUnit: 0.2, minutesPerUnit: 0.35 },
+    "250ml": { packSku: "RM-PACK-200", baseKgPerUnit: 0.24, minutesPerUnit: 0.4 },
+    "500g": { packSku: "RM-PACK-500", baseKgPerUnit: 0.5, minutesPerUnit: 0.55 },
+    "750g": { packSku: "RM-PACK-500", baseKgPerUnit: 0.75, minutesPerUnit: 0.65 },
+    "750g Tub": { packSku: "RM-PACK-500", baseKgPerUnit: 0.75, minutesPerUnit: 0.75 },
+    "1kg": { packSku: "RM-PACK-500", baseKgPerUnit: 1, minutesPerUnit: 0.8 }
+  };
 
   function getStock(sku) {
     const val = Number(stockLevels[sku] || 0);
@@ -80,6 +93,78 @@ export function initStockView() {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return "--";
     return numeric.toFixed(digits);
+  }
+
+
+  function getBaseSkuForProduct(product) {
+    const flavour = String(product?.flavour || "").toLowerCase();
+    return flavour.includes("hot") ? "RM-BASE-HOT" : "RM-BASE-ORIG";
+  }
+
+  function getRecipeForProduct(product) {
+    return RECIPE_BY_SIZE[product?.size] || {
+      packSku: "RM-PACK-500",
+      baseKgPerUnit: Number(product?.weightKg || 0.5),
+      minutesPerUnit: 0.6
+    };
+  }
+
+  function computeDraftRequirements(lines) {
+    const required = new Map();
+    let totalMinutes = OPS_SETUP_MINUTES;
+
+    lines.forEach((line) => {
+      const product = getProductBySku(line.sku);
+      if (!product) return;
+      const qty = Math.max(0, Number(line.qty) || 0);
+      if (!qty) return;
+      const recipe = getRecipeForProduct(product);
+      const baseSku = getBaseSkuForProduct(product);
+      required.set(baseSku, (required.get(baseSku) || 0) + qty * recipe.baseKgPerUnit);
+      required.set(recipe.packSku, (required.get(recipe.packSku) || 0) + qty);
+      required.set("RM-LABEL", (required.get("RM-LABEL") || 0) + qty);
+      totalMinutes += qty * recipe.minutesPerUnit + OPS_LINE_CHANGEOVER_MINUTES;
+    });
+
+    return {
+      materials: Array.from(required.entries()).map(([sku, qty]) => ({ sku, qty })),
+      totalMinutes
+    };
+  }
+
+  function renderManufacturingCalculator() {
+    if (!mrpRequirementsTable || !mrpOpsSummary) return;
+    if (!mrpDraftLines.length) {
+      mrpRequirementsTable.innerHTML = `
+        <tr>
+          <td colspan="3" class="stock-muted">Select finished goods and qty to calculate raw materials.</td>
+        </tr>
+      `;
+      mrpOpsSummary.innerHTML = `<span class="stock-muted">Operational time will appear after adding lines.</span>`;
+      return;
+    }
+    const plan = computeDraftRequirements(mrpDraftLines);
+    mrpRequirementsTable.innerHTML = plan.materials
+      .map((line) => {
+        const material = rawMaterials.find((entry) => entry.sku === line.sku);
+        const isBase = line.sku.includes("BASE");
+        const unit = isBase ? "kg" : "units";
+        return `
+          <tr>
+            <td><strong>${line.sku}</strong></td>
+            <td>${material?.title || "Raw material"}</td>
+            <td>${formatNumber(line.qty, isBase ? 2 : 0)} ${unit}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const hours = Math.floor(plan.totalMinutes / 60);
+    const minutes = Math.round(plan.totalMinutes % 60);
+    mrpOpsSummary.innerHTML = `
+      <span><strong>${formatNumber(plan.totalMinutes, 0)}</strong> total minutes</span>
+      <span class="stock-muted">(${hours}h ${minutes}m including setup/changeovers)</span>
+    `;
   }
 
   function getSavedLocationId() {
@@ -206,7 +291,7 @@ export function initStockView() {
   }
 
   function getProductBySku(sku) {
-    return items.find((entry) => entry.sku === sku);
+    return finishedGoods.find((entry) => entry.sku === sku);
   }
 
   function renderMrpSkuOptions() {
@@ -214,6 +299,7 @@ export function initStockView() {
     mrpSkuSelect.innerHTML = finishedGoods
       .map((item) => `<option value="${item.sku}">${item.sku} — ${item.title}</option>`)
       .join("");
+    renderManufacturingCalculator();
   }
 
   function renderDraftLines() {
@@ -224,6 +310,7 @@ export function initStockView() {
           <td colspan="4" class="stock-muted">Add line items to build the batch.</td>
         </tr>
       `;
+      renderManufacturingCalculator();
       return;
     }
     mrpLinesTable.innerHTML = mrpDraftLines
@@ -239,6 +326,7 @@ export function initStockView() {
         `;
       })
       .join("");
+    renderManufacturingCalculator();
   }
 
   function renderPoSkuOptions() {
@@ -451,6 +539,7 @@ export function initStockView() {
 
   function printManufacturingOrder(batch) {
     if (!batch) return;
+    const requirementsPlan = batch.requirements || computeDraftRequirements(batch.lines || []);
     const linesMarkup = batch.lines
       .map((line) => {
         const product = getProductBySku(line.sku);
@@ -470,6 +559,17 @@ export function initStockView() {
     const sampleWeightLabel = batch.sampleWeight
       ? `${formatNumber(batch.sampleWeight, 2)} kg`
       : "—";
+    const requirementsMarkup = (requirementsPlan.materials || []).map((line) => {
+      const material = rawMaterials.find((entry) => entry.sku === line.sku);
+      const isBase = line.sku.includes("BASE");
+      return `
+        <tr>
+          <td>${line.sku}</td>
+          <td>${material?.title || ""}</td>
+          <td>${formatNumber(line.qty, isBase ? 2 : 0)} ${isBase ? "kg" : "units"}</td>
+        </tr>
+      `;
+    }).join("");
     const html = `
       <!DOCTYPE html>
       <html lang="en">
@@ -488,7 +588,7 @@ export function initStockView() {
       </head>
       <body>
         <h1>Manufacturing order: ${batch.name}</h1>
-        <div class="meta">Created: ${new Date(batch.createdAt).toLocaleString()} • Sample weight: ${sampleWeightLabel}</div>
+        <div class="meta">Created: ${new Date(batch.createdAt).toLocaleString()} • Sample weight: ${sampleWeightLabel} • Operational time: ${formatNumber(requirementsPlan.totalMinutes, 0)} min</div>
         <table>
           <thead>
             <tr>
@@ -501,6 +601,19 @@ export function initStockView() {
           </thead>
           <tbody>
             ${linesMarkup}
+          </tbody>
+        </table>
+        <h2 style="font-size:15px; margin:14px 0 8px;">Raw material requirements</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Material</th>
+              <th>Required</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${requirementsMarkup}
           </tbody>
         </table>
         <div class="footer">Printed from Inventory manufacturing.</div>
@@ -713,6 +826,10 @@ export function initStockView() {
     if (rootView) {
       rootView.dataset.mode = currentMode;
     }
+    const logTitle = document.querySelector("#viewStock .stock-logTitle");
+    if (table) table.hidden = currentMode === "make";
+    if (logContainer) logContainer.hidden = currentMode === "make";
+    if (logTitle) logTitle.hidden = currentMode === "make";
     tableBody?.querySelectorAll(".stock-actionBtn").forEach((btn) => {
       if (isReceive) {
         btn.classList.add("receive");
@@ -1000,7 +1117,8 @@ export function initStockView() {
         createdAt: new Date().toISOString(),
         sampleWeight,
         status: "open",
-        lines: mrpDraftLines.map((line) => ({ ...line }))
+        lines: mrpDraftLines.map((line) => ({ ...line })),
+        requirements: computeDraftRequirements(mrpDraftLines)
       };
       mrpState.batches.unshift(batch);
       saveMrpState();
@@ -1010,6 +1128,7 @@ export function initStockView() {
       renderDraftLines();
       renderMrpBatches();
       renderMrpSummary();
+      printManufacturingOrder(batch);
     });
 
 
@@ -1130,6 +1249,7 @@ export function initStockView() {
   renderMrpSkuOptions();
   renderPoSkuOptions();
   renderDraftLines();
+  renderManufacturingCalculator();
   renderPoDraftLines();
   renderMrpBatches();
   renderPoBatches();
