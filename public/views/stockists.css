@@ -1,0 +1,13 @@
+.stockistsShell{display:grid;gap:1rem}
+.stockistsCard{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem;box-shadow:0 8px 20px rgba(15,23,42,.06)}
+.stockistsRow{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}
+.stockistsInput,.stockistsSelect,.stockistsTextarea{border:1px solid #cbd5e1;border-radius:10px;padding:.5rem .65rem;font:inherit;background:#fff}
+.stockistsTextarea{width:100%;min-height:84px}
+.stockistsBtn{border:1px solid #6366f1;background:#6366f1;color:#fff;border-radius:10px;padding:.5rem .8rem;font-weight:600;cursor:pointer}
+.stockistsBtn.secondary{background:#fff;color:#334155;border-color:#cbd5e1}
+.stockistsMeta{color:#475569;font-size:.9rem}
+.stockistsGrid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.stockistsTable{width:100%;border-collapse:collapse;font-size:.9rem}
+.stockistsTable th,.stockistsTable td{border-bottom:1px solid #e2e8f0;padding:.45rem;text-align:left;vertical-align:top}
+.stockistsPill{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:999px;padding:.15rem .5rem;font-size:.75rem}
+@media (max-width:1000px){.stockistsGrid{grid-template-columns:1fr}}

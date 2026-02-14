@@ -101,6 +101,18 @@ export async function listLocatorAgents() {
   return payload;
 }
 
+
+export async function listAdminAgents() {
+  const state = await getStockistState();
+  return state.stockists
+    .filter((item) => item.type === "AGENT")
+    .map((agent) => ({
+      ...agent,
+      retailer_count: state.agentRetailers.filter((retailer) => retailer.agent_id === agent.id && retailer.active).length
+    }))
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
 export async function getAgentLocatorDetail(agentId) {
   const cacheKey = `locator:agent:${agentId}`;
   const cached = getCached(cacheKey);

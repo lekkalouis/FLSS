@@ -2332,6 +2332,7 @@
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
   <link rel="stylesheet" href="/views/traceability.css">
+  <link rel="stylesheet" href="/views/stockists.css">
 </head>
  <body>
   <div class="flApp">
@@ -2352,6 +2353,7 @@
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Inventory</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
             <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
+            <button id="navStockists" class="flNavBtn" type="button" role="tab" aria-controls="viewStockists" aria-selected="false" data-route="/stockists"><span class="flNavBtnIcon" aria-hidden="true">📍</span><span class="flNavBtnText">Stockists</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -3635,6 +3637,63 @@ npm run dev</code></pre>
     </div>
 
 
+    <div class="flView" id="viewStockists" hidden>
+      <div class="stockistsShell">
+        <section class="stockistsCard">
+          <h2>Stockists → Agents</h2>
+          <p class="stockistsMeta" id="stockistsStatus">Ready.</p>
+          <div class="stockistsRow">
+            <input id="stockistsAdminToken" class="stockistsInput" type="password" placeholder="Admin token (optional)" />
+            <button id="stockistsRefreshBtn" class="stockistsBtn secondary" type="button">Refresh agents</button>
+            <button id="stockistsSyncBtn" class="stockistsBtn" type="button">Sync agents from Shopify</button>
+          </div>
+        </section>
+
+        <section class="stockistsCard">
+          <div class="stockistsRow">
+            <label for="stockistsAgentSelect"><strong>Agent profile</strong></label>
+            <select id="stockistsAgentSelect" class="stockistsSelect"></select>
+          </div>
+          <p id="stockistsAgentMeta" class="stockistsMeta">Select an agent to view details.</p>
+        </section>
+
+        <div class="stockistsGrid">
+          <section class="stockistsCard">
+            <h3>Retailers Supplied</h3>
+            <div class="stockistsRow">
+              <input id="stockistsRetailerName" class="stockistsInput" placeholder="Retailer name*" />
+              <input id="stockistsRetailerCity" class="stockistsInput" placeholder="City" />
+              <input id="stockistsRetailerProvince" class="stockistsInput" placeholder="Province" />
+            </div>
+            <div class="stockistsRow">
+              <input id="stockistsRetailerAddress" class="stockistsInput" placeholder="Address" />
+              <input id="stockistsRetailerPhone" class="stockistsInput" placeholder="Phone" />
+              <input id="stockistsRetailerNotes" class="stockistsInput" placeholder="Notes" />
+              <button id="stockistsAddRetailerBtn" class="stockistsBtn" type="button">Add retailer</button>
+            </div>
+            <label><strong>Bulk paste</strong> <span class="stockistsMeta">Store Name, City, Province</span></label>
+            <textarea id="stockistsBulkText" class="stockistsTextarea" placeholder="Lekka Mart, Cape Town, Western Cape"></textarea>
+            <button id="stockistsBulkBtn" class="stockistsBtn secondary" type="button">Import bulk list</button>
+
+            <table class="stockistsTable">
+              <thead><tr><th>Name</th><th>City</th><th>Province</th><th>Phone</th></tr></thead>
+              <tbody id="stockistsRetailersBody"><tr><td colspan="4">No retailers loaded.</td></tr></tbody>
+            </table>
+          </section>
+
+          <section class="stockistsCard">
+            <h3>SKU Range</h3>
+            <p class="stockistsMeta">One line per SKU: <code>FL002,Core Range,10</code></p>
+            <textarea id="stockistsSkuText" class="stockistsTextarea" placeholder="FL002,Core Range,10"></textarea>
+            <button id="stockistsSaveSkuBtn" class="stockistsBtn" type="button">Save SKU range</button>
+            <table class="stockistsTable">
+              <thead><tr><th>SKU</th><th>Availability</th><th>Priority</th></tr></thead>
+              <tbody id="stockistsSkuBody"><tr><td colspan="3">No SKU range loaded.</td></tr></tbody>
+            </table>
+          </section>
+        </div>
+      </div>
+    </div>
 
     <div class="flView" id="viewTraceability" hidden>
       <div class="trace-shell">

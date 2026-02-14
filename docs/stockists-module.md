@@ -55,3 +55,18 @@ Equivalent versions also available under `/api/v1/admin/...`.
 ## Audit log
 
 - Admin mutations and sync operations append JSON lines to `data/stockists-audit.log`.
+
+## Admin frontend (FLSS dashboard)
+
+A new dashboard module is available under **Stockists** (`/stockists`) with:
+
+- Agent list + profile selector
+- Agent sync trigger from Shopify
+- Retailer add form + bulk paste mode (`Store Name, City, Province`)
+- Agent SKU range editor
+
+Frontend files:
+
+- `public/views/stockists.js`
+- `public/views/stockists.css`
+- integrated in `public/index.html`, `public/app.js`, and dashboard module cards.

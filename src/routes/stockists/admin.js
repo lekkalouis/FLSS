@@ -4,6 +4,8 @@ import { auditStockistEvent } from "../../services/stockists/audit.js";
 import {
   addRetailerWithGeocode,
   clearLocatorCache,
+  getAgentLocatorDetail,
+  listAdminAgents,
   parseRetailerBulkRows,
   replaceSkuRange,
   syncAgentsFromShopify
@@ -15,6 +17,26 @@ const router = Router();
 function actorFromRequest(req) {
   return req.get("x-admin-user") || "admin";
 }
+
+router.get("/admin/agents", async (_req, res) => {
+  try {
+    const agents = await listAdminAgents();
+    return res.json({ agents });
+  } catch (err) {
+    return res.status(500).json({ error: "ADMIN_AGENTS_LIST_FAILED", message: err.message });
+  }
+});
+
+router.get("/admin/agents/:id", async (req, res) => {
+  try {
+    const detail = await getAgentLocatorDetail(req.params.id);
+    if (!detail) return res.status(404).json({ error: "AGENT_NOT_FOUND" });
+    return res.json(detail);
+  } catch (err) {
+    return res.status(500).json({ error: "ADMIN_AGENT_DETAIL_FAILED", message: err.message });
+  }
+});
+
 
 router.post("/admin/agents/:id/retailers", async (req, res) => {
   try {
