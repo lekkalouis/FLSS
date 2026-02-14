@@ -99,6 +99,7 @@ import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
   const navTraceability = $("navTraceability");
+  const navUnifiedOps = $("navUnifiedOps");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
@@ -111,6 +112,7 @@ import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
   const viewTraceability = $("viewTraceability");
+  const viewUnifiedOps = $("viewUnifiedOps");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -3926,50 +3928,55 @@ async function startOrder(orderNo) {
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
     const showTraceability = view === "traceability";
+    const showUnifiedOps = view === "ops-unified";
 
     if (viewDashboard) {
-      viewDashboard.hidden = !showDashboard;
-      viewDashboard.classList.toggle("flView--active", showDashboard);
+      viewDashboard.hidden = !(showDashboard || showUnifiedOps);
+      viewDashboard.classList.toggle("flView--active", showDashboard || showUnifiedOps);
     }
     if (viewScan) {
-      viewScan.hidden = !showScan;
-      viewScan.classList.toggle("flView--active", showScan);
+      viewScan.hidden = !(showScan || showUnifiedOps);
+      viewScan.classList.toggle("flView--active", showScan || showUnifiedOps);
     }
     if (viewFulfillmentHistory) {
-      viewFulfillmentHistory.hidden = !showFulfillmentHistory;
-      viewFulfillmentHistory.classList.toggle("flView--active", showFulfillmentHistory);
+      viewFulfillmentHistory.hidden = !(showFulfillmentHistory || showUnifiedOps);
+      viewFulfillmentHistory.classList.toggle("flView--active", showFulfillmentHistory || showUnifiedOps);
     }
     if (viewContacts) {
-      viewContacts.hidden = !showContacts;
-      viewContacts.classList.toggle("flView--active", showContacts);
+      viewContacts.hidden = !(showContacts || showUnifiedOps);
+      viewContacts.classList.toggle("flView--active", showContacts || showUnifiedOps);
     }
     if (viewOps) {
-      viewOps.hidden = !showOps;
-      viewOps.classList.toggle("flView--active", showOps);
+      viewOps.hidden = !(showOps || showUnifiedOps);
+      viewOps.classList.toggle("flView--active", showOps || showUnifiedOps);
     }
     if (viewDocs) {
-      viewDocs.hidden = !showDocs;
-      viewDocs.classList.toggle("flView--active", showDocs);
+      viewDocs.hidden = !(showDocs || showUnifiedOps);
+      viewDocs.classList.toggle("flView--active", showDocs || showUnifiedOps);
     }
     if (viewFlowcharts) {
-      viewFlowcharts.hidden = !showFlowcharts;
-      viewFlowcharts.classList.toggle("flView--active", showFlowcharts);
+      viewFlowcharts.hidden = !(showFlowcharts || showUnifiedOps);
+      viewFlowcharts.classList.toggle("flView--active", showFlowcharts || showUnifiedOps);
     }
     if (viewFlocs) {
-      viewFlocs.hidden = !showFlocs;
-      viewFlocs.classList.toggle("flView--active", showFlocs);
+      viewFlocs.hidden = !(showFlocs || showUnifiedOps);
+      viewFlocs.classList.toggle("flView--active", showFlocs || showUnifiedOps);
     }
     if (viewStock) {
-      viewStock.hidden = !showStock;
-      viewStock.classList.toggle("flView--active", showStock);
+      viewStock.hidden = !(showStock || showUnifiedOps);
+      viewStock.classList.toggle("flView--active", showStock || showUnifiedOps);
     }
     if (viewPriceManager) {
-      viewPriceManager.hidden = !showPriceManager;
-      viewPriceManager.classList.toggle("flView--active", showPriceManager);
+      viewPriceManager.hidden = !(showPriceManager || showUnifiedOps);
+      viewPriceManager.classList.toggle("flView--active", showPriceManager || showUnifiedOps);
     }
     if (viewTraceability) {
-      viewTraceability.hidden = !showTraceability;
-      viewTraceability.classList.toggle("flView--active", showTraceability);
+      viewTraceability.hidden = !(showTraceability || showUnifiedOps);
+      viewTraceability.classList.toggle("flView--active", showTraceability || showUnifiedOps);
+    }
+    if (viewUnifiedOps) {
+      viewUnifiedOps.hidden = !showUnifiedOps;
+      viewUnifiedOps.classList.toggle("flView--active", showUnifiedOps);
     }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
@@ -3983,6 +3990,7 @@ async function startOrder(orderNo) {
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
+    navUnifiedOps?.classList.toggle("flNavBtn--active", showUnifiedOps);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navFulfillmentHistory?.setAttribute("aria-selected", showFulfillmentHistory ? "true" : "false");
@@ -3994,8 +4002,16 @@ async function startOrder(orderNo) {
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
     navTraceability?.setAttribute("aria-selected", showTraceability ? "true" : "false");
+    navUnifiedOps?.setAttribute("aria-selected", showUnifiedOps ? "true" : "false");
 
-    if (showDashboard) {
+    if (showUnifiedOps) {
+      statusExplain("Unified operations view ready.", "info");
+      if (!contactsState.loaded || !contactsState.customers.length) contactsView.refreshContacts().catch((err) => {
+        appendDebug("Contacts refresh failed: " + String(err));
+      });
+      fulfillmentHistoryView.refresh().catch((err) => appendDebug("Fulfillment refresh failed: " + String(err)));
+      Object.values(viewInitializers).forEach((init) => init?.());
+    } else if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
     } else if (showScan) {
       statusExplain("Ready to scan orders…", "info");
@@ -4037,7 +4053,8 @@ async function startOrder(orderNo) {
     ["/flocs", "flocs"],
     ["/stock", "stock"],
     ["/price-manager", "price-manager"],
-    ["/traceability", "traceability"]
+    ["/traceability", "traceability"],
+    ["/ops-unified", "ops-unified"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -4051,7 +4068,8 @@ async function startOrder(orderNo) {
     flocs: "/flocs",
     stock: "/stock",
     "price-manager": "/price-manager",
-    traceability: "/traceability"
+    traceability: "/traceability",
+    "ops-unified": "/ops-unified"
   };
 
   const viewInitializers = {
@@ -4110,6 +4128,10 @@ async function startOrder(orderNo) {
   }
 
   function initViewIfNeeded(view) {
+    if (view === "ops-unified") {
+      Object.values(viewInitializers).forEach((init) => init?.());
+      return;
+    }
     const init = viewInitializers[view];
     if (init) init();
   }

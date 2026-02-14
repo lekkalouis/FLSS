@@ -2352,6 +2352,7 @@
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Inventory</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
             <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
+            <button id="navUnifiedOps" class="flNavBtn" type="button" role="tab" aria-controls="viewUnifiedOps" aria-selected="false" data-route="/ops-unified"><span class="flNavBtnIcon" aria-hidden="true">🧩</span><span class="flNavBtnText">Unified Ops</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -2390,6 +2391,30 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <div class="flView" id="viewUnifiedOps" hidden>
+          <section class="dispatchBoardPanel" style="margin:0 0 .8rem;">
+            <div class="sectionTitle" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between;">
+              <span>Unified Operations View</span>
+              <span class="statusChip" style="margin-left:auto;">Alternative one-page layout</span>
+            </div>
+            <p class="dispatchShipmentInfo" style="margin:.65rem 0 0;">
+              This mode keeps every FLSS workflow visible in a single page so operators can scan, dispatch, fulfill,
+              capture orders, manage stock/pricing, and run traceability tasks without switching routes.
+            </p>
+            <div class="dispatchSearchRow" style="margin-top:.7rem;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+              <a class="flNavBtn" href="#viewDashboard">Dashboard</a>
+              <a class="flNavBtn" href="#viewScan">Dispatch</a>
+              <a class="flNavBtn" href="#viewFulfillmentHistory">Fulfillment</a>
+              <a class="flNavBtn" href="#viewContacts">Contacts</a>
+              <a class="flNavBtn" href="#viewFlocs">Order Capture</a>
+              <a class="flNavBtn" href="#viewStock">Inventory</a>
+              <a class="flNavBtn" href="#viewPriceManager">Price manager</a>
+              <a class="flNavBtn" href="#viewTraceability">Traceability</a>
+              <a class="flNavBtn" href="#viewDocs">Docs</a>
+            </div>
+          </section>
         </div>
 
         <div class="flView flView--active" id="viewDashboard">
