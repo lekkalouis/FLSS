@@ -47,6 +47,7 @@ The repository has been trimmed to the current product scope. Legacy standalone 
 - `docs/operator-docs.md` — operator runbooks.
 - `docs/admin-docs.md` — platform governance and admin controls.
 - `docs/dev-docs.md` — engineering architecture and implementation notes.
+- `docs/database-and-remote-access.md` — PostgreSQL schema, deployment, and remote tunnel setup.
 - `docs/README.md` — index of all docs.
 
 ---
