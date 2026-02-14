@@ -156,22 +156,47 @@ function parseShowInLocator(value) {
   return normalized === "true" || normalized === "1";
 }
 
+function parseCustomerTags(tags) {
+  return String(tags || "")
+    .split(",")
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function customerHasAnyTag(customer, expectedTags = []) {
+  const tags = parseCustomerTags(customer?.tags);
+  return expectedTags.some((tag) => tags.includes(String(tag || "").trim().toLowerCase()));
+}
+
+async function fetchCustomersByTag(base, tag) {
+  const resp = await shopifyFetch(
+    `${base}/customers/search.json?limit=250&query=${encodeURIComponent(`tag:${tag}`)}`,
+    { method: "GET" }
+  );
+  if (!resp.ok) {
+    throw new Error(`Shopify customer search failed for tag ${tag} with status ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  return Array.isArray(data.customers) ? data.customers : [];
+}
+
 export async function syncAgentsFromShopify() {
   if (!config.SHOPIFY_STORE || !config.SHOPIFY_CLIENT_SECRET) {
     throw new Error("Shopify is not configured.");
   }
 
   const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-  const resp = await shopifyFetch(
-    `${base}/customers/search.json?limit=250&query=${encodeURIComponent("tag:STOCKIST_AGENT")}`,
-    { method: "GET" }
-  );
-  if (!resp.ok) {
-    throw new Error(`Shopify agent sync failed with status ${resp.status}`);
+  const tagQueries = ["STOCKIST_AGENT", "AGENT", "RETAILER", "STOCKIST_RETAILER"];
+  const customerById = new Map();
+  for (const tag of tagQueries) {
+    const customers = await fetchCustomersByTag(base, tag);
+    for (const customer of customers) {
+      if (customer?.id) customerById.set(String(customer.id), customer);
+    }
   }
 
-  const data = await resp.json();
-  const customers = Array.isArray(data.customers) ? data.customers : [];
+  const customers = [...customerById.values()];
   const synced = [];
 
   for (const customer of customers) {
@@ -181,13 +206,18 @@ export async function syncAgentsFromShopify() {
     const metaData = metaResp.ok ? await metaResp.json() : { metafields: [] };
     const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
 
+    const tags = parseCustomerTags(customer.tags);
+    const isAgentProfile = customerHasAnyTag(customer, ["stockist_agent", "agent"]);
+    const isRetailerProfile = customerHasAnyTag(customer, ["stockist_retailer", "retailer"]);
+    if (!isAgentProfile && !isRetailerProfile) continue;
+
     const defaultAddress = customer.default_address || customer.addresses?.[0] || {};
     const stockist = await upsertStockist({
       name: customer.first_name || customer.last_name
         ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim()
         : customer.email || customer.phone || `Agent ${customer.id}`,
-      type: "AGENT",
-      active: String(customer.tags || "").includes("STOCKIST_ACTIVE"),
+      type: isRetailerProfile && !isAgentProfile ? "RETAILER" : "AGENT",
+      active: tags.includes("stockist_active") || tags.includes("active"),
       is_shopify_customer: true,
       shopify_customer_id: String(customer.id),
       phone: customer.phone || null,

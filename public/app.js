@@ -142,6 +142,9 @@ import { initStockistsView } from "./views/stockists.js";
   const contactsProvinceFilter = $("contactsProvinceFilter");
   const contactsMeta = $("contactsMeta");
   const contactsList = $("contactsList");
+  const contactsPrevPage = $("contactsPrevPage");
+  const contactsNextPage = $("contactsNextPage");
+  const contactsPageInfo = $("contactsPageInfo");
 
   // Scan-session state (current order, linked orders, and scanned parcels).
   let activeOrderNo = null;
@@ -4082,7 +4085,10 @@ async function startOrder(orderNo) {
       contactsTierFilter,
       contactsProvinceFilter,
       contactsMeta,
-      contactsList
+      contactsList,
+      contactsPrevPage,
+      contactsNextPage,
+      contactsPageInfo
     },
     getProxyBase: () => CONFIG.SHOPIFY.PROXY_BASE,
     fetchImpl: fetch,

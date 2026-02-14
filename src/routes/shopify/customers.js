@@ -33,6 +33,48 @@ function normalizeCustomer(customer, metafields = {}) {
     tier: metafields.tier || null
   };
 }
+
+function normalizeTierValue(value) {
+  const tier = String(value || "").trim().toLowerCase();
+  if (!tier) return "";
+
+  if (["agent", "agents"].includes(tier)) return "agent";
+  if (["retail", "retailer", "retailers"].includes(tier)) return "retailer";
+  if (["private", "privaat"].includes(tier)) return "private";
+  if (["online", "export", "ecommerce", "e-commerce", "web"].includes(tier)) return "online";
+  if (tier === "fkb") return "fkb";
+  return tier;
+}
+
+function inferTierFromTags(tags) {
+  const list = String(tags || "")
+    .split(",")
+    .map((tag) => normalizeTierValue(tag))
+    .filter(Boolean);
+  return list.find((tag) => ["agent", "retailer", "private", "online", "fkb"].includes(tag)) || "";
+}
+
+function parseNextPageInfo(linkHeader) {
+  const raw = String(linkHeader || "");
+  if (!raw) return "";
+
+  const nextPart = raw
+    .split(",")
+    .map((part) => part.trim())
+    .find((part) => part.includes('rel="next"'));
+  if (!nextPart) return "";
+
+  const match = nextPart.match(/<([^>]+)>/);
+  if (!match?.[1]) return "";
+
+  try {
+    const url = new URL(match[1]);
+    return url.searchParams.get("page_info") || "";
+  } catch {
+    return "";
+  }
+}
+
 router.get("/shopify/customers/search", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -111,21 +153,38 @@ router.get("/shopify/customers", async (req, res) => {
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const limit = Math.min(Math.max(Number(req.query.limit || 250), 1), 250);
 
-    const resp = await shopifyFetch(`${base}/customers.json?limit=${limit}&fields=id,first_name,last_name,email,phone,addresses,default_address,tags`, {
-      method: "GET"
-    });
-    if (!resp.ok) {
-      const body = await resp.text();
-      return res.status(resp.status).json({
-        error: "SHOPIFY_UPSTREAM",
-        status: resp.status,
-        statusText: resp.statusText,
-        body
-      });
-    }
+    const customers = [];
+    const fields = "id,first_name,last_name,email,phone,addresses,default_address,tags";
+    let pageInfo = "";
+    let pageCount = 0;
 
-    const data = await resp.json();
-    const customers = Array.isArray(data.customers) ? data.customers : [];
+    while (pageCount < 20) {
+      const params = new URLSearchParams();
+      params.set("limit", String(limit));
+      params.set("fields", fields);
+      if (pageInfo) params.set("page_info", pageInfo);
+
+      const resp = await shopifyFetch(`${base}/customers.json?${params.toString()}`, {
+        method: "GET"
+      });
+      if (!resp.ok) {
+        const body = await resp.text();
+        return res.status(resp.status).json({
+          error: "SHOPIFY_UPSTREAM",
+          status: resp.status,
+          statusText: resp.statusText,
+          body
+        });
+      }
+
+      const data = await resp.json();
+      const pageCustomers = Array.isArray(data.customers) ? data.customers : [];
+      customers.push(...pageCustomers);
+
+      pageInfo = parseNextPageInfo(resp.headers.get("link"));
+      pageCount += 1;
+      if (!pageInfo) break;
+    }
 
     const withMetafields = await Promise.all(
       customers.map(async (cust) => {
@@ -158,8 +217,7 @@ router.get("/shopify/customers", async (req, res) => {
         const norm = normalizeCustomer(customer, metafields);
         const defaultAddress = norm?.default_address || norm?.addresses?.[0] || null;
         const province = defaultAddress?.province || "";
-        const inferredTier = String(norm?.tier || "").trim().toLowerCase() ||
-          String(norm?.tags || "").split(",").map((t) => t.trim().toLowerCase()).find((t) => ["agent", "retail", "export", "private", "fkb"].includes(t)) || "";
+        const inferredTier = normalizeTierValue(norm?.tier) || inferTierFromTags(norm?.tags) || "";
         return {
           ...norm,
           province,
@@ -208,10 +266,12 @@ router.post("/shopify/customers", async (req, res) => {
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const normalizedTier = String(tier || "").trim().toLowerCase();
     const shouldCreateTierMetafield = createTierMetafield !== false;
-    const allowedTiers = new Set(["agent", "retail", "export", "private", "fkb"]);
+    const allowedTiers = new Set(["agent", "retailer", "online", "private", "fkb", "retail", "export"]);
     if (!allowedTiers.has(normalizedTier)) {
-      return badRequest(res, "Customer tier is required and must be one of: agent, retail, export, private, fkb");
+      return badRequest(res, "Customer tier is required and must be one of: agent, retailer, online, private, fkb");
     }
+
+    const canonicalTier = normalizeTierValue(normalizedTier);
 
     const metafields = [];
     if (deliveryMethod) {
@@ -251,7 +311,7 @@ router.post("/shopify/customers", async (req, res) => {
         namespace: "custom",
         key: "tier",
         type: "single_line_text_field",
-        value: normalizedTier
+        value: canonicalTier
       });
     }
 
@@ -278,7 +338,7 @@ router.post("/shopify/customers", async (req, res) => {
             ]
           : [],
         note: vatNumber ? `VAT ID: ${vatNumber}` : undefined,
-        tags: normalizedTier,
+        tags: canonicalTier,
         metafields
       }
     };
@@ -310,7 +370,7 @@ router.post("/shopify/customers", async (req, res) => {
       delivery_instructions: deliveryInstructions || null,
       company_name: company || null,
       vat_number: vatNumber || null,
-      tier: normalizedTier || null
+      tier: canonicalTier || null
     });
     return res.json({ ok: true, customer });
   } catch (err) {

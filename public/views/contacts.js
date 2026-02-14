@@ -11,18 +11,67 @@ export function initContactsView({
     contactsTierFilter,
     contactsProvinceFilter,
     contactsMeta,
-    contactsList
+    contactsList,
+    contactsPrevPage,
+    contactsNextPage,
+    contactsPageInfo
   } = elements;
 
   let contactsSearchTimer = null;
+
+  const PAGE_SIZE = 20;
+  state.page = Number.isFinite(Number(state.page)) ? Number(state.page) : 1;
+
+  const TIER_LABELS = {
+    agent: "Agents",
+    retailer: "Retailers",
+    private: "Private",
+    online: "Online",
+    fkb: "FKB"
+  };
+
+  function normalizeTier(value) {
+    const tier = String(value || "").trim().toLowerCase();
+    if (["agent", "agents"].includes(tier)) return "agent";
+    if (["retail", "retailer", "retailers"].includes(tier)) return "retailer";
+    if (["private", "privaat"].includes(tier)) return "private";
+    if (["online", "export", "ecommerce", "e-commerce", "web"].includes(tier)) return "online";
+    if (tier === "fkb") return "fkb";
+    return tier;
+  }
+
+  function formatTierLabel(value) {
+    const normalized = normalizeTier(value);
+    return TIER_LABELS[normalized] || (normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : "—");
+  }
+
+  function renderPageControls(totalItems) {
+    const pageCount = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    if (state.page > pageCount) state.page = pageCount;
+    const page = Math.max(1, state.page);
+
+    if (contactsPageInfo) {
+      contactsPageInfo.textContent = `Page ${page} of ${pageCount}`;
+    }
+    if (contactsPrevPage) contactsPrevPage.disabled = page <= 1;
+    if (contactsNextPage) contactsNextPage.disabled = page >= pageCount;
+  }
 
   function renderContacts() {
     const customers = Array.isArray(state.customers) ? state.customers : [];
 
     if (contactsTierFilter) {
-      const tiers = [...new Set(customers.map((c) => String(c?.tier || "").trim()).filter(Boolean))].sort();
+      const priority = ["agent", "retailer", "private", "online", "fkb"];
+      const tiers = [...new Set(customers.map((c) => normalizeTier(c?.tier)).filter(Boolean))].sort((a, b) => {
+        const ai = priority.indexOf(a);
+        const bi = priority.indexOf(b);
+        if (ai === -1 && bi === -1) return a.localeCompare(b);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
       contactsTierFilter.innerHTML = `<option value="">All tiers</option>${tiers
-        .map((tier) => `<option value="${tier}" ${state.tier === tier ? "selected" : ""}>${tier}</option>`)
+        .map((tier) => `<option value="${tier}" ${normalizeTier(state.tier) === tier ? "selected" : ""}>${formatTierLabel(tier)}</option>`)
         .join("")}`;
     }
 
@@ -37,13 +86,18 @@ export function initContactsView({
 
     const q = state.query.toLowerCase();
     const filtered = customers.filter((cust) => {
-      if (state.tier && String(cust.tier || "").toLowerCase() !== state.tier.toLowerCase()) return false;
+      if (state.tier && normalizeTier(cust.tier) !== normalizeTier(state.tier)) return false;
       if (state.province && String(cust.province || "").toLowerCase() !== state.province.toLowerCase()) return false;
       if (!q) return true;
       return [cust.name, cust.phone, cust.email, cust.companyName].some((v) => String(v || "").toLowerCase().includes(q));
     });
 
-    if (contactsMeta) contactsMeta.textContent = `Showing ${filtered.length} of ${customers.length} customers.`;
+    renderPageControls(filtered.length);
+    const page = Math.max(1, state.page || 1);
+    const start = (page - 1) * PAGE_SIZE;
+    const paged = filtered.slice(start, start + PAGE_SIZE);
+
+    if (contactsMeta) contactsMeta.textContent = `Showing ${paged.length} of ${filtered.length} matching customers (${customers.length} total).`;
     if (!contactsList) return;
 
     contactsList.innerHTML = `
@@ -55,13 +109,13 @@ export function initContactsView({
           <div class="dispatchShipmentCell">Province</div>
         </div>
         ${
-          filtered
+          paged
             .map(
               (cust) => `
           <div class="dispatchShipmentRow">
             <div class="dispatchShipmentCell">${cust.name || "Unknown"}<br><small>${cust.email || ""}</small></div>
             <div class="dispatchShipmentCell contactsPhone">${cust.phone || "—"}</div>
-            <div class="dispatchShipmentCell">${cust.tier || "—"}</div>
+            <div class="dispatchShipmentCell">${formatTierLabel(cust.tier)}</div>
             <div class="dispatchShipmentCell">${cust.province || "—"}</div>
           </div>
         `
@@ -100,6 +154,7 @@ export function initContactsView({
 
       state.customers = customers;
       state.loaded = true;
+      state.page = 1;
       renderContacts();
 
       if (contactsMeta && !state.customers.length) {
@@ -122,12 +177,14 @@ export function initContactsView({
       if (contactsSearchTimer) clearTimeout(contactsSearchTimer);
       contactsSearchTimer = setTimeout(() => {
         state.query = contactsSearch.value.trim();
+        state.page = 1;
         renderContacts();
       }, 150);
     });
 
     contactsTierFilter?.addEventListener("change", () => {
       state.tier = contactsTierFilter.value || "";
+      state.page = 1;
       refreshContacts().catch((err) => {
         appendDebug("Contacts refresh failed: " + String(err));
         if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
@@ -136,10 +193,21 @@ export function initContactsView({
 
     contactsProvinceFilter?.addEventListener("change", () => {
       state.province = contactsProvinceFilter.value || "";
+      state.page = 1;
       refreshContacts().catch((err) => {
         appendDebug("Contacts refresh failed: " + String(err));
         if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
       });
+    });
+
+    contactsPrevPage?.addEventListener("click", () => {
+      state.page = Math.max(1, Number(state.page || 1) - 1);
+      renderContacts();
+    });
+
+    contactsNextPage?.addEventListener("click", () => {
+      state.page = Number(state.page || 1) + 1;
+      renderContacts();
     });
   }
 

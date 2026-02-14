@@ -8,8 +8,17 @@ export function initStockistsView() {
     token: document.getElementById("stockistsAdminToken"),
     agentSelect: document.getElementById("stockistsAgentSelect"),
     agentMeta: document.getElementById("stockistsAgentMeta"),
+    agentPrevPage: document.getElementById("stockistsAgentPrevPage"),
+    agentNextPage: document.getElementById("stockistsAgentNextPage"),
+    agentPageInfo: document.getElementById("stockistsAgentPageInfo"),
     retailersBody: document.getElementById("stockistsRetailersBody"),
+    retailersPrevPage: document.getElementById("stockistsRetailersPrevPage"),
+    retailersNextPage: document.getElementById("stockistsRetailersNextPage"),
+    retailersPageInfo: document.getElementById("stockistsRetailersPageInfo"),
     skuBody: document.getElementById("stockistsSkuBody"),
+    skuPrevPage: document.getElementById("stockistsSkuPrevPage"),
+    skuNextPage: document.getElementById("stockistsSkuNextPage"),
+    skuPageInfo: document.getElementById("stockistsSkuPageInfo"),
     retailerName: document.getElementById("stockistsRetailerName"),
     retailerCity: document.getElementById("stockistsRetailerCity"),
     retailerProvince: document.getElementById("stockistsRetailerProvince"),
@@ -20,7 +29,15 @@ export function initStockistsView() {
     skuText: document.getElementById("stockistsSkuText")
   };
 
-  const state = { agents: [], selectedAgentId: "", details: null };
+  const PAGE_SIZE = 20;
+  const state = {
+    agents: [],
+    selectedAgentId: "",
+    details: null,
+    agentPage: 1,
+    retailersPage: 1,
+    skuPage: 1
+  };
 
   function headers() {
     const token = String(els.token?.value || "").trim();
@@ -43,16 +60,40 @@ export function initStockistsView() {
     return json;
   }
 
+  function updatePager(totalItems, currentPage, prevBtn, nextBtn, infoEl) {
+    const pageCount = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    const page = Math.min(Math.max(1, currentPage), pageCount);
+    if (prevBtn) prevBtn.disabled = page <= 1;
+    if (nextBtn) nextBtn.disabled = page >= pageCount;
+    if (infoEl) infoEl.textContent = `Page ${page} of ${pageCount}`;
+    return page;
+  }
+
   function renderAgents() {
     if (!els.agentSelect) return;
+    const page = updatePager(
+      state.agents.length,
+      state.agentPage,
+      els.agentPrevPage,
+      els.agentNextPage,
+      els.agentPageInfo
+    );
+    state.agentPage = page;
+
+    const start = (page - 1) * PAGE_SIZE;
+    const pageAgents = state.agents.slice(start, start + PAGE_SIZE);
+
     els.agentSelect.innerHTML = '<option value="">Select an agent…</option>';
-    state.agents.forEach((a) => {
+    pageAgents.forEach((a) => {
       const opt = document.createElement("option");
       opt.value = a.id;
       opt.textContent = `${a.name} (${a.retailer_count || 0} retailers)`;
       els.agentSelect.appendChild(opt);
     });
-    if (state.selectedAgentId) els.agentSelect.value = state.selectedAgentId;
+    if (state.selectedAgentId) {
+      const existsOnPage = pageAgents.some((a) => a.id === state.selectedAgentId);
+      els.agentSelect.value = existsOnPage ? state.selectedAgentId : "";
+    }
   }
 
   function renderDetails() {
@@ -67,9 +108,19 @@ export function initStockistsView() {
       `;
     }
 
+    state.retailersPage = updatePager(
+      retailers.length,
+      state.retailersPage,
+      els.retailersPrevPage,
+      els.retailersNextPage,
+      els.retailersPageInfo
+    );
+    const retailersStart = (state.retailersPage - 1) * PAGE_SIZE;
+    const pagedRetailers = retailers.slice(retailersStart, retailersStart + PAGE_SIZE);
+
     if (els.retailersBody) {
-      els.retailersBody.innerHTML = retailers.length
-        ? retailers
+      els.retailersBody.innerHTML = pagedRetailers.length
+        ? pagedRetailers
             .map(
               (r) => `<tr><td>${r.retailer_name}</td><td>${r.city || ""}</td><td>${r.province || ""}</td><td>${r.retailer_phone || ""}</td></tr>`
             )
@@ -77,9 +128,19 @@ export function initStockistsView() {
         : '<tr><td colspan="4">No retailers yet.</td></tr>';
     }
 
+    state.skuPage = updatePager(
+      sku_range.length,
+      state.skuPage,
+      els.skuPrevPage,
+      els.skuNextPage,
+      els.skuPageInfo
+    );
+    const skuStart = (state.skuPage - 1) * PAGE_SIZE;
+    const pagedSku = sku_range.slice(skuStart, skuStart + PAGE_SIZE);
+
     if (els.skuBody) {
-      els.skuBody.innerHTML = sku_range.length
-        ? sku_range
+      els.skuBody.innerHTML = pagedSku.length
+        ? pagedSku
             .map((s) => `<tr><td>${s.sku}</td><td>${s.availability_label}</td><td>${s.priority_score || 0}</td></tr>`)
             .join("")
         : '<tr><td colspan="3">No SKU range configured.</td></tr>';
@@ -96,6 +157,12 @@ export function initStockistsView() {
     setStatus("Loading agents…");
     const data = await api("/api/admin/agents");
     state.agents = data.agents || [];
+
+    if (state.selectedAgentId) {
+      const selectedIndex = state.agents.findIndex((agent) => agent.id === state.selectedAgentId);
+      if (selectedIndex >= 0) state.agentPage = Math.floor(selectedIndex / PAGE_SIZE) + 1;
+    }
+
     renderAgents();
     setStatus(`Loaded ${state.agents.length} agents.`);
   }
@@ -103,6 +170,8 @@ export function initStockistsView() {
   async function loadAgentDetail(agentId) {
     if (!agentId) return;
     state.selectedAgentId = agentId;
+    state.retailersPage = 1;
+    state.skuPage = 1;
     setStatus("Loading agent detail…");
     state.details = await api(`/api/admin/agents/${agentId}`);
     renderDetails();
@@ -178,6 +247,37 @@ export function initStockistsView() {
     const value = e.target.value;
     loadAgentDetail(value).catch((err) => setStatus(err.message, true));
   });
+
+  els.agentPrevPage?.addEventListener("click", () => {
+    state.agentPage = Math.max(1, state.agentPage - 1);
+    renderAgents();
+  });
+
+  els.agentNextPage?.addEventListener("click", () => {
+    state.agentPage += 1;
+    renderAgents();
+  });
+
+  els.retailersPrevPage?.addEventListener("click", () => {
+    state.retailersPage = Math.max(1, state.retailersPage - 1);
+    renderDetails();
+  });
+
+  els.retailersNextPage?.addEventListener("click", () => {
+    state.retailersPage += 1;
+    renderDetails();
+  });
+
+  els.skuPrevPage?.addEventListener("click", () => {
+    state.skuPage = Math.max(1, state.skuPage - 1);
+    renderDetails();
+  });
+
+  els.skuNextPage?.addEventListener("click", () => {
+    state.skuPage += 1;
+    renderDetails();
+  });
+
   document.getElementById("stockistsAddRetailerBtn")?.addEventListener("click", () => addRetailer().catch((err) => setStatus(err.message, true)));
   document.getElementById("stockistsBulkBtn")?.addEventListener("click", () => addBulkRetailers().catch((err) => setStatus(err.message, true)));
   document.getElementById("stockistsSaveSkuBtn")?.addEventListener("click", () => saveSkuRange().catch((err) => setStatus(err.message, true)));
