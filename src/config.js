@@ -2,10 +2,19 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const nodeEnv = process.env.NODE_ENV || "development";
+const frontendOrigin = process.env.FRONTEND_ORIGIN || "";
+
+if (nodeEnv === "production" && !frontendOrigin) {
+  console.warn(
+    "[config] FRONTEND_ORIGIN is not set in production; CORS will deny browser origins until an explicit origin is configured."
+  );
+}
+
 export const config = {
   PORT: process.env.PORT || 3000,
   HOST: process.env.HOST || "0.0.0.0",
-  NODE_ENV: process.env.NODE_ENV || "development",
+  NODE_ENV: nodeEnv,
 
   PP_BASE_URL: process.env.PP_BASE_URL || "",
   PP_TOKEN: process.env.PP_TOKEN || "",
@@ -30,7 +39,8 @@ export const config = {
   SMTP_FROM: process.env.SMTP_FROM,
   TRUCK_EMAIL_TO: process.env.TRUCK_EMAIL_TO,
 
-  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
+  FRONTEND_ORIGIN: frontendOrigin,
+  ADMIN_TOKEN: process.env.ADMIN_TOKEN,
 
   UI_COST_ALERT_THRESHOLD: process.env.UI_COST_ALERT_THRESHOLD,
   UI_BOOKING_IDLE_MS: process.env.UI_BOOKING_IDLE_MS,
@@ -58,5 +68,5 @@ export const config = {
 
 export function getFrontendOrigin() {
   if (config.FRONTEND_ORIGIN) return config.FRONTEND_ORIGIN;
-  return "*";
+  return config.NODE_ENV === "production" ? "" : "*";
 }
