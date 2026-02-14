@@ -1,75 +1,75 @@
 const MODULES = [
   {
     id: "scan",
-    title: "Dispatch",
-    description: "Scan parcels and auto-book shipments with live booking progress.",
+    title: "Dispatch Console",
+    description: "Scan parcels, validate labels, and trigger shipment booking with live progress.",
     type: "route",
     target: "/scan",
-    meta: "Internal module",
+    meta: "Operations execution",
     tag: "Core"
   },
   {
     id: "dispatch",
-    title: "Dispatch Board",
-    description: "Review open orders, track packing, and prioritize dispatch.",
+    title: "Order Operations Board",
+    description: "Prioritize open orders, monitor packing stages, and handle shipping exceptions.",
     type: "route",
     target: "/ops",
-    meta: "Internal module",
+    meta: "Operations control",
     tag: "Core"
   },
   {
     id: "docs",
-    title: "Documentation",
-    description: "Operator guide, quick start, and endpoint reference.",
+    title: "Knowledge Hub",
+    description: "Persona-based runbooks for operators, administrators, and developers.",
     type: "route",
     target: "/docs",
-    meta: "Internal module",
+    meta: "Governance and training",
     tag: "Guide"
   },
   {
     id: "flowcharts",
-    title: "Flowcharts",
-    description: "Decision maps for packing and dispatch logic, including hard and soft rules.",
+    title: "Process Blueprints",
+    description: "Decision maps for packing, booking, and escalation policies.",
     type: "route",
     target: "/flowcharts",
-    meta: "Logic reference",
+    meta: "Process intelligence",
     tag: "Guide"
   },
   {
     id: "flocs",
-    title: "Order Capture",
-    description: "Create and manage incoming orders for Shopify.",
+    title: "Sales Order Workbench",
+    description: "Capture customers, assemble quotes, and create Shopify draft or confirmed orders.",
     type: "route",
     target: "/flocs",
-    meta: "Capture module",
-    tag: "Module"
+    meta: "Commercial operations",
+    tag: "Business"
   },
   {
     id: "stock",
-    title: "Stock Take",
-    description: "Run inventory counts and stock adjustments.",
+    title: "Inventory Control",
+    description: "Review stock positions and run controlled quantity adjustments.",
     type: "route",
     target: "/stock",
-    meta: "Inventory module",
-    tag: "Module"
+    meta: "Supply management",
+    tag: "Business"
   },
   {
     id: "stockists",
-    title: "Stockists / Agents",
-    description: "Manage agent network, retailer directory, and per-agent SKU ranges.",
+    title: "Distribution Network",
+    description: "Maintain the agent network, retailer directory, and assigned product ranges.",
     type: "route",
     target: "/stockists",
-    meta: "Locator module",
-    tag: "Module"
+    meta: "Channel management",
+    tag: "Business"
   },
   {
     id: "price-manager",
-    title: "Price Manager",
-    description: "Update tier pricing and sync to Shopify metafields.",
+    title: "Pricing Control Center",
+    description: "Administer tier pricing and synchronize pricing data to Shopify.",
     type: "route",
     target: "/price-manager",
-    meta: "Pricing module",
-    tag: "Module"
+    meta: "Revenue governance",
+    tag: "Business"
   }
 ];
 
