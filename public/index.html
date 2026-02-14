@@ -2344,16 +2344,16 @@
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
-            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch</span></button>
-            <button id="navFulfillmentHistory" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillmentHistory" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnIcon" aria-hidden="true">🧾</span><span class="flNavBtnText">Fulfillment History</span></button>
-            <button id="navContacts" class="flNavBtn" type="button" role="tab" aria-controls="viewContacts" aria-selected="false" data-route="/contacts"><span class="flNavBtnIcon" aria-hidden="true">📇</span><span class="flNavBtnText">Contacts</span></button>
-            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
-            <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Flowcharts</span></button>
-            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
-            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Inventory</span></button>
-            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
+            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch Console</span></button>
+            <button id="navFulfillmentHistory" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillmentHistory" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnIcon" aria-hidden="true">🧾</span><span class="flNavBtnText">Fulfillment Timeline</span></button>
+            <button id="navContacts" class="flNavBtn" type="button" role="tab" aria-controls="viewContacts" aria-selected="false" data-route="/contacts"><span class="flNavBtnIcon" aria-hidden="true">📇</span><span class="flNavBtnText">Customer Directory</span></button>
+            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Knowledge Hub</span></button>
+            <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Process Blueprints</span></button>
+            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Sales Order Workbench</span></button>
+            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Inventory Control</span></button>
+            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Pricing Control Center</span></button>
             <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
-            <button id="navStockists" class="flNavBtn" type="button" role="tab" aria-controls="viewStockists" aria-selected="false" data-route="/stockists"><span class="flNavBtnIcon" aria-hidden="true">📍</span><span class="flNavBtnText">Stockists</span></button>
+            <button id="navStockists" class="flNavBtn" type="button" role="tab" aria-controls="viewStockists" aria-selected="false" data-route="/stockists"><span class="flNavBtnIcon" aria-hidden="true">📍</span><span class="flNavBtnText">Distribution Network</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -2548,7 +2548,7 @@
       <div class="flView" id="viewFulfillmentHistory" hidden>
         <div class="dispatchBoardPanel" style="margin:1rem">
           <div class="sectionTitle" style="margin-top:.4rem">
-            <span>Fulfillment History</span>
+            <span><span class="flNavBtnText">Fulfillment Timeline</span>
             <input id="fulfillmentHistorySearch" class="flocs-input" style="max-width:260px" placeholder="Search by order #" />
           </div>
           <div id="fulfillmentHistoryMeta" class="dispatchShipmentInfo" style="margin-bottom:.6rem">Loading history…</div>
@@ -2578,7 +2578,7 @@
       <div class="flView" id="viewContacts" hidden>
         <div class="dispatchBoardPanel" style="margin:1rem">
           <div class="sectionTitle" style="margin-top:.4rem">
-            <span>Contacts</span>
+            <span><span class="flNavBtnText">Customer Directory</span>
             <input id="contactsSearch" class="flocs-input" style="max-width:300px" placeholder="Search customer, phone, or email" />
           </div>
           <div class="dispatchSearchRow" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:.5rem;">
@@ -2621,468 +2621,63 @@
 
         <div class="flView" id="viewDocs" hidden>
       <div class="docsShell">
-        <div class="pill">README</div>
-        <h2>Flippen Lekka Scan Station (FLSS)</h2>
+        <h2>FLSS Knowledge Hub</h2>
+        <p class="docsMeta">Documentation is now split by audience so teams can find the right runbook faster.</p>
 
         <nav class="docsTopNav" aria-label="Documentation sections">
-          <a href="#docs-readmes">Repository READMEs</a>
-          <a href="#docs-scope">Scope</a>
-          <a href="#docs-architecture">Architecture</a>
-          <a href="#docs-backend">Backend</a>
-          <a href="#docs-modules">Frontend</a>
-          <a href="#docs-api">API</a>
-          <a href="#docs-config">Config</a>
-          <a href="#docs-running">Running locally</a>
-          <a href="#docs-dev-guide">Developer guide</a>
-          <a href="#docs-file-map">File map</a>
+          <a href="#docs-operator">Operator Runbooks</a>
+          <a href="#docs-admin">Admin Governance</a>
+          <a href="#docs-dev">Developer Engineering</a>
+          <a href="#docs-naming">Enterprise module naming</a>
         </nav>
 
-        <h3 id="docs-readmes">Repository READMEs</h3>
-        <p>This documentation page now features every tracked repository README. Current README files in this repository:</p>
         <div class="docsGrid">
-          <article class="docsCard">
-            <h4>FLSS main README</h4>
-            <div class="docsMeta"><span class="docsCode">README.md</span></div>
-            <p>Primary product and operations documentation for the FLSS platform, including architecture, API endpoints, environment variables, and usage guidance.</p>
-            <p><a class="docsInlineLink" href="#docs-scope">Jump to the embedded summary below</a></p>
+          <article id="docs-operator" class="docsCard">
+            <h3>Operator Runbooks</h3>
+            <p>Warehouse and dispatch workflows, packing flowcharts, station setup, and day-to-day handling procedures.</p>
+            <ul>
+              <li><a class="docsInlineLink" href="/docs/operator-docs.md" target="_blank" rel="noopener">Open operator docs bundle</a></li>
+              <li><a class="docsInlineLink" href="/docs/raspberry-pi-physical-station.md" target="_blank" rel="noopener">Physical station and Pi guidance</a></li>
+            </ul>
+          </article>
+
+          <article id="docs-admin" class="docsCard">
+            <h3>Admin Governance</h3>
+            <p>Platform controls, pricing and stockist governance, integration ownership, and audit responsibilities.</p>
+            <ul>
+              <li><a class="docsInlineLink" href="/docs/admin-docs.md" target="_blank" rel="noopener">Open admin docs bundle</a></li>
+              <li><a class="docsInlineLink" href="/docs/stockists-module.md" target="_blank" rel="noopener">Stockist network module reference</a></li>
+            </ul>
+          </article>
+
+          <article id="docs-dev" class="docsCard">
+            <h3>Developer Engineering</h3>
+            <p>Architecture, backend modules, frontend view ownership, local runbook, and integration contracts.</p>
+            <ul>
+              <li><a class="docsInlineLink" href="/docs/dev-docs.md" target="_blank" rel="noopener">Open developer docs bundle</a></li>
+              <li><a class="docsInlineLink" href="/README.md" target="_blank" rel="noopener">Repository overview and startup guide</a></li>
+            </ul>
           </article>
         </div>
 
-        <h4>Additional docs included in the docs folder</h4>
-        <div class="docsGrid">
-          <article class="docsCard">
-            <h4>Theme price tiers guide</h4>
-            <div class="docsMeta"><span class="docsCode">docs/price-tiers-theme.md</span></div>
-            <p>Explains Shopify theme-only rendering for customer-tier pricing based on <span class="docsCode">custom.price_tiers</span>.</p>
-          </article>
-          <article class="docsCard">
-            <h4>Raspberry Pi station guide</h4>
-            <div class="docsMeta"><span class="docsCode">docs/raspberry-pi-physical-station.md</span></div>
-            <p>Buildable Raspberry Pi physical station patterns for dispatch control, pick-to-light, and camera guard workflows.</p>
-          </article>
-        </div>
-
-        <h3 id="docs-scope">Scope and purpose</h3>
-        <p>FLSS is a single-page operations console for Flippen Lekka that combines three operator workflows behind one Node/Express backend:</p>
-        <ul>
-          <li><strong>Scan Station</strong> for booking ParcelPerfect shipments based on scanned parcel barcodes and Shopify order data.</li>
-          <li><strong>Dispatch Board</strong> for triaging open Shopify orders into delivery/shipping/pickup lanes.</li>
-          <li><strong>FLOCS (Order Capture)</strong> for creating Shopify customers, searching products, quoting shipping, and creating draft orders/orders.</li>
-          <li><strong>Stock Take</strong> for reviewing and updating Shopify inventory levels with an activity log.</li>
-        </ul>
-        <p>The server acts as a secure proxy to ParcelPerfect, Shopify Admin APIs (OAuth client credentials), and PrintNode. It also serves the static frontend pages from <span class="docsCode">/public</span>.【F:server.js†L1-L453】【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】【F:public/views/flocs.js†L1-L200】【F:public/views/stock.js†L1-L229】</p>
-
         <hr class="docsDivider" />
 
-        <h3 id="docs-architecture">High-level architecture</h3>
-        <pre class="docsBlock"><code>flowchart LR
-  subgraph Browser
-    Scan[Scan Station UI]
-    Dispatch[Dispatch Board]
-    FLOCS[FLOCS Order Capture]
-    Stock[Stock Take]
-  end
-
-  subgraph Server[Express backend]
-    API[API routes]
-    Static[Static file server]
-    TokenCache[Shopify token cache]
-  end
-
-  subgraph External
-    Shopify[(Shopify Admin API)]
-    ParcelPerfect[(ParcelPerfect API)]
-    PrintNode[(PrintNode API)]
-  end
-
-  Scan --&gt;|/shopify/orders/by-name| API
-  Scan --&gt;|/pp place + booking| API
-  Scan --&gt;|/printnode/print| API
-
-  Dispatch --&gt;|/shopify/orders/open| API
-  Dispatch --&gt;|Book Now -&gt; /pp + /shopify/fulfill| API
-
-  FLOCS --&gt;|/shopify/customers/search| API
-  FLOCS --&gt;|/shopify/customers| API
-  FLOCS --&gt;|/shopify/products/search| API
-  FLOCS --&gt;|/shopify/products/collection| API
-  FLOCS --&gt;|/shopify/draft-orders| API
-  FLOCS --&gt;|/shopify/draft-orders/complete| API
-  FLOCS --&gt;|/shopify/orders| API
-  FLOCS --&gt;|/pp quote + booking| API
-
-  API --&gt; TokenCache --&gt; Shopify
-  API --&gt; ParcelPerfect
-  API --&gt; PrintNode
-  Static --&gt; Scan
-  Static --&gt; Dispatch
-  Static --&gt; FLOCS
-  Static --&gt; Stock</code></pre>
-        <p>The browser pages call the server through same-origin endpoints, which then proxy to external services (with rate limiting, CORS, and token caching). The frontend never talks directly to Shopify/ParcelPerfect/PrintNode—only to the server. The server also handles static files, SPA fallback, and a health check.【F:server.js†L1-L453】【F:public/index.html†L1-L530】</p>
-
-        <hr class="docsDivider" />
-
-        <h3 id="docs-backend">Backend responsibilities (Express)</h3>
-        <h4>Core infrastructure</h4>
+        <h3 id="docs-naming">Enterprise module and view naming</h3>
+        <p>The console now uses business-friendly product names in navigation and dashboard cards while preserving existing routes.</p>
         <ul>
-          <li><strong>Config + env</strong>: server config is read from environment variables (host/port, ParcelPerfect, Shopify, PrintNode, CORS origins).【F:server.js†L18-L60】</li>
-          <li><strong>Middleware</strong>: CORS allowlist, rate limiting (120 requests/min), Helmet, JSON parsing, logging, and OPTIONS handling.【F:server.js†L62-L113】</li>
-          <li><strong>Static hosting</strong>: serves <span class="docsCode">/public</span> files and routes <span class="docsCode">/flocs</span> to the order capture UI, with SPA fallback to <span class="docsCode">index.html</span>.【F:server.js†L434-L446】</li>
-        </ul>
-        <h4>Shopify API proxy (client credentials)</h4>
-        <ul>
-          <li>Shopify uses <strong>OAuth client_credentials</strong> flow via the Dev Dashboard app. The server requests a token and caches it (with expiry buffer). Calls are retried if the token is invalidated.【F:server.js†L120-L207】</li>
-        </ul>
-        <h4>ParcelPerfect proxy</h4>
-        <ul>
-          <li><span class="docsCode">/pp</span> accepts a method/class/params payload, then submits a form-encoded request to ParcelPerfect and returns JSON or text.【F:server.js†L209-L271】</li>
-          <li><span class="docsCode">/pp/place</span> does place lookups by name or postcode (requires PP token).【F:server.js†L388-L433】</li>
-        </ul>
-        <h4>PrintNode proxy</h4>
-        <ul>
-          <li><span class="docsCode">/printnode/print</span> accepts base64 PDF content and sends a print job to PrintNode for label printing.【F:server.js†L435-L503】</li>
-        </ul>
-        <h4>Shopify domain endpoints</h4>
-        <ul>
-          <li>Customers: search and create customers with optional delivery method metafield.【F:server.js†L273-L374】</li>
-          <li>Products: search by title/SKU and load collection items.【F:server.js†L376-L564】</li>
-          <li>Draft orders: create and complete draft orders (with tags, shipping lines, and note attributes).【F:server.js†L566-L699】</li>
-          <li>Orders: create orders, find by name, list open orders, and fulfill orders with tracking data.【F:server.js†L701-L873】</li>
-        </ul>
-
-        <hr class="docsDivider" />
-
-        <h3 id="docs-modules">Frontend modules</h3>
-        <h4>1) Scan Station (index + app.js)</h4>
-        <p>Primary operator workflow for scanning parcel barcodes and booking shipments.</p>
-        <p><strong>Key responsibilities</strong></p>
-        <ul>
-          <li>Parse scanned barcodes into <span class="docsCode">{orderNo, parcelSeq}</span> (last 3 digits are parcel sequence).【F:public/app.js†L1160-L1197】</li>
-          <li>Fetch Shopify order details via <span class="docsCode">/shopify/orders/by-name/:name</span>.【F:public/app.js†L1224-L1318】</li>
-          <li>Determine expected parcel count from Shopify tags (<span class="docsCode">parcel_count_#</span>) or manual/scan count. If tagged, booking triggers on the first scan; otherwise a 6s idle timer triggers booking automatically in auto mode.【F:public/app.js†L300-L470】【F:public/app.js†L1199-L1286】</li>
-          <li>Generate waybill previews and optionally print via PrintNode / ParcelPerfect responses (PDF base64).【F:public/app.js†L1460-L1716】</li>
-          <li>Fulfill the order in Shopify after booking, and store booked orders in <span class="docsCode">localStorage</span> to prevent duplicate bookings in the session/device.【F:public/app.js†L430-L556】【F:public/app.js†L1578-L1716】</li>
-        </ul>
-        <h4>2) Dispatch Board (index + app.js)</h4>
-        <p>Ops dashboard that lists open Shopify orders in lanes (delivery/shipping/pickup), with a “Book Now” action or delivery note printing.</p>
-        <ul>
-          <li>Pulls open orders from <span class="docsCode">/shopify/orders/open</span> every 30 seconds and filters by age/status.【F:public/app.js†L1341-L1460】【F:public/app.js†L1605-L1716】</li>
-          <li>Assigns orders to lanes based on tags and shipping line titles (<span class="docsCode">warehouse/collect</span> → pickup, <span class="docsCode">local delivery/same day</span> → delivery, else shipping).【F:public/app.js†L1375-L1418】</li>
-          <li>“Book Now” prompts for parcel count, loads the order, and triggers booking flow using Scan Station logic.【F:public/app.js†L1648-L1702】</li>
-          <li>“Print delivery note” opens a printable HTML document with line items and shipping address details.【F:public/app.js†L1462-L1533】</li>
-        </ul>
-        <h4>3) FLOCS (Order Capture)</h4>
-        <p>A single-page app view (<span class="docsCode">/flocs</span>) to capture a new order:</p>
-        <ul>
-          <li>Search/select Shopify customers, create new customers, and store a preferred delivery method as a metafield (<span class="docsCode">custom.delivery_method</span>).【F:public/views/flocs.js†L1-L260】【F:server.js†L273-L374】</li>
-          <li>Search products by title/SKU, load collection items, or use a local SKU/variant catalog (<span class="docsCode">CONFIG.PRODUCTS</span>).【F:public/views/flocs.js†L1-L200】【F:server.js†L376-L564】</li>
-          <li>Calculate shipping quotes via ParcelPerfect (<span class="docsCode">/pp</span>) and embed shipping cost/services into draft orders or orders.【F:public/views/flocs.js†L1-L200】</li>
-          <li>Create draft orders, complete them to orders, or create orders directly via Shopify endpoints.【F:public/views/flocs.js†L1-L200】【F:server.js†L566-L799】</li>
-        </ul>
-        <h4>4) Stock Take</h4>
-        <ul>
-          <li>Loads Shopify inventory levels via <span class="docsCode">/shopify/inventory-levels</span> and writes updates through <span class="docsCode">/shopify/inventory-levels/set</span>; activity log entries persist in <span class="docsCode">localStorage</span> under <span class="docsCode">fl_stock_log_v1</span>.【F:public/views/stock.js†L1-L229】</li>
-        </ul>
-        <h4>5) Price Manager</h4>
-        <ul>
-          <li>Dedicated price-tier editor (<span class="docsCode">/price-manager</span>) to review SKU pricing tiers and sync tiers into Shopify variant metafields (<span class="docsCode">custom.price_tiers</span>).</li>
-          <li>Supports optional public price sync to update storefront pricing by writing the variant price through the Admin API.【F:public/views/price-manager.js†L1-L260】【F:src/routes/shopify.js†L1-L220】</li>
-          <li>Theme-only pricing logic (no extra app) can be implemented by reading <span class="docsCode">custom.price_tiers</span> in your Shopify theme and resolving prices from customer tags. See <span class="docsCode">docs/price-tiers-theme.md</span>.</li>
-        </ul>
-
-        <hr class="docsDivider" />
-
-        <h3>Data model</h3>
-        <h4>Primary entities (frontend)</h4>
-        <table class="docsTable">
-          <thead>
-            <tr>
-              <th>Entity</th>
-              <th>Description</th>
-              <th>Source</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><span class="docsCode">orderDetails</span></td>
-              <td>Normalized Shopify order data used for bookings: name, contact details, address, line items, weights, parcel counts, and place code.</td>
-              <td><span class="docsCode">/shopify/orders/by-name/:name</span> + ParcelPerfect place lookup.【F:public/app.js†L1224-L1318】</td>
-            </tr>
-            <tr>
-              <td><span class="docsCode">parcel</span></td>
-              <td>Parsed scan information: <span class="docsCode">{ orderNo, parcelSeq }</span>.</td>
-              <td>Scan input parsing logic.【F:public/app.js†L1160-L1197】</td>
-            </tr>
-            <tr>
-              <td><span class="docsCode">dispatchOrder</span></td>
-              <td>Open order card data: customer name, shipping address, line items, status.</td>
-              <td><span class="docsCode">/shopify/orders/open</span> response transformed by backend.【F:server.js†L756-L873】【F:public/app.js†L1341-L1460】</td>
-            </tr>
-            <tr>
-              <td>flocs state</td>
-              <td>Current order capture state including customer, address, items, shipping quote, and price tier.</td>
-              <td><span class="docsCode">state</span> object in FLOCS JS.【F:public/views/flocs.js†L116-L180】</td>
-            </tr>
-            <tr>
-              <td><span class="docsCode">stockLevels</span></td>
-              <td>Map of SKU → current Shopify inventory count.</td>
-              <td><span class="docsCode">/shopify/inventory-levels</span> response in stock tool.【F:public/views/stock.js†L28-L101】</td>
-            </tr>
-          </tbody>
-        </table>
-        <h4>Shopify entities (backend normalization)</h4>
-        <table class="docsTable">
-          <thead>
-            <tr>
-              <th>Entity</th>
-              <th>Key fields (used in app)</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Customer</td>
-              <td><span class="docsCode">id</span>, <span class="docsCode">name</span>, <span class="docsCode">email</span>, <span class="docsCode">phone</span>, <span class="docsCode">addresses</span>, <span class="docsCode">default_address</span>, <span class="docsCode">tags</span>, <span class="docsCode">delivery_method</span> metafield</td>
-              <td>Normalized in <span class="docsCode">normalizeCustomer</span>.【F:server.js†L82-L128】【F:server.js†L273-L337】</td>
-            </tr>
-            <tr>
-              <td>Order</td>
-              <td><span class="docsCode">id</span>, <span class="docsCode">name</span>, <span class="docsCode">shipping_address</span>, <span class="docsCode">line_items</span>, <span class="docsCode">tags</span>, <span class="docsCode">fulfillment_status</span></td>
-              <td>Used for booking and dispatch board output.【F:server.js†L701-L873】</td>
-            </tr>
-            <tr>
-              <td>DraftOrder</td>
-              <td><span class="docsCode">id</span>, <span class="docsCode">name</span>, <span class="docsCode">invoice_url</span>, <span class="docsCode">tags</span>, <span class="docsCode">shipping_line</span></td>
-              <td>Created from FLOCS for invoicing workflow.【F:server.js†L566-L699】</td>
-            </tr>
-          </tbody>
-        </table>
-        <h4>ParcelPerfect entities</h4>
-        <table class="docsTable">
-          <thead>
-            <tr>
-              <th>Entity</th>
-              <th>Fields</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Booking request</td>
-              <td><span class="docsCode">{ method, class, params }</span></td>
-              <td>Sent as form data to <span class="docsCode">/pp</span> with optional <span class="docsCode">token_id</span>.【F:server.js†L209-L271】</td>
-            </tr>
-            <tr>
-              <td>Place lookup</td>
-              <td><span class="docsCode">getPlacesByName</span> / <span class="docsCode">getPlacesByPostcode</span></td>
-              <td>Used when Shopify has no stored place code. 【F:server.js†L388-L433】【F:public/app.js†L1224-L1318】</td>
-            </tr>
-          </tbody>
-        </table>
-        <h4>PrintNode entities</h4>
-        <table class="docsTable">
-          <thead>
-            <tr>
-              <th>Entity</th>
-              <th>Fields</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Print job</td>
-              <td><span class="docsCode">printerId</span>, <span class="docsCode">title</span>, <span class="docsCode">contentType</span>, <span class="docsCode">content</span></td>
-              <td>Prints ParcelPerfect PDF labels. 【F:server.js†L435-L503】</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <hr class="docsDivider" />
-
-        <h3>Automatic actions &amp; background behavior</h3>
-        <h4>Backend</h4>
-        <ul>
-          <li><strong>Token caching</strong>: Shopify access tokens are cached and refreshed before expiry, with a retry on 401/403 responses.【F:server.js†L120-L207】</li>
-          <li><strong>Rate limiting</strong>: 120 requests/minute (standard headers enabled).【F:server.js†L92-L107】</li>
-          <li><strong>CORS enforcement</strong>: if <span class="docsCode">FRONTEND_ORIGIN</span> is set, only origins listed there are allowed (unless <span class="docsCode">*</span>). When it is unset, all origins are allowed by default.【F:server.js†L62-L91】</li>
-        </ul>
-        <h4>Scan Station (frontend)</h4>
-        <ul>
-          <li><strong>Auto-booking by tag</strong>: orders tagged <span class="docsCode">parcel_count_#</span> auto-book on first scan (no timer).【F:public/app.js†L1184-L1244】</li>
-          <li><strong>Idle auto-book</strong>: if no tag exists, a 6 second idle timer triggers booking based on scanned parcel count in auto mode.【F:public/app.js†L300-L370】</li>
-          <li><strong>Local booking guard</strong>: booked order numbers are stored in <span class="docsCode">localStorage</span> and blocked from re-booking in the same browser session/device.【F:public/app.js†L430-L556】【F:public/app.js†L1170-L1208】</li>
-          <li><strong>Mode preference</strong>: auto/manual mode is persisted in <span class="docsCode">localStorage</span> (<span class="docsCode">fl_mode_v1</span>).【F:public/app.js†L400-L426】</li>
-        </ul>
-        <h4>Dispatch Board</h4>
-        <ul>
-          <li><strong>Auto refresh</strong> every 30 seconds to keep the board current with Shopify open orders.【F:public/app.js†L1535-L1716】</li>
-          <li><strong>Audio cues + progress bar</strong> for booking steps; visual/log updates are emitted during booking and print steps.【F:public/app.js†L170-L300】【F:public/app.js†L1535-L1702】</li>
-        </ul>
-        <h4>FLOCS (Order Capture)</h4>
-        <ul>
-          <li><strong>Customer/product search debounce</strong> and local SKU catalog enable faster entry even if Shopify search is slow or limited.【F:public/views/flocs.js†L1-L200】</li>
-          <li><strong>Price tiers</strong> are derived from Shopify customer tags to automatically apply price lists (agent/retailer/export/private/fkb).【F:public/views/flocs.js†L146-L200】</li>
-        </ul>
-        <h4>Stock Take</h4>
-        <ul>
-          <li><strong>Activity log persistence</strong>: log entries are stored in <span class="docsCode">localStorage</span> (<span class="docsCode">fl_stock_log_v1</span>) so adjustments remain visible after reloads.【F:public/views/stock.js†L88-L137】</li>
-        </ul>
-
-        <hr class="docsDivider" />
-
-        <h3 id="docs-api">API reference (server)</h3>
-        <p><em>All endpoints are served from the same origin as the frontend (default <span class="docsCode">http://localhost:3000</span>).</em></p>
-        <h4>ParcelPerfect</h4>
-        <ul>
-          <li><span class="docsCode">POST /pp</span> — ParcelPerfect proxy for booking/quote calls. Expects <span class="docsCode">{ method, class, params }</span> JSON body. 【F:server.js†L209-L271】</li>
-          <li><span class="docsCode">GET /pp/place?q=...</span> — ParcelPerfect place lookup by name or postcode. 【F:server.js†L388-L433】</li>
-        </ul>
-        <h4>Shopify</h4>
-        <ul>
-          <li><span class="docsCode">GET /shopify/customers/search?q=...</span> — Search customers. 【F:server.js†L273-L337】</li>
-          <li><span class="docsCode">POST /shopify/customers</span> — Create customer with optional delivery method metafield. 【F:server.js†L339-L374】</li>
-          <li><span class="docsCode">GET /shopify/products/search?q=...</span> — Product + variant search. 【F:server.js†L376-L470】</li>
-          <li><span class="docsCode">GET /shopify/products/collection?handle=...</span> — Products in a collection. 【F:server.js†L472-L564】</li>
-          <li><span class="docsCode">POST /shopify/draft-orders</span> — Create draft order. 【F:server.js†L566-L669】</li>
-          <li><span class="docsCode">POST /shopify/draft-orders/complete</span> — Complete draft order. 【F:server.js†L671-L721】</li>
-          <li><span class="docsCode">POST /shopify/orders</span> — Create order. 【F:server.js†L723-L799】</li>
-          <li><span class="docsCode">GET /shopify/orders/by-name/:name</span> — Find order by Shopify name. 【F:server.js†L801-L873】</li>
-          <li><span class="docsCode">GET /shopify/orders/open</span> — Open orders for dispatch board. 【F:server.js†L875-L956】</li>
-          <li><span class="docsCode">POST /shopify/fulfill</span> — Fulfill order with tracking. 【F:server.js†L958-L1057】</li>
-          <li><span class="docsCode">GET /shopify/inventory-levels?variantIds=...</span> — Fetch inventory levels for variants. 【F:src/routes/shopify.js†L606-L650】</li>
-          <li><span class="docsCode">POST /shopify/inventory-levels/set</span> — Set or adjust inventory levels. 【F:src/routes/shopify.js†L652-L731】</li>
-        </ul>
-        <h4>PrintNode</h4>
-        <ul>
-          <li><span class="docsCode">POST /printnode/print</span> — Print a base64 PDF to a configured printer. 【F:server.js†L435-L503】</li>
-        </ul>
-        <h4>Utility</h4>
-        <ul>
-          <li><span class="docsCode">GET /healthz</span> — Health check. 【F:server.js†L505-L507】</li>
-        </ul>
-
-        <hr class="docsDivider" />
-
-        <h3 id="docs-config">Configuration</h3>
-        <p>Configuration comes from environment variables. The server expects these at runtime (example values shown):</p>
-        <pre class="docsBlock"><code>PORT=3000
-HOST=0.0.0.0
-# Optional: comma-separated origins, or "*" to allow all origins
-# FRONTEND_ORIGIN=http://localhost:3000,http://192.168.1.25:3000
-
-# ParcelPerfect
-PP_BASE_URL=https://adpdemo.pperfect.com/ecomService/v10/Json/
-PP_REQUIRE_TOKEN=true
-PP_TOKEN=your-parcelperfect-token
-PP_ACCNUM=account-number
-PP_PLACE_ID=origin-place-id
-
-# Shopify Dev Dashboard OAuth
-SHOPIFY_STORE=your-store-subdomain
-SHOPIFY_CLIENT_ID=your-client-id
-SHOPIFY_CLIENT_SECRET=your-client-secret
-SHOPIFY_API_VERSION=2025-10
-
-# PrintNode
-PRINTNODE_API_KEY=your-printnode-api-key
-PRINTNODE_PRINTER_ID=123456</code></pre>
-        <p>The included <span class="docsCode">.env.example</span> file is a starting point, but Shopify configuration has been updated to use OAuth client credentials in the server (see <span class="docsCode">SHOPIFY_CLIENT_ID</span> and <span class="docsCode">SHOPIFY_CLIENT_SECRET</span>).【F:server.js†L18-L60】【F:.env.example†L1-L18】</p>
-
-        <hr class="docsDivider" />
-
-        <h3>User flows</h3>
-        <h4>Scan Station booking flow</h4>
-        <ol>
-          <li>Operator scans a parcel barcode → parse <span class="docsCode">orderNo</span> + <span class="docsCode">parcelSeq</span>.</li>
-          <li>App fetches Shopify order data and customer place code (metafield or ParcelPerfect lookup).</li>
-          <li>If order has <span class="docsCode">parcel_count_#</span> tag, booking happens immediately; otherwise scans accumulate and idle timer triggers booking.</li>
-          <li>Booking request goes to ParcelPerfect via <span class="docsCode">/pp</span> with service + parcel details; a label PDF may be returned.</li>
-          <li>Booking result triggers Shopify fulfillment with tracking number and optional label printing via PrintNode.</li>
-        </ol>
-        <p>All steps are logged to the UI, and the order number is added to local blocked list to prevent duplicate booking in the same device session.【F:public/app.js†L1160-L1716】【F:server.js†L209-L503】【F:server.js†L958-L1057】</p>
-        <h4>Dispatch Board flow</h4>
-        <ol>
-          <li>Frontend fetches open orders every 30s and groups into lanes.</li>
-          <li>Clicking <strong>Book Now</strong> prompts for parcel count, loads the order, and runs the booking flow.</li>
-          <li>Clicking <strong>Print delivery note</strong> opens a printable document for delivery orders.</li>
-        </ol>
-        <p>This allows warehouse/ops to book shipments from a dispatch overview without switching to the scan view.【F:public/app.js†L1341-L1716】</p>
-        <h4>FLOCS flow</h4>
-        <ol>
-          <li>Search or create a customer.</li>
-          <li>Pick delivery method (ship/pickup/delivery), select address, and select products.</li>
-          <li>Optionally quote shipping (ParcelPerfect) to fill the shipping line.</li>
-          <li>Create draft orders or orders in Shopify, optionally completing drafts.</li>
-        </ol>
-        <p>FLOCS embeds pricing logic (customer tag-based tiers) and supports collection-based product loading to speed order creation.【F:public/views/flocs.js†L116-L200】【F:server.js†L566-L799】</p>
-        <h4>Stock Take flow</h4>
-        <ol>
-          <li>Choose mode (stock take vs received).</li>
-          <li>Search SKU, apply counts, and sync inventory back to Shopify; entries are logged locally for history.</li>
-        </ol>
-        <p>This tool reads and writes Shopify inventory levels via the backend inventory endpoints.【F:public/views/stock.js†L28-L229】【F:src/routes/shopify.js†L606-L731】</p>
-
-        <hr class="docsDivider" />
-
-        <h3 id="docs-running">Running locally</h3>
-        <pre class="docsBlock"><code>npm install
-npm run dev</code></pre>
-        <p>Open <span class="docsCode">http://localhost:3000</span> for Scan Station/Dispatch/Docs, <span class="docsCode">http://localhost:3000/flocs</span> for order capture, and <span class="docsCode">http://localhost:3000/stock</span> for stock take. The server listens on <span class="docsCode">HOST</span>/<span class="docsCode">PORT</span> and logs allowed origins on boot.【F:package.json†L1-L16】【F:server.js†L1-L17】</p>
-
-        <hr class="docsDivider" />
-
-        <h3 id="docs-dev-guide">Developer guide</h3>
-        <h4>Backend structure (refactored)</h4>
-        <p>The backend is now organized into focused modules under <span class="docsCode">src/</span>:</p>
-        <ul>
-          <li><strong><span class="docsCode">src/app.js</span></strong> — Express app setup (middleware, routes, static hosting).</li>
-          <li><strong><span class="docsCode">src/config.js</span></strong> — Environment configuration and defaults.</li>
-          <li><strong><span class="docsCode">src/routes/</span></strong> — Domain routers for Shopify, ParcelPerfect, PrintNode, alerts, and status.</li>
-          <li><strong><span class="docsCode">src/services/</span></strong> — External integrations (Shopify token/cache, SMTP).</li>
-          <li><strong><span class="docsCode">src/utils/</span></strong> — Shared HTTP helpers.</li>
-        </ul>
-        <p>The root <span class="docsCode">server.js</span> is a thin entrypoint that imports the app and starts the listener.【F:src/app.js†L1-L65】【F:src/config.js†L1-L36】【F:src/routes/shopify.js†L1-L649】【F:src/routes/parcelperfect.js†L1-L104】【F:src/routes/printnode.js†L1-L62】【F:src/routes/alerts.js†L1-L60】【F:src/routes/status.js†L1-L48】【F:src/services/shopify.js†L1-L115】【F:src/services/email.js†L1-L21】【F:src/utils/http.js†L1-L6】【F:server.js†L1-L17】</p>
-        <h4>Adding a new backend endpoint</h4>
-        <ol>
-          <li>Create a new route file in <span class="docsCode">src/routes/</span> (or extend an existing router).</li>
-          <li>Add shared integration logic in <span class="docsCode">src/services/</span> if needed.</li>
-          <li>Register the router in <span class="docsCode">src/app.js</span>.</li>
-          <li>Update the API reference in this README if the endpoint is public-facing.</li>
-        </ol>
-        <h4>Configuration tips</h4>
-        <ul>
-          <li>Keep new env vars grouped in <span class="docsCode">src/config.js</span> so defaults are centralized.</li>
-          <li>For any email-related feature, reuse <span class="docsCode">src/services/email.js</span> so SMTP settings stay consistent.【F:src/config.js†L1-L36】【F:src/services/email.js†L1-L21】</li>
-        </ul>
-
-        <hr class="docsDivider" />
-
-        <h3>Operational notes</h3>
-        <ul>
-          <li>The frontend assumes barcode format where the last three digits are parcel sequence numbers (<span class="docsCode">ORDERNO###</span>).【F:public/app.js†L1160-L1197】</li>
-          <li>Orders are blocked locally after booking to reduce accidental duplicates; clear browser storage if you need a manual override on the same device.【F:public/app.js†L430-L556】【F:public/app.js†L1170-L1208】</li>
-          <li>The Scan Station has a print-specific stylesheet for 100×150mm labels, and a local HTML fallback if ParcelPerfect PDF printing is unavailable.【F:public/index.html†L200-L330】【F:public/app.js†L1460-L1716】</li>
-        </ul>
-
-        <hr class="docsDivider" />
-
-        <h3 id="docs-file-map">File map</h3>
-        <ul>
-          <li><span class="docsCode">server.js</span> — Entrypoint that starts the Express app. 【F:server.js†L1-L17】</li>
-          <li><span class="docsCode">src/app.js</span> — Express middleware + route registration + static hosting. 【F:src/app.js†L1-L65】</li>
-          <li><span class="docsCode">src/config.js</span> — Environment configuration defaults. 【F:src/config.js†L1-L36】</li>
-          <li><span class="docsCode">src/routes/</span> — Domain routers for ParcelPerfect/Shopify/PrintNode/status/alerts. 【F:src/routes/parcelperfect.js†L1-L104】【F:src/routes/shopify.js†L1-L649】【F:src/routes/printnode.js†L1-L62】【F:src/routes/status.js†L1-L48】【F:src/routes/alerts.js†L1-L60】</li>
-          <li><span class="docsCode">src/services/</span> — Shopify token cache + SMTP transport helpers. 【F:src/services/shopify.js†L1-L115】【F:src/services/email.js†L1-L21】</li>
-          <li><span class="docsCode">src/utils/http.js</span> — Shared HTTP helpers (bad request, status). 【F:src/utils/http.js†L1-L6】</li>
-          <li><span class="docsCode">public/index.html</span> + <span class="docsCode">public/app.js</span> — Scan Station + Dispatch Board + embedded docs. 【F:public/index.html†L1-L530】【F:public/app.js†L1-L1716】</li>
-          <li><span class="docsCode">public/views/flocs.js</span> — FLOCS order capture logic (SPA view). 【F:public/views/flocs.js†L1-L200】</li>
-          <li><span class="docsCode">public/views/price-manager.js</span> — Price manager SPA module for tier pricing and storefront sync. 【F:public/views/price-manager.js†L1-L260】</li>
-          <li><span class="docsCode">public/views/stock.js</span> — Stock take SPA module. 【F:public/views/stock.js†L1-L229】</li>
-          <li><span class="docsCode">.env.example</span> — Example environment config. 【F:.env.example†L1-L18】</li>
-          <li><span class="docsCode">package.json</span> — Scripts and dependencies. 【F:package.json†L1-L16】</li>
+          <li><strong>Dispatch Console</strong> (<span class="docsCode">/scan</span>) for parcel scanning and shipment booking.</li>
+          <li><strong>Order Operations Board</strong> (<span class="docsCode">/ops</span>) for triage and exception handling.</li>
+          <li><strong>Customer Directory</strong> (<span class="docsCode">/contacts</span>) for account search and contact intelligence.</li>
+          <li><strong>Knowledge Hub</strong> (<span class="docsCode">/docs</span>) for persona-based documentation.</li>
+          <li><strong>Process Blueprints</strong> (<span class="docsCode">/flowcharts</span>) for operational process maps.</li>
+          <li><strong>Sales Order Workbench</strong> (<span class="docsCode">/flocs</span>) for customer and order capture.</li>
+          <li><strong>Inventory Control</strong> (<span class="docsCode">/stock</span>) for stock checks and adjustments.</li>
+          <li><strong>Pricing Control Center</strong> (<span class="docsCode">/price-manager</span>) for tier and channel pricing governance.</li>
+          <li><strong>Distribution Network</strong> (<span class="docsCode">/stockists</span>) for agent and retail network records.</li>
         </ul>
       </div>
     </div>
+
     <div class="flView" id="viewFlowcharts" hidden>
       <div class="docsShell">
         <div class="pill">FLOW LOGIC</div>
@@ -3640,7 +3235,7 @@ npm run dev</code></pre>
     <div class="flView" id="viewStockists" hidden>
       <div class="stockistsShell">
         <section class="stockistsCard">
-          <h2>Stockists → Agents</h2>
+          <h2>Distribution Network</h2>
           <p class="stockistsMeta" id="stockistsStatus">Ready.</p>
           <div class="stockistsRow">
             <input id="stockistsAdminToken" class="stockistsInput" type="password" placeholder="Admin token (optional)" />
@@ -3793,7 +3388,7 @@ npm run dev</code></pre>
       <div class="pm-shell">
           <header class="pm-header">
             <div class="pm-titleBlock">
-              <div class="pm-title">Price Manager</div>
+              <div class="pm-title">Pricing Control Center</div>
               <div class="pm-sub">Manage tier pricing per SKU and sync to Shopify metafields + storefront.</div>
             </div>
           </header>

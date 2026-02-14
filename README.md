@@ -18,26 +18,36 @@ The repository has been trimmed to the current product scope. Legacy standalone 
 
 - **Dashboard (`/`)**
   - Operations KPIs, module launch tiles, and checklist visibility.
-- **Scan Station (`/scan`)**
+- **Dispatch Console (`/scan`)**
   - Barcode parsing, order lookup, parcel accumulation, booking triggers, and label/fulfillment actions.
-- **Dispatch Board (`/ops`)**
+- **Order Operations Board (`/ops`)**
   - Open order triage, combined dispatch handling, document actions, and shipment-focused workflows.
-- **Fulfillment History (`/fulfillment-history`)**
+- **Fulfillment Timeline (`/fulfillment-history`)**
   - Recently shipped/delivered/collected order streams.
-- **Contacts (`/contacts`)**
+- **Customer Directory (`/contacts`)**
   - Shopify customer listing and filter/search workflow.
-- **Documentation (`/docs`)**
-  - In-app operational and technical documentation.
-- **Flowcharts (`/flowcharts`)**
+- **Knowledge Hub (`/docs`)**
+  - In-app documentation with links to operator/admin/developer bundles.
+- **Process Blueprints (`/flowcharts`)**
   - Visual process guidance for operations.
-- **FLOCS Order Capture (`/flocs`)**
+- **Sales Order Workbench (`/flocs`)**
   - Customer + product lookup, draft order / order creation, and quote-assisted shipping lines.
-- **Stock (`/stock`)**
+- **Inventory Control (`/stock`)**
   - Inventory level lookup and stock adjustment workflows.
-- **Price Manager (`/price-manager`)**
+- **Pricing Control Center (`/price-manager`)**
   - Tier pricing read/write and optional public price synchronization.
 - **Traceability (`/traceability`)**
   - Open PO/invoice capture, inspection lifecycle, COA registration, and finished-batch audit lookup.
+
+---
+
+
+## Documentation structure
+
+- `docs/operator-docs.md` — operator runbooks.
+- `docs/admin-docs.md` — platform governance and admin controls.
+- `docs/dev-docs.md` — engineering architecture and implementation notes.
+- `docs/README.md` — index of all docs.
 
 ---
 
@@ -163,5 +173,5 @@ Open `http://localhost:3000` and navigate modules via the sidebar.
 - `public/app.js` — SPA orchestration and route/state logic
 - `public/views/` — modular frontend feature logic/styles
 - `data/` — local JSON stores for pricing + traceability
-- `docs/` — implementation notes and physical station docs
+- `docs/` — audience-based documentation (operator/admin/dev) plus deep dives
 - `pi_station/` — Raspberry Pi helper scripts

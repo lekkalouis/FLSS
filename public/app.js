@@ -4011,27 +4011,27 @@ async function startOrder(orderNo) {
       statusExplain("Ready to scan orders…", "info");
       scanInput?.focus();
     } else if (showFulfillmentHistory) {
-      statusExplain("Viewing fulfillment history.", "info");
+      statusExplain("Viewing fulfillment timeline.", "info");
     } else if (showContacts) {
-      statusExplain("Viewing customer contacts.", "info");
+      statusExplain("Viewing customer directory.", "info");
       if (!contactsState.loaded || !contactsState.customers.length) contactsView.refreshContacts().catch((err) => {
         appendDebug("Contacts refresh failed: " + String(err));
         if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
       });
     } else if (showDocs) {
-      statusExplain("Viewing operator documentation", "info");
+      statusExplain("Knowledge Hub ready.", "info");
     } else if (showFlocs) {
-      statusExplain("Order capture ready.", "info");
+      statusExplain("Sales order workbench ready.", "info");
     } else if (showFlowcharts) {
-      statusExplain("Flowchart logic reference loaded.", "info");
+      statusExplain("Process blueprints loaded.", "info");
     } else if (showStock) {
-      statusExplain("Inventory ready.", "info");
+      statusExplain("Inventory control ready.", "info");
     } else if (showPriceManager) {
-      statusExplain("Price manager ready.", "info");
+      statusExplain("Pricing control center ready.", "info");
     } else if (showTraceability) {
       statusExplain("Traceability tools ready.", "info");
     } else if (showStockists) {
-      statusExplain("Stockists and agent network ready.", "info");
+      statusExplain("Distribution network ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
