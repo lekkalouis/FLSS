@@ -11,6 +11,7 @@ import { config, getFrontendOrigin } from "./config.js";
 import alertsRouter from "./routes/alerts.js";
 import parcelPerfectRouter from "./routes/parcelperfect.js";
 import printnodeRouter from "./routes/printnode.js";
+import printHistoryRouter from "./routes/print-history.js";
 import pricingRouter from "./routes/pricing.js";
 import shopifyRouter from "./routes/shopify.js";
 import statusRouter from "./routes/status.js";
@@ -110,6 +111,7 @@ export function createApp() {
   apiRouter.use(shopifyRouter);
   apiRouter.use(pricingRouter);
   apiRouter.use(printnodeRouter);
+  apiRouter.use(printHistoryRouter);
   apiRouter.use(alertsRouter);
   apiRouter.use(traceabilityRouter);
   apiRouter.use(stockistPublicRouter);

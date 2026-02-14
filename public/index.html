@@ -2346,6 +2346,7 @@
             <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
             <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch</span></button>
             <button id="navFulfillmentHistory" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillmentHistory" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnIcon" aria-hidden="true">🧾</span><span class="flNavBtnText">Fulfillment History</span></button>
+            <button id="navPrintHistory" class="flNavBtn" type="button" role="tab" aria-controls="viewPrintHistory" aria-selected="false" data-route="/print-history"><span class="flNavBtnIcon" aria-hidden="true">🖨️</span><span class="flNavBtnText">Print History</span></button>
             <button id="navContacts" class="flNavBtn" type="button" role="tab" aria-controls="viewContacts" aria-selected="false" data-route="/contacts"><span class="flNavBtnIcon" aria-hidden="true">📇</span><span class="flNavBtnText">Contacts</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
             <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Flowcharts</span></button>
@@ -2573,6 +2574,29 @@
             <option value="delivered">Delivered</option>
             <option value="collected">Collected</option>
           </select>
+        </div>
+      </div>
+
+      <div class="flView" id="viewPrintHistory" hidden>
+        <div class="dispatchBoardPanel" style="margin:1rem">
+          <div class="sectionTitle" style="margin-top:.4rem">
+            <span>Print History</span>
+            <input id="printHistorySearch" class="flocs-input" style="max-width:300px" placeholder="Search by order, customer, title" />
+          </div>
+          <div class="dispatchSearchRow" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:.5rem;">
+            <select id="printHistoryTypeFilter" class="dispatchSearchInput">
+              <option value="all">All document types</option>
+              <option value="delivery-note">Delivery notes</option>
+              <option value="picklist">Pick lists</option>
+              <option value="packing-slip">Packing slips</option>
+              <option value="packing-plan">Packing plans</option>
+              <option value="shipping-label">Shipping labels</option>
+              <option value="invoice">Invoices</option>
+            </select>
+            <button id="printHistoryRefresh" class="dispatchSelectionBtn" type="button">Refresh</button>
+          </div>
+          <div id="printHistoryMeta" class="dispatchShipmentInfo" style="margin-top:.55rem">Loading print history…</div>
+          <div id="printHistoryList" class="dispatchShipmentsBody"></div>
         </div>
       </div>
       <div class="flView" id="viewContacts" hidden>

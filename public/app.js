@@ -92,6 +92,7 @@ import { initStockistsView } from "./views/stockists.js";
   const navDashboard = $("navDashboard");
   const navScan = $("navScan");
   const navFulfillmentHistory = $("navFulfillmentHistory");
+  const navPrintHistory = $("navPrintHistory");
   const navContacts = $("navContacts");
   const navOps = $("navOps");
   const navDocs = $("navDocs");
@@ -105,6 +106,7 @@ import { initStockistsView } from "./views/stockists.js";
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
   const viewFulfillmentHistory = $("viewFulfillmentHistory");
+  const viewPrintHistory = $("viewPrintHistory");
   const viewContacts = $("viewContacts");
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
@@ -137,6 +139,11 @@ import { initStockistsView } from "./views/stockists.js";
   const fulfillmentHistoryShipped = $("fulfillmentHistoryShipped");
   const fulfillmentHistoryDelivered = $("fulfillmentHistoryDelivered");
   const fulfillmentHistoryCollected = $("fulfillmentHistoryCollected");
+  const printHistorySearch = $("printHistorySearch");
+  const printHistoryTypeFilter = $("printHistoryTypeFilter");
+  const printHistoryRefresh = $("printHistoryRefresh");
+  const printHistoryMeta = $("printHistoryMeta");
+  const printHistoryList = $("printHistoryList");
   const contactsSearch = $("contactsSearch");
   const contactsTierFilter = $("contactsTierFilter");
   const contactsProvinceFilter = $("contactsProvinceFilter");
@@ -175,6 +182,12 @@ import { initStockistsView } from "./views/stockists.js";
       delivered: [],
       collected: []
     }
+  };
+  const printHistoryState = {
+    query: "",
+    type: "all",
+    entries: [],
+    loaded: false
   };
   const contactsState = {
     query: "",
@@ -3568,6 +3581,13 @@ async function startOrder(orderNo) {
     win.document.close();
     win.focus();
     win.print();
+    recordBrowserPrintHistory({
+      title: `${docTitle} ${orderNo}`,
+      documentType: normalizedType,
+      orderNo,
+      customerName: title,
+      html: doc
+    });
     return true;
   }
 
@@ -3614,6 +3634,13 @@ async function startOrder(orderNo) {
     win.document.close();
     win.focus();
     win.print();
+    recordBrowserPrintHistory({
+      title: `Packing plan ${orderNo}`,
+      documentType: "packing-plan",
+      orderNo,
+      customerName: title,
+      html: doc
+    });
     return true;
   }
 
@@ -3898,6 +3925,13 @@ async function startOrder(orderNo) {
     win.document.close();
     win.focus();
     win.print();
+    recordBrowserPrintHistory({
+      title: `Delivery note ${ordNum}`,
+      documentType: "delivery-note",
+      orderNo: ordNum,
+      customerName: customerName,
+      html: doc
+    });
     return true;
   }
 
@@ -3921,6 +3955,7 @@ async function startOrder(orderNo) {
     const showDashboard = view === "dashboard";
     const showScan = view === "scan";
     const showFulfillmentHistory = view === "fulfillment-history";
+    const showPrintHistory = view === "print-history";
     const showContacts = view === "contacts";
     const showOps = view === "ops";
     const showDocs = view === "docs";
@@ -3942,6 +3977,10 @@ async function startOrder(orderNo) {
     if (viewFulfillmentHistory) {
       viewFulfillmentHistory.hidden = !showFulfillmentHistory;
       viewFulfillmentHistory.classList.toggle("flView--active", showFulfillmentHistory);
+    }
+    if (viewPrintHistory) {
+      viewPrintHistory.hidden = !showPrintHistory;
+      viewPrintHistory.classList.toggle("flView--active", showPrintHistory);
     }
     if (viewContacts) {
       viewContacts.hidden = !showContacts;
@@ -3983,6 +4022,7 @@ async function startOrder(orderNo) {
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navFulfillmentHistory?.classList.toggle("flNavBtn--active", showFulfillmentHistory);
+    navPrintHistory?.classList.toggle("flNavBtn--active", showPrintHistory);
     navContacts?.classList.toggle("flNavBtn--active", showContacts);
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
@@ -3995,6 +4035,7 @@ async function startOrder(orderNo) {
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navFulfillmentHistory?.setAttribute("aria-selected", showFulfillmentHistory ? "true" : "false");
+    navPrintHistory?.setAttribute("aria-selected", showPrintHistory ? "true" : "false");
     navContacts?.setAttribute("aria-selected", showContacts ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
@@ -4012,6 +4053,8 @@ async function startOrder(orderNo) {
       scanInput?.focus();
     } else if (showFulfillmentHistory) {
       statusExplain("Viewing fulfillment history.", "info");
+    } else if (showPrintHistory) {
+      statusExplain("Viewing print history.", "info");
     } else if (showContacts) {
       statusExplain("Viewing customer contacts.", "info");
       if (!contactsState.loaded || !contactsState.customers.length) contactsView.refreshContacts().catch((err) => {
@@ -4042,6 +4085,7 @@ async function startOrder(orderNo) {
     ["/dashboard", "dashboard"],
     ["/scan", "scan"],
     ["/fulfillment-history", "fulfillment-history"],
+    ["/print-history", "print-history"],
     ["/contacts", "contacts"],
     ["/ops", "scan"],
     ["/docs", "docs"],
@@ -4049,7 +4093,7 @@ async function startOrder(orderNo) {
     ["/flocs", "flocs"],
     ["/stock", "stock"],
     ["/price-manager", "price-manager"],
-["/traceability", "traceability"],
+    ["/traceability", "traceability"],
     ["/stockists", "stockists"]
   ]);
 
@@ -4057,6 +4101,7 @@ async function startOrder(orderNo) {
     dashboard: "/",
     scan: "/scan",
     "fulfillment-history": "/fulfillment-history",
+    "print-history": "/print-history",
     contacts: "/contacts",
     ops: "/scan",
     docs: "/docs",
@@ -4109,6 +4154,87 @@ async function startOrder(orderNo) {
   });
 
 
+
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  async function recordBrowserPrintHistory({ title, documentType, orderNo, customerName, html }) {
+    try {
+      await fetch(`${API_BASE}/print-history`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          documentType,
+          source: "dispatch",
+          orderNo,
+          customerName,
+          method: "browser",
+          mimeType: "text/html",
+          content: html
+        })
+      });
+    } catch (err) {
+      appendDebug(`Print history capture failed: ${String(err)}`);
+    }
+  }
+
+  async function loadPrintHistory() {
+    if (!printHistoryList) return;
+    try {
+      const params = new URLSearchParams();
+      if (printHistoryState.query) params.set("search", printHistoryState.query);
+      if (printHistoryState.type && printHistoryState.type !== "all") params.set("type", printHistoryState.type);
+      params.set("limit", "150");
+      const resp = await fetch(`${API_BASE}/print-history?${params.toString()}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      printHistoryState.entries = data.entries || [];
+      printHistoryState.loaded = true;
+      renderPrintHistory();
+    } catch (err) {
+      printHistoryMeta.textContent = "Could not load print history.";
+      printHistoryList.innerHTML = `<div class="dispatchBoardEmpty">${escapeHtml(String(err))}</div>`;
+    }
+  }
+
+  function renderPrintHistory() {
+    if (!printHistoryList || !printHistoryMeta) return;
+    const entries = printHistoryState.entries || [];
+    printHistoryMeta.textContent = `${entries.length} record${entries.length === 1 ? "" : "s"}`;
+    if (!entries.length) {
+      printHistoryList.innerHTML = '<div class="dispatchBoardEmpty">No print records yet.</div>';
+      return;
+    }
+    printHistoryList.innerHTML = entries
+      .map((entry) => {
+        const stamp = entry.createdAt ? new Date(entry.createdAt).toLocaleString() : "";
+        return `
+          <article class="dispatchShipmentCard">
+            <div class="dispatchShipmentTop">
+              <strong>${escapeHtml(entry.title || "Document")}</strong>
+              <span>${escapeHtml(entry.documentType || "")}</span>
+            </div>
+            <div class="dispatchShipmentInfo">
+              ${escapeHtml(stamp)} · ${escapeHtml(entry.orderNo || "No order #")} · ${escapeHtml(entry.customerName || "No customer")}
+            </div>
+            <div class="dispatchSelectionBulkActions" style="margin-top:.5rem;">
+              <button class="dispatchSelectionBtn" type="button" data-action="view-print-history" data-id="${escapeHtml(entry.id)}">View</button>
+              <button class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button" data-action="reprint-print-history" data-id="${escapeHtml(entry.id)}">Reprint</button>
+            </div>
+          </article>
+        `;
+      })
+      .join("");
+  }
+
   function normalizePath(path) {
     if (!path) return "/";
     let cleaned = path.split("?")[0].split("#")[0];
@@ -4133,6 +4259,7 @@ async function startOrder(orderNo) {
     const view = viewForPath(path);
     switchMainView(view);
     initViewIfNeeded(view);
+    if (view === "print-history" && !printHistoryState.loaded) loadPrintHistory();
   }
 
   // Router entrypoint used by nav buttons and deep links.
@@ -4267,12 +4394,68 @@ async function startOrder(orderNo) {
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    const historyAction = target.closest("[data-action]");
+    if (historyAction) {
+      const action = historyAction.getAttribute("data-action");
+      const id = historyAction.getAttribute("data-id");
+      if (action === "view-print-history" && id) {
+        event.preventDefault();
+        fetch(`${API_BASE}/print-history/${id}`)
+          .then((resp) => (resp.ok ? resp.json() : Promise.reject(new Error(`HTTP ${resp.status}`))))
+          .then((data) => {
+            const html = data?.entry?.content;
+            if (!html) throw new Error("No stored document content for this entry.");
+            const win = window.open("", "_blank", "width=900,height=900");
+            if (!win) throw new Error("Pop-up blocked");
+            win.document.open();
+            win.document.write(html);
+            win.document.close();
+          })
+          .catch((err) => statusExplain(String(err?.message || err), "warn"));
+        return;
+      }
+      if (action === "reprint-print-history" && id) {
+        event.preventDefault();
+        fetch(`${API_BASE}/print-history/${id}/reprint`, { method: "POST" })
+          .then((resp) => (resp.ok ? resp.json() : Promise.reject(new Error(`HTTP ${resp.status}`))))
+          .then((data) => {
+            if (data.mode === "browser" && data.entry?.content) {
+              const win = window.open("", "_blank", "width=900,height=900");
+              if (!win) throw new Error("Pop-up blocked");
+              win.document.open();
+              win.document.write(data.entry.content);
+              win.document.close();
+              win.focus();
+              win.print();
+            }
+            statusExplain("Reprint sent.", "ok");
+          })
+          .catch((err) => statusExplain(String(err?.message || err), "warn"));
+        return;
+      }
+    }
+
     const routeEl = target.closest("[data-route]");
     if (!routeEl) return;
     const route = routeEl.getAttribute("data-route") || routeEl.getAttribute("href");
     if (!route) return;
     event.preventDefault();
     navigateTo(route);
+  });
+
+
+  printHistorySearch?.addEventListener("input", () => {
+    printHistoryState.query = String(printHistorySearch.value || "").trim();
+    loadPrintHistory();
+  });
+
+  printHistoryTypeFilter?.addEventListener("change", () => {
+    printHistoryState.type = String(printHistoryTypeFilter.value || "all");
+    loadPrintHistory();
+  });
+
+  printHistoryRefresh?.addEventListener("click", () => {
+    loadPrintHistory();
   });
 
   modeToggle?.addEventListener("click", () => {

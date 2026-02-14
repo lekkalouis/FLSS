@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { config } from "../config.js";
+import { appendPrintHistoryEntry } from "../services/print-history-store.js";
 
 const router = Router();
 
@@ -56,7 +57,7 @@ async function sendPrintNodeJob({ pdfBase64, title }) {
 
 router.post("/printnode/print", async (req, res) => {
   try {
-    const { pdfBase64, title } = req.body || {};
+    const { pdfBase64, title, documentType, source, orderNo, customerName, meta } = req.body || {};
 
     if (!pdfBase64) {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Missing pdfBase64" });
@@ -74,7 +75,19 @@ router.post("/printnode/print", async (req, res) => {
       });
     }
 
-    return res.json({ ok: true, printJob: result.data });
+    const historyEntry = await appendPrintHistoryEntry({
+      title: title || "Parcel Label",
+      documentType: documentType || "shipping-label",
+      source: source || "scan-station",
+      orderNo,
+      customerName,
+      method: "printnode",
+      mimeType: "application/pdf",
+      content: pdfBase64,
+      meta
+    });
+
+    return res.json({ ok: true, printJob: result.data, historyEntry });
   } catch (err) {
     console.error("PrintNode proxy error:", err);
     return res.status(502).json({
@@ -86,7 +99,7 @@ router.post("/printnode/print", async (req, res) => {
 
 router.post("/printnode/print-url", async (req, res) => {
   try {
-    const { invoiceUrl, title } = req.body || {};
+    const { invoiceUrl, title, documentType, source, orderNo, customerName, meta } = req.body || {};
 
     if (!invoiceUrl) {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Missing invoiceUrl" });
@@ -137,7 +150,19 @@ router.post("/printnode/print-url", async (req, res) => {
       });
     }
 
-    return res.json({ ok: true, printJob: result.data });
+    const historyEntry = await appendPrintHistoryEntry({
+      title: title || "Invoice",
+      documentType: documentType || "invoice",
+      source: source || "scan-station",
+      orderNo,
+      customerName,
+      method: "printnode",
+      mimeType: "application/pdf",
+      content: buffer.toString("base64"),
+      meta: { ...(meta && typeof meta === "object" ? meta : {}), invoiceUrl: String(url) }
+    });
+
+    return res.json({ ok: true, printJob: result.data, historyEntry });
   } catch (err) {
     console.error("PrintNode invoice print error:", err);
     return res.status(502).json({
