@@ -7,6 +7,33 @@ import { requireShopifyConfigured } from "./shared.js";
 
 const router = Router();
 
+const TIER_ALIASES = new Map([
+  ["agent", "agent"],
+  ["agents", "agent"],
+  ["retail", "retailer"],
+  ["retailer", "retailer"],
+  ["retailers", "retailer"],
+  ["private", "private"],
+  ["online", "online"],
+  ["ecom", "online"],
+  ["e-commerce", "online"],
+  ["ecommerce", "online"],
+  ["export", "export"],
+  ["fkb", "fkb"]
+]);
+
+function canonicalizeTier(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return TIER_ALIASES.get(normalized) || "";
+}
+
+function inferTierFromTags(tags) {
+  const normalizedTags = String(tags || "")
+    .split(",")
+    .map((tag) => canonicalizeTier(tag));
+  return normalizedTags.find(Boolean) || "";
+}
+
 function normalizeCustomer(customer, metafields = {}) {
   if (!customer) return null;
   const first = (customer.first_name || "").trim();
@@ -106,7 +133,7 @@ router.get("/shopify/customers", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
-    const tierFilter = String(req.query.tier || "").trim().toLowerCase();
+    const tierFilter = canonicalizeTier(req.query.tier);
     const provinceFilter = String(req.query.province || "").trim().toLowerCase();
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const limit = Math.min(Math.max(Number(req.query.limit || 250), 1), 250);
@@ -158,8 +185,10 @@ router.get("/shopify/customers", async (req, res) => {
         const norm = normalizeCustomer(customer, metafields);
         const defaultAddress = norm?.default_address || norm?.addresses?.[0] || null;
         const province = defaultAddress?.province || "";
-        const inferredTier = String(norm?.tier || "").trim().toLowerCase() ||
-          String(norm?.tags || "").split(",").map((t) => t.trim().toLowerCase()).find((t) => ["agent", "retail", "export", "private", "fkb"].includes(t)) || "";
+        const inferredTier =
+          canonicalizeTier(norm?.tier) ||
+          inferTierFromTags(norm?.tags) ||
+          "";
         return {
           ...norm,
           province,
@@ -206,11 +235,11 @@ router.post("/shopify/customers", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const normalizedTier = String(tier || "").trim().toLowerCase();
+    const normalizedTier = canonicalizeTier(tier);
     const shouldCreateTierMetafield = createTierMetafield !== false;
-    const allowedTiers = new Set(["agent", "retail", "export", "private", "fkb"]);
+    const allowedTiers = new Set(["agent", "retailer", "private", "online", "export", "fkb"]);
     if (!allowedTiers.has(normalizedTier)) {
-      return badRequest(res, "Customer tier is required and must be one of: agent, retail, export, private, fkb");
+      return badRequest(res, "Customer tier is required and must be one of: agent, retailer, private, online, export, fkb");
     }
 
     const metafields = [];

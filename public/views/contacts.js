@@ -20,9 +20,14 @@ export function initContactsView({
     const customers = Array.isArray(state.customers) ? state.customers : [];
 
     if (contactsTierFilter) {
-      const tiers = [...new Set(customers.map((c) => String(c?.tier || "").trim()).filter(Boolean))].sort();
+      const preferredTiers = ["agent", "retailer", "private", "online"];
+      const seen = new Set(preferredTiers);
+      const discovered = [...new Set(customers.map((c) => String(c?.tier || "").trim().toLowerCase()).filter(Boolean))]
+        .filter((tier) => !seen.has(tier))
+        .sort();
+      const tiers = [...preferredTiers, ...discovered];
       contactsTierFilter.innerHTML = `<option value="">All tiers</option>${tiers
-        .map((tier) => `<option value="${tier}" ${state.tier === tier ? "selected" : ""}>${tier}</option>`)
+        .map((tier) => `<option value="${tier}" ${state.tier === tier ? "selected" : ""}>${tier.charAt(0).toUpperCase()}${tier.slice(1)}</option>`)
         .join("")}`;
     }
 

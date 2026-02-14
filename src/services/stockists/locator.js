@@ -163,7 +163,7 @@ export async function syncAgentsFromShopify() {
 
   const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
   const resp = await shopifyFetch(
-    `${base}/customers/search.json?limit=250&query=${encodeURIComponent("tag:STOCKIST_AGENT")}`,
+    `${base}/customers/search.json?limit=250&query=${encodeURIComponent("tag:agent OR tag:retailer OR tag:STOCKIST_AGENT")}`,
     { method: "GET" }
   );
   if (!resp.ok) {

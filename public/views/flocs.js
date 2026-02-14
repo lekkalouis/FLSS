@@ -163,15 +163,16 @@ export function initFlocsView() {
   const productKey = (p) =>
     String(p.variantId || p.sku || p.title || "").trim();
 
-  const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
+  const PRICE_TAGS = ["agent", "retailer", "retail", "online", "export", "private", "fkb"];
   const AUTO_QUOTE_DELAY_MS = 3000;
   let autoQuoteTimer = null;
   const deliveryHintDefault = deliveryHint ? deliveryHint.textContent : "";
-  const CUSTOMER_TIER_OPTIONS = ["agent", "retail", "export", "private", "fkb"];
+  const CUSTOMER_TIER_OPTIONS = ["agent", "retailer", "online", "export", "private", "fkb"];
 
   function normalizeCustomerTier(value) {
     const tier = String(value || "").trim().toLowerCase();
     if (!tier) return "";
+    if (tier === "retail") return "retailer";
     return CUSTOMER_TIER_OPTIONS.includes(tier) ? tier : "";
   }
 
@@ -192,7 +193,7 @@ export function initFlocsView() {
   function resolvePriceTier(tags) {
     const normalized = tags.map((t) => t.toLowerCase());
     const tier = PRICE_TAGS.find((tag) => normalized.includes(tag)) || null;
-    return tier === "retailer" ? "retail" : tier;
+    return tier === "retail" ? "retailer" : tier;
   }
 
   function normalizePriceTiers(product) {
