@@ -16,6 +16,8 @@ import shopifyRouter from "./routes/shopify.js";
 import statusRouter from "./routes/status.js";
 import configRouter from "./routes/config.js";
 import traceabilityRouter from "./routes/traceability.js";
+import stockistAdminRouter from "./routes/stockists/admin.js";
+import stockistPublicRouter from "./routes/stockists/public.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,7 +88,7 @@ export function createApp() {
         }
         return cb(new Error("CORS: origin not allowed"));
       },
-      methods: ["GET", "POST", "OPTIONS"],
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
       credentials: false,
       maxAge: 86400
@@ -97,6 +99,8 @@ export function createApp() {
   app.use("/flocs", requireAdminToken);
   app.use("/simulate", requireAdminToken);
   app.use("/api/v1/shopify", requireAdminToken);
+  app.use("/api/admin", requireAdminToken);
+  app.use("/api/v1/admin", requireAdminToken);
 
   app.use(statusRouter);
 
@@ -108,7 +112,11 @@ export function createApp() {
   apiRouter.use(printnodeRouter);
   apiRouter.use(alertsRouter);
   apiRouter.use(traceabilityRouter);
+  apiRouter.use(stockistPublicRouter);
+  apiRouter.use(stockistAdminRouter);
   app.use("/api/v1", apiRouter);
+  app.use("/api", stockistPublicRouter);
+  app.use("/api", stockistAdminRouter);
   app.use("/api/v1", (_req, res) => res.status(404).json({ error: "Not found" }));
 
   const publicDir = path.join(__dirname, "..", "public");
