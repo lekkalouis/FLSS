@@ -20,7 +20,6 @@ import traceabilityRouter from "./routes/traceability.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Allow local/LAN origins during development so handheld scanners and shop-floor stations can connect without manually whitelisting each device.
 function isPrivateHostname(hostname) {
   if (!hostname) return false;
   if (hostname === "localhost" || hostname === "127.0.0.1") return true;
@@ -32,14 +31,36 @@ function isPrivateHostname(hostname) {
   return false;
 }
 
-// Build and configure the Express application used by both `npm run dev` and production startup.
+function requireAdminToken(req, res, next) {
+  if (!config.ADMIN_TOKEN) return next();
+  const authHeader = req.get("authorization") || "";
+  const expected = `Bearer ${config.ADMIN_TOKEN}`;
+  if (authHeader === expected) return next();
+  return res.status(401).json({ error: "Unauthorized" });
+}
+
 export function createApp() {
   const app = express();
-  // Group API routes under a versioned prefix to keep the browser SPA and service endpoints isolated.
   const apiRouter = express.Router();
 
   app.disable("x-powered-by");
-  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+
+  if (config.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+    app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+    app.use(
+      rateLimit({
+        windowMs: 60 * 1000,
+        max: 120,
+        standardHeaders: true,
+        legacyHeaders: false
+      })
+    );
+    app.use(morgan("combined"));
+  } else {
+    app.use(morgan("dev"));
+  }
+
   app.use(express.json({ limit: "1mb" }));
 
   const frontendOrigin = getFrontendOrigin();
@@ -49,9 +70,8 @@ export function createApp() {
       .map((s) => s.trim())
       .filter(Boolean)
   );
-  const allowAllOrigins = allowedOrigins.has("*");
+  const allowAllOrigins = config.NODE_ENV !== "production" && allowedOrigins.has("*");
 
-  // CORS is strict in production but development allows private network origins to simplify local testing.
   app.use(
     cors({
       origin: (origin, cb) => {
@@ -74,19 +94,12 @@ export function createApp() {
   );
   app.options("*", (_req, res) => res.sendStatus(204));
 
-  // Coarse global API limit to reduce accidental floods from scanner loops or browser retries.
-  app.use(
-    rateLimit({
-      windowMs: 60 * 1000,
-      max: 120,
-      standardHeaders: true,
-      legacyHeaders: false
-    })
-  );
+  app.use("/flocs", requireAdminToken);
+  app.use("/simulate", requireAdminToken);
+  app.use("/api/v1/shopify", requireAdminToken);
 
-  app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
+  app.use(statusRouter);
 
-  // Route registration order is intentionally explicit for maintainability.
   apiRouter.use(statusRouter);
   apiRouter.use(configRouter);
   apiRouter.use(parcelPerfectRouter);
@@ -98,10 +111,8 @@ export function createApp() {
   app.use("/api/v1", apiRouter);
   app.use("/api/v1", (_req, res) => res.status(404).json({ error: "Not found" }));
 
-  // Serve the frontend SPA bundle and let client-side routing handle all non-API paths.
   const publicDir = path.join(__dirname, "..", "public");
   app.use(express.static(publicDir));
-
   app.get("*", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
 
   return { app, allowAllOrigins, allowedOrigins };

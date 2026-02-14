@@ -6,6 +6,10 @@ import { buildServiceStatus } from "../utils/http.js";
 
 const router = Router();
 
+router.get("/health", (_req, res) =>
+  res.json({ status: "ok", env: process.env.NODE_ENV, uptime: process.uptime() })
+);
+
 router.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 router.get("/statusz", async (_req, res) => {
