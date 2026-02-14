@@ -5,6 +5,7 @@ import { initTraceabilityView } from "./views/traceability.js";
 import { initModuleDashboard } from "./views/dashboard.js";
 import { initContactsView } from "./views/contacts.js";
 import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
+import { initStockistsView } from "./views/stockists.js";
 
 (() => {
   "use strict";
@@ -99,6 +100,7 @@ import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
   const navTraceability = $("navTraceability");
+  const navStockists = $("navStockists");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
@@ -111,6 +113,7 @@ import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
   const viewTraceability = $("viewTraceability");
+  const viewStockists = $("viewStockists");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -3926,6 +3929,7 @@ async function startOrder(orderNo) {
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
     const showTraceability = view === "traceability";
+    const showStockists = view === "stockists";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3971,6 +3975,10 @@ async function startOrder(orderNo) {
       viewTraceability.hidden = !showTraceability;
       viewTraceability.classList.toggle("flView--active", showTraceability);
     }
+    if (viewStockists) {
+      viewStockists.hidden = !showStockists;
+      viewStockists.classList.toggle("flView--active", showStockists);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
@@ -3983,6 +3991,7 @@ async function startOrder(orderNo) {
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
+    navStockists?.classList.toggle("flNavBtn--active", showStockists);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navFulfillmentHistory?.setAttribute("aria-selected", showFulfillmentHistory ? "true" : "false");
@@ -3994,6 +4003,7 @@ async function startOrder(orderNo) {
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
     navTraceability?.setAttribute("aria-selected", showTraceability ? "true" : "false");
+    navStockists?.setAttribute("aria-selected", showStockists ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
@@ -4020,6 +4030,8 @@ async function startOrder(orderNo) {
       statusExplain("Price manager ready.", "info");
     } else if (showTraceability) {
       statusExplain("Traceability tools ready.", "info");
+    } else if (showStockists) {
+      statusExplain("Stockists and agent network ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -4037,7 +4049,8 @@ async function startOrder(orderNo) {
     ["/flocs", "flocs"],
     ["/stock", "stock"],
     ["/price-manager", "price-manager"],
-    ["/traceability", "traceability"]
+["/traceability", "traceability"],
+    ["/stockists", "stockists"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -4051,14 +4064,16 @@ async function startOrder(orderNo) {
     flocs: "/flocs",
     stock: "/stock",
     "price-manager": "/price-manager",
-    traceability: "/traceability"
+    traceability: "/traceability",
+    stockists: "/stockists"
   };
 
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
     "price-manager": initPriceManagerView,
-    traceability: initTraceabilityView
+    traceability: initTraceabilityView,
+    stockists: initStockistsView
   };
   const contactsView = initContactsView({
     state: contactsState,

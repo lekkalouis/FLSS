@@ -54,6 +54,15 @@ const MODULES = [
     tag: "Module"
   },
   {
+    id: "stockists",
+    title: "Stockists / Agents",
+    description: "Manage agent network, retailer directory, and per-agent SKU ranges.",
+    type: "route",
+    target: "/stockists",
+    meta: "Locator module",
+    tag: "Module"
+  },
+  {
     id: "price-manager",
     title: "Price Manager",
     description: "Update tier pricing and sync to Shopify metafields.",
