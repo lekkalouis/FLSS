@@ -1,0 +1,310 @@
+"Product variant code / SKU (required)","Product variant name","Product operation name (required)","Resource","Cost per hour","Hours","Minutes","Seconds"
+"TT001","Talinti Popcorn Sprinkle / Butter / 125ml","Fill Product","Filling Station","20.0000000000",0,0,5
+"TT001","Talinti Popcorn Sprinkle / Butter / 125ml","Apply base","Filling Station","20.0000000000",0,0,3
+"TT001","Talinti Popcorn Sprinkle / Butter / 125ml","Print BB & BN","Conveyor Inkjet Printer","20.0000000000",0,0,3
+"TT002","Talinti Popcorn Sprinkle / Butter / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT002","Talinti Popcorn Sprinkle / Butter / 500g","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT002","Talinti Popcorn Sprinkle / Butter / 500g","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT003","Talinti Popcorn Sprinkle / Butter / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT003","Talinti Popcorn Sprinkle / Butter / 1kg","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT003","Talinti Popcorn Sprinkle / Butter / 1kg","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT011","Talinti Popcorn Sprinkle / Sour Cream & Chives / 125ml","Fill Product","Filling Station","20.0000000000",0,0,5
+"TT011","Talinti Popcorn Sprinkle / Sour Cream & Chives / 125ml","Apply base","Filling Station","20.0000000000",0,0,3
+"TT011","Talinti Popcorn Sprinkle / Sour Cream & Chives / 125ml","Print BB & BN","Conveyor Inkjet Printer","20.0000000000",0,0,3
+"TT012","Talinti Popcorn Sprinkle / Sour Cream & Chives / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT012","Talinti Popcorn Sprinkle / Sour Cream & Chives / 500g","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT012","Talinti Popcorn Sprinkle / Sour Cream & Chives / 500g","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT013","Talinti Popcorn Sprinkle / Sour Cream & Chives / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT013","Talinti Popcorn Sprinkle / Sour Cream & Chives / 1kg","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT013","Talinti Popcorn Sprinkle / Sour Cream & Chives / 1kg","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT006","Talinti Popcorn Sprinkle / Salt & Vinegar / 125ml","Fill Product","Filling Station","20.0000000000",0,0,5
+"TT006","Talinti Popcorn Sprinkle / Salt & Vinegar / 125ml","Apply base","Filling Station","20.0000000000",0,0,3
+"TT006","Talinti Popcorn Sprinkle / Salt & Vinegar / 125ml","Print BB & BN","Conveyor Inkjet Printer","20.0000000000",0,0,3
+"TT007","Talinti Popcorn Sprinkle / Salt & Vinegar / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT007","Talinti Popcorn Sprinkle / Salt & Vinegar / 500g","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT007","Talinti Popcorn Sprinkle / Salt & Vinegar / 500g","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT008","Talinti Popcorn Sprinkle / Salt & Vinegar / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT008","Talinti Popcorn Sprinkle / Salt & Vinegar / 1kg","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT008","Talinti Popcorn Sprinkle / Salt & Vinegar / 1kg","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT031","Talinti Popcorn Sprinkle / Cheese / 125ml","Fill Product","Filling Station","20.0000000000",0,0,5
+"TT031","Talinti Popcorn Sprinkle / Cheese / 125ml","Apply base","Filling Station","20.0000000000",0,0,3
+"TT031","Talinti Popcorn Sprinkle / Cheese / 125ml","Print BB & BN","Conveyor Inkjet Printer","20.0000000000",0,0,3
+"TT032","Talinti Popcorn Sprinkle / Cheese / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT032","Talinti Popcorn Sprinkle / Cheese / 500g","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT032","Talinti Popcorn Sprinkle / Cheese / 500g","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT033","Talinti Popcorn Sprinkle / Cheese / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT033","Talinti Popcorn Sprinkle / Cheese / 1kg","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT033","Talinti Popcorn Sprinkle / Cheese / 1kg","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT026","Talinti Popcorn Sprinkle / Cheese & Onion / 125ml","Fill Product","Filling Station","20.0000000000",0,0,5
+"TT026","Talinti Popcorn Sprinkle / Cheese & Onion / 125ml","Apply base","Filling Station","20.0000000000",0,0,3
+"TT026","Talinti Popcorn Sprinkle / Cheese & Onion / 125ml","Print BB & BN","Conveyor Inkjet Printer","20.0000000000",0,0,3
+"TT027","Talinti Popcorn Sprinkle / Cheese & Onion / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT027","Talinti Popcorn Sprinkle / Cheese & Onion / 500g","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT027","Talinti Popcorn Sprinkle / Cheese & Onion / 500g","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT028","Talinti Popcorn Sprinkle / Cheese & Onion / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT028","Talinti Popcorn Sprinkle / Cheese & Onion / 1kg","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT028","Talinti Popcorn Sprinkle / Cheese & Onion / 1kg","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT021","Talinti Popcorn Sprinkle / Parmesan / 125ml","Fill Product","Filling Station","20.0000000000",0,0,5
+"TT021","Talinti Popcorn Sprinkle / Parmesan / 125ml","Apply base","Filling Station","20.0000000000",0,0,3
+"TT021","Talinti Popcorn Sprinkle / Parmesan / 125ml","Print BB & BN","Conveyor Inkjet Printer","20.0000000000",0,0,3
+"TT022","Talinti Popcorn Sprinkle / Parmesan / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT022","Talinti Popcorn Sprinkle / Parmesan / 500g","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT022","Talinti Popcorn Sprinkle / Parmesan / 500g","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT023","Talinti Popcorn Sprinkle / Parmesan / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT023","Talinti Popcorn Sprinkle / Parmesan / 1kg","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT023","Talinti Popcorn Sprinkle / Parmesan / 1kg","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT016","Talinti Popcorn Sprinkle / Chutney / 125ml","Fill Product","Filling Station","20.0000000000",0,0,5
+"TT016","Talinti Popcorn Sprinkle / Chutney / 125ml","Apply base","Filling Station","20.0000000000",0,0,3
+"TT016","Talinti Popcorn Sprinkle / Chutney / 125ml","Print BB & BN","Conveyor Inkjet Printer","20.0000000000",0,0,3
+"TT017","Talinti Popcorn Sprinkle / Chutney / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT017","Talinti Popcorn Sprinkle / Chutney / 500g","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT017","Talinti Popcorn Sprinkle / Chutney / 500g","Seal Product","Filling Station","20.0000000000",0,0,10
+"TT018","Talinti Popcorn Sprinkle / Chutney / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"TT018","Talinti Popcorn Sprinkle / Chutney / 1kg","Fill Product","Filling Station","20.0000000000",0,0,20
+"TT018","Talinti Popcorn Sprinkle / Chutney / 1kg","Seal Product","Filling Station","20.0000000000",0,0,10
+"LS-BUT","Labelled Shaker / Butter","Apply Top Label","Labelling Station","50.0000000000",0,0,15
+"LS-BUT","Labelled Shaker / Butter","Apply Front Label","Labelling Station","50.0000000000",0,0,5
+"LS-BUT","Labelled Shaker / Butter","Apply Lids To Shakers","Labelling Station","50.0000000000",0,0,5
+"LS-SCC","Labelled Shaker / Sour Cream & Chives","Apply Top Label","Labelling Station","50.0000000000",0,0,15
+"LS-SCC","Labelled Shaker / Sour Cream & Chives","Apply Front Label","Labelling Station","50.0000000000",0,0,5
+"LS-SCC","Labelled Shaker / Sour Cream & Chives","Apply Lids To Shakers","Labelling Station","50.0000000000",0,0,5
+"LS-SV","Labelled Shaker / Salt & Vinegar","Apply Top Label","Labelling Station","50.0000000000",0,0,15
+"LS-SV","Labelled Shaker / Salt & Vinegar","Apply Front Label","Labelling Station","50.0000000000",0,0,5
+"LS-SV","Labelled Shaker / Salt & Vinegar","Apply Lids To Shakers","Labelling Station","50.0000000000",0,0,5
+"LS-CHE","Labelled Shaker / Cheese","Apply Top Label","Labelling Station","50.0000000000",0,0,15
+"LS-CHE","Labelled Shaker / Cheese","Apply Front Label","Labelling Station","50.0000000000",0,0,5
+"LS-CHE","Labelled Shaker / Cheese","Apply Lids To Shakers","Labelling Station","50.0000000000",0,0,5
+"LS-CHO","Labelled Shaker / Cheese & Onion","Apply Top Label","Labelling Station","50.0000000000",0,0,15
+"LS-CHO","Labelled Shaker / Cheese & Onion","Apply Front Label","Labelling Station","50.0000000000",0,0,5
+"LS-CHO","Labelled Shaker / Cheese & Onion","Apply Lids To Shakers","Labelling Station","50.0000000000",0,0,5
+"LS-PAR","Labelled Shaker / Parmesan","Apply Top Label","Labelling Station","50.0000000000",0,0,15
+"LS-PAR","Labelled Shaker / Parmesan","Apply Front Label","Labelling Station","50.0000000000",0,0,5
+"LS-PAR","Labelled Shaker / Parmesan","Apply Lids To Shakers","Labelling Station","50.0000000000",0,0,5
+"LS-CHUT","Labelled Shaker / Chutney","Apply Top Label","Labelling Station","50.0000000000",0,0,15
+"LS-CHUT","Labelled Shaker / Chutney","Apply Front Label","Labelling Station","50.0000000000",0,0,5
+"LS-CHUT","Labelled Shaker / Chutney","Apply Lids To Shakers","Labelling Station","50.0000000000",0,0,5
+"FL-PCAP-O","Printed Flip Lid Caps / Orange","Print BB & BN","Conveyor Inkjet Printer","50.0000000000",0,0,2
+"FL-PCAP-R","Printed Flip Lid Caps / Red","Print BB & BN","Conveyor Inkjet Printer","50.0000000000",0,0,2
+"FL-PCAP-M","Printed Flip Lid Caps / Maroon","Print BB & BN","Conveyor Inkjet Printer","50.0000000000",0,0,2
+"FL-PCAP-P","Printed Flip Lid Caps / Purple","Print BB & BN","Conveyor Inkjet Printer","50.0000000000",0,0,2
+"FL-PCAP-LB","Printed Flip Lid Caps / Blue","Print BB & BN","Conveyor Inkjet Printer","50.0000000000",0,0,2
+"FL-PCAP-BRN","Printed Flip Lid Caps / Brown","Print BB & BN","Conveyor Inkjet Printer","50.0000000000",0,0,2
+"FL-PCAP-GRN","Printed Flip Lid Caps / Green","Print BB & BN","Conveyor Inkjet Printer","50.0000000000",0,0,2
+"FL001","Flippen Lekka Spice / Original Multi Purpose / 100ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL001","Flippen Lekka Spice / Original Multi Purpose / 100ml","Fill Product","Filling Station","30.0000000000",0,0,6
+"FL002","Flippen Lekka Spice / Original Multi Purpose / 200ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL002","Flippen Lekka Spice / Original Multi Purpose / 200ml","Fill Product","Filling Machine","30.0000000000",0,0,4
+"FL003","Flippen Lekka Spice / Original Multi Purpose / 500g","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL003","Flippen Lekka Spice / Original Multi Purpose / 500g","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL003","Flippen Lekka Spice / Original Multi Purpose / 500g","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL004","Flippen Lekka Spice / Original Multi Purpose / 1kg","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL004","Flippen Lekka Spice / Original Multi Purpose / 1kg","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL004","Flippen Lekka Spice / Original Multi Purpose / 1kg","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL007","Flippen Lekka Spice / Hot & Spicy / 100ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL007","Flippen Lekka Spice / Hot & Spicy / 100ml","Fill Product","Filling Station","30.0000000000",0,0,6
+"FL008","Flippen Lekka Spice / Hot & Spicy / 200ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL008","Flippen Lekka Spice / Hot & Spicy / 200ml","Fill Product","Filling Machine","30.0000000000",0,0,4
+"FL009","Flippen Lekka Spice / Hot & Spicy / 500g","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL009","Flippen Lekka Spice / Hot & Spicy / 500g","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL009","Flippen Lekka Spice / Hot & Spicy / 500g","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL010","Flippen Lekka Spice / Hot & Spicy / 1kg","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL010","Flippen Lekka Spice / Hot & Spicy / 1kg","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL010","Flippen Lekka Spice / Hot & Spicy / 1kg","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL013","Flippen Lekka Spice / Worcester Sauce Spice / 100ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL013","Flippen Lekka Spice / Worcester Sauce Spice / 100ml","Fill Product","Filling Station","30.0000000000",0,0,6
+"FL014","Flippen Lekka Spice / Worcester Sauce Spice / 200ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL014","Flippen Lekka Spice / Worcester Sauce Spice / 200ml","Fill Product","Filling Machine","30.0000000000",0,0,4
+"FL015","Flippen Lekka Spice / Worcester Sauce Spice / 500g","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL015","Flippen Lekka Spice / Worcester Sauce Spice / 500g","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL015","Flippen Lekka Spice / Worcester Sauce Spice / 500g","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL016","Flippen Lekka Spice / Worcester Sauce Spice / 1kg","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL016","Flippen Lekka Spice / Worcester Sauce Spice / 1kg","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL016","Flippen Lekka Spice / Worcester Sauce Spice / 1kg","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL025","Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 100ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL025","Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 100ml","Fill Product","Filling Machine","30.0000000000",0,0,5
+"FL026","Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 200ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL026","Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 200ml","Fill Product","Filling Machine","30.0000000000",0,0,5
+"FL027","Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 500g","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL027","Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 500g","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL027","Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 500g","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL028","Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 1kg","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL028","Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 1kg","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL028","Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 1kg","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL032","Flippen Lekka Spice / Curry Mix / 500g","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL032","Flippen Lekka Spice / Curry Mix / 500g","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL032","Flippen Lekka Spice / Curry Mix / 500g","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL033","Flippen Lekka Spice / Curry Mix / 1kg","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL033","Flippen Lekka Spice / Curry Mix / 1kg","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL033","Flippen Lekka Spice / Curry Mix / 1kg","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL034","Flippen Lekka Spice / Chutney Sprinkle / 100ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL034","Flippen Lekka Spice / Chutney Sprinkle / 100ml","Fill Product","Filling Machine","30.0000000000",0,0,5
+"FL035","Flippen Lekka Spice / Chutney Sprinkle / 200ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL035","Flippen Lekka Spice / Chutney Sprinkle / 200ml","Fill Product","Filling Machine","30.0000000000",0,0,5
+"FL036","Flippen Lekka Spice / Chutney Sprinkle / 500g","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL036","Flippen Lekka Spice / Chutney Sprinkle / 500g","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL036","Flippen Lekka Spice / Chutney Sprinkle / 500g","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL037","Flippen Lekka Spice / Chutney Sprinkle / 1kg","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL037","Flippen Lekka Spice / Chutney Sprinkle / 1kg","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL037","Flippen Lekka Spice / Chutney Sprinkle / 1kg","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL038","Flippen Lekka Spice / Savoury Herb Mix / 200ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL039","Flippen Lekka Spice / Savoury Herb Mix / 500g","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL039","Flippen Lekka Spice / Savoury Herb Mix / 500g","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL039","Flippen Lekka Spice / Savoury Herb Mix / 500g","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL040","Flippen Lekka Spice / Savoury Herb Mix / 1kg","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL040","Flippen Lekka Spice / Savoury Herb Mix / 1kg","Seal Product","Sealing Station","30.0000000000",0,0,20
+"FL040","Flippen Lekka Spice / Savoury Herb Mix / 1kg","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL-BLEND-MP","Blended Spice / Original Multi Purpose","Mix Blend","Mixing Station","20.0000000000",0,0,15
+"FL-LVB-MP-500","Flippen Lekka - Labelled Vacuum Bag / Original Multi Purpose / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-MP-500","Flippen Lekka - Labelled Vacuum Bag / Original Multi Purpose / 500g","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-MP-1K","Flippen Lekka - Labelled Vacuum Bag / Original Multi Purpose / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-MP-1K","Flippen Lekka - Labelled Vacuum Bag / Original Multi Purpose / 1kg","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-H-500","Flippen Lekka - Labelled Vacuum Bag / Hot & Spicy / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-H-500","Flippen Lekka - Labelled Vacuum Bag / Hot & Spicy / 500g","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-H-1K","Flippen Lekka - Labelled Vacuum Bag / Hot & Spicy / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-H-1K","Flippen Lekka - Labelled Vacuum Bag / Hot & Spicy / 1kg","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-WS-500","Flippen Lekka - Labelled Vacuum Bag / Worcester Sauce Spice / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-WS-500","Flippen Lekka - Labelled Vacuum Bag / Worcester Sauce Spice / 500g","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-WS-1K","Flippen Lekka - Labelled Vacuum Bag / Worcester Sauce Spice / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-WS-1K","Flippen Lekka - Labelled Vacuum Bag / Worcester Sauce Spice / 1kg","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-RG-500","Flippen Lekka - Labelled Vacuum Bag / Red Wine & Garlic Sprinkle / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-RG-500","Flippen Lekka - Labelled Vacuum Bag / Red Wine & Garlic Sprinkle / 500g","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-RG-1K","Flippen Lekka - Labelled Vacuum Bag / Red Wine & Garlic Sprinkle / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-RG-1K","Flippen Lekka - Labelled Vacuum Bag / Red Wine & Garlic Sprinkle / 1kg","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-CM-500","Flippen Lekka - Labelled Vacuum Bag / Curry Mix / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-CM-500","Flippen Lekka - Labelled Vacuum Bag / Curry Mix / 500g","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-CM-1K","Flippen Lekka - Labelled Vacuum Bag / Curry Mix / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-CM-1K","Flippen Lekka - Labelled Vacuum Bag / Curry Mix / 1kg","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-CS-500","Flippen Lekka - Labelled Vacuum Bag / Chutney Sprinkle / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-CS-500","Flippen Lekka - Labelled Vacuum Bag / Chutney Sprinkle / 500g","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-CS-1K","Flippen Lekka - Labelled Vacuum Bag / Chutney Sprinkle / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-CS-1K","Flippen Lekka - Labelled Vacuum Bag / Chutney Sprinkle / 1kg","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-SH-500","Flippen Lekka - Labelled Vacuum Bag / Savoury Herb Mix / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-SH-500","Flippen Lekka - Labelled Vacuum Bag / Savoury Herb Mix / 500g","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"FL-LVB-SH-1K","Flippen Lekka - Labelled Vacuum Bag / Savoury Herb Mix / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL-LVB-SH-1K","Flippen Lekka - Labelled Vacuum Bag / Savoury Herb Mix / 1kg","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"HEN-LVB-1K","Flippen Lekka - Labelled Vacuum Bag / Biejie Blaf / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"HEN-LVB-1K","Flippen Lekka - Labelled Vacuum Bag / Biejie Blaf / 1kg","Apply Batch & Best Before Label","Labelling Station","50.0000000000",0,0,5
+"RRBB","Hennies Bietjie Blaf Spice / 200ml","Fill Product","Filling Station","20.0000000000",0,0,4
+"RRBB","Hennies Bietjie Blaf Spice / 200ml","Pack for Storage",,"20.0000000000",0,0,1
+"RRBB1KG","Hennies Bietjie Blaf Spice / 1kg","Seal Product","Sealing Station","20.0000000000",0,0,10
+"RRBB1KG","Hennies Bietjie Blaf Spice / 1kg","Pack for Storage",,"20.0000000000",0,0,1
+"RRBB1KG","Hennies Bietjie Blaf Spice / 1kg","Fill Product","Filling Station","20.0000000000",0,0,30
+"FL-BLEND-HOT","Blended Spice / Hot & Spicy","Mix Blend","Mixing Station","20.0000000000",0,0,15
+"FL-BLEND-SH","Blended Spice / Savoury Herb Mix","Mix Blend","Mixing Station","20.0000000000",0,0,15
+"LB-MP-100","Labelled Bottle / Original Multi Purpose / 100ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"FL005","Flippen Lekka Spice / Original Multi Purpose / 750g","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL005","Flippen Lekka Spice / Original Multi Purpose / 750g","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL011","Flippen Lekka Spice / Hot & Spicy / 750g","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL011","Flippen Lekka Spice / Hot & Spicy / 750g","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL031","Flippen Lekka Spice / Curry Mix / 250ml","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"FL031","Flippen Lekka Spice / Curry Mix / 250ml","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL031","Flippen Lekka Spice / Curry Mix / 250ml","Print BB & BN","Conveyor Inkjet Printer","50.0000000000",0,0,2
+"LVB-BUT-500","Talinti Labelled Vacuum Bag / Butter / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-BUT-1K","Talinti Labelled Vacuum Bag / Butter / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-SCC-500","Talinti Labelled Vacuum Bag / Sour Cream & Chives / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-SCC-1K","Talinti Labelled Vacuum Bag / Sour Cream & Chives / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-SV-500","Talinti Labelled Vacuum Bag / Salt & Vinegar / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-SV-1K","Talinti Labelled Vacuum Bag / Salt & Vinegar / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-CHE-500","Talinti Labelled Vacuum Bag / Cheese / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-CHE-1K","Talinti Labelled Vacuum Bag / Cheese / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-CHO-500","Talinti Labelled Vacuum Bag / Cheese & Onion / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-CHO-1K","Talinti Labelled Vacuum Bag / Cheese & Onion / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-PAR-500","Talinti Labelled Vacuum Bag / Parmesan / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-PAR-1K","Talinti Labelled Vacuum Bag / Parmesan / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-CHU-500","Talinti Labelled Vacuum Bag / Chutney / 500g","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LVB-CHU-1K","Talinti Labelled Vacuum Bag / Chutney / 1kg","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-MP-200","Labelled Bottle / Original Multi Purpose / 200ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-H-100","Labelled Bottle / Hot & Spicy / 100ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-H-200","Labelled Bottle / Hot & Spicy / 200ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-WS-100","Labelled Bottle / Worcester Sauce Spice / 100ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-WS-200","Labelled Bottle / Worcester Sauce Spice / 200ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-RG-100","Labelled Bottle / Red Wine & Garlic Sprinkle / 100ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-RG-200","Labelled Bottle / Red Wine & Garlic Sprinkle / 200ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-CS-100","Labelled Bottle / Chutney Sprinkle / 100ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-CS-200","Labelled Bottle / Chutney Sprinkle / 200ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-SH-200","Labelled Bottle / Savoury Herb Mix / 200ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LB-BB-200","Labelled Bottle / Biejie Blaf / 200ml","Apply Label","Labelling Station","20.0000000000",0,0,5
+"LT-MP-750","Labelled Tub / Original Multi Purpose / 750g","Apply Label","Labelling Station","50.0000000000",0,0,10
+"LT-H-750","Labelled Tub / Hot & Spicy / 750g","Apply Label","Labelling Station","50.0000000000",0,0,10
+"LT-WS-750","Labelled Tub / Worcester Sauce Spice / 750g","Apply Label","Labelling Station","50.0000000000",0,0,10
+"LT-RG-750","Labelled Tub / Red Wine & Garlic Sprinkle / 750g","Apply Label","Labelling Station","50.0000000000",0,0,10
+"LT-CS-750","Labelled Tub / Chutney Sprinkle / 750g","Apply Label","Labelling Station","50.0000000000",0,0,10
+"FL-BLEND-CM","Blended Spice / Curry Mix","Mix Blend","Mixing Station","20.0000000000",0,0,30
+"HEN-BLEND-BB","Blended Spice / Bietjie Blaf","Mix Blend","Mixing Station","20.0000000000",0,0,30
+"FL017","Flippen Lekka Spice / Worcester Sauce Spice / 750g","Fill Product","Filling Station","30.0000000000",0,0,20
+"FL017","Flippen Lekka Spice / Worcester Sauce Spice / 750g","Pack for Storage","Packaging Station","30.0000000000",0,0,2
+"LT-CM","Labelled Tub / Curry Mix / 250ml","Apply Label","Labelling Station","50.0000000000",0,0,7
+"LT-CM","Labelled Tub / Curry Mix / 250ml","Pack for Storage","Labelling Station","50.0000000000",0,0,2
+"LT-CM","Labelled Tub / Curry Mix / 250ml","Prep for printing BB & BN","Labelling Station","50.0000000000",0,0,2
+"FL002-12","12 Pack Flippen Lekka Spice / Original Multi Purpose / 200ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL002-12","12 Pack Flippen Lekka Spice / Original Multi Purpose / 200ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL002-12","12 Pack Flippen Lekka Spice / Original Multi Purpose / 200ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL002-12","12 Pack Flippen Lekka Spice / Original Multi Purpose / 200ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL001-12","12 Pack Flippen Lekka Spice / Original Multi Purpose / 100ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL001-12","12 Pack Flippen Lekka Spice / Original Multi Purpose / 100ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL001-12","12 Pack Flippen Lekka Spice / Original Multi Purpose / 100ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL001-12","12 Pack Flippen Lekka Spice / Original Multi Purpose / 100ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL008-12","12 Pack Flippen Lekka Spice / Hot & Spicy / 200ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL008-12","12 Pack Flippen Lekka Spice / Hot & Spicy / 200ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL008-12","12 Pack Flippen Lekka Spice / Hot & Spicy / 200ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL008-12","12 Pack Flippen Lekka Spice / Hot & Spicy / 200ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL007-12","12 Pack Flippen Lekka Spice / Hot & Spicy / 100ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL007-12","12 Pack Flippen Lekka Spice / Hot & Spicy / 100ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL007-12","12 Pack Flippen Lekka Spice / Hot & Spicy / 100ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL007-12","12 Pack Flippen Lekka Spice / Hot & Spicy / 100ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL014-12","12 Pack Flippen Lekka Spice / Worcester Sauce Spice / 200ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL014-12","12 Pack Flippen Lekka Spice / Worcester Sauce Spice / 200ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL014-12","12 Pack Flippen Lekka Spice / Worcester Sauce Spice / 200ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL014-12","12 Pack Flippen Lekka Spice / Worcester Sauce Spice / 200ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL013-12","12 Pack Flippen Lekka Spice / Worcester Sauce Spice / 100ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL013-12","12 Pack Flippen Lekka Spice / Worcester Sauce Spice / 100ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL013-12","12 Pack Flippen Lekka Spice / Worcester Sauce Spice / 100ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL013-12","12 Pack Flippen Lekka Spice / Worcester Sauce Spice / 100ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL026-12","12 Pack Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 200ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL026-12","12 Pack Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 200ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL026-12","12 Pack Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 200ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL026-12","12 Pack Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 200ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL025-12","12 Pack Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 100ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL025-12","12 Pack Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 100ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL025-12","12 Pack Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 100ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL025-12","12 Pack Flippen Lekka Spice / Red Wine & Garlic Sprinkle / 100ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL031-12","12 Pack Flippen Lekka Spice / Curry Mix / 250ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL031-12","12 Pack Flippen Lekka Spice / Curry Mix / 250ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL031-12","12 Pack Flippen Lekka Spice / Curry Mix / 250ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL031-12","12 Pack Flippen Lekka Spice / Curry Mix / 250ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL035-12","12 Pack Flippen Lekka Spice / Chutney Sprinkle / 200ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL035-12","12 Pack Flippen Lekka Spice / Chutney Sprinkle / 200ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL035-12","12 Pack Flippen Lekka Spice / Chutney Sprinkle / 200ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL035-12","12 Pack Flippen Lekka Spice / Chutney Sprinkle / 200ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL034-12","12 Pack Flippen Lekka Spice / Chutney Sprinkle / 100ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL034-12","12 Pack Flippen Lekka Spice / Chutney Sprinkle / 100ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL034-12","12 Pack Flippen Lekka Spice / Chutney Sprinkle / 100ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL034-12","12 Pack Flippen Lekka Spice / Chutney Sprinkle / 100ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"FL038-12","12 Pack Flippen Lekka Spice / Savoury Herb Mix / 200ml","Prep new box - (Tape Bottom)","Packaging Station","50.0000000000",0,0,10
+"FL038-12","12 Pack Flippen Lekka Spice / Savoury Herb Mix / 200ml","Pack Box with individual units","Packaging Station","50.0000000000",0,0,20
+"FL038-12","12 Pack Flippen Lekka Spice / Savoury Herb Mix / 200ml","Seal Box","Packaging Station","50.0000000000",0,0,10
+"FL038-12","12 Pack Flippen Lekka Spice / Savoury Herb Mix / 200ml","Apply Box Label with batch details","Packaging Station","50.0000000000",0,0,3
+"TT01-12","12 Pack Talinti Popcorn Sprinkle / Butter","Make Up Boxes","Packaging Station","50.0000000000",0,0,15
+"TT01-12","12 Pack Talinti Popcorn Sprinkle / Butter","Pack Items in Box","Packaging Station","50.0000000000",0,0,15
+"TT01-12","12 Pack Talinti Popcorn Sprinkle / Butter","Seal Box","Packaging Station","50.0000000000",0,0,10
+"TT011-12","12 Pack Talinti Popcorn Sprinkle / Sour Cream & Chives","Make Up Boxes","Packaging Station","50.0000000000",0,0,15
+"TT011-12","12 Pack Talinti Popcorn Sprinkle / Sour Cream & Chives","Pack Items in Box","Packaging Station","50.0000000000",0,0,15
+"TT011-12","12 Pack Talinti Popcorn Sprinkle / Sour Cream & Chives","Seal Box","Packaging Station","50.0000000000",0,0,10
+"TT06-12","12 Pack Talinti Popcorn Sprinkle / Salt & Vinegar","Make Up Boxes","Packaging Station","50.0000000000",0,0,15
+"TT06-12","12 Pack Talinti Popcorn Sprinkle / Salt & Vinegar","Pack Items in Box","Packaging Station","50.0000000000",0,0,15
+"TT06-12","12 Pack Talinti Popcorn Sprinkle / Salt & Vinegar","Seal Box","Packaging Station","50.0000000000",0,0,10
+"TT031-12","12 Pack Talinti Popcorn Sprinkle / Cheese","Make Up Boxes","Packaging Station","50.0000000000",0,0,15
+"TT031-12","12 Pack Talinti Popcorn Sprinkle / Cheese","Pack Items in Box","Packaging Station","50.0000000000",0,0,15
+"TT031-12","12 Pack Talinti Popcorn Sprinkle / Cheese","Seal Box","Packaging Station","50.0000000000",0,0,10
+"TT026-12","12 Pack Talinti Popcorn Sprinkle / Cheese & Onion","Make Up Boxes","Packaging Station","50.0000000000",0,0,15
+"TT026-12","12 Pack Talinti Popcorn Sprinkle / Cheese & Onion","Pack Items in Box","Packaging Station","50.0000000000",0,0,15
+"TT026-12","12 Pack Talinti Popcorn Sprinkle / Cheese & Onion","Seal Box","Packaging Station","50.0000000000",0,0,10
+"TT021-12","12 Pack Talinti Popcorn Sprinkle / Parmesan","Make Up Boxes","Packaging Station","50.0000000000",0,0,15
+"TT021-12","12 Pack Talinti Popcorn Sprinkle / Parmesan","Pack Items in Box","Packaging Station","50.0000000000",0,0,15
+"TT021-12","12 Pack Talinti Popcorn Sprinkle / Parmesan","Seal Box","Packaging Station","50.0000000000",0,0,10
+"TT016-12","12 Pack Talinti Popcorn Sprinkle / Chutney","Make Up Boxes","Packaging Station","50.0000000000",0,0,15
+"TT016-12","12 Pack Talinti Popcorn Sprinkle / Chutney","Pack Items in Box","Packaging Station","50.0000000000",0,0,15
+"TT016-12","12 Pack Talinti Popcorn Sprinkle / Chutney","Seal Box","Packaging Station","50.0000000000",0,0,10
+"GIFTP","Flippen Lekka Gift Pack","Make Up Boxes","Packaging Station","50.0000000000",0,1,0
+"GIFTP","Flippen Lekka Gift Pack","Pack Items in Box","Packaging Station","50.0000000000",0,1,0
+"GIFTP","Flippen Lekka Gift Pack","Seal Box","Packaging Station","50.0000000000",0,1,0
