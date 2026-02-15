@@ -99,6 +99,10 @@ Default local base URL: `http://localhost:3000/api/v1`
   - `GET /pp/place?q=...`
 - **PrintNode**
   - `POST /printnode/print`
+- **Customer docs + mail**
+  - `GET /customer-docs?email=&name=&orderNo=`
+  - `POST /customer-docs/email`
+  - `POST /customer-docs/print`
 - **Shopify (selected groups)**
   - customers, products, orders, draft orders, fulfillments, inventory, notifications
 - **Alerts**
@@ -142,6 +146,9 @@ SMTP_USER=...
 SMTP_PASS=...
 SMTP_FROM=ops@example.com
 TRUCK_EMAIL_TO=dispatch@example.com
+
+# Customer documents directory (Flow/Bullzip outputs)
+CUSTOMER_DOCS_DIR=C:/Bullzip/PDF
 
 # UI tuning
 UI_BOOKING_IDLE_MS=6000
