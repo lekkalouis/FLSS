@@ -4194,6 +4194,16 @@ async function startOrder(orderNo) {
     navToggle?.setAttribute("aria-expanded", collapsed ? "false" : "true");
   }
 
+  function isCompactViewport() {
+    return window.matchMedia("(max-width: 1080px)").matches;
+  }
+
+  function autoCollapseNavOnMobile() {
+    if (!isCompactViewport()) return;
+    setNavCollapsed(true);
+    localStorage.setItem(NAV_COLLAPSE_KEY, "true");
+  }
+
   if (navToggle) {
     const stored = localStorage.getItem(NAV_COLLAPSE_KEY);
     if (stored === "true") {
@@ -4314,6 +4324,7 @@ async function startOrder(orderNo) {
     if (!route) return;
     event.preventDefault();
     navigateTo(route);
+    autoCollapseNavOnMobile();
   });
 
   modeToggle?.addEventListener("click", () => {
