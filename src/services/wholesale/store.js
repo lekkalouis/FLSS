@@ -5,7 +5,12 @@ const DATA_PATH = path.join(process.cwd(), "data", "wholesale-automation.json");
 
 const defaultState = {
   templates: [],
-  discountProfiles: []
+  discountProfiles: [],
+  printHistory: [],
+  printSettings: {
+    titlePrefix: "",
+    copies: 1
+  }
 };
 
 async function ensureStoreFile() {
@@ -29,7 +34,12 @@ export async function readWholesaleStore() {
     ...defaultState,
     ...parsed,
     templates: Array.isArray(parsed?.templates) ? parsed.templates : [],
-    discountProfiles: Array.isArray(parsed?.discountProfiles) ? parsed.discountProfiles : []
+    discountProfiles: Array.isArray(parsed?.discountProfiles) ? parsed.discountProfiles : [],
+    printHistory: Array.isArray(parsed?.printHistory) ? parsed.printHistory : [],
+    printSettings: {
+      titlePrefix: String(parsed?.printSettings?.titlePrefix || ""),
+      copies: Math.max(1, Number(parsed?.printSettings?.copies || 1))
+    }
   };
 }
 
@@ -139,4 +149,48 @@ export async function deleteDiscountProfile(profileId) {
   state.discountProfiles = state.discountProfiles.filter((item) => item.id !== profileId);
   await writeWholesaleStore(state);
   return initial !== state.discountProfiles.length;
+}
+
+export async function getPrintSettings() {
+  const state = await readWholesaleStore();
+  return state.printSettings;
+}
+
+export async function upsertPrintSettings(input = {}) {
+  const state = await readWholesaleStore();
+  state.printSettings = {
+    titlePrefix: String(input.titlePrefix || "").trim(),
+    copies: Math.max(1, Number(input.copies || 1))
+  };
+  await writeWholesaleStore(state);
+  return state.printSettings;
+}
+
+export async function listPrintHistory() {
+  const state = await readWholesaleStore();
+  return [...state.printHistory].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
+export async function createPrintHistoryEntry(input = {}) {
+  const state = await readWholesaleStore();
+  const now = new Date().toISOString();
+  const entry = {
+    id: input.id || buildId("print"),
+    mode: String(input.mode || "template"),
+    templateId: input.templateId ? String(input.templateId) : null,
+    templateName: input.templateName ? String(input.templateName) : null,
+    title: String(input.title || "Print Job"),
+    contentType: input.contentType === "pdf_uri" ? "pdf_uri" : "raw_base64",
+    content: String(input.content || ""),
+    copies: Math.max(1, Number(input.copies || 1)),
+    createdAt: now
+  };
+  state.printHistory = [entry, ...(Array.isArray(state.printHistory) ? state.printHistory : [])].slice(0, 200);
+  await writeWholesaleStore(state);
+  return entry;
+}
+
+export async function getPrintHistoryEntry(printId) {
+  const state = await readWholesaleStore();
+  return (state.printHistory || []).find((entry) => entry.id === printId) || null;
 }

@@ -101,6 +101,7 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
   const navFlocs = $("navFlocs");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
+  const navPrintStation = $("navPrintStation");
   const navTraceability = $("navTraceability");
   const navStockists = $("navStockists");
   const navYearPlanner = $("navYearPlanner");
@@ -115,6 +116,7 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
+  const viewPrintStation = $("viewPrintStation");
   const viewTraceability = $("viewTraceability");
   const viewStockists = $("viewStockists");
   const viewYearPlanner = $("viewYearPlanner");
@@ -3938,6 +3940,7 @@ async function startOrder(orderNo) {
     const showFlocs = view === "flocs";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
+    const showPrintStation = view === "print-station";
     const showTraceability = view === "traceability";
     const showStockists = view === "stockists";
     const showYearPlanner = view === "year-planner";
@@ -3982,6 +3985,10 @@ async function startOrder(orderNo) {
       viewPriceManager.hidden = !showPriceManager;
       viewPriceManager.classList.toggle("flView--active", showPriceManager);
     }
+    if (viewPrintStation) {
+      viewPrintStation.hidden = !showPrintStation;
+      viewPrintStation.classList.toggle("flView--active", showPrintStation);
+    }
     if (viewTraceability) {
       viewTraceability.hidden = !showTraceability;
       viewTraceability.classList.toggle("flView--active", showTraceability);
@@ -4005,6 +4012,7 @@ async function startOrder(orderNo) {
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
+    navPrintStation?.classList.toggle("flNavBtn--active", showPrintStation);
     navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
     navStockists?.classList.toggle("flNavBtn--active", showStockists);
     navYearPlanner?.classList.toggle("flNavBtn--active", showYearPlanner);
@@ -4018,6 +4026,7 @@ async function startOrder(orderNo) {
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
+    navPrintStation?.setAttribute("aria-selected", showPrintStation ? "true" : "false");
     navTraceability?.setAttribute("aria-selected", showTraceability ? "true" : "false");
     navStockists?.setAttribute("aria-selected", showStockists ? "true" : "false");
     navYearPlanner?.setAttribute("aria-selected", showYearPlanner ? "true" : "false");
@@ -4045,6 +4054,8 @@ async function startOrder(orderNo) {
       statusExplain("Inventory control ready.", "info");
     } else if (showPriceManager) {
       statusExplain("Pricing control center ready.", "info");
+    } else if (showPrintStation) {
+      statusExplain("Print station ready.", "info");
     } else if (showTraceability) {
       statusExplain("Traceability tools ready.", "info");
     } else if (showStockists) {
@@ -4068,6 +4079,7 @@ async function startOrder(orderNo) {
     ["/flocs", "flocs"],
     ["/stock", "stock"],
     ["/price-manager", "price-manager"],
+    ["/print-station", "print-station"],
     ["/traceability", "traceability"],
     ["/stockists", "stockists"],
     ["/year-planner", "year-planner"]
@@ -4084,6 +4096,7 @@ async function startOrder(orderNo) {
     flocs: "/flocs",
     stock: "/stock",
     "price-manager": "/price-manager",
+    "print-station": "/print-station",
     traceability: "/traceability",
     stockists: "/stockists",
     "year-planner": "/year-planner"
@@ -4092,10 +4105,8 @@ async function startOrder(orderNo) {
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
-    "price-manager": () => {
-      initPriceManagerView();
-      initWholesaleAutomationView();
-    },
+    "price-manager": initPriceManagerView,
+    "print-station": initWholesaleAutomationView,
     traceability: initTraceabilityView,
     stockists: initStockistsView,
     "year-planner": initYearPlannerView

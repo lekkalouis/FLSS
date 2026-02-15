@@ -2410,6 +2410,7 @@
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Sales Order Workbench</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Inventory Control</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Pricing Control Center</span></button>
+            <button id="navPrintStation" class="flNavBtn" type="button" role="tab" aria-controls="viewPrintStation" aria-selected="false" data-route="/print-station"><span class="flNavBtnIcon" aria-hidden="true">🖨️</span><span class="flNavBtnText">Print Station</span></button>
             <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
             <button id="navStockists" class="flNavBtn" type="button" role="tab" aria-controls="viewStockists" aria-selected="false" data-route="/stockists"><span class="flNavBtnIcon" aria-hidden="true">📍</span><span class="flNavBtnText">Distribution Network</span></button>
             <button id="navYearPlanner" class="flNavBtn" type="button" role="tab" aria-controls="viewYearPlanner" aria-selected="false" data-route="/year-planner"><span class="flNavBtnIcon" aria-hidden="true">🗓️</span><span class="flNavBtnText">Year Planner</span></button>
@@ -3575,31 +3576,6 @@
           <section class="wa-shell" aria-label="Wholesale automation">
             <div class="wa-grid">
               <article class="wa-card">
-                <h3>Print Template Studio</h3>
-                <input id="waTemplateName" type="text" placeholder="Template name" />
-                <input id="waTemplateDesc" type="text" placeholder="Description" />
-                <select id="waTemplateType">
-                  <option value="raw_base64">Raw text label (raw_base64)</option>
-                  <option value="pdf_uri">Hosted PDF URL (pdf_uri)</option>
-                </select>
-                <textarea id="waTemplateContent" rows="8" placeholder="Use tokens like {{order_number}}"></textarea>
-                <div class="wa-actions">
-                  <button id="waTemplateSave" type="button">Save template</button>
-                  <button id="waTemplatePreviewBtn" type="button">Preview</button>
-                  <button id="waTemplatePrint" type="button">Print sample</button>
-                </div>
-                <div id="waTemplateStatus" class="wa-status">Create templates for packing slips, invoices, and pick tickets.</div>
-              </article>
-              <article class="wa-card">
-                <h3>Templates</h3>
-                <div id="waTemplateList" class="wa-list"></div>
-                <h3 style="margin-top:1rem;">Rendered preview</h3>
-                <pre id="waTemplatePreview" class="wa-preview">Preview output will appear here.</pre>
-              </article>
-            </div>
-
-            <div class="wa-grid">
-              <article class="wa-card">
                 <h3>Automatic Wholesale Discounts</h3>
                 <input id="waProfileName" type="text" placeholder="Profile name (e.g. Wholesale Tier 2)" />
                 <input id="waProfileTags" type="text" placeholder="Customer tags (comma separated)" />
@@ -3632,6 +3608,77 @@ Example:
         <div id="pmToast" class="pm-toast"></div>
     </div>
   </div>
+
+    <div class="flView" id="viewPrintStation" hidden>
+      <div class="pm-shell">
+        <header class="pm-header">
+          <div class="pm-titleBlock">
+            <div class="pm-title">Print Station</div>
+            <div class="pm-sub">Manage templates, print settings, history, and quick reprints from one workspace.</div>
+          </div>
+        </header>
+
+        <section class="wa-shell" aria-label="Print station">
+          <div class="wa-grid">
+            <article class="wa-card">
+              <h3>Print Template Studio</h3>
+              <input id="waTemplateName" type="text" placeholder="Template name" />
+              <input id="waTemplateDesc" type="text" placeholder="Description" />
+              <select id="waTemplateType">
+                <option value="raw_base64">Raw text label (raw_base64)</option>
+                <option value="pdf_uri">Hosted PDF URL (pdf_uri)</option>
+              </select>
+              <textarea id="waTemplateContent" rows="8" placeholder="Use tokens like {{order_number}}"></textarea>
+              <div class="wa-actions">
+                <button id="waTemplateSave" type="button">Save template</button>
+                <button id="waTemplatePreviewBtn" type="button">Preview</button>
+                <button id="waTemplatePrint" type="button">Print sample</button>
+              </div>
+              <div id="waTemplateStatus" class="wa-status">Create templates for packing slips, invoices, and pick tickets.</div>
+            </article>
+            <article class="wa-card">
+              <h3>Templates</h3>
+              <div id="waTemplateList" class="wa-list"></div>
+              <h3 style="margin-top:1rem;">Rendered preview</h3>
+              <pre id="waTemplatePreview" class="wa-preview">Preview output will appear here.</pre>
+            </article>
+          </div>
+
+          <div class="wa-grid">
+            <article class="wa-card">
+              <h3>General Printing Settings</h3>
+              <input id="waPrintTitlePrefix" type="text" placeholder="Job title prefix" />
+              <input id="waPrintCopies" type="number" min="1" step="1" placeholder="Default copies" />
+              <div class="wa-actions">
+                <button id="waPrintSettingsSave" type="button">Save settings</button>
+              </div>
+              <div id="waPrintSettingsStatus" class="wa-status">Default print options are applied to template and drag-and-drop jobs.</div>
+            </article>
+
+            <article class="wa-card">
+              <h3>Drag &amp; Drop to Print</h3>
+              <div id="waDropZone" class="wa-dropZone">Drop a PDF file here to send it to PrintNode.</div>
+              <div id="waDropStatus" class="wa-status">Waiting for a PDF file.</div>
+            </article>
+          </div>
+
+          <div class="wa-grid">
+            <article class="wa-card">
+              <h3>Global Print History Log</h3>
+              <div id="waPrintHistory" class="wa-list"></div>
+            </article>
+            <article class="wa-card">
+              <h3>Reprint Console</h3>
+              <input id="waReprintJobId" type="text" placeholder="History job id" />
+              <div class="wa-actions">
+                <button id="waReprintBtn" type="button">Reprint job</button>
+              </div>
+              <div id="waReprintStatus" class="wa-status">Select a history item to quickly reprint it.</div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </div>
       </main>
     </div>
   </div>
