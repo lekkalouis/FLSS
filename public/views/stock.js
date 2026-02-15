@@ -7,7 +7,7 @@ export function initStockView() {
   stockInitialized = true;
   "use strict";
 
-  const LOG_STORAGE_KEY = "67495329839";
+  const LOG_STORAGE_KEY = "86646521903";
   const MRP_STORAGE_KEY = "67495329839";
   const LOCATION_STORAGE_KEY = "80981557295";
   const API_BASE = "/api/v1/shopify";
