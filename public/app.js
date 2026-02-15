@@ -4194,6 +4194,10 @@ async function startOrder(orderNo) {
     navToggle?.setAttribute("aria-expanded", collapsed ? "false" : "true");
   }
 
+  function shouldAutoCollapseNavOnRouteChange() {
+    return window.matchMedia("(max-width: 1080px)").matches;
+  }
+
   if (navToggle) {
     const stored = localStorage.getItem(NAV_COLLAPSE_KEY);
     if (stored === "true") {
@@ -4314,6 +4318,10 @@ async function startOrder(orderNo) {
     if (!route) return;
     event.preventDefault();
     navigateTo(route);
+    if (shouldAutoCollapseNavOnRouteChange()) {
+      setNavCollapsed(true);
+      localStorage.setItem(NAV_COLLAPSE_KEY, "true");
+    }
   });
 
   modeToggle?.addEventListener("click", () => {
