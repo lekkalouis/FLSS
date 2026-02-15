@@ -170,6 +170,10 @@ npm run dev
 
 Open `http://localhost:3000` and navigate modules via the sidebar.
 
+## Additional documentation
+
+- [FLSS Master Plan (printable)](docs/master-plan.md)
+
 ---
 
 ## Repository structure
