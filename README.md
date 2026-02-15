@@ -48,6 +48,8 @@ The repository has been trimmed to the current product scope. Legacy standalone 
 - `docs/admin-docs.md` — platform governance and admin controls.
 - `docs/dev-docs.md` — engineering architecture and implementation notes.
 - `docs/database-and-remote-access.md` — PostgreSQL schema, deployment, and remote tunnel setup.
+- `docs/rpi4-full-system-runbook.md` — run the full FLSS stack on Raspberry Pi 4.
+- `docs/raspberry-pi-physical-station.md` — GPIO/camera station implementation guide.
 - `docs/README.md` — index of all docs.
 
 ---
