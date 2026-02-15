@@ -2386,6 +2386,7 @@
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
+  <link rel="stylesheet" href="/views/wholesale-automation.css">
   <link rel="stylesheet" href="/views/traceability.css">
   <link rel="stylesheet" href="/views/stockists.css">
   <link rel="stylesheet" href="/views/year-planner.css">
@@ -3570,6 +3571,63 @@
               </table>
             </div>
           </section>
+
+          <section class="wa-shell" aria-label="Wholesale automation">
+            <div class="wa-grid">
+              <article class="wa-card">
+                <h3>Print Template Studio</h3>
+                <input id="waTemplateName" type="text" placeholder="Template name" />
+                <input id="waTemplateDesc" type="text" placeholder="Description" />
+                <select id="waTemplateType">
+                  <option value="raw_base64">Raw text label (raw_base64)</option>
+                  <option value="pdf_uri">Hosted PDF URL (pdf_uri)</option>
+                </select>
+                <textarea id="waTemplateContent" rows="8" placeholder="Use tokens like {{order_number}}"></textarea>
+                <div class="wa-actions">
+                  <button id="waTemplateSave" type="button">Save template</button>
+                  <button id="waTemplatePreviewBtn" type="button">Preview</button>
+                  <button id="waTemplatePrint" type="button">Print sample</button>
+                </div>
+                <div id="waTemplateStatus" class="wa-status">Create templates for packing slips, invoices, and pick tickets.</div>
+              </article>
+              <article class="wa-card">
+                <h3>Templates</h3>
+                <div id="waTemplateList" class="wa-list"></div>
+                <h3 style="margin-top:1rem;">Rendered preview</h3>
+                <pre id="waTemplatePreview" class="wa-preview">Preview output will appear here.</pre>
+              </article>
+            </div>
+
+            <div class="wa-grid">
+              <article class="wa-card">
+                <h3>Automatic Wholesale Discounts</h3>
+                <input id="waProfileName" type="text" placeholder="Profile name (e.g. Wholesale Tier 2)" />
+                <input id="waProfileTags" type="text" placeholder="Customer tags (comma separated)" />
+                <input id="waProfileSkus" type="text" placeholder="SKU matchers (optional, comma separated)" />
+                <textarea id="waProfileTiers" rows="6" placeholder="Tier breaks per line: minQty:discountPercent
+Example:
+1:10
+12:15
+48:22"></textarea>
+                <div class="wa-actions">
+                  <button id="waProfileSave" type="button">Save profile</button>
+                </div>
+                <div id="waProfileStatus" class="wa-status">Replace Wholesale Helper rules with tag-based tier pricing.</div>
+              </article>
+              <article class="wa-card">
+                <h3>Discount profiles</h3>
+                <div id="waProfileList" class="wa-list"></div>
+                <h3 style="margin-top:1rem;">Rule tester</h3>
+                <input id="waTestTags" type="text" value="wholesale,tier-2" placeholder="Customer tags" />
+                <input id="waTestSku" type="text" value="FL-ORI-200" placeholder="SKU" />
+                <input id="waTestQty" type="number" value="24" min="1" placeholder="Qty" />
+                <input id="waTestPrice" type="number" value="120" step="0.01" placeholder="Base price" />
+                <div class="wa-actions"><button id="waDiscountTest" type="button">Test discount</button></div>
+                <pre id="waTestResult" class="wa-preview">Run a discount test to preview final unit pricing.</pre>
+              </article>
+            </div>
+          </section>
+
         </div>
         <div id="pmToast" class="pm-toast"></div>
     </div>
