@@ -201,6 +201,31 @@ export async function fetchInventoryItemIdsForVariants(variantIds = []) {
   return idMap;
 }
 
+export async function fetchVariantBasePrices(variantIds = []) {
+  const ids = variantIds
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id));
+
+  if (!ids.length) return new Map();
+
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const chunks = chunkArray(ids, 50);
+  const map = new Map();
+
+  for (const chunk of chunks) {
+    const url = `${base}/variants.json?ids=${chunk.join(",")}&fields=id,price`;
+    const resp = await shopifyFetch(url, { method: "GET" });
+    if (!resp.ok) continue;
+    const data = await resp.json();
+    const variants = data.variants || [];
+    variants.forEach((variant) => {
+      map.set(Number(variant.id), Number(variant.price));
+    });
+  }
+
+  return map;
+}
+
 export async function fetchInventoryLevelsForItems(inventoryItemIds = [], locationId) {
   const ids = inventoryItemIds
     .map((id) => Number(id))
