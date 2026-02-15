@@ -6,6 +6,7 @@ import { initModuleDashboard } from "./views/dashboard.js";
 import { initContactsView } from "./views/contacts.js";
 import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
 import { initStockistsView } from "./views/stockists.js";
+import { initYearPlannerView } from "./views/year-planner.js";
 
 (() => {
   "use strict";
@@ -101,6 +102,7 @@ import { initStockistsView } from "./views/stockists.js";
   const navPriceManager = $("navPriceManager");
   const navTraceability = $("navTraceability");
   const navStockists = $("navStockists");
+  const navYearPlanner = $("navYearPlanner");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
@@ -114,6 +116,7 @@ import { initStockistsView } from "./views/stockists.js";
   const viewPriceManager = $("viewPriceManager");
   const viewTraceability = $("viewTraceability");
   const viewStockists = $("viewStockists");
+  const viewYearPlanner = $("viewYearPlanner");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -3930,6 +3933,7 @@ async function startOrder(orderNo) {
     const showPriceManager = view === "price-manager";
     const showTraceability = view === "traceability";
     const showStockists = view === "stockists";
+    const showYearPlanner = view === "year-planner";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3979,6 +3983,10 @@ async function startOrder(orderNo) {
       viewStockists.hidden = !showStockists;
       viewStockists.classList.toggle("flView--active", showStockists);
     }
+    if (viewYearPlanner) {
+      viewYearPlanner.hidden = !showYearPlanner;
+      viewYearPlanner.classList.toggle("flView--active", showYearPlanner);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
@@ -3992,6 +4000,7 @@ async function startOrder(orderNo) {
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
     navStockists?.classList.toggle("flNavBtn--active", showStockists);
+    navYearPlanner?.classList.toggle("flNavBtn--active", showYearPlanner);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navFulfillmentHistory?.setAttribute("aria-selected", showFulfillmentHistory ? "true" : "false");
@@ -4004,6 +4013,7 @@ async function startOrder(orderNo) {
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
     navTraceability?.setAttribute("aria-selected", showTraceability ? "true" : "false");
     navStockists?.setAttribute("aria-selected", showStockists ? "true" : "false");
+    navYearPlanner?.setAttribute("aria-selected", showYearPlanner ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
@@ -4032,6 +4042,8 @@ async function startOrder(orderNo) {
       statusExplain("Traceability tools ready.", "info");
     } else if (showStockists) {
       statusExplain("Distribution network ready.", "info");
+    } else if (showYearPlanner) {
+      statusExplain("Year planner ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -4049,8 +4061,9 @@ async function startOrder(orderNo) {
     ["/flocs", "flocs"],
     ["/stock", "stock"],
     ["/price-manager", "price-manager"],
-["/traceability", "traceability"],
-    ["/stockists", "stockists"]
+    ["/traceability", "traceability"],
+    ["/stockists", "stockists"],
+    ["/year-planner", "year-planner"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -4065,7 +4078,8 @@ async function startOrder(orderNo) {
     stock: "/stock",
     "price-manager": "/price-manager",
     traceability: "/traceability",
-    stockists: "/stockists"
+    stockists: "/stockists",
+    "year-planner": "/year-planner"
   };
 
   const viewInitializers = {
@@ -4073,7 +4087,8 @@ async function startOrder(orderNo) {
     stock: initStockView,
     "price-manager": initPriceManagerView,
     traceability: initTraceabilityView,
-    stockists: initStockistsView
+    stockists: initStockistsView,
+    "year-planner": initYearPlannerView
   };
   const contactsView = initContactsView({
     state: contactsState,
