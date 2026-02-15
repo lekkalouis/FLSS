@@ -1,0 +1,14 @@
+.wa-shell{margin-top:1rem;display:grid;gap:1rem}
+.wa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+.wa-card{background:#fff;border:1px solid #dbe3ef;border-radius:12px;padding:1rem;box-shadow:0 4px 14px rgba(15,23,42,.06)}
+.wa-card h3{margin:0 0 .75rem;font-size:1rem}
+.wa-card input,.wa-card textarea,.wa-card select{width:100%;padding:.55rem;border:1px solid #cbd5e1;border-radius:8px;margin:.35rem 0 .6rem}
+.wa-actions{display:flex;gap:.5rem;flex-wrap:wrap}
+.wa-actions button{border:0;border-radius:8px;padding:.5rem .75rem;background:#0f172a;color:#fff;cursor:pointer}
+.wa-list{max-height:220px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;padding:.5rem;background:#f8fafc}
+.wa-item{display:flex;justify-content:space-between;align-items:center;padding:.4rem .5rem;border-radius:6px}
+.wa-item:hover{background:#e2e8f0}
+.wa-preview{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:.75rem;min-height:120px}
+.wa-status{font-size:.9rem;color:#334155}
+.wa-dropZone{border:2px dashed #94a3b8;border-radius:10px;padding:1rem;text-align:center;background:#f8fafc;color:#334155;font-weight:600}
+.wa-dropZone.is-dragging{border-color:#0ea5e9;background:#e0f2fe;color:#0c4a6e}

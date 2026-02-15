@@ -1,31 +1,29 @@
+import { initFlocsView } from "./views/flocs.js";
+import { initStockView } from "./views/stock.js";
+import { initPriceManagerView } from "./views/price-manager.js";
+import { initTraceabilityView } from "./views/traceability.js";
+import { initModuleDashboard } from "./views/dashboard.js";
+import { initContactsView } from "./views/contacts.js";
+import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
+import { initStockistsView } from "./views/stockists.js";
+import { initYearPlannerView } from "./views/year-planner.js";
+import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
+
 (() => {
   "use strict";
 
+  // Runtime UI config seeded from defaults and enriched by `/api/v1/config` on boot.
   const CONFIG = {
-    COST_ALERT_THRESHOLD: 250.0,
-    BOOKING_IDLE_MS: 6000,
-    TRUCK_ALERT_THRESHOLD: 25,
-    BOX_DIM: { dim1: 40, dim2: 40, dim3: 30, massKg: 5 },
-    ORIGIN: {
-      origpers: "Flippen Lekka Holdings (Pty) Ltd",
-      origperadd1: "7 Papawer Street",
-      origperadd2: "Blomtuin, Bellville",
-      origperadd3: "Cape Town, Western Cape",
-      origperadd4: "ZA",
-      origperpcode: "7530",
-      origtown: "Cape Town",
-      origplace: 4663,
-      origpercontact: "Louis",
-      origperphone: "0730451885",
-      origpercell: "0730451885",
-      notifyorigpers: 1,
-      origperemail: "admin@flippenlekkaspices.co.za",
-      notes: "Louis 0730451885 / Michael 0783556277"
-    },
-    PP_ENDPOINT: "/pp",
-    SHOPIFY: { PROXY_BASE: "/shopify" },
-    PROGRESS_STEP_DELAY_MS: 450,
-    FLOW_TRIGGER_TAG: "dispatch_flow"
+    PROGRESS_STEP_DELAY_MS: 450
+  };
+  // Single API root used across all SPA modules.
+  const API_BASE = "/api/v1";
+
+  const loadConfig = async () => {
+    const res = await fetch(`${API_BASE}/config`, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`Config fetch failed: ${res.status}`);
+    const data = await res.json();
+    Object.assign(CONFIG, data);
   };
 
   const $ = (id) => document.getElementById(id);
@@ -38,6 +36,8 @@
   const uiAutoBook = $("uiAutoBook");
   const uiCountdown = $("uiCountdown");
   const shipToCard = $("shipToCard");
+  const uiCustomerName = $("uiCustomerName");
+  const uiOrderWeight = $("uiOrderWeight");
   const parcelList = $("parcelList");
   const parcelNumbers = $("parcelNumbers");
   const bookingSummary = $("bookingSummary");
@@ -54,7 +54,8 @@
   const truckBookBtn = $("truckBookBtn");
   const truckStatus = $("truckStatus");
   const truckParcelCount = $("truckParcelCount");
-  const multiShipToggle = $("multiShipToggle");
+  const dispatchCreateCombined = $("dispatchCreateCombined");
+  const dispatchExpandToggle = $("dispatchExpandToggle");
   const uiBundleOrders = $("uiBundleOrders");
   const uiMultiShip = $("uiMultiShip");
 
@@ -65,9 +66,17 @@
   const dispatchProgressSteps = $("dispatchProgressSteps");
   const dispatchProgressLabel = $("dispatchProgressLabel");
   const dispatchLog = $("dispatchLog");
-  const dispatchTodoForm = $("dispatchTodoForm");
-  const dispatchTodoInput = $("dispatchTodoInput");
-  const dispatchTodoList = $("dispatchTodoList");
+  const dispatchSelectionPanel = $("dispatchSelectionPanel");
+  const dispatchSelectionCount = $("dispatchSelectionCount");
+  const dispatchSelectionUnits = $("dispatchSelectionUnits");
+  const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
+  const dispatchSelectionBoxesReadonly = $("dispatchSelectionBoxesReadonly");
+  const dispatchSelectionWeight = $("dispatchSelectionWeight");
+  const dispatchSelectionTime = $("dispatchSelectionTime");
+  const dispatchSelectionClear = $("dispatchSelectionClear");
+  const dispatchPrintDocs = $("dispatchPrintDocs");
+  const dispatchDeliverSelected = $("dispatchDeliverSelected");
+  const dispatchMarkDelivered = $("dispatchMarkDelivered");
   const dispatchOrderModal = $("dispatchOrderModal");
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
   const dispatchOrderModalTitle = $("dispatchOrderModalTitle");
@@ -84,234 +93,68 @@
 
   const navDashboard = $("navDashboard");
   const navScan = $("navScan");
+  const navFulfillmentHistory = $("navFulfillmentHistory");
+  const navContacts = $("navContacts");
   const navOps = $("navOps");
-  const navInvoices = $("navInvoices");
   const navDocs = $("navDocs");
+  const navFlowcharts = $("navFlowcharts");
+  const navFlocs = $("navFlocs");
+  const navStock = $("navStock");
+  const navPriceManager = $("navPriceManager");
+  const navPrintStation = $("navPrintStation");
+  const navTraceability = $("navTraceability");
+  const navStockists = $("navStockists");
+  const navYearPlanner = $("navYearPlanner");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
+  const viewFulfillmentHistory = $("viewFulfillmentHistory");
+  const viewContacts = $("viewContacts");
   const viewOps = $("viewOps");
-  const viewInvoices = $("viewInvoices");
   const viewDocs = $("viewDocs");
-  const actionFlash = $("actionFlash");
+  const viewFlowcharts = $("viewFlowcharts");
+  const viewFlocs = $("viewFlocs");
+  const viewStock = $("viewStock");
+  const viewPriceManager = $("viewPriceManager");
+  const viewPrintStation = $("viewPrintStation");
+  const viewTraceability = $("viewTraceability");
+  const viewStockists = $("viewStockists");
+  const viewYearPlanner = $("viewYearPlanner");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
   const btnBookNow = $("btnBookNow");
   const modeToggle = $("modeToggle");
   const moduleGrid = $("moduleGrid");
-  const invoiceTemplateInput = $("invoiceTemplate");
-  const invoiceTemplateSave = $("invoiceTemplateSave");
-  const invoiceFilterOrder = $("invoiceFilterOrder");
-  const invoiceFilterCustomer = $("invoiceFilterCustomer");
-  const invoiceFilterFrom = $("invoiceFilterFrom");
-  const invoiceFilterTo = $("invoiceFilterTo");
-  const invoiceRefresh = $("invoiceRefresh");
-  const invoiceTableBody = $("invoiceTableBody");
-  const invoiceSyncStatus = $("invoiceSyncStatus");
+  const kpiParcels = $("kpiParcels");
+  const kpiOpenOrders = $("kpiOpenOrders");
+  const kpiRecentShipments = $("kpiRecentShipments");
+  const kpiMode = $("kpiMode");
+  const kpiTruckStatus = $("kpiTruckStatus");
+  const kpiLastScan = $("kpiLastScan");
+  const dailyTodoWidget = $("dailyTodoWidget");
+  const dailyTodoList = $("dailyTodoList");
+  const dailyTodoMeta = $("dailyTodoMeta");
+  const dailyTodoClose = $("dailyTodoClose");
+  const fulfillmentHistorySearch = $("fulfillmentHistorySearch");
+  const fulfillmentHistoryMeta = $("fulfillmentHistoryMeta");
+  const fulfillmentHistoryStatusFilter = $("fulfillmentHistoryStatusFilter");
+  const fulfillmentHistoryList = $("fulfillmentHistoryList");
+  const fulfillmentHistoryShipped = $("fulfillmentHistoryShipped");
+  const fulfillmentHistoryDelivered = $("fulfillmentHistoryDelivered");
+  const fulfillmentHistoryCollected = $("fulfillmentHistoryCollected");
+  const fulfillmentHistoryPickup = $("fulfillmentHistoryPickup");
+  const fulfillmentHistoryShippedPager = $("fulfillmentHistoryShippedPager");
+  const fulfillmentHistoryDeliveredPager = $("fulfillmentHistoryDeliveredPager");
+  const fulfillmentHistoryPickupPager = $("fulfillmentHistoryPickupPager");
+  const fulfillmentHistoryCollectedPager = $("fulfillmentHistoryCollectedPager");
+  const contactsSearch = $("contactsSearch");
+  const contactsTierFilter = $("contactsTierFilter");
+  const contactsProvinceFilter = $("contactsProvinceFilter");
+  const contactsMeta = $("contactsMeta");
+  const contactsList = $("contactsList");
 
-  const MAX_ORDER_AGE_HOURS = 180;
-
-  const MODULES = [
-    {
-      id: "scan",
-      title: "Scan Station",
-      description: "Scan parcels and auto-book shipments with live booking progress.",
-      type: "view",
-      target: "scan",
-      tag: "Core"
-    },
-    {
-      id: "dispatch",
-      title: "Dispatch Board",
-      description: "Review open orders, track packing, and prioritize dispatch.",
-      type: "view",
-      target: "ops",
-      tag: "Core"
-    },
-    {
-      id: "invoices",
-      title: "Order Invoices",
-      description: "List orders, filter quickly, and send invoice actions.",
-      type: "view",
-      target: "invoices",
-      tag: "Module"
-    },
-    {
-      id: "docs",
-      title: "Documentation",
-      description: "Operator guide, quick start, and endpoint reference.",
-      type: "view",
-      target: "docs",
-      tag: "Guide"
-    },
-    {
-      id: "flocs",
-      title: "Order Capture (FLOCS)",
-      description: "Create and manage incoming orders from the capture module.",
-      type: "link",
-      target: "/flocs",
-      tag: "Module"
-    },
-    {
-      id: "stock",
-      title: "Stock Take",
-      description: "Run inventory counts and stock adjustments.",
-      type: "link",
-      target: "/stock.html",
-      tag: "Module"
-    },
-    {
-      id: "pos",
-      title: "POS Walk-In",
-      description: "Scan walk-in items, show a large total, and close cash orders.",
-      type: "link",
-      target: "/pos.html",
-      tag: "Module"
-    },
-    {
-      id: "simulate",
-      title: "Simulator",
-      description: "Test scan/booking flows without live orders.",
-      type: "link",
-      target: "/simulate.html",
-      tag: "Sandbox"
-    }
-  ];
-
-  const FACTORY_AREAS = [
-    {
-      id: "manufacturing",
-      title: "Manufacturing Command Stack",
-      badge: "Live",
-      description: "Monitor live batch builds, quality gates, and line cadence.",
-      tools: [
-        {
-          title: "Line Scan Station",
-          description: "Scan line output and auto-book production lots.",
-          type: "view",
-          target: "scan"
-        },
-        {
-          title: "Process Simulator",
-          description: "Run a sandbox pass for new formulations or batches.",
-          type: "link",
-          target: "/simulate.html"
-        },
-        {
-          title: "SOP Quick Guide",
-          description: "Open the operator playbook for line start-up.",
-          type: "view",
-          target: "docs"
-        }
-      ]
-    },
-    {
-      id: "dispatch",
-      title: "Dispatch Command Stack",
-      badge: "Priority",
-      description: "Orchestrate outbound bookings, dock readiness, and carrier status.",
-      tools: [
-        {
-          title: "Dispatch Board",
-          description: "Track outbound orders and live packing status.",
-          type: "view",
-          target: "ops"
-        },
-        {
-          title: "Carrier Booking",
-          description: "Scan and book parcels with SLA tracking.",
-          type: "view",
-          target: "scan"
-        },
-        {
-          title: "Manifest Simulator",
-          description: "Preview truck loads and pickup windows.",
-          type: "link",
-          target: "/simulate.html"
-        }
-      ]
-    },
-    {
-      id: "packing",
-      title: "Packing Command Stack",
-      badge: "In Flow",
-      description: "Keep carton builds, label prints, and QA signoff aligned.",
-      tools: [
-        {
-          title: "Packing Wave",
-          description: "View packing tasks and prioritization cues.",
-          type: "view",
-          target: "ops"
-        },
-        {
-          title: "Label Print Queue",
-          description: "Print labels directly from the scan station.",
-          type: "view",
-          target: "scan"
-        },
-        {
-          title: "Carton QA Checklist",
-          description: "Reference packing QA steps and escalation paths.",
-          type: "view",
-          target: "docs"
-        }
-      ]
-    },
-    {
-      id: "finished",
-      title: "Finished Goods Command Stack",
-      badge: "Ready",
-      description: "Coordinate pallet staging, final checks, and pickup windows.",
-      tools: [
-        {
-          title: "Finished Goods Staging",
-          description: "Review packed inventory and staging confirmation.",
-          type: "link",
-          target: "/stock.html"
-        },
-        {
-          title: "Dispatch Priority",
-          description: "Align dispatch sequencing with carrier ETAs.",
-          type: "view",
-          target: "ops"
-        },
-        {
-          title: "Outbound Drilldown",
-          description: "Explore shipment analytics and pickup readiness.",
-          type: "view",
-          target: "docs"
-        }
-      ]
-    },
-    {
-      id: "warehouse",
-      title: "Warehouse Command Stack",
-      badge: "Inventory",
-      description: "Track storage slots, replenishment tasks, and inbound capture.",
-      tools: [
-        {
-          title: "Stock Take",
-          description: "Run live inventory counts and adjustments.",
-          type: "link",
-          target: "/stock.html"
-        },
-        {
-          title: "Inbound Capture",
-          description: "Capture new inbound orders and intake checks.",
-          type: "link",
-          target: "/flocs"
-        },
-        {
-          title: "Storage SOP",
-          description: "Open the storage layout and replenishment guide.",
-          type: "view",
-          target: "docs"
-        }
-      ]
-    }
-  ];
-
+  // Scan-session state (current order, linked orders, and scanned parcels).
   let activeOrderNo = null;
   let orderDetails = null;
   let parcelsByOrder = new Map();
@@ -325,24 +168,69 @@
   let bookedOrders = new Set();
   let isAutoMode = true;
   let linkedOrders = new Map();
-  let multiShipEnabled = false;
+  const combinedShipments = new Map();
+  const combinedOrderToGroup = new Map();
+  const printedDeliveryNotes = new Set();
   const dispatchOrderCache = new Map();
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
+  const dispatchSelectedOrders = new Set();
+  let activeDispatchOrderNo = null;
   let dispatchOrdersLatest = [];
-  let dispatchShipmentsLatest = [];
+  // Lightweight per-view state containers keep modules decoupled without adding a framework.
+  const fulfillmentHistoryState = {
+    query: "",
+    statusFilter: "all",
+    streams: {
+      shipped: [],
+      delivered: [],
+      pickup: [],
+      collected: []
+    }
+  };
+  const contactsState = {
+    query: "",
+    tier: "",
+    province: "",
+    customers: [],
+    loaded: false,
+    retryTimer: null
+  };
+  const SA_PROVINCES = [
+    "Eastern Cape",
+    "Free State",
+    "Gauteng",
+    "KwaZulu-Natal",
+    "Limpopo",
+    "Mpumalanga",
+    "North West",
+    "Northern Cape",
+    "Western Cape"
+  ];
   let dispatchModalOrderNo = null;
   let dispatchModalShipmentId = null;
+  let fulfillmentHistoryRefreshTimer = null;
+  let serverStatusRefreshTimer = null;
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
-  const INVOICE_TEMPLATE_KEY = "fl_invoice_template_v1";
-  const DISPATCH_TODO_KEY = "fl_dispatch_todo_v1";
+  const DAILY_TODO_KEY = "fl_daily_todo_v1";
   let dailyParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
   let truckBookedBy = null;
   let truckBookingInFlight = false;
-  let dispatchTodos = [];
+  let dailyTodoDismissed = false;
+  const DAILY_TODO_SHORTCUT = "Alt+Shift+T";
+  // Operations checklist shown on dashboard; persisted per-browser in localStorage.
+  const DAILY_TODO_ITEMS = [
+    "Inventory count",
+    "Production planning",
+    "Receive stock",
+    "Dispatch checks",
+    "Warehouse housekeeping"
+  ];
+  let dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
+  // Shared dispatch progress timeline used in scan and board views.
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -360,7 +248,7 @@
     "worcester sauce spice - tub": "WS",
     "red wine & garlic sprinkle": "RG",
     "chutney sprinkle": "CS",
-    "flippen lekka savoury herb mix": "SH",
+    "savoury herb mix": "SH",
     "salt & vinegar seasoning": "SV",
     "butter popcorn sprinkle": "BUT",
     "sour cream & chives popcorn sprinkle": "SCC",
@@ -385,192 +273,8 @@
 
   const statusExplain = (msg, tone = "info") => {
     if (statusChip) statusChip.textContent = msg;
-    if (!actionFlash) return;
-    actionFlash.textContent = msg;
-
-    actionFlash.classList.remove(
-      "actionFlash--info",
-      "actionFlash--ok",
-      "actionFlash--warn",
-      "actionFlash--err",
-      "actionFlash--booked"
-    );
-
-    const cls =
-      tone === "ok"
-        ? "actionFlash--ok"
-        : tone === "warn"
-        ? "actionFlash--warn"
-        : tone === "err"
-        ? "actionFlash--err"
-        : "actionFlash--info";
-
-    actionFlash.classList.add(cls);
-
-    actionFlash.style.opacity = "1";
-    clearTimeout(actionFlash._fadeTimer);
-    actionFlash._fadeTimer = setTimeout(() => {
-      actionFlash.style.opacity = "0.4";
-    }, 2000);
   };
-
-  let invoiceOrders = [];
-
-  function loadInvoiceTemplate() {
-    const saved = localStorage.getItem(INVOICE_TEMPLATE_KEY);
-    if (invoiceTemplateInput && saved) {
-      invoiceTemplateInput.value = saved;
-    }
-  }
-
-  function getInvoiceTemplate() {
-    return invoiceTemplateInput ? invoiceTemplateInput.value.trim() : "";
-  }
-
-  function saveInvoiceTemplate() {
-    if (!invoiceTemplateInput) return;
-    const template = getInvoiceTemplate();
-    if (template) {
-      localStorage.setItem(INVOICE_TEMPLATE_KEY, template);
-      statusExplain("Invoice template saved.", "ok");
-    } else {
-      localStorage.removeItem(INVOICE_TEMPLATE_KEY);
-      statusExplain("Invoice template cleared.", "warn");
-    }
-  }
-
-  function buildInvoiceUrl(order) {
-    const template = getInvoiceTemplate();
-    if (!template) return "";
-    const orderName = String(order?.name || "");
-    const orderNumber = order?.order_number ?? orderName.replace(/^#/, "");
-    const replacements = {
-      "{order_name}": orderName,
-      "{order_number}": orderNumber,
-      "{order_id}": order?.id ?? "",
-      "{customer_email}": order?.email ?? ""
-    };
-    let url = template;
-    Object.entries(replacements).forEach(([token, value]) => {
-      url = url.split(token).join(encodeURIComponent(String(value)));
-    });
-    return url;
-  }
-
-  function formatInvoiceDate(value) {
-    if (!value) return "—";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "—";
-    return date.toLocaleString();
-  }
-
-  function filterInvoiceOrders() {
-    const orderQuery = String(invoiceFilterOrder?.value || "").trim().toLowerCase();
-    const customerQuery = String(invoiceFilterCustomer?.value || "").trim().toLowerCase();
-    const fromValue = invoiceFilterFrom?.value ? new Date(invoiceFilterFrom.value) : null;
-    const toValue = invoiceFilterTo?.value ? new Date(invoiceFilterTo.value) : null;
-    const fromTime = fromValue ? fromValue.getTime() : null;
-    const toTime = toValue ? new Date(toValue.getTime() + 24 * 60 * 60 * 1000 - 1).getTime() : null;
-
-    return invoiceOrders.filter((order) => {
-      const name = String(order?.name || "").toLowerCase();
-      const orderNumber = String(order?.order_number || "").toLowerCase();
-      const customerName = String(order?.customer_name || "").toLowerCase();
-      const createdAt = order?.created_at ? new Date(order.created_at).getTime() : null;
-
-      if (orderQuery && !name.includes(orderQuery) && !orderNumber.includes(orderQuery)) {
-        return false;
-      }
-      if (customerQuery && !customerName.includes(customerQuery)) {
-        return false;
-      }
-      if (fromTime && (!createdAt || createdAt < fromTime)) {
-        return false;
-      }
-      if (toTime && (!createdAt || createdAt > toTime)) {
-        return false;
-      }
-      return true;
-    });
-  }
-
-  function renderInvoiceTable() {
-    if (!invoiceTableBody) return;
-    const filtered = filterInvoiceOrders();
-    if (!filtered.length) {
-      const emptyMessage = invoiceOrders.length
-        ? "No orders match these filters."
-        : "Load orders to get started.";
-      invoiceTableBody.innerHTML = `<tr><td colspan="4" class="invoiceEmpty">${emptyMessage}</td></tr>`;
-      return;
-    }
-
-    const rows = filtered.map((order) => {
-      const invoiceUrl = buildInvoiceUrl(order);
-      const safeUrl = invoiceUrl || "";
-      const downloadUrl = safeUrl || "#";
-      const orderLabel = order?.name || "—";
-      const customerLabel = order?.customer_name || "—";
-      const dateLabel = formatInvoiceDate(order?.created_at);
-      const disabledAttr = safeUrl ? "" : "disabled";
-      const whatsappText = encodeURIComponent(
-        `Invoice for ${orderLabel}: ${safeUrl || "Set invoice template first."}`
-      );
-      const whatsappUrl = safeUrl ? `https://wa.me/?text=${whatsappText}` : "#";
-
-      return `
-        <tr>
-          <td>${orderLabel}</td>
-          <td>${customerLabel}</td>
-          <td>${dateLabel}</td>
-          <td>
-            <div class="invoiceActions">
-              <a class="btn" href="${downloadUrl}" target="_blank" rel="noopener" ${safeUrl ? "" : "aria-disabled=\"true\""}>Download</a>
-              <a class="btn" href="${whatsappUrl}" target="_blank" rel="noopener" ${safeUrl ? "" : "aria-disabled=\"true\""}>WhatsApp</a>
-              <button class="btn" type="button" data-invoice-action="print" data-invoice-url="${safeUrl}" data-order-name="${orderLabel}" ${disabledAttr}>Print</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    });
-
-    invoiceTableBody.innerHTML = rows.join("");
-  }
-
-  async function refreshInvoiceOrders() {
-    if (!invoiceSyncStatus) return;
-    invoiceSyncStatus.textContent = "Loading orders…";
-    try {
-      const from = invoiceFilterFrom?.value ? new Date(`${invoiceFilterFrom.value}T00:00:00`) : null;
-      const to = invoiceFilterTo?.value ? new Date(`${invoiceFilterTo.value}T23:59:59.999`) : null;
-      const params = new URLSearchParams({ limit: "200" });
-      if (from) params.set("from", from.toISOString());
-      if (to) params.set("to", to.toISOString());
-      const resp = await fetch(`/shopify/orders/list?${params.toString()}`);
-      if (!resp.ok) {
-        throw new Error(`Order list failed (${resp.status})`);
-      }
-      const data = await resp.json();
-      invoiceOrders = Array.isArray(data.orders) ? data.orders : [];
-      invoiceSyncStatus.textContent = `Loaded ${invoiceOrders.length} orders`;
-      renderInvoiceTable();
-    } catch (err) {
-      console.error("Invoice order load error:", err);
-      invoiceSyncStatus.textContent = "Failed to load orders";
-      statusExplain("Invoice list failed to load.", "err");
-      if (invoiceTableBody) {
-        invoiceTableBody.innerHTML =
-          '<tr><td colspan="4" class="invoiceEmpty">Unable to load orders. Check Shopify connection.</td></tr>';
-      }
-    }
-  }
-
-  const triggerBookedFlash = () => {
-    if (!actionFlash) return;
-    actionFlash.classList.remove("actionFlash--booked");
-    void actionFlash.offsetWidth;
-    actionFlash.classList.add("actionFlash--booked");
-  };
+  const triggerBookedFlash = () => {};
 
   const appendDebug = (msg) => {
     if (!dbgOn || !debugLog) return;
@@ -578,6 +282,7 @@
     debugLog.scrollTop = debugLog.scrollHeight;
   };
 
+  // Human-friendly service names for status chips and diagnostics.
   const SERVICE_LABELS = {
     server: "FL Server",
     shopify: "Shopify API",
@@ -646,20 +351,102 @@
       .join("|");
   }
 
-  function normalizeCustomerField(value) {
-    return String(value || "")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, " ");
+  
+
+  function orderNoFromName(name) {
+    return String(name || "").replace("#", "").trim();
   }
 
-  function customerSignature(details) {
-    if (!details) return "";
-    const email = normalizeCustomerField(details.email);
-    if (email) return email;
-    const name = normalizeCustomerField(details.name);
-    const phone = normalizeCustomerField(details.phone);
-    return [name, phone].filter(Boolean).join("|");
+  function getDispatchOrderAddress(order) {
+    if (!order) return null;
+    return {
+      name: order.customer_name || order.name || "",
+      address1: order.shipping_address1 || "",
+      address2: order.shipping_address2 || "",
+      city: order.shipping_city || "",
+      province: order.shipping_province || "",
+      postal: order.shipping_postal || ""
+    };
+  }
+
+  function addressSignatureFromOrder(order) {
+    const addr = getDispatchOrderAddress(order);
+    if (!addr) return "";
+    return [addr.address1, addr.address2, addr.city, addr.province, addr.postal]
+      .map(normalizeAddressField)
+      .filter(Boolean)
+      .join("|");
+  }
+
+  function colorFromGroupId(groupId) {
+    const palette = ["#22d3ee", "#a78bfa", "#fb7185", "#34d399", "#f59e0b", "#60a5fa"];
+    let hash = 0;
+    for (const ch of String(groupId || "")) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+    return palette[hash % palette.length];
+  }
+
+  function getCombinedGroupForOrder(orderNo) {
+    const groupId = combinedOrderToGroup.get(String(orderNo || ""));
+    if (!groupId) return null;
+    return combinedShipments.get(groupId) || null;
+  }
+
+  async function createCombinedShipmentFromSelection() {
+    const selected = Array.from(dispatchSelectedOrders);
+    if (selected.length < 2) {
+      statusExplain("Select at least 2 orders to create a combined shipment.", "warn");
+      return;
+    }
+    const orders = selected
+      .map((orderNo) => dispatchOrderCache.get(orderNo))
+      .filter(Boolean);
+    if (orders.length < 2) {
+      statusExplain("Unable to resolve selected orders.", "warn");
+      return;
+    }
+
+    const addressOptions = [];
+    const seen = new Set();
+    for (const order of orders) {
+      const signature = addressSignatureFromOrder(order);
+      if (!signature || seen.has(signature)) continue;
+      seen.add(signature);
+      const orderNo = orderNoFromName(order.name);
+      const addr = getDispatchOrderAddress(order);
+      addressOptions.push({ orderNo, signature, address: addr });
+    }
+
+    if (!addressOptions.length) {
+      statusExplain("Selected orders are missing shipping addresses.", "warn");
+      return;
+    }
+
+    let chosen = addressOptions[0];
+    if (addressOptions.length > 1) {
+      const promptText = addressOptions
+        .map((opt, idx) => `${idx + 1}. ${opt.orderNo} - ${opt.address.address1}, ${opt.address.city}`)
+        .join("\n");
+      const raw = window.prompt(`Select shipping address for combined shipment:\n${promptText}\n\nEnter option number:`, "1");
+      const idx = Number.parseInt(String(raw || "").trim(), 10);
+      if (!Number.isInteger(idx) || idx < 1 || idx > addressOptions.length) {
+        statusExplain("Combined shipment cancelled.", "warn");
+        return;
+      }
+      chosen = addressOptions[idx - 1];
+    }
+
+    const groupId = `combined-${Date.now()}`;
+    const group = {
+      id: groupId,
+      orderNos: selected,
+      addressSignature: chosen.signature,
+      address: chosen.address,
+      color: colorFromGroupId(groupId)
+    };
+    combinedShipments.set(groupId, group);
+    selected.forEach((orderNo) => combinedOrderToGroup.set(orderNo, groupId));
+    renderDispatchBoard(dispatchOrdersLatest);
+    statusExplain(`Combined shipment created for ${selected.length} orders.`, "ok");
   }
 
   function renderServerStatusBar(data) {
@@ -683,16 +470,26 @@
   }
 
   async function refreshServerStatus() {
-    if (!serverStatusBar) return;
+    if (!serverStatusBar) return false;
     try {
-      const res = await fetch("/statusz");
+      const res = await fetch(`${API_BASE}/statusz`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Status error");
       renderServerStatusBar(data);
+      return true;
     } catch (err) {
       appendDebug("Status refresh failed: " + String(err));
       renderServerStatusBar(null);
+      return false;
     }
+  }
+
+  function scheduleServerStatusRefresh(delayMs = 20000) {
+    if (serverStatusRefreshTimer) clearTimeout(serverStatusRefreshTimer);
+    serverStatusRefreshTimer = setTimeout(async () => {
+      const ok = await refreshServerStatus();
+      scheduleServerStatusRefresh(ok ? 20000 : 60000);
+    }, delayMs);
   }
 
   let dispatchAudioCtx = null;
@@ -811,86 +608,9 @@
     });
   }
 
-  function saveDispatchTodos() {
-    localStorage.setItem(DISPATCH_TODO_KEY, JSON.stringify(dispatchTodos));
-  }
-
-  function renderDispatchTodos() {
-    if (!dispatchTodoList) return;
-    dispatchTodoList.innerHTML = "";
-    if (!dispatchTodos.length) {
-      const empty = document.createElement("div");
-      empty.className = "dispatchTodoEmpty";
-      empty.textContent = "No dispatch notes yet.";
-      dispatchTodoList.appendChild(empty);
-      return;
-    }
-    dispatchTodos.forEach((todo) => {
-      const item = document.createElement("div");
-      item.className = `dispatchTodoItem${todo.completed ? " is-complete" : ""}`;
-      item.dataset.todoId = todo.id;
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = todo.completed;
-      checkbox.setAttribute("aria-label", `Mark ${todo.text} as complete`);
-      const text = document.createElement("span");
-      text.textContent = todo.text;
-      item.append(checkbox, text);
-      dispatchTodoList.appendChild(item);
-    });
-  }
-
-  function loadDispatchTodos() {
-    if (!dispatchTodoList) return;
-    try {
-      const stored = JSON.parse(localStorage.getItem(DISPATCH_TODO_KEY) || "[]");
-      dispatchTodos = Array.isArray(stored) ? stored : [];
-    } catch (error) {
-      dispatchTodos = [];
-    }
-    renderDispatchTodos();
-  }
-
-  function initDispatchTodos() {
-    if (!dispatchTodoForm || !dispatchTodoInput || !dispatchTodoList) return;
-    loadDispatchTodos();
-    dispatchTodoForm.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const text = dispatchTodoInput.value.trim();
-      if (!text) return;
-      dispatchTodos.unshift({
-        id: `todo-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        text,
-        completed: false
-      });
-      dispatchTodoInput.value = "";
-      saveDispatchTodos();
-      renderDispatchTodos();
-    });
-    dispatchTodoList.addEventListener("change", (event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement) || target.type !== "checkbox") return;
-      const item = target.closest(".dispatchTodoItem");
-      if (!item) return;
-      const todo = dispatchTodos.find((entry) => entry.id === item.dataset.todoId);
-      if (!todo) return;
-      const wasComplete = todo.completed;
-      todo.completed = target.checked;
-      if (!wasComplete && todo.completed) {
-        triggerScreenFlash("success");
-      }
-      saveDispatchTodos();
-      renderDispatchTodos();
-    });
-  }
-
   function setDispatchProgress(stepIndex, label = "In progress", options = {}) {
-    let resolvedLabel = label;
-    if (linkedOrders.size && label && !label.includes("Multi-order")) {
-      resolvedLabel = `Multi-order ${label}`;
-    }
     dispatchProgressTargets.forEach((target) => {
-      if (target.label) target.label.textContent = resolvedLabel;
+      if (target.label) target.label.textContent = label;
       if (target.fill) {
         const pct = Math.max(0, Math.min(1, stepIndex / (DISPATCH_STEPS.length - 1)));
         target.fill.style.width = `${pct * 100}%`;
@@ -909,8 +629,7 @@
       }
     });
     if (!options.silent) {
-      const baseTone = linkedOrders.size ? 540 : 700;
-      playDispatchTone(baseTone + stepIndex * 40, 0.12);
+      playDispatchTone(700 + stepIndex * 40, 0.12);
     }
   }
 
@@ -1164,14 +883,6 @@
     modeToggle.setAttribute("aria-pressed", isAutoMode ? "true" : "false");
   }
 
-  function updateMultiShipToggle() {
-    if (!multiShipToggle) return;
-    multiShipToggle.textContent = `Multi-shipment override: ${multiShipEnabled ? "On" : "Off"}`;
-    multiShipToggle.classList.toggle("is-active", multiShipEnabled);
-    multiShipToggle.setAttribute("aria-pressed", multiShipEnabled ? "true" : "false");
-    if (uiMultiShip) uiMultiShip.textContent = multiShipEnabled ? "On" : "Off";
-  }
-
   function loadBookedOrders() {
     try {
       const raw = localStorage.getItem("fl_booked_orders_v1");
@@ -1198,6 +909,105 @@
     return new Date().toISOString().slice(0, 10);
   }
 
+  function normalizeDailyTodoState(raw) {
+    if (!Array.isArray(raw)) return DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
+    return DAILY_TODO_ITEMS.map((label, index) => {
+      const item = raw[index];
+      return {
+        label,
+        done: Boolean(item && item.done)
+      };
+    });
+  }
+
+  function saveDailyTodoState() {
+    try {
+      localStorage.setItem(
+        DAILY_TODO_KEY,
+        JSON.stringify({
+          date: todayKey(),
+          dismissed: dailyTodoDismissed,
+          items: dailyTodoState
+        })
+      );
+    } catch {}
+  }
+
+  function updateDailyTodoVisibility() {
+    if (!dailyTodoWidget) return;
+    const completed = dailyTodoState.filter((item) => item.done).length;
+    const allDone = completed === dailyTodoState.length;
+    const shouldShow = !allDone && !dailyTodoDismissed;
+    dailyTodoWidget.hidden = !shouldShow;
+    dailyTodoWidget.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+  }
+
+  function renderDailyTodo() {
+    if (!dailyTodoList || !dailyTodoMeta) return;
+    dailyTodoList.innerHTML = "";
+    dailyTodoState.forEach((item, index) => {
+      const row = document.createElement("label");
+      row.className = "todoWidgetItem";
+      row.classList.toggle("is-done", item.done);
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = item.done;
+      checkbox.dataset.todoIndex = String(index);
+
+      const text = document.createElement("span");
+      text.textContent = item.label;
+
+      row.appendChild(checkbox);
+      row.appendChild(text);
+      dailyTodoList.appendChild(row);
+    });
+    const completed = dailyTodoState.filter((item) => item.done).length;
+    dailyTodoMeta.textContent = `${completed} of ${dailyTodoState.length} complete · Shortcut: ${DAILY_TODO_SHORTCUT}`;
+    updateDailyTodoVisibility();
+  }
+
+  function loadDailyTodoState() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(DAILY_TODO_KEY) || "{}");
+      if (stored.date === todayKey()) {
+        dailyTodoDismissed = Boolean(stored.dismissed);
+        dailyTodoState = normalizeDailyTodoState(stored.items);
+      } else {
+        dailyTodoDismissed = false;
+        dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
+      }
+    } catch {
+      dailyTodoDismissed = false;
+      dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
+    }
+    saveDailyTodoState();
+    renderDailyTodo();
+  }
+
+  function handleDailyTodoToggle(index, done) {
+    if (!Number.isInteger(index) || !dailyTodoState[index]) return;
+    dailyTodoState[index].done = done;
+    dailyTodoDismissed = false;
+    saveDailyTodoState();
+    renderDailyTodo();
+  }
+
+  function closeDailyTodoWidget() {
+    dailyTodoDismissed = true;
+    saveDailyTodoState();
+    updateDailyTodoVisibility();
+    statusExplain(`Daily to-do hidden. Press ${DAILY_TODO_SHORTCUT} to reopen.`, "info");
+  }
+
+  function toggleDailyTodoWidget() {
+    const completed = dailyTodoState.filter((item) => item.done).length;
+    if (completed === dailyTodoState.length) return;
+    dailyTodoDismissed = !dailyTodoDismissed;
+    saveDailyTodoState();
+    updateDailyTodoVisibility();
+  }
+
   function loadDailyParcelCount() {
     try {
       const stored = JSON.parse(localStorage.getItem(DAILY_PARCEL_KEY) || "{}");
@@ -1210,6 +1020,7 @@
       dailyParcelCount = 0;
     }
     saveDailyParcelCount();
+    updateDashboardKpis();
   }
 
   function saveDailyParcelCount() {
@@ -1265,12 +1076,28 @@
     truckBookBtn.setAttribute("aria-pressed", truckBooked ? "true" : "false");
   }
 
+  function updateDashboardKpis() {
+    if (kpiParcels) kpiParcels.textContent = String(dailyParcelCount || 0);
+    if (kpiOpenOrders) kpiOpenOrders.textContent = String(dispatchOrdersLatest.length || 0);
+    if (kpiRecentShipments) {
+      kpiRecentShipments.textContent = String(fulfillmentHistoryState.streams.shipped.length || 0);
+    }
+    if (kpiMode) kpiMode.textContent = isAutoMode ? "Auto" : "Manual";
+    if (kpiTruckStatus) kpiTruckStatus.textContent = truckBooked ? "Booked" : "Not booked";
+    if (kpiLastScan) {
+      kpiLastScan.textContent = lastScanAt
+        ? new Date(lastScanAt).toLocaleTimeString()
+        : "--";
+    }
+  }
+
   function updateTruckBookingState({ booked, bookedBy }) {
     truckBooked = booked;
     truckBookedBy = bookedBy || null;
     truckBookedAt = booked ? new Date().toISOString() : null;
     saveTruckBooking();
     renderTruckPanel();
+    updateDashboardKpis();
   }
 
   async function requestTruckBooking(reason) {
@@ -1278,7 +1105,7 @@
     try {
       truckBookingInFlight = true;
       statusExplain("Requesting truck collection…", "info");
-      const resp = await fetch("/alerts/book-truck", {
+      const resp = await fetch(`${API_BASE}/alerts/book-truck`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ parcelCount: dailyParcelCount, reason })
@@ -1302,6 +1129,7 @@
     dailyParcelCount = Math.max(0, dailyParcelCount + delta);
     saveDailyParcelCount();
     renderTruckPanel();
+    updateDashboardKpis();
     if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
       requestTruckBooking("auto");
     }
@@ -1388,16 +1216,17 @@ function cancelAutoBookTimer() {
   }
 }
 
-function scheduleIdleAutoBook() {
-  cancelAutoBookTimer();
+  function scheduleIdleAutoBook() {
+    cancelAutoBookTimer();
 
-  if (!isAutoMode) return;
-  if (linkedOrders.size > 0) return;
+    if (!isAutoMode) return;
+    if (linkedOrders.size > 0 && getTotalExpectedCount()) return;
 
   // Only for untagged orders
-  if (!activeOrderNo || !orderDetails) return;
-  if (isBooked(activeOrderNo)) return;
-  if (hasParcelCountTag(orderDetails)) return;
+    if (!activeOrderNo || !orderDetails) return;
+    if (isBooked(activeOrderNo)) return;
+    if (hasParcelCountTag(orderDetails)) return;
+    if (getExpectedParcelCount(orderDetails)) return;
 
   // Need at least 1 scan
   if (getTotalScannedCount() <= 0) return;
@@ -1551,12 +1380,16 @@ function scheduleIdleAutoBook() {
       details && typeof details.parcelCountFromTag === "number" && details.parcelCountFromTag > 0
         ? details.parcelCountFromTag
         : null;
+    const fromMeta =
+      details && typeof details.parcelCountFromMeta === "number" && details.parcelCountFromMeta > 0
+        ? details.parcelCountFromMeta
+        : null;
     const manual =
       details && typeof details.manualParcelCount === "number" && details.manualParcelCount > 0
         ? details.manualParcelCount
         : null;
-    if (!isAutoMode) return manual || null;
-    return fromTag || manual || null;
+    if (!isAutoMode) return fromMeta || manual || null;
+    return fromTag || fromMeta || manual || null;
   }
 
   function getParcelIndexesForCurrentOrder(details) {
@@ -1572,28 +1405,6 @@ function scheduleIdleAutoBook() {
     const bundleOrders = getBundleOrders();
     const totalExpected = getTotalExpectedCount();
     const totalScanned = getTotalScannedCount();
-    const baseAddressSignature = addressSignature(orderDetails);
-    const baseCustomerSignature = customerSignature(orderDetails);
-    const isOverrideBundling = linkedOrders.size
-      ? Array.from(linkedOrders.values()).some((details) => {
-          const candidateAddressSignature = addressSignature(details);
-          const candidateCustomerSignature = customerSignature(details);
-          const addressMatches =
-            baseAddressSignature &&
-            candidateAddressSignature &&
-            baseAddressSignature === candidateAddressSignature;
-          const customerMatches =
-            baseCustomerSignature &&
-            candidateCustomerSignature &&
-            baseCustomerSignature === candidateCustomerSignature;
-          return !(addressMatches && customerMatches);
-        })
-      : false;
-    const bundleStatusLabel = linkedOrders.size
-      ? isOverrideBundling
-        ? "Override bundling active"
-        : "Multi-order bundling active"
-      : "";
     if (uiOrderNo) {
       if (!activeOrderNo) {
         uiOrderNo.textContent = "--";
@@ -1607,7 +1418,7 @@ function scheduleIdleAutoBook() {
       uiBundleOrders.textContent = bundleOrderNos.length ? bundleOrderNos.join(", ") : "--";
     }
     if (uiMultiShip) {
-      uiMultiShip.textContent = multiShipEnabled ? "On" : "Off";
+      uiMultiShip.textContent = linkedOrders.size ? "On" : "Off";
     }
 
     const expected = getExpectedParcelCount(orderDetails || {});
@@ -1618,7 +1429,9 @@ function scheduleIdleAutoBook() {
     let parcelSource = "--";
     if (!isAutoMode) {
       parcelSource =
-        orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
+        orderDetails && typeof orderDetails.parcelCountFromMeta === "number" && orderDetails.parcelCountFromMeta > 0
+          ? `Order meta ${orderDetails.parcelCountFromMeta}`
+          : orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
           ? `Manual ${orderDetails.manualParcelCount}`
           : idxs.length
           ? "Scanned"
@@ -1626,6 +1439,8 @@ function scheduleIdleAutoBook() {
     } else {
       parcelSource = hasParcelCountTag(orderDetails)
         ? `Tag parcel_count_${orderDetails.parcelCountFromTag}`
+        : orderDetails && typeof orderDetails.parcelCountFromMeta === "number" && orderDetails.parcelCountFromMeta > 0
+        ? `Order meta ${orderDetails.parcelCountFromMeta}`
         : orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
         ? `Manual ${orderDetails.manualParcelCount}`
         : idxs.length
@@ -1638,9 +1453,7 @@ function scheduleIdleAutoBook() {
     const sessionMode = !activeOrderNo
       ? "Waiting"
       : linkedOrders.size
-      ? isOverrideBundling
-        ? "Override-forced multi-order bundling"
-        : "Multi-order bundling"
+      ? "Bundled multi-order shipment"
       : isAutoMode
       ? hasParcelCountTag(orderDetails)
         ? "Tag auto-book"
@@ -1656,6 +1469,10 @@ function scheduleIdleAutoBook() {
     const manualInfo =
       orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
         ? ` (manual: ${orderDetails.manualParcelCount})`
+        : "";
+    const metaInfo =
+      orderDetails && typeof orderDetails.parcelCountFromMeta === "number" && orderDetails.parcelCountFromMeta > 0
+        ? ` (meta: ${orderDetails.parcelCountFromMeta})`
         : "";
 
     if (parcelList) {
@@ -1678,7 +1495,7 @@ function scheduleIdleAutoBook() {
             })
             .join(" | ")}`
         : "Bundled: --";
-      parcelList.textContent = `${scannedLine}\n${missingLine}\n${lastScanLine}\n${listLine}\n${bundleLine}${tagInfo}${manualInfo}`;
+      parcelList.textContent = `${scannedLine}\n${missingLine}\n${lastScanLine}\n${listLine}\n${bundleLine}${tagInfo}${metaInfo}${manualInfo}`;
     }
 
     if (parcelNumbers) {
@@ -1703,17 +1520,23 @@ function scheduleIdleAutoBook() {
       }
     }
 
+    if (uiCustomerName) {
+      uiCustomerName.textContent = orderDetails?.name ? orderDetails.name : "--";
+    }
+
+    if (uiOrderWeight) {
+      uiOrderWeight.textContent =
+        orderDetails && Number.isFinite(orderDetails.totalWeightKg)
+          ? `${orderDetails.totalWeightKg.toFixed(2)} kg`
+          : "--";
+    }
+
     if (shipToCard) {
       shipToCard.textContent = !orderDetails
         ? "None yet."
-        : `${orderDetails.name}
-${orderDetails.address1}
+        : `${orderDetails.address1}
 ${orderDetails.address2 ? orderDetails.address2 + "\n" : ""}${orderDetails.city}
-${orderDetails.province} ${orderDetails.postal}
-Tel: ${orderDetails.phone || ""}
-Email: ${orderDetails.email || ""}${
-  linkedOrders.size ? `\nBundled orders: ${getBundleOrderNos().join(", ")}` : ""
-}`.trim();
+${orderDetails.province} ${orderDetails.postal}`.trim();
     }
 
     if (totalExpected && totalScanned) {
@@ -1722,15 +1545,8 @@ Email: ${orderDetails.email || ""}${
         totalScanned === totalExpected ? "ok" : "info"
       );
     } else if (activeOrderNo) {
-      if (linkedOrders.size) {
-        statusExplain(bundleStatusLabel, "info");
-      } else {
-        const tagDriven = isAutoMode && hasParcelCountTag(orderDetails);
-        statusExplain(
-          tagDriven ? "Scan parcels until complete." : "Scan parcels, then BOOK NOW.",
-          "info"
-        );
-      }
+      const tagDriven = isAutoMode && hasParcelCountTag(orderDetails);
+      statusExplain(tagDriven ? "Scan parcels until complete." : "Scan parcels, then BOOK NOW.", "info");
     }
 
     if (uiAutoBook) {
@@ -1739,9 +1555,7 @@ Email: ${orderDetails.email || ""}${
       } else if (!isAutoMode) {
         uiAutoBook.textContent = "Manual mode";
       } else if (linkedOrders.size) {
-        uiAutoBook.textContent = isOverrideBundling
-          ? "Override bundle: auto-book paused"
-          : "Multi-order bundle: auto-book paused";
+        uiAutoBook.textContent = getTotalExpectedCount() ? "Combined: immediate once scanned" : "Combined: set parcel counts";
       } else if (hasParcelCountTag(orderDetails)) {
         uiAutoBook.textContent = "Immediate on first scan";
       } else if (autoBookEndsAt) {
@@ -1905,7 +1719,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     for (const q of queries) {
       try {
         appendDebug("PP getPlace query: " + q);
-        const res = await fetch(`/pp/place?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`${CONFIG.PP_ENDPOINT}/place?q=${encodeURIComponent(q)}`);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
 
@@ -2190,60 +2004,31 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       params: { quoteno, service: pickedService, reference: buildShipmentReference() }
     });
 
-    await stepDispatchProgress(3, "Booking waybill");
-    logDispatchEvent("Booking waybill & requesting labels.");
-    const waybillRes = await ppCall({
-      method: "quoteToWaybill",
-      classVal: "Waybill",
-      params: {
-        quoteno,
-        printWaybill: 1,
-        printLabels: 1,
-        printLabel: 1
-      }
+    await stepDispatchProgress(3, "Booking collection");
+    logDispatchEvent("Booking collection & requesting labels.");
+    const collRes = await ppCall({
+      method: "quoteToCollection",
+      classVal: "Collection",
+      params: { quoteno, starttime: "12:00", endtime: "15:00", printLabels: 1, printWaybill: 0 }
     });
 
-    if (!waybillRes || waybillRes.status !== 200) {
+    if (!collRes || collRes.status !== 200) {
       statusExplain("Booking failed", "err");
       setDispatchProgress(3, "Booking failed");
-      logDispatchEvent(`Booking failed (HTTP ${waybillRes?.status || "?"}).`);
-      if (bookingSummary) bookingSummary.textContent = `Booking error: HTTP ${waybillRes?.status} ${waybillRes?.statusText}\n${JSON.stringify(waybillRes?.data, null, 2)}`;
+      logDispatchEvent(`Booking failed (HTTP ${collRes?.status || "?"}).`);
+      if (bookingSummary) bookingSummary.textContent = `Booking error: HTTP ${collRes?.status} ${collRes?.statusText}\n${JSON.stringify(collRes?.data, null, 2)}`;
       armedForBooking = false;
       confirmBookingFeedback("failure");
       return;
     }
 
-    const cr = waybillRes.data || {};
+    const cr = collRes.data || {};
     const maybe = cr.results?.[0] || cr;
-    const waybillNo = String(
-      maybe.waybillno ||
-        maybe.waybillNo ||
-        maybe.waybill ||
-        maybe.trackingNo ||
-        cr.waybillno ||
-        cr.waybillNo ||
-        "WB-TEST-12345"
-    );
+    const waybillNo = String(maybe.waybill || maybe.waybillno || maybe.waybillNo || maybe.trackingNo || "WB-TEST-12345");
     appendDebug("Waybill = " + waybillNo);
 
-    const labelsBase64 =
-      maybe.labelsBase64 ||
-      maybe.labelBase64 ||
-      maybe.labels_pdf ||
-      maybe.labelsPdf ||
-      maybe.labelsPdfBase64 ||
-      maybe.labelPdf ||
-      maybe.labelPdfBase64 ||
-      maybe.labels_pdf_base64 ||
-      null;
-    const waybillBase64 =
-      maybe.waybillBase64 ||
-      maybe.waybillPdfBase64 ||
-      maybe.waybill_pdf ||
-      maybe.waybillPdf ||
-      maybe.waybillPdfBase64 ||
-      maybe.waybill_pdf_base64 ||
-      null;
+    const labelsBase64 = maybe.labelsBase64 || maybe.labelBase64 || maybe.labels_pdf || null;
+    const waybillBase64 = maybe.waybillBase64 || maybe.waybillPdfBase64 || maybe.waybill_pdf || null;
 
     let usedPdf = false;
 
@@ -2253,7 +2038,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       logDispatchEvent("Printing labels via PrintNode.");
 
       try {
-        await fetch("/printnode/print", {
+        await fetch(`${API_BASE}/printnode/print`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pdfBase64: labelsBase64, title: `Labels ${waybillNo}` })
@@ -2267,7 +2052,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
         await stepDispatchProgress(4, "Printing waybill");
         logDispatchEvent("Printing waybill via PrintNode.");
         try {
-          await fetch("/printnode/print", {
+          await fetch(`${API_BASE}/printnode/print`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ pdfBase64: waybillBase64, title: `Waybill ${waybillNo}` })
@@ -2291,19 +2076,17 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       if (printMount) printMount.innerHTML = "";
     } else {
       await stepDispatchProgress(4, "Printing labels");
-      logDispatchEvent("PrintNode skipped: no PDF labels returned.");
-      statusExplain("PrintNode requires PDF labels. Check ParcelPerfect label settings.", "err");
-      appendDebug("No PDF label payload returned from ParcelPerfect; local printing disabled.");
-      if (stickerPreview) {
-        stickerPreview.innerHTML = `
-          <div class="wbPreviewPdf">
-            <div style="font-weight:600;margin-bottom:0.25rem;">PrintNode skipped</div>
-            <div style="font-size:0.8rem;color:#64748b;">
-              ParcelPerfect returned no PDF labels for waybill <strong>${waybillNo}</strong>.
-            </div>
-          </div>`;
-      }
-      if (printMount) printMount.innerHTML = "";
+      logDispatchEvent("Printing labels locally.");
+      const labels = parcelIndexes.map((idx) =>
+        renderLabelHTML(waybillNo, pickedService, quoteCost, orderDetails, idx, totalExpected)
+      );
+      mountLabelToPreviewAndPrint(labels[0], labels.join("\n"));
+
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await inlineImages(printMount);
+      await waitForImages(printMount);
+
+      if (labels.length) window.print();
     }
 
     statusExplain("Booked", "ok");
@@ -2319,7 +2102,7 @@ Service: ${pickedService}
 Parcels: ${totalExpected}
 Estimated Cost: ${money(quoteCost)}
 
-${usedPdf ? "Label + waybill generated by ParcelPerfect (PDF)." : "No PDF labels returned; PrintNode skipped."}
+${usedPdf ? "Label + waybill generated by ParcelPerfect (PDF)." : "Using local HTML label layout."}
 
 Raw:
 ${JSON.stringify(cr, null, 2)}`;
@@ -2371,7 +2154,7 @@ function resetSession() {
     return { orderNo, parcelSeq: seq };
   }
 
-async function startOrder(orderNo, preloadedDetails = null) {
+async function startOrder(orderNo) {
   cancelAutoBookTimer();
 
   activeOrderNo = orderNo;
@@ -2385,7 +2168,7 @@ async function startOrder(orderNo, preloadedDetails = null) {
   placeCodeOverride = null;
   if (placeCodeInput) placeCodeInput.value = "";
 
-  orderDetails = preloadedDetails || (await fetchShopifyOrder(activeOrderNo));
+  orderDetails = await fetchShopifyOrder(activeOrderNo);
 
   if (orderDetails && orderDetails.placeCode != null) {
     placeCodeOverride = Number(orderDetails.placeCode) || orderDetails.placeCode;
@@ -2413,58 +2196,49 @@ async function startOrder(orderNo, preloadedDetails = null) {
       return;
     }
 
-    let scanFeedbackType = "success";
+    const crossOrderScan = activeOrderNo && parsed.orderNo !== activeOrderNo;
 
     if (!activeOrderNo) {
       await startOrder(parsed.orderNo);
+      const initialGroup = getCombinedGroupForOrder(parsed.orderNo);
+      if (initialGroup && initialGroup.orderNos.includes(parsed.orderNo)) {
+        for (const orderNo of initialGroup.orderNos) {
+          if (orderNo === parsed.orderNo) continue;
+          const details = await fetchShopifyOrder(orderNo);
+          if (!details) continue;
+          if (initialGroup.address) {
+            details.address1 = initialGroup.address.address1;
+            details.address2 = initialGroup.address.address2;
+            details.city = initialGroup.address.city;
+            details.province = initialGroup.address.province;
+            details.postal = initialGroup.address.postal;
+          }
+          linkedOrders.set(orderNo, details);
+        }
+      }
     } else if (parsed.orderNo !== activeOrderNo && !linkedOrders.has(parsed.orderNo)) {
       cancelAutoBookTimer();
-      const candidate = await fetchShopifyOrder(parsed.orderNo);
-      if (!candidate) {
-        statusExplain(`Order ${parsed.orderNo} not found.`, "warn");
+      const group = getCombinedGroupForOrder(parsed.orderNo);
+      if (!group || !group.orderNos.includes(activeOrderNo)) {
+        statusExplain(`Different order scanned (${parsed.orderNo}). Create Combined Shipment first.`, "warn");
         confirmScanFeedback("warn");
         return;
       }
 
-      const baseAddressSignature = addressSignature(orderDetails);
-      const candidateAddressSignature = addressSignature(candidate);
-      const baseCustomerSignature = customerSignature(orderDetails);
-      const candidateCustomerSignature = customerSignature(candidate);
-      const addressMatches =
-        baseAddressSignature && baseAddressSignature === candidateAddressSignature;
-      const customerMatches =
-        baseCustomerSignature && baseCustomerSignature === candidateCustomerSignature;
-      const canAutoBundle = addressMatches && customerMatches;
-
-      if (!canAutoBundle && !multiShipEnabled) {
-        statusExplain(
-          `Different order scanned (${parsed.orderNo}). Starting new shipment.`,
-          "warn"
-        );
-        scanFeedbackType = "warn";
-        await startOrder(parsed.orderNo, candidate);
-      } else {
-        if (canAutoBundle) {
-          statusExplain(`Bundling order ${parsed.orderNo} (same customer + address).`, "ok");
-        } else {
-          const mismatchBits = [
-            !customerMatches ? "customer" : null,
-            !addressMatches ? "address" : null
-          ]
-            .filter(Boolean)
-            .join(" + ");
-          statusExplain(
-            `Bundling order ${parsed.orderNo} (override enabled — different ${mismatchBits}).`,
-            "ok"
-          );
+      for (const orderNo of group.orderNos) {
+        if (orderNo === activeOrderNo) continue;
+        const details = await fetchShopifyOrder(orderNo);
+        if (!details) continue;
+        if (group.address) {
+          details.address1 = group.address.address1;
+          details.address2 = group.address.address2;
+          details.city = group.address.city;
+          details.province = group.address.province;
+          details.postal = group.address.postal;
         }
-
-        if (!canAutoBundle) {
-          scanFeedbackType = "warn";
-        }
-
-        linkedOrders.set(parsed.orderNo, candidate);
+        linkedOrders.set(orderNo, details);
       }
+      statusExplain(`Bundled ${group.orderNos.length} combined orders.`, "ok");
     }
 
     const parcelSet = getParcelSet(parsed.orderNo);
@@ -2472,8 +2246,9 @@ async function startOrder(orderNo, preloadedDetails = null) {
     lastScanAt = Date.now();
     lastScanCode = code;
     armedForBooking = false;
+    updateDashboardKpis();
 
-    confirmScanFeedback(scanFeedbackType);
+    confirmScanFeedback(crossOrderScan ? "warn" : "success");
 
     const expected = getExpectedParcelCount(orderDetails);
 
@@ -2486,6 +2261,30 @@ async function startOrder(orderNo, preloadedDetails = null) {
       updateBookNowButton();
 
       statusExplain(`Tag detected (parcel_count_${expected}). Auto-booking...`, "ok");
+      await doBookingNow();
+      return;
+    }
+
+    const totalScanned = getTotalScannedCount();
+    const groupedExpected = getTotalExpectedCount();
+    if (isAutoMode && linkedOrders.size > 0 && groupedExpected) {
+      cancelAutoBookTimer();
+      renderSessionUI();
+      updateBookNowButton();
+      statusExplain(`Combined shipment ready (${groupedExpected} parcels). Booking now...`, "ok");
+      await doBookingNow({ manual: true, parcelCount: groupedExpected });
+      return;
+    }
+    if (
+      isAutoMode &&
+      expected &&
+      totalScanned >= expected &&
+      !linkedOrders.size
+    ) {
+      cancelAutoBookTimer();
+      renderSessionUI();
+      updateBookNowButton();
+      statusExplain(`All ${expected} parcels scanned. Booking now...`, "ok");
       await doBookingNow();
       return;
     }
@@ -2506,6 +2305,10 @@ async function startOrder(orderNo, preloadedDetails = null) {
       const data = await res.json();
       const o = data.order || data || {};
       const placeCodeFromMeta = data.customerPlaceCode || null;
+      const parcelCountFromMeta =
+        typeof data.parcelCountMeta === "number" && data.parcelCountMeta > 0
+          ? data.parcelCountMeta
+          : null;
 
       const shipping = o.shipping_address || {};
       const customer = o.customer || {};
@@ -2534,12 +2337,12 @@ async function startOrder(orderNo, preloadedDetails = null) {
         o.name ||
         String(orderNo);
 
+      const autoParcelCount = getAutoParcelCountForOrder(lineItems);
       const normalized = {
         raw: o,
-        customerId: customer.id || null,
         name,
         phone: shipping.phone || customer.phone || "",
-        email: o.email || customer.email || "",
+        email: o.email || "",
         address1: shipping.address1 || "",
         address2: shipping.address2 || "",
         city: shipping.city || "",
@@ -2551,7 +2354,9 @@ async function startOrder(orderNo, preloadedDetails = null) {
         placeCode: placeCodeFromMeta,
         placeLabel: null,
         parcelCountFromTag,
-        manualParcelCount: null
+        parcelCountFromMeta,
+        manualParcelCount:
+          parcelCountFromMeta == null && autoParcelCount != null ? autoParcelCount : null
       };
 
       if (!placeCodeFromMeta) {
@@ -2567,7 +2372,6 @@ async function startOrder(orderNo, preloadedDetails = null) {
       appendDebug("Shopify fetch failed: " + String(e));
       return {
         raw: null,
-        customerId: null,
         name: "Unknown",
         phone: "",
         email: "",
@@ -2582,20 +2386,47 @@ async function startOrder(orderNo, preloadedDetails = null) {
         placeCode: null,
         placeLabel: null,
         parcelCountFromTag: null,
+        parcelCountFromMeta: null,
         manualParcelCount: null
       };
     }
   }
 
   function laneFromOrder(order) {
+    const assignedLane = String(order?.assigned_lane || "").trim().toLowerCase();
+    if (assignedLane === "delivery" || assignedLane === "pickup" || assignedLane === "shipping") {
+      return assignedLane;
+    }
+    if (assignedLane === "unassigned") {
+      return "unassigned";
+    }
+
     const tags = String(order?.tags || "").toLowerCase();
+    const urgentFlag = Boolean(order?.urgent || order?.is_urgent || order?.rush_order);
+    const slaHours = Number(order?.sla_hours ?? order?.slaHours ?? order?.sla_target_hours);
+    const financialStatus = String(order?.financial_status || "").toLowerCase();
+    const fulfillmentStatus = String(order?.fulfillment_status || "").toLowerCase();
     const shippingTitles = (order?.shipping_lines || [])
       .map((line) => String(line.title || "").toLowerCase())
       .join(" ");
     const combined = `${tags} ${shippingTitles}`.trim();
+
+    const unpaidStatuses = new Set(["pending", "authorized", "partially_paid", "unpaid"]);
+    const isUnpaid = unpaidStatuses.has(financialStatus);
+    if (isUnpaid) return "shipping_awaiting_payment";
+
+    const isPriorityTag = /(priority|urgent|rush)/.test(tags);
+    const isPrioritySla = Number.isFinite(slaHours) && slaHours > 0 && slaHours <= 24;
+    if (isPriorityTag || urgentFlag || isPrioritySla) return "shipping_priority";
+
     if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-    if (/(local delivery|same\s*day)/.test(combined)) return "delivery";
-    return "shipping";
+    if (/(same\s*day|delivery)/.test(combined)) return "delivery_local";
+
+    const isPaid = financialStatus === "paid";
+    const isUnfulfilled = !fulfillmentStatus || fulfillmentStatus === "unfulfilled";
+    if (isPaid && isUnfulfilled) return "shipping_medium";
+
+    return "shipping_medium";
   }
 
   function renderDispatchLineItems(order, packingState) {
@@ -2655,26 +2486,19 @@ async function startOrder(orderNo, preloadedDetails = null) {
     return OPP_DOCUMENTS.find((doc) => doc.type === docType)?.label || "OPP document";
   }
 
-  function renderDispatchActions(order, laneId, orderNo, packingState) {
-    const actionBtn =
-      laneId === "delivery"
-        ? orderNo
-          ? `<button class="dispatchNoteBtn" type="button" data-action="print-note" data-order-no="${orderNo}">Print delivery note</button>`
-          : `<button class="dispatchNoteBtn" type="button" disabled>Print delivery note</button>`
-        : laneId === "pickup"
-        ? orderNo
-          ? `<button class="dispatchNotifyBtn" type="button" data-action="notify-ready" data-order-no="${orderNo}">Notify customer</button>`
-          : `<button class="dispatchNotifyBtn" type="button" disabled>Notify customer</button>`
-        : orderNo
-        ? `<button class="dispatchBookBtn" type="button" data-action="book-now" data-order-no="${orderNo}">Book Now</button>`
-        : `<button class="dispatchBookBtn" type="button" disabled>Book Now</button>`;
-
-    const flowBtn = orderNo
-      ? `<button class="dispatchFlowBtn" type="button" data-action="run-flow" data-order-no="${orderNo}">Run flow</button>`
-      : `<button class="dispatchFlowBtn" type="button" disabled>Run flow</button>`;
-    const oppBtns = renderOppDocButtons(orderNo);
-
-    return `${actionBtn}${flowBtn}${oppBtns}`;
+  function renderDispatchActions(order, laneId, orderNo) {
+    const normalizedLane = laneId === "delivery_local" || laneId === "pickup" ? laneId : "shipping";
+    const disabled = orderNo ? "" : "disabled";
+    if (normalizedLane === "delivery_local") {
+      const printed = orderNo && printedDeliveryNotes.has(orderNo);
+      return `
+        <button class="dispatchFulfillBtn" type="button" data-action="print-note" data-order-no="${orderNo || ""}" ${disabled}>Print delivery note</button>
+        <button class="dispatchFulfillBtn" type="button" data-action="deliver-delivery" data-order-no="${orderNo || ""}" ${!printed ? "disabled" : ""}>Deliver</button>
+      `;
+    }
+    const label = normalizedLane === "pickup" ? "Ready for collection" : "Fulfil";
+    const actionType = normalizedLane === "pickup" ? "ready-collection" : "fulfill-shipping";
+    return `<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
   }
 
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
@@ -2752,6 +2576,482 @@ async function startOrder(orderNo, preloadedDetails = null) {
     `;
   }
 
+  function estimatePackingTime({ totalUnits, boxCount }) {
+    const units = Number(totalUnits) || 0;
+    const boxes = Number(boxCount) || 0;
+    if (units <= 0 && boxes <= 0) return null;
+    if (units > 0 && units <= 24) return 5;
+    if (units > 0 && units <= 96) return 8;
+    const effectiveBoxes = boxes || Math.max(1, Math.ceil(units / 24));
+    const perBoxMin = effectiveBoxes <= 2 ? 6 : effectiveBoxes <= 4 ? 8 : 10;
+    return effectiveBoxes * perBoxMin;
+  }
+
+  function extractSizeLabel(text) {
+    if (!text) return "";
+    const match = String(text).match(/(\d+(?:\.\d+)?)\s*(kg|g|ml)\b/i);
+    if (!match) return "";
+    const value = Number(match[1]);
+    if (!value) return "";
+    const unit = match[2].toLowerCase();
+    if (unit === "kg") return `${value}${unit}`;
+    return `${Math.round(value)}${unit}`;
+  }
+
+  function getLineItemSize(lineItem) {
+    if (!lineItem) return "";
+    const candidates = [];
+    if (lineItem.variant_title && lineItem.variant_title !== "Default Title") {
+      candidates.push(lineItem.variant_title);
+    }
+    if (Array.isArray(lineItem.variant_options)) {
+      candidates.push(...lineItem.variant_options);
+    }
+    if (Array.isArray(lineItem.options_with_values)) {
+      candidates.push(...lineItem.options_with_values.map((opt) => opt?.value));
+    }
+    if (Array.isArray(lineItem.properties)) {
+      lineItem.properties.forEach((prop) => {
+        if (prop?.name && String(prop.name).toLowerCase().includes("size")) {
+          candidates.push(prop.value);
+        }
+      });
+    }
+    for (const candidate of candidates) {
+      const size = extractSizeLabel(candidate);
+      if (size) return size;
+    }
+    return "";
+  }
+
+  function normalizeLineLabel(label) {
+    return String(label || "")
+      .replace(/\s*[-–|·]\s*/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function getLineItemFlavour(lineItem) {
+    if (!lineItem) return "";
+    if (Array.isArray(lineItem.properties)) {
+      const prop = lineItem.properties.find((item) =>
+        /flavour|flavor/.test(String(item?.name || "").toLowerCase())
+      );
+      if (prop?.value) return normalizeLineLabel(prop.value);
+    }
+    if (Array.isArray(lineItem.options_with_values)) {
+      const option = lineItem.options_with_values.find((item) =>
+        /flavour|flavor/.test(String(item?.name || "").toLowerCase())
+      );
+      if (option?.value) return normalizeLineLabel(option.value);
+    }
+    if (Array.isArray(lineItem.variant_options)) {
+      const option = lineItem.variant_options.find((opt) =>
+        /flavour|flavor/i.test(String(opt || ""))
+      );
+      if (option) return normalizeLineLabel(option);
+    }
+    const title = lineItem.title || "";
+    const sizeLabel = getLineItemSize(lineItem);
+    const cleaned = sizeLabel
+      ? normalizeLineLabel(title.replace(new RegExp(sizeLabel, "i"), ""))
+      : normalizeLineLabel(title);
+    return cleaned;
+  }
+
+  function isCurryMixItem(lineItem) {
+    return /curry mix/i.test(String(lineItem?.title || ""));
+  }
+
+  const BOX_MAX_SPACES = 96;
+  const BOX_MAX_WEIGHT_KG = 21;
+  const CURRY_BOX_MAX = 50;
+  const SIZE_METRICS = {
+    "200ml": { spaces: 1, weight: 0.2 },
+    "250ml": { spaces: 1.6, weight: 0.2 },
+    "375ml": { spaces: 2, weight: 0.45 },
+    "500g": { spaces: 2.5, weight: 0.5 },
+    "1kg": { spaces: 4.7, weight: 1 }
+  };
+
+  function sizeLabelToWeightKgRaw(sizeLabel) {
+    if (!sizeLabel) return 0;
+    const match = String(sizeLabel).match(/(\d+(?:\.\d+)?)\s*(kg|g|ml)\b/i);
+    if (!match) return 0;
+    const value = Number(match[1]);
+    if (!value) return 0;
+    const unit = match[2].toLowerCase();
+    if (unit === "kg") return value;
+    return value / 1000;
+  }
+
+  function getSizeMetrics(sizeLabel) {
+    if (!sizeLabel) return { spaces: 0, weight: 0 };
+    const normalized = String(sizeLabel).replace(/\s+/g, "").toLowerCase();
+    if (normalized.includes("gift")) return { spaces: 0, weight: 0 };
+    if (SIZE_METRICS[normalized]) return SIZE_METRICS[normalized];
+    return { spaces: 1, weight: sizeLabelToWeightKgRaw(sizeLabel) };
+  }
+
+  function sizeLabelToWeightKg(sizeLabel) {
+    return getSizeMetrics(sizeLabel).weight;
+  }
+
+  const SMALL_ORDER_MAX_UNITS = 50;
+  const SMALL_ORDER_EXCLUDED_SIZES = new Set(["500g", "750g", "1kg"]);
+
+  function normalizeSizeToken(sizeLabel) {
+    return String(sizeLabel || "")
+      .replace(/\s+/g, "")
+      .toLowerCase();
+  }
+
+  function isSingleBoxSmallOrder(lineItems) {
+    const items = Array.isArray(lineItems) ? lineItems : [];
+    let totalUnits = 0;
+    let hasExcludedSize = false;
+
+    items.forEach((item) => {
+      const qty = Number(item?.quantity) || 0;
+      totalUnits += qty;
+      const sizeLabel = normalizeSizeToken(getLineItemSize(item));
+      if (SMALL_ORDER_EXCLUDED_SIZES.has(sizeLabel)) {
+        hasExcludedSize = true;
+      }
+    });
+
+    return totalUnits > 0 && totalUnits < SMALL_ORDER_MAX_UNITS && !hasExcludedSize;
+  }
+
+  function getAutoParcelCountForOrder(lineItems) {
+    return isSingleBoxSmallOrder(lineItems) ? 1 : null;
+  }
+
+  function buildDispatchPackingPlan(order) {
+    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const items = lineItems
+      .map((item) => {
+        const size = getLineItemSize(item);
+        const curryMix = isCurryMixItem(item);
+        const metrics = getSizeMetrics(size);
+        return {
+          title: item.title || "",
+          size,
+          curryMix,
+          quantity: Number(item.quantity) || 0,
+          spaces: metrics.spaces,
+          weight: metrics.weight
+        };
+      })
+      .filter((item) => item.quantity > 0);
+
+    const sizeCounts = new Map();
+    let totalWeightKg = 0;
+    let totalUnits = 0;
+
+    items.forEach((item) => {
+      const key = item.size || "Unspecified";
+      sizeCounts.set(key, (sizeCounts.get(key) || 0) + item.quantity);
+      totalWeightKg += sizeLabelToWeightKg(item.size) * item.quantity;
+      totalUnits += item.quantity;
+    });
+
+    const boxes = [];
+    let boxIndex = 1;
+
+    function createBox(itemsInBox, curryMixOnly) {
+      const sizeCounts = new Map();
+      let spacesUsed = 0;
+      let weightUsed = 0;
+      itemsInBox.forEach((entry) => {
+        const label = entry.size || "Unspecified";
+        sizeCounts.set(label, (sizeCounts.get(label) || 0) + entry.quantity);
+        spacesUsed += entry.quantity * entry.spaces;
+        weightUsed += entry.quantity * entry.weight;
+      });
+      const sizeLabels = Array.from(sizeCounts.keys());
+      const sizeLabel = sizeLabels.length === 1 ? sizeLabels[0] : "Mixed";
+      return {
+        label: `Box ${boxIndex}`,
+        size: sizeLabel,
+        curryMix: curryMixOnly,
+        spacesUsed,
+        weightUsed,
+        sizeBreakdown: Array.from(sizeCounts.entries()).map(([size, quantity]) => ({
+          size,
+          quantity
+        })),
+        items: itemsInBox.map((entry) => ({
+          label: entry.title,
+          quantity: entry.quantity,
+          size: entry.size,
+          curryMix: entry.curryMix
+        }))
+      };
+    }
+
+    if (isSingleBoxSmallOrder(lineItems)) {
+      const curryMixOnly = items.length > 0 && items.every((entry) => entry.curryMix);
+      boxes.push(createBox(items, curryMixOnly));
+      return {
+        boxes,
+        sizeCounts,
+        totalWeightKg,
+        estimatedBoxes: boxes.length,
+        totalUnits
+      };
+    }
+
+    const curryMixItems = [];
+    const otherItems = [];
+    items.forEach((item) => {
+      if (item.curryMix && item.size === "250ml") {
+        curryMixItems.push({ ...item });
+      } else {
+        otherItems.push({ ...item });
+      }
+    });
+
+    let curryTotal = curryMixItems.reduce((sum, item) => sum + item.quantity, 0);
+    let curryRemaining = curryMixItems.map((item) => ({ ...item }));
+
+    while (curryTotal >= CURRY_BOX_MAX) {
+      let boxQtyRemaining = CURRY_BOX_MAX;
+      const boxItems = [];
+      const nextRemaining = [];
+      curryRemaining.forEach((item) => {
+        if (boxQtyRemaining <= 0) {
+          nextRemaining.push(item);
+          return;
+        }
+        const packQty = Math.min(item.quantity, boxQtyRemaining);
+        if (packQty > 0) {
+          boxItems.push({ ...item, quantity: packQty });
+          boxQtyRemaining -= packQty;
+          curryTotal -= packQty;
+        }
+        const leftoverQty = item.quantity - packQty;
+        if (leftoverQty > 0) {
+          nextRemaining.push({ ...item, quantity: leftoverQty });
+        }
+      });
+      boxes.push(createBox(boxItems, true));
+      boxIndex += 1;
+      curryRemaining = nextRemaining;
+    }
+
+    const remainingItems = [...otherItems, ...curryRemaining];
+    let itemsToPack = remainingItems.map((item) => ({ ...item }));
+    while (itemsToPack.length) {
+      let boxSpaces = 0;
+      let boxWeight = 0;
+      let packedAny = false;
+      const boxItems = [];
+      const nextRemaining = [];
+
+      itemsToPack.forEach((item) => {
+        let qtyLeft = item.quantity;
+        const spaceLeft = BOX_MAX_SPACES - boxSpaces;
+        const weightLeft = BOX_MAX_WEIGHT_KG - boxWeight;
+        const fitBySpace = item.spaces > 0 ? Math.floor(spaceLeft / item.spaces) : qtyLeft;
+        const fitByWeight = item.weight > 0 ? Math.floor(weightLeft / item.weight) : qtyLeft;
+        let fitQty = Math.min(fitBySpace, fitByWeight, qtyLeft);
+        if (fitQty > 0) {
+          packedAny = true;
+          boxItems.push({ ...item, quantity: fitQty });
+          boxSpaces += fitQty * item.spaces;
+          boxWeight += fitQty * item.weight;
+          qtyLeft -= fitQty;
+        }
+        if (qtyLeft > 0) {
+          nextRemaining.push({ ...item, quantity: qtyLeft });
+        }
+      });
+
+      if (!packedAny) break;
+      const curryMixOnly = boxItems.length > 0 && boxItems.every((entry) => entry.curryMix);
+      boxes.push(createBox(boxItems, curryMixOnly));
+      boxIndex += 1;
+      itemsToPack = nextRemaining;
+    }
+
+    return {
+      boxes,
+      sizeCounts,
+      totalWeightKg,
+      estimatedBoxes: boxes.length,
+      totalUnits
+    };
+  }
+
+  function renderDispatchPackingPlan(plan) {
+    if (!plan || !plan.boxes.length) {
+      return `<div class="dispatchPackingPlanEmpty">No packing plan available.</div>`;
+    }
+    return plan.boxes
+      .map((box) => {
+        const itemsHtml = box.items
+          .map(
+            (item) =>
+              `<div class="dispatchPackingPlanItem"><span>${item.label}</span><span>${item.quantity}</span></div>`
+          )
+          .join("");
+        const tag = `${box.curryMix ? "Curry Mix" : "Standard"} · ${box.size}`;
+        const meta =
+          box.spacesUsed || box.weightUsed
+            ? `<div class="dispatchPackingPlanBoxMeta">Spaces: ${box.spacesUsed.toFixed(
+                1
+              )} · Weight: ${box.weightUsed.toFixed(2)} kg</div>`
+            : "";
+        const sizeBreakdown = Array.isArray(box.sizeBreakdown)
+          ? box.sizeBreakdown
+              .map((entry) => `<div>${entry.quantity} × ${entry.size}</div>`)
+              .join("")
+          : "";
+        const breakdown = sizeBreakdown
+          ? `<div class="dispatchPackingPlanBoxBreakdown"><div><strong>Sizes</strong></div>${sizeBreakdown}</div>`
+          : "";
+        return `
+          <div class="dispatchPackingPlanBox">
+            <div class="dispatchPackingPlanBoxTitle">${box.label} <span>${tag}</span></div>
+            <div class="dispatchPackingPlanBoxItems">${itemsHtml}</div>
+            ${meta}
+            ${breakdown}
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function renderDispatchPackingSummary(plan) {
+    if (!plan) return "";
+    const sizeRows = Array.from(plan.sizeCounts.entries())
+      .map(([size, qty]) => `<div class="dispatchPackingSummaryRow">${size}: ${qty}</div>`)
+      .join("");
+    return `
+      <div class="dispatchPackingSummary">
+        <div class="dispatchPackingSummaryTitle">Packing summary</div>
+        <div class="dispatchPackingSummaryBody">
+          <div class="dispatchPackingSummaryGroup">
+            <div class="dispatchPackingSummaryLabel">Totals by size</div>
+            ${sizeRows || `<div class="dispatchPackingSummaryRow">No sizes detected.</div>`}
+          </div>
+          <div class="dispatchPackingSummaryGroup">
+            ${renderDispatchPackingPlanStats(plan)}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function formatDispatchDuration(minutes) {
+    if (!Number.isFinite(minutes) || minutes <= 0) return "—";
+    const rounded = Math.round(minutes);
+    const hours = Math.floor(rounded / 60);
+    const mins = rounded % 60;
+    if (hours) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  }
+
+  function renderDispatchPackingPlanStats(plan) {
+    if (!plan) return "";
+    const weightLabel = plan.totalWeightKg ? `${plan.totalWeightKg.toFixed(2)} kg` : "—";
+    const estimatedTime = estimatePackingTime({
+      totalUnits: plan.totalUnits,
+      boxCount: plan.estimatedBoxes
+    });
+    const timeLabel = formatDispatchDuration(estimatedTime);
+    return `
+      <div>Total weight: <strong>${weightLabel}</strong></div>
+      <div>Estimated boxes: <strong>${plan.estimatedBoxes}</strong></div>
+      <div>Estimated time: <strong>${timeLabel}</strong></div>
+    `;
+  }
+
+  function aggregateDispatchSelection() {
+    const units = new Map();
+    let totalWeightKg = 0;
+    let totalBoxes = 0;
+    let totalUnits = 0;
+    let orderCount = 0;
+
+    dispatchSelectedOrders.forEach((orderNo) => {
+      const order = dispatchOrderCache.get(orderNo);
+      if (!order) return;
+      orderCount += 1;
+      const packingPlan = buildDispatchPackingPlan(order);
+      totalBoxes += packingPlan?.estimatedBoxes || 0;
+      totalWeightKg += packingPlan?.totalWeightKg || 0;
+      (order.line_items || []).forEach((item) => {
+        const qty = Number(item.quantity) || 0;
+        if (!qty) return;
+        totalUnits += qty;
+        const size = getLineItemSize(item) || "Unspecified";
+        const flavour = getLineItemFlavour(item) || "Unspecified";
+        const key = `${size}||${flavour}`;
+        const existing = units.get(key) || { size, flavour, quantity: 0 };
+        existing.quantity += qty;
+        units.set(key, existing);
+      });
+    });
+
+    const totalTimeMin = estimatePackingTime({
+      totalUnits,
+      boxCount: totalBoxes
+    });
+
+    return { units, totalWeightKg, totalBoxes, totalUnits, orderCount, totalTimeMin };
+  }
+
+  function updateDispatchSelectionSummary() {
+    if (!dispatchSelectionPanel) return;
+    const totals = aggregateDispatchSelection();
+    dispatchSelectionPanel.classList.toggle("is-hidden", totals.orderCount === 0);
+    if (dispatchSelectionCount) {
+      dispatchSelectionCount.textContent = String(totals.orderCount || 0);
+    }
+    if (dispatchSelectionBoxes) {
+      dispatchSelectionBoxes.textContent = String(totals.totalBoxes || 0);
+    }
+    if (dispatchSelectionBoxesReadonly) {
+      dispatchSelectionBoxesReadonly.textContent = String(totals.totalBoxes || 0);
+    }
+    if (dispatchSelectionWeight) {
+      dispatchSelectionWeight.textContent =
+        totals.totalWeightKg > 0 ? `${totals.totalWeightKg.toFixed(2)} kg` : "—";
+    }
+    if (dispatchSelectionTime) {
+      dispatchSelectionTime.textContent = formatDispatchDuration(totals.totalTimeMin);
+    }
+
+    if (dispatchSelectionUnits) {
+      if (!totals.orderCount || totals.units.size === 0) {
+        dispatchSelectionUnits.innerHTML = `<div class="dispatchSelectionRow">Select orders to see totals.</div>`;
+        return;
+      }
+      const rows = Array.from(totals.units.values())
+        .sort((a, b) => {
+          if (a.size === b.size) return a.flavour.localeCompare(b.flavour);
+          return a.size.localeCompare(b.size);
+        })
+        .map(
+          (entry) =>
+            `<div class="dispatchSelectionRow"><span>${entry.size} · ${entry.flavour}</span><span>${entry.quantity}</span></div>`
+        )
+        .join("");
+      dispatchSelectionUnits.innerHTML = rows;
+    }
+  }
+
+  function clearDispatchSelection() {
+    dispatchSelectedOrders.clear();
+    dispatchBoard?.querySelectorAll(".dispatchCardSelectInput").forEach((checkbox) => {
+      checkbox.checked = false;
+      checkbox.closest(".dispatchCard")?.classList.remove("is-selected");
+    });
+    updateDispatchSelectionSummary();
+  }
+
   function openDispatchOrderModal(orderNo) {
     if (!dispatchOrderModal || !dispatchOrderModalBody || !dispatchOrderModalTitle) return;
     const order = dispatchOrderCache.get(orderNo);
@@ -2766,11 +3066,22 @@ async function startOrder(orderNo, preloadedDetails = null) {
     if (dispatchOrderModalMeta) {
       dispatchOrderModalMeta.textContent = `#${(order.name || "").replace("#", "")} · ${city} · ${created}`;
     }
+    const packingPlan = buildDispatchPackingPlan(order);
+    const packingPlanMarkup = renderDispatchPackingPlan(packingPlan);
+    const packingSummaryMarkup = renderDispatchPackingSummary(packingPlan);
     dispatchOrderModalBody.innerHTML = `
       <div class="dispatchCardLines">${lines || "No line items listed."}</div>
       <div class="dispatchCardActions">
         ${renderDispatchActions(order, laneId, orderNo, packingState)}
       </div>
+      <div class="dispatchPackingPlanCard">
+        <div class="dispatchPackingPlanHeader">
+          <div class="dispatchPackingPlanTitle">Packing plan</div>
+          <button class="dispatchPackingPlanPrint" type="button" data-action="print-packing-plan" data-order-no="${orderNo}" title="Print packing plan">🧾</button>
+        </div>
+        <div class="dispatchPackingPlanBody">${packingPlanMarkup}</div>
+      </div>
+      ${packingSummaryMarkup}
       ${renderDispatchPackingPanel(packingState, orderNo, { forceOpen: true })}
     `;
     dispatchOrderModal.classList.add("is-open");
@@ -2875,39 +3186,58 @@ async function startOrder(orderNo, preloadedDetails = null) {
     if (!orderNo) return;
     const order = dispatchOrderCache.get(orderNo);
     if (!order) return;
-    const packingState = dispatchPackingState.get(orderNo) || getPackingState(order);
-    const parcelCount = getPackingParcelCount(packingState);
-    const weightKg = Number(order.total_weight_kg || 0);
-    if (!order.email) {
-      statusExplain("Customer email missing.", "warn");
-      logDispatchEvent(`Notify failed for order ${orderNo}: missing email.`);
-      return;
-    }
     try {
-      setDispatchProgress(6, `Notifying ${orderNo}`);
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/notify-collection`, {
+      setDispatchProgress(6, `Marking ${orderNo} ready for collection`);
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/ready-for-pickup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderNo,
-          orderId: order.id,
-          email: order.email,
-          customerName: order.customer_name || "",
-          parcelCount,
-          weightKg
+          orderId: order.id
         })
       });
       if (!res.ok) {
         const text = await res.text();
-        statusExplain("Notify failed.", "warn");
-        logDispatchEvent(`Notify failed for order ${orderNo}: ${text}`);
+        statusExplain("Ready-for-collection failed.", "warn");
+        logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${text}`);
         return;
       }
-      statusExplain(`Customer notified for ${orderNo}.`, "ok");
-      logDispatchEvent(`Customer notified for order ${orderNo}.`);
+      statusExplain(`Order ${orderNo} marked ready for collection.`, "ok");
+      logDispatchEvent(`Order ${orderNo} marked ready for collection.`);
     } catch (err) {
-      statusExplain("Notify failed.", "warn");
-      logDispatchEvent(`Notify failed for order ${orderNo}: ${String(err)}`);
+      statusExplain("Ready-for-collection failed.", "warn");
+      logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${String(err)}`);
+    }
+  }
+
+  async function markDeliveryReady(orderNo) {
+    if (!orderNo) return;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return;
+    try {
+      setDispatchProgress(6, `Marking ${orderNo} ready for delivery`);
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          trackingNumber: "",
+          trackingUrl: "",
+          trackingCompany: "Local delivery",
+          message: "Ready for delivery."
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        statusExplain("Ready-for-delivery failed.", "warn");
+        logDispatchEvent(`Ready-for-delivery failed for order ${orderNo}: ${text}`);
+        return;
+      }
+      statusExplain(`Order ${orderNo} marked ready for delivery.`, "ok");
+      logDispatchEvent(`Order ${orderNo} marked ready for delivery.`);
+    } catch (err) {
+      statusExplain("Ready-for-delivery failed.", "warn");
+      logDispatchEvent(`Ready-for-delivery failed for order ${orderNo}: ${String(err)}`);
     }
   }
 
@@ -2944,14 +3274,7 @@ async function startOrder(orderNo, preloadedDetails = null) {
     return `${base}${tracking}`;
   }
 
-  function renderShipmentList(shipments) {
-    const trackingCounts = (shipments || []).reduce((acc, shipment) => {
-      const trackingKey = shipment.tracking_number || "";
-      if (trackingKey) {
-        acc[trackingKey] = (acc[trackingKey] || 0) + 1;
-      }
-      return acc;
-    }, {});
+  function renderShipmentList(shipments, emptyLabel = "No recent shipments found.") {
     const rows = shipments
       .map((shipment) => {
         const key = shipmentKey(shipment);
@@ -2959,17 +3282,15 @@ async function startOrder(orderNo, preloadedDetails = null) {
         const name = shipment.customer_name || shipment.order_name || "Unknown";
         const tracking = shipment.tracking_number || "—";
         const status = formatShipmentStatus(shipment.shipment_status);
-        const isMultiOrder = tracking !== "—" && trackingCounts[tracking] > 1;
-        const multiTag = isMultiOrder
-          ? `<span class="dispatchShipmentTag">Multi-order</span>`
-          : "";
+        const trackingUrl = shipment.tracking_url || "";
         return `
           <div class="dispatchShipmentRow" data-shipment-key="${key}">
             <div class="dispatchShipmentCell dispatchShipmentCell--name">${name}</div>
             <div class="dispatchShipmentCell dispatchShipmentCell--tracking">${tracking}</div>
-            <div class="dispatchShipmentCell dispatchShipmentCell--status">
-              <span>${status}</span>
-              ${multiTag}
+            <div class="dispatchShipmentCell dispatchShipmentCell--status">${status}</div>
+            <div class="dispatchShipmentCell dispatchShipmentCell--actions">
+              <button class="dispatchShipmentActionBtn" type="button" data-action="view-shipment" data-shipment-key="${key}">Details</button>
+              ${trackingUrl ? `<a class="dispatchShipmentActionBtn dispatchShipmentActionBtn--link" href="${trackingUrl}" target="_blank" rel="noopener noreferrer">Track</a>` : ""}
             </div>
           </div>
         `;
@@ -2982,59 +3303,61 @@ async function startOrder(orderNo, preloadedDetails = null) {
           <div class="dispatchShipmentCell dispatchShipmentCell--name">Customer</div>
           <div class="dispatchShipmentCell dispatchShipmentCell--tracking">Tracking #</div>
           <div class="dispatchShipmentCell dispatchShipmentCell--status">Latest event</div>
+          <div class="dispatchShipmentCell dispatchShipmentCell--actions">Actions</div>
         </div>
-        ${rows || `<div class="dispatchShipmentEmpty">No fulfillment history yet.</div>`}
+        ${rows || `<div class="dispatchShipmentEmpty">${emptyLabel}</div>`}
       </div>
     `;
+  }
+
+  function scheduleFulfillmentHistoryRefresh(delayMs = 30000) {
+    if (fulfillmentHistoryRefreshTimer) clearTimeout(fulfillmentHistoryRefreshTimer);
+    fulfillmentHistoryRefreshTimer = setTimeout(async () => {
+      try {
+        const ok = await fulfillmentHistoryView.refreshFulfillmentHistory();
+        scheduleFulfillmentHistoryRefresh(ok ? 30000 : 60000);
+      } catch (err) {
+        appendDebug("Fulfillment history refresh failed: " + String(err));
+        if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History unavailable.";
+        scheduleFulfillmentHistoryRefresh(60000);
+      }
+    }, delayMs);
   }
 
   function renderDispatchBoard(orders) {
     if (!dispatchBoard) return;
 
-    const now = Date.now();
-    const maxAgeMs = MAX_ORDER_AGE_HOURS * 60 * 60 * 1000;
     dispatchOrderCache.clear();
-    dispatchShipmentCache.clear();
     const activeOrders = new Set();
 
-    const filtered = (orders || []).filter((o) => {
-      const fs = (o.fulfillment_status || "").toLowerCase();
-      if (fs && fs !== "unfulfilled" && fs !== "in_progress") return false;
-      if (!o.created_at) return true;
-      const createdMs = new Date(o.created_at).getTime();
-      if (!Number.isFinite(createdMs)) return true;
-      return now - createdMs <= maxAgeMs;
-    });
-
-    filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-    const list = filtered.slice(0, 60);
-
+    const list = Array.isArray(orders) ? [...orders] : [];
+    list.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     if (!list.length) {
-      dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
+      dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open dispatch orders right now.</div>`;
+      dispatchSelectedOrders.clear();
+      updateDispatchSelectionSummary();
       return;
     }
 
     const cols = [
-      { id: "delivery", label: "Delivery", type: "cards" },
-      { id: "shippingA", label: "Shipping", type: "cards" },
-      { id: "shippingB", label: "Shipping", type: "cards" },
+      { id: "shipping_priority", label: "Shipping · Priority", type: "cards" },
+      { id: "shipping_medium", label: "Shipping · Standard", type: "cards" },
+      { id: "shipping_awaiting_payment", label: "Shipping · Awaiting payment", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" },
-      { id: "shipments", label: "Fulfillment history", type: "shipments" }
+      { id: "delivery_local", label: "Delivery", type: "cards" }
     ];
     const lanes = {
-      delivery: [],
-      shipping: [],
-      pickup: []
+      shipping_priority: [],
+      shipping_medium: [],
+      shipping_awaiting_payment: [],
+      pickup: [],
+      delivery_local: []
     };
 
     list.forEach((o) => {
       const laneId = laneFromOrder(o);
-      (lanes[laneId] || lanes.shipping).push(o);
+      (lanes[laneId] || lanes.shipping_medium).push(o);
     });
-
-    const shippingSplitIndex = Math.ceil(lanes.shipping.length / 2);
-    const shippingA = lanes.shipping.slice(0, shippingSplitIndex);
-    const shippingB = lanes.shipping.slice(shippingSplitIndex);
 
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
@@ -3048,16 +3371,56 @@ async function startOrder(orderNo, preloadedDetails = null) {
       const addr1 = o.shipping_address1 || "";
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
+      const fallbackParcelCount = getAutoParcelCountForOrder(o.line_items);
+      const actualParcelCountValue =
+        typeof o.parcel_count === "number" && o.parcel_count >= 0 ? o.parcel_count : "";
+      const estimatedParcelCountValue =
+        typeof o.estimated_parcels === "number" && o.estimated_parcels >= 0
+          ? o.estimated_parcels
+          : fallbackParcelCount ?? "";
+      const parcelCountPlaceholder =
+        actualParcelCountValue === "" && estimatedParcelCountValue !== ""
+          ? `Est: ${estimatedParcelCountValue}`
+          : "--";
+      const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
+      const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
+      const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
       }
 
       return `
-        <div class="dispatchCard" data-order-no="${orderNo}">
-          <div class="dispatchCardTitle"><span>${title}</span></div>
+        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""}" data-order-no="${orderNo}" ${combinedStyle}>
+          <div class="dispatchCardTitle">
+            <span class="dispatchCardTitleText">${title}</span>
+            ${
+              orderNo
+                ? `<label class="dispatchCardSelect"><input class="dispatchCardSelectInput" type="checkbox" data-order-no="${orderNo}" ${
+                    isSelected ? "checked" : ""
+                  } aria-label="Select order ${orderNo}"/>Select</label>`
+                : ""
+            }
+          </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
-         
+          ${String(o.assigned_lane || "").trim().toLowerCase() === "unassigned" ? '<div class="dispatchCardMeta" style="color:#b91c1c;font-weight:700;">⚠️ Lane unresolved (UNASSIGNED)</div>' : ""}
+          <div class="dispatchCardParcel">
+            <label for="dispatchParcel-${orderNo}">Parcels</label>
+            <input
+              id="dispatchParcel-${orderNo}"
+              class="dispatchParcelCountInput"
+              type="number"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              data-order-no="${orderNo}"
+              data-order-id="${o.id || ""}"
+              data-last-value="${actualParcelCountValue}"
+              data-estimated-value="${estimatedParcelCountValue}"
+              value="${actualParcelCountValue}"
+              placeholder="${parcelCountPlaceholder}"
+            />
+          </div>
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
             ${renderDispatchActions(o, laneId, orderNo, packingState)}
@@ -3067,27 +3430,16 @@ async function startOrder(orderNo, preloadedDetails = null) {
 
     dispatchBoard.innerHTML = cols
       .map((col) => {
-        if (col.type === "shipments") {
-          const shipments = Array.isArray(dispatchShipmentsLatest) ? dispatchShipmentsLatest : [];
-          const listHTML = renderShipmentList(shipments);
-          return `
-            <div class="dispatchCol dispatchCol--shipments">
-              <div class="dispatchColHeader">${col.label}</div>
-              <div class="dispatchColBody dispatchColBody--shipments">${listHTML}</div>
-            </div>`;
-        }
-        const laneOrders =
-          col.id === "shippingA"
-            ? shippingA
-            : col.id === "shippingB"
-            ? shippingB
-            : lanes[col.id] || [];
+        const laneOrders = lanes[col.id] || [];
         const cards =
           laneOrders.map((order) => cardHTML(order, col.id)).join("") ||
           `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
         return `
           <div class="dispatchCol">
-            <div class="dispatchColHeader">${col.label}</div>
+            <div class="dispatchColHeader">
+              <span>${col.label}</span>
+              <label class="dispatchLaneSelectAll"><input type="checkbox" class="dispatchLaneSelectAllInput" data-lane-id="${col.id}"/>All</label>
+            </div>
             <div class="dispatchColBody">${cards}</div>
           </div>`;
       })
@@ -3101,6 +3453,57 @@ async function startOrder(orderNo, preloadedDetails = null) {
       }
     });
     if (pruned) savePackingState();
+    let selectionPruned = false;
+    dispatchSelectedOrders.forEach((orderNo) => {
+      if (!activeOrders.has(orderNo)) {
+        dispatchSelectedOrders.delete(orderNo);
+        selectionPruned = true;
+      }
+    });
+    if (activeDispatchOrderNo && !activeOrders.has(activeDispatchOrderNo)) {
+      activeDispatchOrderNo = null;
+    }
+    setActiveDispatchCard(activeDispatchOrderNo);
+    updateDispatchSelectionSummary();
+  }
+
+  async function updateDispatchParcelCount({ orderId, orderNo, value }) {
+    if (!orderId) return false;
+    try {
+      const payload = { orderId };
+      if (value === "" || value === null || typeof value === "undefined") {
+        payload.parcelCount = null;
+      } else {
+        payload.parcelCount = value;
+      }
+      const resp = await fetch(`${API_BASE}/shopify/orders/parcel-count`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      if (orderNo) {
+        const order = dispatchOrderCache.get(orderNo);
+        if (order) order.parcel_count = data.parcelCount ?? null;
+      }
+      return true;
+    } catch (err) {
+      statusExplain("Failed to save parcel count.", "warn");
+      appendDebug(`Parcel count update failed: ${String(err)}`);
+      return false;
+    }
+  }
+
+  function getDispatchParcelCountInputValue(orderNo) {
+    if (!orderNo) return null;
+    const input = dispatchBoard?.querySelector(`.dispatchParcelCountInput[data-order-no="${orderNo}"]`);
+    if (!input) return null;
+    const raw = String(input.value || "").trim();
+    if (!raw) return null;
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed <= 0) return null;
+    return parsed;
   }
 
   function printOppDocument(order, docType) {
@@ -3180,44 +3583,39 @@ async function startOrder(orderNo, preloadedDetails = null) {
     return true;
   }
 
-  function printDeliveryNote(order) {
+  function printPackingPlan(orderNo) {
+    if (!orderNo) return false;
+    const order = dispatchOrderCache.get(orderNo);
     if (!order) return false;
-    const orderNo = String(order.name || "").replace("#", "").trim();
     const title = order.customer_name || order.name || `Order ${order.id}`;
-    const addressLines = [
-      order.shipping_address1,
-      order.shipping_address2,
-      [order.shipping_city, order.shipping_postal].filter(Boolean).join(" ")
-    ]
-      .filter(Boolean)
-      .join("<br>");
-    const lineItems = (order.line_items || [])
-      .map((li) => `<tr><td>${li.title || ""}</td><td>${li.sku || ""}</td><td>${li.quantity}</td></tr>`)
-      .join("");
+    const packingPlan = buildDispatchPackingPlan(order);
+    const planMarkup = renderDispatchPackingPlan(packingPlan);
+    const summaryMarkup = renderDispatchPackingSummary(packingPlan);
     const doc = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8" />
-        <title>Delivery Note ${orderNo}</title>
+        <title>Packing plan ${orderNo}</title>
         <style>
           body{ font-family:Arial, sans-serif; padding:24px; color:#0f172a; }
-          h1{ font-size:18px; margin-bottom:8px; }
+          h1{ font-size:18px; margin-bottom:6px; }
           .meta{ font-size:12px; color:#475569; margin-bottom:16px; }
-          table{ width:100%; border-collapse:collapse; font-size:12px; }
-          th,td{ border:1px solid #cbd5f5; padding:6px; text-align:left; }
-          th{ background:#e2e8f0; }
-          .addr{ margin-top:12px; font-size:12px; }
+          .dispatchPackingPlanBox{ border:1px solid #e2e8f0; padding:10px 12px; margin-bottom:12px; }
+          .dispatchPackingPlanBoxTitle{ font-size:12px; font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between; }
+          .dispatchPackingPlanItem{ display:flex; justify-content:space-between; font-size:12px; padding:2px 0; }
+          .dispatchPackingPlanBoxMeta{ font-size:11px; color:#475569; margin-top:6px; }
+          .dispatchPackingPlanBoxBreakdown{ font-size:11px; margin-top:6px; }
+          .dispatchPackingSummary{ margin-top:16px; font-size:12px; }
+          .dispatchPackingSummaryTitle{ font-weight:700; margin-bottom:6px; }
+          .dispatchPackingSummaryRow{ margin-bottom:4px; }
         </style>
       </head>
       <body>
-        <h1>Delivery Note • Order ${orderNo}</h1>
+        <h1>Packing plan • Order ${orderNo}</h1>
         <div class="meta">${title}</div>
-        <div class="addr"><strong>Deliver to:</strong><br>${addressLines || "No address on file"}</div>
-        <table>
-          <thead><tr><th>Item</th><th>SKU</th><th>Qty</th></tr></thead>
-          <tbody>${lineItems || "<tr><td colspan='3'>No line items.</td></tr>"}</tbody>
-        </table>
+        <div class="dispatchPackingPlanBody">${planMarkup}</div>
+        ${summaryMarkup}
       </body>
       </html>
     `;
@@ -3231,17 +3629,297 @@ async function startOrder(orderNo, preloadedDetails = null) {
     return true;
   }
 
+  async function printDeliveryNote(order) {
+    if (!order) return false;
+    const orderNo = String(order.name || "").replace("#", "").trim();
+    let orderData = order;
+
+    try {
+      const res = await fetch(
+        `${CONFIG.SHOPIFY.PROXY_BASE}/orders/by-name/${encodeURIComponent(orderNo)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.order) orderData = data.order;
+      }
+    } catch (err) {
+      appendDebug(`Delivery note fetch failed for ${orderNo}: ${String(err)}`);
+    }
+
+    const billing = orderData.billing_address || {};
+    const shipping = orderData.shipping_address || {};
+    const customer = orderData.customer || {};
+    const noteRaw = String(orderData.note || "");
+    const noteLines = noteRaw.split("\n");
+
+    let poValue = "";
+    let invoiceDateFromNote = "";
+    noteLines.forEach((line) => {
+      const clean = line.trim();
+      if (clean.includes("PO:")) {
+        poValue = clean.split("PO:").pop().trim();
+      }
+      if (clean.includes("Invoice Date:")) {
+        const rawAfter = clean.split("Invoice Date:").pop().trim();
+        invoiceDateFromNote = rawAfter.slice(0, 10);
+      }
+    });
+
+    const invoiceDateMf =
+      orderData?.metafields?.custom?.invoice_date?.value ||
+      orderData?.metafields?.custom?.invoice_date ||
+      orderData?.metafields?.finance?.invoice_date?.value ||
+      orderData?.metafields?.finance?.invoice_date ||
+      "";
+
+    const invoiceDateRaw = invoiceDateMf || invoiceDateFromNote || orderData.created_at || "";
+
+    const normalizeDateParts = (value) => {
+      if (!value) return null;
+      if (value instanceof Date && !Number.isNaN(value.getTime())) {
+        return { y: value.getFullYear(), m: value.getMonth() + 1, d: value.getDate() };
+      }
+      const str = String(value).trim();
+      if (!str) return null;
+
+      const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        return { y: Number(match[1]), m: Number(match[2]), d: Number(match[3]) };
+      }
+
+      if (str.includes("/")) {
+        const parts = str.split("/").map((part) => part.trim());
+        if (parts.length === 3) {
+          const [p0, p1, p2] = parts;
+          if (p0.length === 4) {
+            return { y: Number(p0), m: Number(p1), d: Number(p2) };
+          }
+          if (p2.length === 4) {
+            return { y: Number(p2), m: Number(p1), d: Number(p0) };
+          }
+        }
+      }
+
+      const parsed = new Date(str);
+      if (!Number.isNaN(parsed.getTime())) {
+        return { y: parsed.getFullYear(), m: parsed.getMonth() + 1, d: parsed.getDate() };
+      }
+      return null;
+    };
+
+    const formatDate = (value) => {
+      const parts = normalizeDateParts(value);
+      if (!parts) return "";
+      const day = String(parts.d).padStart(2, "0");
+      const month = String(parts.m).padStart(2, "0");
+      return `${day}/${month}/${parts.y}`;
+    };
+
+    const invoiceDateFinal = formatDate(invoiceDateRaw);
+
+    const billingName =
+      (billing.company && billing.company.trim()) || billing.name || orderData.customer_name || "";
+    const shippingName =
+      (shipping.company && shipping.company.trim()) || shipping.name || orderData.customer_name || "";
+
+    const billingPhone =
+      billing.phone ||
+      customer?.default_address?.phone ||
+      customer.phone ||
+      orderData.phone ||
+      "";
+    const shippingPhone = shipping.phone || orderData.shipping_phone || "";
+
+    const noteAttributes = Array.isArray(orderData.note_attributes)
+      ? orderData.note_attributes
+      : [];
+    const shippingEmail =
+      noteAttributes.find((attr) => attr?.name === "Shipping Email")?.value ||
+      orderData.email ||
+      "";
+
+    const lineItems = Array.isArray(orderData.line_items) ? [...orderData.line_items] : [];
+    lineItems.sort((a, b) => String(a.sku || "").localeCompare(String(b.sku || "")));
+
+    const shopName = CONFIG?.SHOP_NAME || "Flippen Lekka Holdings (Pty) Ltd";
+    const shopDomain = CONFIG?.SHOP_DOMAIN || "flippenlekkaspices.co.za";
+
+    const lineRows = lineItems
+      .map((line) => {
+        return `
+          <tr>
+            <td>${line.sku || ""}</td>
+            <td>${line.title || ""}</td>
+            <td style="text-align:center;">${line.quantity || ""}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const doc = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Delivery Note ${orderNo}</title>
+        <style>
+          body{ font-family: Arial, sans-serif; font-size: 9pt; color:#000; }
+          .card{ border:1px solid #ddd; border-radius:6px; padding:10px; }
+          .card h3{ margin:0 0 6px 0; font-size:11pt; letter-spacing:.2px; }
+          .kv{ margin:2px 0; font-size:9pt; }
+          .kv .k{ color:#555; min-width:80px; display:inline-block; }
+          .namebig{ font-size:11pt; font-weight:700; margin-bottom:4px; }
+          .muted{ color:#666; }
+          h2{ margin:2px 0 0 0; font-size:13pt; font-weight:700; }
+          .small{ font-size:8pt !important; }
+          .tight td{ padding:2px 4px; }
+          .headerTbl{ width:100%; }
+          .hdrL{ width:70%; vertical-align:top; text-align:left; }
+          .hdrR{ width:30%; vertical-align:top; text-align:right; }
+          .addrTbl{ width:100%; margin-top:12px; }
+          .addrTbl td{ vertical-align:top; width:50%; }
+          .section{ font-size:14px; font-weight:700; text-transform:uppercase; }
+          .items{ font-size:11px; width:100%; border-collapse:collapse; margin-top:14px; }
+          .items th, .items td{ border:1px solid #000; padding:3px; }
+          .items th{ background:#f2f2f2; }
+          .sigTbl{ width:100%; margin-top:24px; }
+          .sigTbl td{ padding:12px 0; }
+          .note{ font-size:8pt; margin-top:8px; }
+        </style>
+      </head>
+      <body>
+        <table class="headerTbl">
+          <tr>
+            <td class="hdrL">
+              <h2>${shopName}</h2>
+              <div class="logo-wrapper" style="float:left;">
+                <a href="https://${shopDomain}" target="_blank">
+                  <img class="logo" alt="Logo"
+                       src="/img/logo.png"
+                       style="max-width:40%;height:auto;margin-right:10px;">
+                </a>
+              </div>
+              <div class="small" style="width:100%">
+                7 Papawer Street, Blomtuin, Bellville<br>
+                Cape Town, Western Cape, 7530<br>
+                Co. Reg No: 2015/091655/07<br>
+                VAT Reg No: 4150279885<br>
+                Phone: 071 371 0499 | 078 355 6277<br>
+                Email: admin@flippenlekkaspices.co.za
+              </div>
+            </td>
+            <td class="hdrR">
+              <h2 style="font-size:18px">DELIVERY NOTE</h2>
+              <table class="tight small" style="margin-left:auto;">
+                <tr>
+                  <td class="section">Date:</td>
+                  <td>${invoiceDateFinal || ""}</td>
+                </tr>
+                <tr>
+                  <td class="section">Delivery&nbsp;No:</td>
+                  <td>${orderData.name || ""}</td>
+                </tr>
+                ${poValue ? `<tr><td class="section">PO&nbsp;Number:</td><td>${poValue}</td></tr>` : ""}
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <table class="addrTbl small">
+          <tr>
+            <td>
+              <div class="card">
+                <h3>Invoice to</h3>
+                <div class="namebig">${billingName || ""}</div>
+                ${billing.address1 ? `<div class="kv"><span class="k">Address:</span> ${billing.address1}</div>` : ""}
+                ${billing.address2 ? `<div class="kv"><span class="k"></span>${billing.address2}</div>` : ""}
+                ${
+                  billing.city || billing.province
+                    ? `<div class="kv"><span class="k"></span>${billing.city || ""}${
+                        billing.province ? `, ${billing.province}` : ""
+                      }</div>`
+                    : ""
+                }
+                ${billing.zip ? `<div class="kv"><span class="k"></span>${billing.zip}</div>` : ""}
+                ${billing.country ? `<div class="kv"><span class="k"></span>${billing.country}</div>` : ""}
+                ${billingPhone ? `<div class="kv"><span class="k">Phone:</span> ${billingPhone}</div>` : ""}
+                ${orderData.email ? `<div class="kv"><span class="k">Email:</span> ${orderData.email}</div>` : ""}
+                ${
+                  customer?.note && customer.note.includes("VAT ID:")
+                    ? `<div class="kv"><span class="k">VAT Nr:</span> ${
+                        customer.note.split("VAT ID:").pop().trim()
+                      }</div>`
+                    : ""
+                }
+              </div>
+            </td>
+            <td>
+              <div class="card">
+                <h3>Deliver to</h3>
+                <div class="namebig">${shippingName || ""}</div>
+                ${shipping.address1 ? `<div class="kv"><span class="k">Address:</span> ${shipping.address1}</div>` : ""}
+                ${shipping.address2 ? `<div class="kv"><span class="k"></span>${shipping.address2}</div>` : ""}
+                ${
+                  shipping.city || shipping.province
+                    ? `<div class="kv"><span class="k"></span>${shipping.city || ""}${
+                        shipping.province ? `, ${shipping.province}` : ""
+                      }</div>`
+                    : ""
+                }
+                ${shipping.zip ? `<div class="kv"><span class="k"></span>${shipping.zip}</div>` : ""}
+                ${shipping.country ? `<div class="kv"><span class="k"></span>${shipping.country}</div>` : ""}
+                ${shippingPhone ? `<div class="kv"><span class="k">Phone:</span> ${shippingPhone}</div>` : ""}
+                ${shippingEmail ? `<div class="kv"><span class="k">Email:</span> ${shippingEmail}</div>` : ""}
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <table class="items">
+          <thead>
+            <tr>
+              <th style="width:14%;">Code</th>
+              <th>Description</th>
+              <th style="width:8%; text-align:center;">Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lineRows || "<tr><td colspan='3'>No line items.</td></tr>"}
+          </tbody>
+        </table>
+
+        <table class="sigTbl small">
+          <tr>
+            <td>Received by: ___________________</td>
+            <td>Receiver signature: ___________________</td>
+            <td>Date: ___________________</td>
+          </tr>
+        </table>
+
+        <div class="note" style="text-align:center; margin-top:8px;">
+          Please check your goods before signing. Goods remain vested in Flippen Lekka Holdings (Pty) Ltd until paid in full.
+        </div>
+      </body>
+      </html>
+    `;
+
+    const win = window.open("", "_blank", "width=820,height=900");
+    if (!win) return false;
+    win.document.open();
+    win.document.write(doc);
+    win.document.close();
+    win.focus();
+    win.print();
+    return true;
+  }
+
   async function refreshDispatchData() {
     try {
-      const [ordersRes, shipmentsRes] = await Promise.all([
-        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`),
-        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/shipments/recent`)
-      ]);
+      const ordersRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`);
       const data = ordersRes.ok ? await ordersRes.json() : { orders: [] };
-      const shipmentsData = shipmentsRes.ok ? await shipmentsRes.json() : { shipments: [] };
       dispatchOrdersLatest = data.orders || [];
-      dispatchShipmentsLatest = shipmentsData.shipments || [];
       renderDispatchBoard(dispatchOrdersLatest);
+      updateDashboardKpis();
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
     } catch (e) {
       appendDebug("Dispatch refresh failed: " + String(e));
@@ -3250,140 +3928,22 @@ async function startOrder(orderNo, preloadedDetails = null) {
     }
   }
 
-  function renderModuleDashboard() {
-    if (!moduleGrid) return;
-    moduleGrid.innerHTML = "";
-
-    MODULES.forEach((module) => {
-      const card = document.createElement("article");
-      card.className = "moduleCard";
-      card.dataset.moduleId = module.id;
-
-      const header = document.createElement("div");
-      header.className = "moduleCardHeader";
-
-      const title = document.createElement("h3");
-      title.className = "moduleCardTitle";
-      title.textContent = module.title;
-
-      const tag = document.createElement("span");
-      tag.className = "moduleCardTag";
-      tag.textContent = module.tag || "Module";
-
-      header.appendChild(title);
-      header.appendChild(tag);
-
-      const desc = document.createElement("p");
-      desc.className = "moduleCardDesc";
-      desc.textContent = module.description || "";
-
-      const actions = document.createElement("div");
-      actions.className = "moduleCardActions";
-
-      const meta = document.createElement("span");
-      meta.className = "moduleMeta";
-      meta.textContent = module.type === "view" ? "Internal module" : module.target;
-
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "moduleOpenBtn";
-      button.textContent = "Open module";
-      button.dataset.moduleId = module.id;
-
-      actions.appendChild(meta);
-      actions.appendChild(button);
-
-      card.appendChild(header);
-      card.appendChild(desc);
-      card.appendChild(actions);
-
-      moduleGrid.appendChild(card);
-    });
-  }
-
-  function renderFactoryView(activeId = "manufacturing") {
-    if (!factoryMap || !factoryTools) return;
-    const targetArea = FACTORY_AREAS.find((area) => area.id === activeId) || FACTORY_AREAS[0];
-
-    factoryMap.querySelectorAll(".factoryArea").forEach((areaButton) => {
-      const isActive = areaButton instanceof HTMLElement && areaButton.dataset.dept === targetArea.id;
-      areaButton.classList.toggle("factoryArea--active", isActive);
-    });
-
-    if (factoryDetailTitle) factoryDetailTitle.textContent = targetArea.title;
-    if (factoryDetailBadge) factoryDetailBadge.textContent = targetArea.badge;
-    if (factoryDetailDesc) factoryDetailDesc.textContent = targetArea.description;
-
-    factoryTools.innerHTML = "";
-    targetArea.tools.forEach((tool) => {
-      const toolCard = document.createElement("article");
-      toolCard.className = "factoryTool";
-
-      const toolTitle = document.createElement("h4");
-      toolTitle.className = "factoryToolTitle";
-      toolTitle.textContent = tool.title;
-
-      const toolDesc = document.createElement("p");
-      toolDesc.className = "factoryToolDesc";
-      toolDesc.textContent = tool.description;
-
-      const toolButton = document.createElement("button");
-      toolButton.type = "button";
-      toolButton.className = "factoryToolBtn";
-      toolButton.textContent = "Open tool";
-      toolButton.dataset.toolType = tool.type;
-      toolButton.dataset.toolTarget = tool.target;
-
-      toolCard.appendChild(toolTitle);
-      toolCard.appendChild(toolDesc);
-      toolCard.appendChild(toolButton);
-      factoryTools.appendChild(toolCard);
-    });
-  }
-
-  function openFactoryTool(type, target) {
-    if (!type || !target) return;
-    if (type === "view") {
-      switchMainView(target);
-      return;
-    }
-    if (type === "link") {
-      window.location.href = target;
-    }
-  }
-
-  function openModuleById(moduleId) {
-    const module = MODULES.find((entry) => entry.id === moduleId);
-    if (!module) return;
-
-    if (module.type === "view") {
-      switchMainView(module.target);
-      return;
-    }
-
-    if (module.type === "link" && module.target) {
-      window.location.href = module.target;
-    }
-  }
-
-  moduleGrid?.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const button = target.closest("[data-module-id]");
-    if (!button) return;
-    const moduleId = button.dataset.moduleId;
-    if (!moduleId) return;
-    openModuleById(moduleId);
-  });
-
-
-
+  // Centralized SPA view switch so nav states, URL, and section visibility remain consistent.
   function switchMainView(view) {
     const showDashboard = view === "dashboard";
     const showScan = view === "scan";
+    const showFulfillmentHistory = view === "fulfillment-history";
+    const showContacts = view === "contacts";
     const showOps = view === "ops";
-    const showInvoices = view === "invoices";
     const showDocs = view === "docs";
+    const showFlowcharts = view === "flowcharts";
+    const showFlocs = view === "flocs";
+    const showStock = view === "stock";
+    const showPriceManager = view === "price-manager";
+    const showPrintStation = view === "print-station";
+    const showTraceability = view === "traceability";
+    const showStockists = view === "stockists";
+    const showYearPlanner = view === "year-planner";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3393,45 +3953,238 @@ async function startOrder(orderNo, preloadedDetails = null) {
       viewScan.hidden = !showScan;
       viewScan.classList.toggle("flView--active", showScan);
     }
+    if (viewFulfillmentHistory) {
+      viewFulfillmentHistory.hidden = !showFulfillmentHistory;
+      viewFulfillmentHistory.classList.toggle("flView--active", showFulfillmentHistory);
+    }
+    if (viewContacts) {
+      viewContacts.hidden = !showContacts;
+      viewContacts.classList.toggle("flView--active", showContacts);
+    }
     if (viewOps) {
       viewOps.hidden = !showOps;
       viewOps.classList.toggle("flView--active", showOps);
-    }
-    if (viewInvoices) {
-      viewInvoices.hidden = !showInvoices;
-      viewInvoices.classList.toggle("flView--active", showInvoices);
     }
     if (viewDocs) {
       viewDocs.hidden = !showDocs;
       viewDocs.classList.toggle("flView--active", showDocs);
     }
+    if (viewFlowcharts) {
+      viewFlowcharts.hidden = !showFlowcharts;
+      viewFlowcharts.classList.toggle("flView--active", showFlowcharts);
+    }
+    if (viewFlocs) {
+      viewFlocs.hidden = !showFlocs;
+      viewFlocs.classList.toggle("flView--active", showFlocs);
+    }
+    if (viewStock) {
+      viewStock.hidden = !showStock;
+      viewStock.classList.toggle("flView--active", showStock);
+    }
+    if (viewPriceManager) {
+      viewPriceManager.hidden = !showPriceManager;
+      viewPriceManager.classList.toggle("flView--active", showPriceManager);
+    }
+    if (viewPrintStation) {
+      viewPrintStation.hidden = !showPrintStation;
+      viewPrintStation.classList.toggle("flView--active", showPrintStation);
+    }
+    if (viewTraceability) {
+      viewTraceability.hidden = !showTraceability;
+      viewTraceability.classList.toggle("flView--active", showTraceability);
+    }
+    if (viewStockists) {
+      viewStockists.hidden = !showStockists;
+      viewStockists.classList.toggle("flView--active", showStockists);
+    }
+    if (viewYearPlanner) {
+      viewYearPlanner.hidden = !showYearPlanner;
+      viewYearPlanner.classList.toggle("flView--active", showYearPlanner);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
+    navFulfillmentHistory?.classList.toggle("flNavBtn--active", showFulfillmentHistory);
+    navContacts?.classList.toggle("flNavBtn--active", showContacts);
     navOps?.classList.toggle("flNavBtn--active", showOps);
-    navInvoices?.classList.toggle("flNavBtn--active", showInvoices);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
+    navFlowcharts?.classList.toggle("flNavBtn--active", showFlowcharts);
+    navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
+    navStock?.classList.toggle("flNavBtn--active", showStock);
+    navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
+    navPrintStation?.classList.toggle("flNavBtn--active", showPrintStation);
+    navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
+    navStockists?.classList.toggle("flNavBtn--active", showStockists);
+    navYearPlanner?.classList.toggle("flNavBtn--active", showYearPlanner);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
+    navFulfillmentHistory?.setAttribute("aria-selected", showFulfillmentHistory ? "true" : "false");
+    navContacts?.setAttribute("aria-selected", showContacts ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
-    navInvoices?.setAttribute("aria-selected", showInvoices ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
+    navFlowcharts?.setAttribute("aria-selected", showFlowcharts ? "true" : "false");
+    navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
+    navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
+    navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
+    navPrintStation?.setAttribute("aria-selected", showPrintStation ? "true" : "false");
+    navTraceability?.setAttribute("aria-selected", showTraceability ? "true" : "false");
+    navStockists?.setAttribute("aria-selected", showStockists ? "true" : "false");
+    navYearPlanner?.setAttribute("aria-selected", showYearPlanner ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
     } else if (showScan) {
       statusExplain("Ready to scan orders…", "info");
       scanInput?.focus();
-    } else if (showInvoices) {
-      statusExplain("Invoice list ready.", "info");
-      if (!invoiceOrders.length) {
-        refreshInvoiceOrders();
-      }
+    } else if (showFulfillmentHistory) {
+      statusExplain("Viewing fulfillment timeline.", "info");
+    } else if (showContacts) {
+      statusExplain("Viewing customer directory.", "info");
+      if (!contactsState.loaded || !contactsState.customers.length) contactsView.refreshContacts().catch((err) => {
+        appendDebug("Contacts refresh failed: " + String(err));
+        if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
+      });
     } else if (showDocs) {
-      statusExplain("Viewing operator documentation", "info");
+      statusExplain("Knowledge Hub ready.", "info");
+    } else if (showFlocs) {
+      statusExplain("Sales order workbench ready.", "info");
+    } else if (showFlowcharts) {
+      statusExplain("Process blueprints loaded.", "info");
+    } else if (showStock) {
+      statusExplain("Inventory control ready.", "info");
+    } else if (showPriceManager) {
+      statusExplain("Pricing control center ready.", "info");
+    } else if (showPrintStation) {
+      statusExplain("Print station ready.", "info");
+    } else if (showTraceability) {
+      statusExplain("Traceability tools ready.", "info");
+    } else if (showStockists) {
+      statusExplain("Distribution network ready.", "info");
+    } else if (showYearPlanner) {
+      statusExplain("Year planner ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
+  }
+
+  const ROUTE_VIEW_MAP = new Map([
+    ["/", "dashboard"],
+    ["/dashboard", "dashboard"],
+    ["/scan", "scan"],
+    ["/fulfillment-history", "fulfillment-history"],
+    ["/contacts", "contacts"],
+    ["/ops", "scan"],
+    ["/docs", "docs"],
+    ["/flowcharts", "flowcharts"],
+    ["/flocs", "flocs"],
+    ["/stock", "stock"],
+    ["/price-manager", "price-manager"],
+    ["/print-station", "print-station"],
+    ["/traceability", "traceability"],
+    ["/stockists", "stockists"],
+    ["/year-planner", "year-planner"]
+  ]);
+
+  const VIEW_ROUTE_MAP = {
+    dashboard: "/",
+    scan: "/scan",
+    "fulfillment-history": "/fulfillment-history",
+    contacts: "/contacts",
+    ops: "/scan",
+    docs: "/docs",
+    flowcharts: "/flowcharts",
+    flocs: "/flocs",
+    stock: "/stock",
+    "price-manager": "/price-manager",
+    "print-station": "/print-station",
+    traceability: "/traceability",
+    stockists: "/stockists",
+    "year-planner": "/year-planner"
+  };
+
+  const viewInitializers = {
+    flocs: initFlocsView,
+    stock: initStockView,
+    "price-manager": initPriceManagerView,
+    "print-station": initWholesaleAutomationView,
+    traceability: initTraceabilityView,
+    stockists: initStockistsView,
+    "year-planner": initYearPlannerView
+  };
+  const contactsView = initContactsView({
+    state: contactsState,
+    elements: {
+      contactsSearch,
+      contactsTierFilter,
+      contactsProvinceFilter,
+      contactsMeta,
+      contactsList
+    },
+    getProxyBase: () => CONFIG.SHOPIFY.PROXY_BASE,
+    fetchImpl: fetch,
+    provinces: SA_PROVINCES,
+    appendDebug
+  });
+
+  const fulfillmentHistoryView = initFulfillmentHistoryView({
+    state: fulfillmentHistoryState,
+    elements: {
+      fulfillmentHistorySearch,
+      fulfillmentHistoryMeta,
+      fulfillmentHistoryStatusFilter,
+      fulfillmentHistoryList,
+      fulfillmentHistoryShipped,
+      fulfillmentHistoryDelivered,
+      fulfillmentHistoryPickup,
+      fulfillmentHistoryCollected,
+      fulfillmentHistoryShippedPager,
+      fulfillmentHistoryDeliveredPager,
+      fulfillmentHistoryPickupPager,
+      fulfillmentHistoryCollectedPager
+    },
+    getProxyBase: () => CONFIG.SHOPIFY.PROXY_BASE,
+    fetchImpl: fetch,
+    renderShipmentList,
+    updateDashboardKpis,
+    appendDebug
+  });
+
+
+  function normalizePath(path) {
+    if (!path) return "/";
+    let cleaned = path.split("?")[0].split("#")[0];
+    cleaned = cleaned.replace(/\/index\.html$/, "");
+    return cleaned.replace(/\/+$/, "") || "/";
+  }
+
+  function viewForPath(path) {
+    return ROUTE_VIEW_MAP.get(normalizePath(path)) || "dashboard";
+  }
+
+  function routeForView(view) {
+    return VIEW_ROUTE_MAP[view] || "/";
+  }
+
+  function initViewIfNeeded(view) {
+    const init = viewInitializers[view];
+    if (init) init();
+  }
+
+  function renderRoute(path) {
+    const view = viewForPath(path);
+    switchMainView(view);
+    initViewIfNeeded(view);
+  }
+
+  // Router entrypoint used by nav buttons and deep links.
+  function navigateTo(path, { replace = false } = {}) {
+    const next = normalizePath(path);
+    if (replace) {
+      window.history.replaceState({}, "", next);
+    } else {
+      window.history.pushState({}, "", next);
+    }
+    renderRoute(next);
   }
 
   const NAV_COLLAPSE_KEY = "fl_nav_collapsed";
@@ -3450,6 +4203,49 @@ async function startOrder(orderNo, preloadedDetails = null) {
       const next = !document.body.classList.contains("flNavCollapsed");
       setNavCollapsed(next);
       localStorage.setItem(NAV_COLLAPSE_KEY, String(next));
+    });
+  }
+
+  let dispatchExpanded = false;
+
+  function setDispatchExpanded(expanded) {
+    dispatchExpanded = expanded;
+    viewScan?.classList.toggle("dispatchExpanded", dispatchExpanded);
+    if (dispatchExpandToggle) {
+      dispatchExpandToggle.setAttribute("aria-expanded", dispatchExpanded ? "true" : "false");
+      dispatchExpandToggle.textContent = dispatchExpanded ? "Collapse" : "Expand";
+    }
+  }
+
+  function setActiveDispatchCard(orderNo, { scrollIntoViewIfNeeded = false } = {}) {
+    activeDispatchOrderNo = orderNo || null;
+    if (!dispatchBoard) return;
+    let activeCard = null;
+    dispatchBoard.querySelectorAll(".dispatchCard").forEach((card) => {
+      const isActive = !!orderNo && card.dataset.orderNo === orderNo;
+      card.classList.toggle("is-active-card", isActive);
+      if (isActive) activeCard = card;
+    });
+    if (!scrollIntoViewIfNeeded || !activeCard) return;
+    const rect = activeCard.getBoundingClientRect();
+    const viewportHeight =
+      window.innerHeight || document.documentElement?.clientHeight || rect.height || 0;
+    const isVisible = rect.top >= 0 && rect.bottom <= viewportHeight;
+    if (!isVisible) {
+      activeCard.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }
+
+  function afterDomUpdate() {
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
+  if (dispatchExpandToggle) {
+    setDispatchExpanded(false);
+    dispatchExpandToggle.addEventListener("click", () => {
+      setDispatchExpanded(!dispatchExpanded);
     });
   }
 
@@ -3506,68 +4302,18 @@ async function startOrder(orderNo, preloadedDetails = null) {
     if (bookingSummary) bookingSummary.textContent = "";
     if (scanInput) scanInput.value = "";
     if (dbgOn && debugLog) debugLog.textContent = "";
-    switchMainView("scan");
+    navigateTo("/scan", { replace: true });
   });
 
-  navScan?.addEventListener("click", () => switchMainView("scan"));
-  navOps?.addEventListener("click", () => switchMainView("ops"));
-  navInvoices?.addEventListener("click", () => switchMainView("invoices"));
-  navDocs?.addEventListener("click", () => switchMainView("docs"));
-  navDashboard?.addEventListener("click", () => switchMainView("dashboard"));
-
-  invoiceTemplateSave?.addEventListener("click", () => {
-    saveInvoiceTemplate();
-    renderInvoiceTable();
-  });
-
-  invoiceTemplateInput?.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      saveInvoiceTemplate();
-      renderInvoiceTable();
-    }
-  });
-
-  [invoiceFilterOrder, invoiceFilterCustomer, invoiceFilterFrom, invoiceFilterTo].forEach(
-    (input) => {
-      input?.addEventListener("input", renderInvoiceTable);
-      input?.addEventListener("change", renderInvoiceTable);
-    }
-  );
-
-  invoiceRefresh?.addEventListener("click", () => {
-    refreshInvoiceOrders();
-  });
-
-  invoiceTableBody?.addEventListener("click", async (event) => {
+  document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
-    const button = target.closest("button[data-invoice-action]");
-    if (!button) return;
-    const action = button.dataset.invoiceAction;
-    const invoiceUrl = button.dataset.invoiceUrl || "";
-    const orderName = button.dataset.orderName || "Invoice";
-    if (action === "print") {
-      if (!invoiceUrl) {
-        statusExplain("Set the invoice template first.", "warn");
-        return;
-      }
-      try {
-        statusExplain(`Printing ${orderName}…`, "info");
-        const resp = await fetch("/printnode/print-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ invoiceUrl, title: `Invoice ${orderName}` })
-        });
-        if (!resp.ok) {
-          throw new Error(`Print failed (${resp.status})`);
-        }
-        statusExplain(`Sent ${orderName} to PrintNode.`, "ok");
-      } catch (err) {
-        console.error("Print invoice error:", err);
-        statusExplain(`Print failed for ${orderName}.`, "err");
-      }
-    }
+    const routeEl = target.closest("[data-route]");
+    if (!routeEl) return;
+    const route = routeEl.getAttribute("data-route") || routeEl.getAttribute("href");
+    if (!route) return;
+    event.preventDefault();
+    navigateTo(route);
   });
 
   modeToggle?.addEventListener("click", () => {
@@ -3575,27 +4321,49 @@ async function startOrder(orderNo, preloadedDetails = null) {
     cancelAutoBookTimer();
     saveModePreference();
     updateModeToggle();
+    updateDashboardKpis();
     renderSessionUI();
     statusExplain(isAutoMode ? "Auto mode enabled." : "Manual mode enabled.", "info");
   });
 
-  multiShipToggle?.addEventListener("click", () => {
-    multiShipEnabled = !multiShipEnabled;
-    cancelAutoBookTimer();
-    if (!multiShipEnabled && linkedOrders.size) {
-      const activeSet = new Set(getActiveParcelSet());
-      linkedOrders = new Map();
-      parcelsByOrder = new Map();
-      if (activeOrderNo) parcelsByOrder.set(activeOrderNo, activeSet);
+
+  
+  dispatchCreateCombined?.addEventListener("click", async () => {
+    await createCombinedShipmentFromSelection();
+  });
+
+  dispatchPrintDocs?.addEventListener("click", async () => {
+    const orders = Array.from(dispatchSelectedOrders)
+      .map((orderNo) => dispatchOrderCache.get(orderNo))
+      .filter(Boolean);
+    for (const order of orders) {
+      const orderNo = orderNoFromName(order.name);
+      const ok = await printDeliveryNote(order);
+      if (ok) printedDeliveryNotes.add(orderNo);
     }
-    updateMultiShipToggle();
-    renderSessionUI();
-    statusExplain(
-      multiShipEnabled
-        ? "Multi-shipment override enabled. Different-address orders can bundle."
-        : "Multi-shipment override disabled.",
-      "info"
-    );
+    refreshDispatchViews();
+    statusExplain(`Printed delivery docs for ${orders.length} orders.`, "ok");
+  });
+
+  dispatchDeliverSelected?.addEventListener("click", async () => {
+    const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
+      const order = dispatchOrderCache.get(orderNo);
+      return laneFromOrder(order) === "delivery_local";
+    });
+    for (const orderNo of selected) {
+      await markDeliveryReady(orderNo);
+    }
+  });
+
+  dispatchMarkDelivered?.addEventListener("click", async () => {
+    const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
+      const order = dispatchOrderCache.get(orderNo);
+      return laneFromOrder(order) === "delivery_local";
+    });
+    for (const orderNo of selected) {
+      await markDeliveryReady(orderNo);
+    }
+    statusExplain(`Marked ${selected.length} selected delivery orders as delivered.`, "ok");
   });
 
   truckBookBtn?.addEventListener("click", async () => {
@@ -3740,6 +4508,55 @@ async function startOrder(orderNo, preloadedDetails = null) {
       }
       return true;
     }
+    if (actionType === "fulfill-shipping") {
+      if (!orderNo) return true;
+      if (isBooked(orderNo)) {
+        statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
+        return true;
+      }
+      const order = dispatchOrderCache.get(orderNo);
+      const parcelCountFromInput = getDispatchParcelCountInputValue(orderNo);
+      const presetCount =
+        parcelCountFromInput ||
+        (typeof order?.parcel_count === "number" && order.parcel_count > 0
+          ? order.parcel_count
+          : typeof order?.estimated_parcels === "number" && order.estimated_parcels > 0
+          ? order.estimated_parcels
+          : getAutoParcelCountForOrder(order?.line_items));
+      setDispatchExpanded(true);
+      setActiveDispatchCard(orderNo, { scrollIntoViewIfNeeded: true });
+      await afterDomUpdate();
+      await startOrder(orderNo);
+      let parcelCount = getExpectedParcelCount(orderDetails);
+      if (!parcelCount && presetCount) {
+        parcelCount = presetCount;
+      }
+      if (!parcelCount) {
+        const count = promptManualParcelCount(orderNo);
+        if (!count) {
+          statusExplain("Parcel count required (cancelled).", "warn");
+          return true;
+        }
+        parcelCount = count;
+      }
+      orderDetails.manualParcelCount = parcelCount;
+      renderSessionUI();
+      navigateTo("/scan", { replace: true });
+      await afterDomUpdate();
+      scanInput?.focus();
+      statusExplain(`Booking order ${orderNo} (${parcelCount} parcels).`, "info");
+      await doBookingNow({ manual: true, parcelCount });
+      return true;
+    }
+    if (actionType === "deliver-delivery") {
+      if (!orderNo) return true;
+      await markDeliveryReady(orderNo);
+      return true;
+    }
+    if (actionType === "ready-collection") {
+      await notifyPickupReady(orderNo);
+      return true;
+    }
     if (actionType === "print-opp") {
       const docType = action.dataset.docType;
       const docLabel = getOppDocLabel(docType);
@@ -3760,6 +4577,19 @@ async function startOrder(orderNo, preloadedDetails = null) {
       statusExplain(`${docLabel} printed for ${orderNo}.`, "ok");
       return true;
     }
+    if (actionType === "print-packing-plan") {
+      if (!orderNo) return true;
+      setDispatchProgress(4, `Printing packing plan for ${orderNo}`);
+      logDispatchEvent(`Printing packing plan for order ${orderNo}.`);
+      const ok = printPackingPlan(orderNo);
+      if (!ok) {
+        statusExplain("Pop-up blocked for packing plan.", "warn");
+        logDispatchEvent("Packing plan blocked by popup settings.");
+        return true;
+      }
+      statusExplain(`Packing plan printed for ${orderNo}.`, "ok");
+      return true;
+    }
     if (actionType === "print-note") {
       const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
       if (!orderNo || !order) {
@@ -3769,13 +4599,15 @@ async function startOrder(orderNo, preloadedDetails = null) {
       }
       setDispatchProgress(4, `Printing note ${orderNo}`);
       logDispatchEvent(`Printing delivery note for order ${orderNo}.`);
-      const ok = printDeliveryNote(order);
+      const ok = await printDeliveryNote(order);
       if (!ok) {
         statusExplain("Pop-up blocked for delivery note.", "warn");
         logDispatchEvent("Delivery note blocked by popup settings.");
         return true;
       }
       statusExplain(`Delivery note printed for ${orderNo}.`, "ok");
+      printedDeliveryNotes.add(orderNo);
+      refreshDispatchViews(orderNo);
       return true;
     }
     if (actionType === "book-now") {
@@ -3784,7 +4616,15 @@ async function startOrder(orderNo, preloadedDetails = null) {
         statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
         return true;
       }
-      const count = promptManualParcelCount(orderNo);
+      const order = dispatchOrderCache.get(orderNo);
+      const presetCount =
+        getDispatchParcelCountInputValue(orderNo) ||
+        (typeof order?.parcel_count === "number" && order.parcel_count > 0
+          ? order.parcel_count
+          : typeof order?.estimated_parcels === "number" && order.estimated_parcels > 0
+          ? order.estimated_parcels
+          : getAutoParcelCountForOrder(order?.line_items));
+      const count = presetCount || promptManualParcelCount(orderNo);
       if (!count) {
         statusExplain("Parcel count required (cancelled).", "warn");
         return true;
@@ -3808,18 +4648,93 @@ async function startOrder(orderNo, preloadedDetails = null) {
       const handled = await handleDispatchAction(action);
       if (handled) return;
     }
+    const card = e.target.closest(".dispatchCard");
+    if (card && !e.target.closest("button") && !e.target.closest("input")) {
+      const orderNo = card.dataset.orderNo;
+      if (orderNo) openDispatchOrderModal(orderNo);
+    }
+  });
+
+  dispatchBoard?.addEventListener("change", (e) => {
+    const checkbox = e.target.closest(".dispatchCardSelectInput");
+    if (!checkbox) return;
+    const orderNo = checkbox.dataset.orderNo;
+    if (!orderNo) return;
+    if (checkbox.checked) {
+      dispatchSelectedOrders.add(orderNo);
+    } else {
+      dispatchSelectedOrders.delete(orderNo);
+    }
+    const card = checkbox.closest(".dispatchCard");
+    if (card) {
+      card.classList.toggle("is-selected", checkbox.checked);
+    }
+    updateDispatchSelectionSummary();
+  });
+
+  
+
+  dispatchBoard?.addEventListener("change", (e) => {
+    const laneSelect = e.target.closest(".dispatchLaneSelectAllInput");
+    if (!laneSelect) return;
+    const laneId = laneSelect.dataset.laneId;
+    const lane = laneSelect.closest(".dispatchCol");
+    if (!lane || !laneId) return;
+    lane.querySelectorAll(".dispatchCardSelectInput").forEach((checkbox) => {
+      checkbox.checked = laneSelect.checked;
+      const orderNo = checkbox.dataset.orderNo;
+      if (!orderNo) return;
+      if (laneSelect.checked) dispatchSelectedOrders.add(orderNo);
+      else dispatchSelectedOrders.delete(orderNo);
+      checkbox.closest(".dispatchCard")?.classList.toggle("is-selected", laneSelect.checked);
+    });
+    updateDispatchSelectionSummary();
+  });
+
+  dispatchSelectionClear?.addEventListener("click", () => {
+    clearDispatchSelection();
+  });
+
+  dispatchBoard?.addEventListener("focusout", async (e) => {
+    const input = e.target.closest(".dispatchParcelCountInput");
+    if (!input) return;
+    const orderId = input.dataset.orderId;
+    const orderNo = input.dataset.orderNo;
+    const raw = input.value.trim();
+    const lastValue = input.dataset.lastValue ?? "";
+
+    if (raw === lastValue) return;
+
+    if (raw === "") {
+      const ok = await updateDispatchParcelCount({ orderId, orderNo, value: "" });
+      if (ok) input.dataset.lastValue = "";
+      return;
+    }
+
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      statusExplain("Parcel count must be a non-negative number.", "warn");
+      input.value = lastValue;
+      return;
+    }
+
+    const ok = await updateDispatchParcelCount({ orderId, orderNo, value: parsed });
+    if (ok) input.dataset.lastValue = String(parsed);
+  });
+
+  viewFulfillmentHistory?.addEventListener("click", async (e) => {
+    if (e.target.closest("a.dispatchShipmentActionBtn--link")) return;
+    const actionBtn = e.target.closest("[data-action=\"view-shipment\"]");
+    if (actionBtn?.dataset?.shipmentKey) {
+      await openDispatchShipmentModal(actionBtn.dataset.shipmentKey);
+      return;
+    }
     const shipmentRow = e.target.closest(".dispatchShipmentRow");
     if (shipmentRow && !shipmentRow.classList.contains("dispatchShipmentRow--header")) {
       const shipmentKeyId = shipmentRow.dataset.shipmentKey;
       if (shipmentKeyId) {
         await openDispatchShipmentModal(shipmentKeyId);
-        return;
       }
-    }
-    const card = e.target.closest(".dispatchCard");
-    if (card && !e.target.closest("button") && !e.target.closest("input")) {
-      const orderNo = card.dataset.orderNo;
-      if (orderNo) openDispatchOrderModal(orderNo);
     }
   });
 
@@ -3917,7 +4832,25 @@ async function startOrder(orderNo, preloadedDetails = null) {
     savePackingState();
   });
 
+  dailyTodoList?.addEventListener("change", (e) => {
+    const target = e.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.type !== "checkbox") return;
+    const todoIndex = Number(target.dataset.todoIndex);
+    if (!Number.isInteger(todoIndex)) return;
+    handleDailyTodoToggle(todoIndex, target.checked);
+  });
+
+  dailyTodoClose?.addEventListener("click", () => {
+    closeDailyTodoWidget();
+  });
+
   document.addEventListener("keydown", (e) => {
+    if (e.altKey && e.shiftKey && e.key.toLowerCase() === "t") {
+      e.preventDefault();
+      toggleDailyTodoWidget();
+      return;
+    }
     if (e.key === "Escape") {
       closeDispatchOrderModal();
       closeDispatchShipmentModal();
@@ -3935,37 +4868,49 @@ async function startOrder(orderNo, preloadedDetails = null) {
     }
   });
 
-  loadBookedOrders();
-  loadPackingState();
-  loadModePreference();
-  loadDailyParcelCount();
-  loadTruckBooking();
-  updateModeToggle();
-  updateMultiShipToggle();
-  renderSessionUI();
-  renderCountdown();
-  renderTruckPanel();
-  if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
-    requestTruckBooking("auto");
-  }
-  initDispatchProgress();
-  setDispatchProgress(0, "Idle", { silent: true });
-  initDispatchTodos();
-  initAddressSearch();
-  refreshDispatchData();
-  setInterval(refreshDispatchData, 30000);
-  refreshServerStatus();
-  setInterval(refreshServerStatus, 20000);
+  const boot = async () => {
+    try {
+      await loadConfig();
+    } catch (err) {
+      console.error(err);
+      alert("Unable to load configuration from the server. Please refresh or contact support.");
+      return;
+    }
 
-  renderModuleDashboard();
-  loadInvoiceTemplate();
-  renderInvoiceTable();
-  switchMainView("dashboard");
+    loadBookedOrders();
+    loadPackingState();
+    loadModePreference();
+    loadDailyParcelCount();
+    loadTruckBooking();
+    loadDailyTodoState();
+    updateModeToggle();
+    renderSessionUI();
+    renderCountdown();
+    renderTruckPanel();
+    if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
+      requestTruckBooking("auto");
+    }
+    initDispatchProgress();
+    setDispatchProgress(0, "Idle", { silent: true });
+    initAddressSearch();
+    scheduleFulfillmentHistoryRefresh(0);
+    refreshDispatchData();
+    setInterval(refreshDispatchData, 30000);
+    scheduleServerStatusRefresh(0);
+    initModuleDashboard({ moduleGrid, navigateTo, routeForView });
+    renderRoute(window.location.pathname);
 
-  if (location.protocol === "file:") {
-    alert("Open via http://localhost/... (not file://). Run a local server.");
-  }
+    window.addEventListener("popstate", () => {
+      renderRoute(window.location.pathname);
+    });
 
-  window.__fl = window.__fl || {};
-  window.__fl.bookNow = doBookingNow;
+    if (location.protocol === "file:") {
+      alert("Open via http://localhost/... (not file://). Run a local server.");
+    }
+
+    window.__fl = window.__fl || {};
+    window.__fl.bookNow = doBookingNow;
+  };
+
+  boot();
 })();

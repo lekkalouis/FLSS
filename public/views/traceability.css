@@ -1,0 +1,54 @@
+.trace-shell {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  gap: 1rem;
+}
+
+.trace-card {
+  background: #fff;
+  border: 1px solid #dbe5f2;
+  border-radius: 0.9rem;
+  padding: 1rem;
+}
+
+.trace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.trace-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.trace-form input,
+.trace-form select,
+.trace-form textarea,
+.trace-form button {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+}
+
+.trace-form button {
+  background: #4338ca;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.trace-status[data-tone="ok"] { color: #166534; }
+.trace-status[data-tone="error"] { color: #b91c1c; }
+.trace-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.55rem;
+  padding: 0.55rem;
+  margin-bottom: 0.45rem;
+}
+.trace-meta { color: #475569; font-size: 0.86rem; }
+.trace-empty { color: #64748b; }

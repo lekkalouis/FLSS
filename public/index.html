@@ -4,20 +4,26 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Flippen Lekka Scan Station — v5 (cleaned + 100×150 print lock)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 <style>
   :root{
-    --bg:#f8fafc;
+    --bg:#f5f7fb;
     --panel:#ffffff;
-    --panel-muted:#f8fafc;
+    --panel-muted:#f1f5f9;
     --panel-strong:#e2e8f0;
-    --text:#0f172a;
-    --text-muted:#64748b;
-    --accent:#2563eb;
-    --accent-soft:rgba(37,99,235,.12);
-    --radius-lg:.75rem;
-    --radius-md:.5rem;
+    --text:#0b1324;
+    --text-muted:#5b6b7f;
+    --accent:#6366f1;
+    --accent-strong:#22d3ee;
+    --accent-2:#f97316;
+    --accent-3:#a855f7;
+    --accent-soft:rgba(99,102,241,.12);
+    --radius-lg:1rem;
+    --radius-md:.7rem;
     --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
-    --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Inter",Roboto,"Segoe UI",system-ui,sans-serif;
+    --shadow-soft:0 18px 40px rgba(15,23,42,.08);
+    --shadow-strong:0 24px 60px rgba(15,23,42,.12);
     --print-scale:1.0; /* safe inner scaling for printers that overscan */
   }
   *{box-sizing:border-box}
@@ -33,32 +39,33 @@
     display:flex;
     flex-direction:column;
     gap:1rem;
-    padding:1rem 1.5rem 1.5rem;
-  }
-  @media (max-width:800px){
-    .flApp{ padding:1rem; gap:1rem; }
+    padding:0;
   }
   .flLayout{
     display:flex;
+    flex-direction:row;
     align-items:stretch;
-    gap:1rem;
+    gap:0;
     flex:1;
-    min-height:calc(100dvh - 2rem);
-  }
-  @media (max-width:900px){
-    .flLayout{ flex-direction:column; }
+    min-height:100dvh;
   }
   .flSide{
-    background:#fff;
+    background:var(--panel);
     border:1px solid var(--panel-strong);
-    box-shadow:0 10px 28px rgba(15,23,42,.08);
-    border-radius:var(--radius-md);
-    padding:.85rem .75rem;
+    box-shadow:var(--shadow-soft);
+    border-radius:0;
+    padding:1rem .9rem;
     display:flex;
     flex-direction:column;
-    gap:1rem;
-    min-width:220px;
-    max-width:260px;
+    gap:.9rem;
+    width:280px;
+    min-width:280px;
+    max-width:280px;
+    height:100dvh;
+    position:sticky;
+    top:0;
+    overflow-y:auto;
+    backdrop-filter:blur(12px);
   }
   .flSideHeader{
     display:flex;
@@ -66,65 +73,32 @@
     justify-content:space-between;
     gap:.75rem;
   }
-  .flHamburger{
-    width:36px;
-    height:36px;
-    border-radius:.5rem;
-    border:1px solid var(--panel-strong);
-    background:#fff;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    transition:border-color .2s ease, box-shadow .2s ease;
-  }
-  .flHamburger:hover{
-    border-color:rgba(37,99,235,.5);
-    box-shadow:0 6px 16px rgba(37,99,235,.18);
-  }
-  .flHamburgerLines{
-    position:relative;
-    width:16px;
-    height:12px;
-  }
-  .flHamburgerLines::before,
-  .flHamburgerLines::after,
-  .flHamburgerLines span{
-    content:"";
-    position:absolute;
-    left:0;
-    right:0;
-    height:2px;
-    border-radius:999px;
-    background:var(--text);
-  }
-  .flHamburgerLines::before{ top:0; }
-  .flHamburgerLines span{ top:5px; }
-  .flHamburgerLines::after{ bottom:0; }
   .flNav{
     display:flex;
     flex-direction:column;
-    gap:1rem;
+    gap:.75rem;
+    align-items:stretch;
+    justify-content:flex-start;
   }
   .flNavTitle{
     font-weight:700;
     letter-spacing:.02em;
-    color:var(--text);
+    color:#1f2a44;
     font-size:.95rem;
   }
   .flNavGroup{
     display:flex;
     flex-direction:column;
-    gap:.65rem;
+    gap:.55rem;
   }
   .flNavBtn{
     border:1px solid var(--panel-strong);
-    background:#fff;
+    background:var(--panel);
     color:var(--text);
     font-weight:600;
     font-size:.85rem;
-    padding:.45rem .85rem;
-    border-radius:.5rem;
+    padding:.55rem .9rem;
+    border-radius:.75rem;
     cursor:pointer;
     transition:all .2s ease;
     text-decoration:none;
@@ -134,15 +108,24 @@
     justify-content:flex-start;
     gap:.5rem;
   }
+  .flNavBtnIcon{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:1.2rem;
+    font-size:1rem;
+  }
   .flNavBtn:hover{
-    border-color:rgba(37,99,235,.5);
-    color:#1d4ed8;
+    border-color:rgba(99,102,241,.45);
+    color:#4338ca;
+    transform:translateY(-1px);
+    box-shadow:0 8px 18px rgba(67,56,202,.12);
   }
   .flNavBtn--active{
-    background:var(--accent);
-    border-color:var(--accent);
-    color:#fff;
-    box-shadow:0 6px 18px rgba(37,99,235,.22);
+    background:linear-gradient(130deg, var(--accent), var(--accent-strong));
+    border-color:transparent;
+    color:#0f172a;
+    box-shadow:0 12px 30px rgba(67,56,202,.25);
   }
   .flNavStatus{
     display:flex;
@@ -150,16 +133,28 @@
     gap:.6rem;
     flex-wrap:wrap;
   }
-  .flMain{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    gap:1rem;
+
+  .navToggle{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:2rem;
+    height:2rem;
+    border-radius:.6rem;
+    border:1px solid var(--panel-strong);
+    background:var(--panel-muted);
+    color:var(--text);
+    cursor:pointer;
+    font-size:1rem;
+  }
+  .navToggle:hover{
+    border-color:rgba(99,102,241,.45);
+    color:#4338ca;
   }
   body.flNavCollapsed .flSide{
-    min-width:64px;
-    max-width:64px;
-    padding:.85rem .5rem;
+    width:88px;
+    min-width:88px;
+    max-width:88px;
   }
   body.flNavCollapsed .flNavTitle,
   body.flNavCollapsed .flNavBtnText,
@@ -168,24 +163,127 @@
   }
   body.flNavCollapsed .flNavBtn{
     justify-content:center;
-    padding:.5rem;
+    padding:.55rem;
   }
-  body.flNavCollapsed .flNavGroup{
+  body.flNavCollapsed .flNavBtnIcon{
+    width:auto;
+  }
+  .flMain{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:1rem;
+    padding:1.25rem 1.75rem 1.75rem;
+    min-width:0;
+  }
+  .sharedStickyHeader{
+    position:sticky;
+    top:0;
+    z-index:40;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:stretch;
+    gap:.75rem;
+    padding:.35rem;
+    border-radius:var(--radius-lg);
+    border:1px solid var(--panel-strong);
+    background:color-mix(in srgb, var(--bg) 82%, #fff 18%);
+    backdrop-filter:blur(14px);
+  }
+  .sharedHeaderSection{
+    flex:1 1 300px;
+    min-width:0;
+    display:flex;
+  }
+  .sharedStatusBar,
+  .sharedDispatchControls{
+    width:100%;
+    min-height:100%;
+  }
+  .sharedDispatchControls{
+    display:flex;
+    flex-wrap:wrap;
     align-items:center;
+    gap:.55rem;
+  }
+  .sharedControlCard{
+    flex:1 1 140px;
+    min-height:48px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:.45rem;
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    background:var(--panel);
+    padding:.5rem .7rem;
+    font-weight:700;
+    font-size:.76rem;
+    color:var(--text);
+  }
+  .sharedControlCardLabel{
+    font-size:.64rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    font-weight:700;
+    color:var(--text-muted);
   }
   @media (max-width:900px){
-    body.flNavCollapsed .flSide{
-      max-width:none;
-      min-width:0;
+    .sharedStickyHeader{
+      top:.2rem;
+      gap:.55rem;
+      padding:.3rem;
+    }
+    .sharedHeaderSection{
+      flex-basis:100%;
+    }
+    .sharedControlCard{
+      flex:1 1 calc(33.333% - .4rem);
+    }
+  }
+  @media (max-width:800px){
+    .flMain{ padding:1rem; }
+  }
+  @media (max-width:1080px){
+    .flLayout{
+      flex-direction:column;
+      min-height:auto;
+    }
+    .flSide{
+      padding:.75rem .8rem;
       width:100%;
-      padding:.65rem .75rem;
-      gap:.5rem;
+      min-width:0;
+      max-width:none;
+      height:auto;
+      position:sticky;
+      top:0;
+      z-index:60;
+      overflow:visible;
     }
-    body.flNavCollapsed .flNavTitle{
-      display:block;
+    .flNav{
+      flex-direction:column;
+      align-items:stretch;
     }
-    body.flNavCollapsed .flNavGroup,
-    body.flNavCollapsed .flNavStatus{
+    .flNavGroup{
+      flex-direction:column;
+      flex-wrap:nowrap;
+      overflow:visible;
+      width:100%;
+      padding-bottom:.2rem;
+    }
+    .flNavBtn{
+      flex:1 1 auto;
+      width:100%;
+      min-width:0;
+      justify-content:flex-start;
+    }
+    body.flNavCollapsed .flSide{
+      width:100%;
+      min-width:0;
+      max-width:none;
+      overflow:visible;
+    }
+    body.flNavCollapsed .flNav{
       display:none;
     }
   }
@@ -254,11 +352,11 @@
     width:100%;
     max-width:1200px;
     margin:0 auto;
-    background:#fff;
-    border:1px solid var(--panel-strong);
+    background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92));
+    border:1px solid rgba(99,102,241,.18);
     border-radius:var(--radius-lg);
     padding:1.75rem 2rem;
-    box-shadow:0 18px 48px rgba(15,23,42,.08);
+    box-shadow:var(--shadow-soft);
     display:flex;
     flex-direction:column;
     gap:1.5rem;
@@ -284,219 +382,65 @@
     grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));
     gap:1rem;
   }
-  .factoryShell{
-    border-radius:var(--radius-lg);
-    border:1px solid var(--panel-strong);
-    padding:1.5rem;
-    background:linear-gradient(135deg, rgba(15,23,42,.92), rgba(30,41,59,.92));
-    color:#e2e8f0;
-    position:relative;
-    overflow:hidden;
-    box-shadow:0 24px 46px rgba(15,23,42,.25);
-  }
-  .factoryShell::before{
-    content:"";
-    position:absolute;
-    inset:0;
-    background:
-      radial-gradient(circle at top left, rgba(56,189,248,.22), transparent 55%),
-      radial-gradient(circle at bottom right, rgba(59,130,246,.25), transparent 55%);
-    opacity:.9;
-    pointer-events:none;
-  }
-  .factoryHeader{
-    position:relative;
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:1rem;
-    flex-wrap:wrap;
-    z-index:1;
-  }
-  .factoryHeader h2{
-    margin:0 0 .35rem;
-    font-size:1.2rem;
-    color:#f8fafc;
-  }
-  .factoryHeader p{
-    margin:0;
-    color:rgba(226,232,240,.8);
-    font-size:.9rem;
-  }
-  .factoryMap{
-    position:relative;
-    margin-top:1.25rem;
+  .dashboardKpis{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
     gap:1rem;
-    z-index:1;
   }
-  .factoryArea{
-    position:relative;
-    border-radius:1rem;
-    padding:1rem 1rem 1.1rem;
-    border:1px solid rgba(148,163,184,.35);
-    background:rgba(15,23,42,.65);
-    color:#e2e8f0;
-    cursor:pointer;
+  .kpiCard{
+    background:linear-gradient(150deg, rgba(255,255,255,.98), rgba(224,231,255,.85));
+    border:1px solid rgba(99,102,241,.2);
+    border-radius:var(--radius-lg);
+    padding:1rem 1.1rem;
     display:flex;
     flex-direction:column;
-    gap:.5rem;
-    transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-    overflow:hidden;
+    gap:.35rem;
+    box-shadow:0 12px 26px rgba(67,56,202,.15);
   }
-  .factoryArea::after{
-    content:"";
-    position:absolute;
-    inset:0;
-    background:linear-gradient(120deg, rgba(56,189,248,.22), rgba(59,130,246,.05));
-    opacity:0;
-    transition:opacity .2s ease;
-  }
-  .factoryArea:hover{
-    transform:translateY(-3px);
-    border-color:rgba(56,189,248,.65);
-    box-shadow:0 16px 28px rgba(14,116,144,.35);
-  }
-  .factoryArea:hover::after{
-    opacity:1;
-  }
-  .factoryAreaTitle{
-    font-weight:700;
-    font-size:.95rem;
-    margin:0;
-    position:relative;
-    z-index:1;
-  }
-  .factoryAreaMeta{
-    font-size:.72rem;
+  .kpiLabel{
+    font-size:.7rem;
     text-transform:uppercase;
     letter-spacing:.08em;
-    color:rgba(148,163,184,.9);
-    position:relative;
-    z-index:1;
+    color:var(--text-muted);
   }
-  .factoryAreaDetail{
-    font-size:.78rem;
-    color:rgba(226,232,240,.78);
-    line-height:1.4;
-    margin:0;
-    position:relative;
-    z-index:1;
+  .kpiValue{
+    font-size:1.6rem;
+    font-weight:700;
   }
-  .factoryArea--active{
-    border-color:rgba(56,189,248,.9);
-    box-shadow:0 18px 32px rgba(59,130,246,.4);
+  .kpiMeta{
+    font-size:.75rem;
+    color:var(--text-muted);
   }
-  .factoryAreaPulse{
-    position:absolute;
-    top:.65rem;
-    right:.65rem;
-    width:.55rem;
-    height:.55rem;
-    border-radius:999px;
-    background:#38bdf8;
-    box-shadow:0 0 12px rgba(56,189,248,.9);
-    animation:pulse 2.5s ease-in-out infinite;
-    z-index:1;
-  }
-  @keyframes pulse{
-    0%,100%{ transform:scale(.9); opacity:.6; }
-    50%{ transform:scale(1.3); opacity:1; }
-  }
-  .factoryDetail{
-    position:relative;
-    margin-top:1.4rem;
-    background:rgba(15,23,42,.8);
-    border:1px solid rgba(148,163,184,.35);
-    border-radius:1rem;
-    padding:1.1rem 1.2rem;
-    display:flex;
-    flex-direction:column;
-    gap:.9rem;
-    z-index:1;
-  }
-  .factoryDetailHeader{
+  .appsHeader{
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:.75rem;
     flex-wrap:wrap;
   }
-  .factoryDetailTitle{
-    font-size:1rem;
-    font-weight:700;
+  .appsHeader h2{
     margin:0;
-    color:#f8fafc;
+    font-size:1.05rem;
   }
-  .factoryDetailBadge{
-    font-size:.65rem;
-    font-weight:700;
-    letter-spacing:.08em;
-    text-transform:uppercase;
-    background:rgba(56,189,248,.18);
-    color:#7dd3fc;
-    padding:.25rem .6rem;
-    border-radius:999px;
-  }
-  .factoryTools{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-    gap:.75rem;
-  }
-  .factoryTool{
-    border-radius:.85rem;
-    padding:.75rem .85rem;
-    border:1px solid rgba(148,163,184,.35);
-    background:rgba(15,23,42,.7);
-    color:#e2e8f0;
-    display:flex;
-    flex-direction:column;
-    gap:.35rem;
-    position:relative;
-  }
-  .factoryToolTitle{
-    font-weight:700;
-    font-size:.85rem;
-    margin:0;
-  }
-  .factoryToolDesc{
-    margin:0;
-    font-size:.72rem;
-    color:rgba(226,232,240,.75);
-    line-height:1.4;
-  }
-  .factoryToolBtn{
-    align-self:flex-start;
-    margin-top:.35rem;
-    border:none;
-    border-radius:.6rem;
-    padding:.35rem .75rem;
-    font-size:.72rem;
-    font-weight:700;
-    color:#0f172a;
-    background:#38bdf8;
-    cursor:pointer;
-    box-shadow:0 8px 16px rgba(56,189,248,.3);
-  }
-  .factoryToolBtn:hover{
-    filter:brightness(1.05);
+  .appsMeta{
+    font-size:.75rem;
+    color:var(--text-muted);
   }
   .moduleCard{
-    border:1px solid var(--panel-strong);
+    border:1px solid rgba(99,102,241,.2);
     border-radius:var(--radius-lg);
     padding:1rem;
-    background:var(--panel);
+    background:rgba(255,255,255,.94);
     display:flex;
     flex-direction:column;
     gap:.75rem;
-    box-shadow:0 10px 24px rgba(15,23,42,.06);
+    box-shadow:0 12px 26px rgba(15,23,42,.08);
     transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
   .moduleCard:hover{
     transform:translateY(-2px);
-    border-color:rgba(37,99,235,.4);
-    box-shadow:0 16px 30px rgba(15,23,42,.12);
+    border-color:rgba(99,102,241,.4);
+    box-shadow:0 18px 36px rgba(99,102,241,.2);
   }
   .moduleCardHeader{
     display:flex;
@@ -514,8 +458,8 @@
     font-weight:700;
     text-transform:uppercase;
     letter-spacing:.05em;
-    background:var(--accent-soft);
-    color:#0c4a6e;
+    background:rgba(99,102,241,.15);
+    color:#3730a3;
     border-radius:999px;
     padding:.2rem .55rem;
   }
@@ -537,9 +481,9 @@
     color:var(--text-muted);
   }
   .moduleOpenBtn{
-    border:1px solid rgba(37,99,235,.45);
-    background:rgba(37,99,235,.08);
-    color:#1d4ed8;
+    border:1px solid rgba(99,102,241,.45);
+    background:rgba(99,102,241,.12);
+    color:#4338ca;
     font-weight:700;
     font-size:.8rem;
     padding:.4rem .8rem;
@@ -547,70 +491,152 @@
     cursor:pointer;
   }
   .moduleOpenBtn:hover{
-    background:rgba(37,99,235,.16);
+    background:rgba(99,102,241,.2);
+  }
+  .todoWidget{
+    position:fixed;
+    right:1.1rem;
+    bottom:1.1rem;
+    width:min(340px, calc(100vw - 2rem));
+    background:rgba(15,23,42,.96);
+    color:#e2e8f0;
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:1rem;
+    box-shadow:0 24px 50px rgba(15,23,42,.45);
+    z-index:1200;
+    backdrop-filter:blur(6px);
+  }
+  .todoWidget[hidden]{
+    display:none;
+  }
+  .todoWidgetHeader{
+    padding:.85rem .95rem .55rem;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:.8rem;
+  }
+  .todoWidgetTitle{
+    margin:0;
+    font-size:.92rem;
+    font-weight:800;
+  }
+  .todoWidgetMeta{
+    margin:.2rem 0 0;
+    font-size:.72rem;
+    color:#94a3b8;
+  }
+  .todoWidgetClose{
+    border:1px solid rgba(148,163,184,.4);
+    background:rgba(30,41,59,.7);
+    color:#e2e8f0;
+    border-radius:.55rem;
+    font-size:.72rem;
+    font-weight:700;
+    padding:.35rem .55rem;
+    cursor:pointer;
+  }
+  .todoWidgetClose:hover{
+    border-color:rgba(99,102,241,.85);
+    color:#c7d2fe;
+  }
+  .todoWidgetList{
+    display:flex;
+    flex-direction:column;
+    gap:.45rem;
+    padding:0 .95rem .85rem;
+  }
+  .todoWidgetItem{
+    display:flex;
+    align-items:center;
+    gap:.55rem;
+    background:rgba(30,41,59,.6);
+    border:1px solid rgba(148,163,184,.25);
+    border-radius:.7rem;
+    padding:.48rem .55rem;
+    font-size:.82rem;
+  }
+  .todoWidgetItem input[type="checkbox"]{
+    width:1rem;
+    height:1rem;
+    accent-color:#22c55e;
+    margin:0;
+    cursor:pointer;
+  }
+  .todoWidgetItem span{
+    line-height:1.3;
+  }
+  .todoWidgetItem.is-done{
+    opacity:.7;
+    border-color:rgba(34,197,94,.4);
+  }
+  .todoWidgetItem.is-done span{
+    text-decoration:line-through;
+    color:#cbd5e1;
   }
   .statusBar{
     display:flex;
     align-items:center;
-    gap:.5rem;
+    gap:.4rem;
     flex-wrap:wrap;
-    padding:.5rem .85rem;
+    padding:.35rem .65rem;
     border-radius:var(--radius-md);
     border:1px solid var(--panel-strong);
-    background:#fff;
-    box-shadow:0 10px 26px rgba(15,23,42,.06);
-    font-size:.72rem;
+    background:var(--panel);
+    box-shadow:0 16px 32px rgba(15,23,42,.08);
+    font-size:.64rem;
     color:var(--text-muted);
   }
   .statusBarLabel{
-    font-weight:700;
+    font-weight:600;
     text-transform:uppercase;
-    letter-spacing:.08em;
-    font-size:.65rem;
+    letter-spacing:.06em;
+    font-size:.58rem;
     color:var(--text-muted);
   }
   .statusPill{
     display:inline-flex;
     align-items:center;
-    gap:.35rem;
+    gap:.28rem;
     border-radius:999px;
-    padding:.25rem .55rem;
-    border:1px solid var(--panel-strong);
+    padding:.18rem .45rem;
+    border:1px solid rgba(99,102,241,.2);
     background:var(--panel-muted);
     color:var(--text);
     font-weight:600;
+    font-size:.62rem;
   }
   .statusPillDot{
-    width:8px;
-    height:8px;
+    width:6px;
+    height:6px;
     border-radius:999px;
     background:var(--panel-strong);
   }
   .statusPill--ok{
     border-color:rgba(34,197,94,.45);
     background:rgba(34,197,94,.12);
-    color:#166534;
+    color:#065f46;
   }
   .statusPill--ok .statusPillDot{ background:#22c55e; }
   .statusPill--err{
     border-color:rgba(248,113,113,.5);
-    background:rgba(254,226,226,.85);
-    color:#7f1d1d;
+    background:rgba(248,113,113,.12);
+    color:#991b1b;
   }
   .statusPill--err .statusPillDot{ background:#ef4444; }
   .statusPill--warn{
     border-color:rgba(251,191,36,.55);
-    background:rgba(254,240,138,.75);
+    background:rgba(251,191,36,.12);
     color:#92400e;
   }
   .statusPill--warn .statusPillDot{ background:#f59e0b; }
   .shell{
     width:100%;
     max-width:none;
-    background:#fff;
+    background:var(--panel);
     border:1px solid var(--panel-strong);
     border-radius:var(--radius-lg);
-    box-shadow:0 18px 48px rgba(15,23,42,.08);
+    box-shadow:0 24px 60px rgba(15,23,42,.08);
     display:grid;
     grid-template-columns:1fr 1fr;
     overflow:hidden;
@@ -620,37 +646,173 @@
 
   /* LEFT */
   .leftPane{
-    background:#fff;
+    background:var(--panel);
     padding:1.5rem;
     border-right:1px solid var(--panel-strong);
   }
   @media (max-width:1000px){ .leftPane{ border-right:0; border-bottom:1px solid rgba(148,163,184,.15);} }
   .headerRow{ display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; flex-wrap:wrap; margin-bottom:.75rem; }
   .line1{ font-size:.95rem; font-weight:700; color:var(--text); display:flex; gap:.5rem 1rem; align-items:center; flex-wrap:wrap; }
-  .badge{ background:var(--accent-soft); border:1px solid rgba(56,189,248,.5); color:#0c4a6e; font-size:1.1rem; border-radius:var(--radius-md); padding:.2rem .45rem; }
+  .badge{ background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.5); color:#0e7490; font-size:1.1rem; border-radius:var(--radius-md); padding:.2rem .45rem; }
   .sessionInfo{ font-size:.8rem; color:var(--text-muted); line-height:1.4; font-family:var(--mono);} 
-  .scanBox,.addrBox,.card{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.75rem; }
-  .scanBox{ margin-bottom:1rem; }
-  .scanTopBar{
+  .scanBox,.addrBox,.card{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.85rem; }
+  .dispatchTopBar{
     display:flex;
+    flex-direction:column;
+    gap:1rem;
+    background:var(--panel);
+    border-radius:var(--radius-lg);
+    border:1px solid var(--panel-strong);
+    padding:1rem 1.25rem;
+    box-shadow:var(--shadow-soft);
+  }
+  .dispatchTopRow{
+    display:flex;
+    align-items:center;
+    gap:1rem;
+    flex-wrap:wrap;
+  }
+  .dispatchHeading{
+    font-weight:800;
+    font-size:1.05rem;
+    letter-spacing:.01em;
+  }
+  .dispatchScanField{
+    display:flex;
+    flex-direction:column;
+    gap:.35rem;
+    min-width:280px;
+    flex:1;
+  }
+  .dispatchScanField label{
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--text-muted);
+  }
+  #scanInput{ width:100%; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:1rem; outline:none; padding:.55rem .7rem; }
+  #scanInput:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(34,211,238,.2); }
+  .dispatchTopActions{
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+    flex-wrap:wrap;
+  }
+  .btn--compact{
+    font-size:.7rem;
+    padding:.35rem .6rem;
+  }
+  .dispatchExpandToggle{
+    border:1px solid rgba(99,102,241,.4);
+    background:rgba(99,102,241,.12);
+    color:#312e81;
+  }
+  .dispatchTopDetails{
+    display:none;
+    border-top:1px solid var(--panel-strong);
+    padding-top:1rem;
+    gap:1rem;
+  }
+  #viewScan.dispatchExpanded .dispatchTopDetails{
+    display:grid;
+  }
+  .dispatchDetailGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+    gap:.85rem;
+  }
+  .dispatchDetailCard{
+    background:var(--panel-muted);
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    padding:.75rem .85rem;
+    display:flex;
+    flex-direction:column;
+    gap:.35rem;
+  }
+  .dispatchDetailLabel{
+    font-size:.7rem;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--text-muted);
+    font-weight:700;
+  }
+  .dispatchDetailValue{
+    font-size:.9rem;
+    font-weight:700;
+  }
+  .dispatchDetailAddress{
+    grid-column:1/-1;
+  }
+  .dispatchDetailAddress .dispatchDetailValue{
+    font-weight:500;
+    white-space:pre-line;
+    font-size:.85rem;
+  }
+  .dispatchTopPanels{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+    gap:.85rem;
+  }
+  .dispatchTruckIndicator{
+    display:flex;
+    align-items:center;
+    gap:.55rem;
+    width:100%;
+  }
+  .dispatchTruckButton{
+    display:flex;
+    align-items:center;
     justify-content:center;
-    padding:1rem 1.5rem 0;
+    gap:.5rem;
+    border:1px solid rgba(239,68,68,.6);
+    background:rgba(239,68,68,.08);
+    color:#b91c1c;
+    border-radius:999px;
+    padding:.4rem .75rem;
+    font-weight:700;
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    cursor:pointer;
+    min-height:48px;
+    width:100%;
   }
-  .scanBox--centered{
-    width:min(520px, 100%);
-    margin-bottom:1.25rem;
-    text-align:center;
+  .dispatchTruckButton.is-booked{
+    border-color:rgba(34,197,94,.6);
+    background:rgba(34,197,94,.12);
+    color:#047857;
   }
-  .scanBox--centered label{ justify-content:center; gap:.5rem; }
-  .scanBox--centered #scanInput{ text-align:center; font-size:1.1rem; }
-  .scanBox label{ display:flex; justify-content:space-between; align-items:baseline; font-size:.75rem; color:var(--text-muted); margin-bottom:.5rem; }
-  .scanBox label small{ color:#7c8da1; font-weight:400; font-size:.7rem; }
-  #scanInput{ width:100%; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:1rem; outline:none; padding:.5rem .6rem; }
-  #scanInput:focus{ border-color:var(--accent); box-shadow:0 0 20px rgba(56,189,248,.4); }
+  .dispatchTruckIcon{
+    width:18px;
+    height:18px;
+    display:inline-flex;
+  }
+  .dispatchTruckMeta{
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    font-size:.76rem;
+    color:var(--text);
+    width:100%;
+  }
+  .dispatchTruckBox{
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    font-weight:700;
+    color:var(--text);
+    width:100%;
+    justify-content:center;
+  }
+  .dispatchTruckBox svg{
+    width:16px;
+    height:16px;
+  }
   .btn{
-    border:1px solid rgba(56,189,248,.5);
-    background:var(--accent-soft);
-    color:#0c4a6e;
+    border:1px solid rgba(99,102,241,.45);
+    background:rgba(99,102,241,.12);
+    color:#0f172a;
     font-weight:700;
     font-size:.85rem;
     padding:.55rem .9rem;
@@ -658,62 +820,48 @@
     cursor:pointer;
     transition:transform .15s ease, box-shadow .15s ease;
   }
-  .btn:hover{ transform:translateY(-1px); box-shadow:0 6px 14px rgba(56,189,248,.2); }
+  .btn:hover{ transform:translateY(-1px); box-shadow:0 8px 16px rgba(99,102,241,.2); }
   .btnPrimary{
-    background:#0ea5e9;
-    border-color:#0ea5e9;
+    background:linear-gradient(120deg, var(--accent), var(--accent-3));
+    border-color:transparent;
     color:#fff;
   }
   .btnToggle{
-    background:#fff7ed;
-    border-color:#fdba74;
+    background:rgba(249,115,22,.12);
+    border-color:rgba(249,115,22,.5);
     color:#9a3412;
   }
   .btnToggle.is-active{
     background:#16a34a;
     border-color:#16a34a;
     color:#fff;
-    box-shadow:0 6px 14px rgba(22,163,74,.25);
-  }
-  .sessionControls{
-    justify-content:flex-end;
-    align-items:center;
-  }
-  .sessionControlsGroup{
-    display:flex;
-    flex-wrap:wrap;
-    gap:.5rem;
-    justify-content:flex-end;
-    align-items:center;
-  }
-  .sessionControls .btnToggle{
-    min-width:200px;
+    box-shadow:0 8px 18px rgba(22,163,74,.25);
   }
 
   /* Address picker */
   .addrBox{ margin-bottom:1rem; }
   .addrBox .row{ display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; }
   .addrBox label{ font-size:.75rem; color:var(--text-muted); display:block; margin-bottom:.35rem; }
-  #addrSearch,#placeCode{ flex:1; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:.9rem; padding:.35rem .5rem; outline:none; }
-  #addrSearch:focus,#placeCode:focus{ border-color:var(--accent); box-shadow:0 0 16px rgba(56,189,248,.35); }
+  #addrSearch,#placeCode{ flex:1; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:.9rem; padding:.4rem .6rem; outline:none; }
+  #addrSearch:focus,#placeCode:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(34,211,238,.2); }
   #placeCode{ width:140px; }
-  .addrList{ max-height:160px; overflow:auto; border:1px solid var(--panel-strong); border-radius:var(--radius-md); background:#fff; }
-  .addrItem{ padding:.5rem; border-bottom:1px solid rgba(148,163,184,.15); font-size:.74rem; cursor:pointer; color:var(--text); }
-  .addrItem:hover{ background:rgba(56,189,248,.08); }
+  .addrList{ max-height:160px; overflow:auto; border:1px solid var(--panel-strong); border-radius:var(--radius-md); background:var(--panel); }
+  .addrItem{ padding:.5rem; border-bottom:1px solid rgba(148,163,184,.3); font-size:.74rem; cursor:pointer; color:var(--text); }
+  .addrItem:hover{ background:rgba(34,211,238,.1); }
   .addrHint{ font-size:.7rem; color:var(--text-muted); margin-top:.35rem; }
 
   /* Small cards */
   .minigrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); gap:.75rem; }
   .cardHeader{ font-size:.7rem; color:var(--text-muted); font-weight:700; margin-bottom:.5rem; }
   .cardBody{ font-family:var(--mono); font-size:1.72rem; line-height:1.4; color:var(--text); white-space:pre-wrap; word-break:break-word; }
-  #debugLog{ display:none; background:#fff5f5; border:1px solid rgba(248,113,113,.4); color:#b91c1c; font-family:var(--mono); font-size:.7rem; line-height:1.4; border-radius:var(--radius-md); padding:.75rem; margin-top:1rem; max-height:180px; overflow:auto; white-space:pre-wrap; }
+  #debugLog{ display:none; background:rgba(127,29,29,.2); border:1px solid rgba(248,113,113,.4); color:#fecaca; font-family:var(--mono); font-size:.7rem; line-height:1.4; border-radius:var(--radius-md); padding:.75rem; margin-top:1rem; max-height:180px; overflow:auto; white-space:pre-wrap; }
 
   /* RIGHT */
   .rightPane{
     padding:1.5rem;
     display:flex;
     flex-direction:column;
-    background:#f8fafc;
+    background:var(--panel);
   }
   .sectionTitle{ font-size:.82rem; color:var(--text); font-weight:700; display:flex; justify-content:space-between; gap:.5rem 1rem; margin-bottom:.6rem; }
 
@@ -725,7 +873,7 @@
     display:flex;
     flex-direction:column;
     gap:.85rem;
-    box-shadow:0 10px 28px rgba(15,23,42,.08);
+    box-shadow:0 12px 28px rgba(15,23,42,.1);
     margin-bottom:1rem;
   }
   .truckHeader{
@@ -752,13 +900,13 @@
     padding:.35rem .6rem;
     border-radius:999px;
     border:1px solid rgba(239,68,68,.5);
-    color:#7f1d1d;
+    color:#991b1b;
     background:rgba(239,68,68,.12);
   }
   .truckStatus.is-booked{
-    border-color:rgba(34,197,94,.6);
-    color:#14532d;
-    background:rgba(34,197,94,.18);
+    border-color:rgba(34,197,94,.5);
+    color:#065f46;
+    background:rgba(34,197,94,.14);
   }
   .truckBookBtn{
     display:flex;
@@ -770,11 +918,11 @@
     letter-spacing:.02em;
     padding:1rem 1.5rem;
     border-radius:1rem;
-    border:2px solid rgba(37,99,235,.6);
-    background:linear-gradient(135deg, rgba(37,99,235,.95), rgba(30,64,175,.95));
-    color:#fff;
+    border:2px solid rgba(99,102,241,.6);
+    background:linear-gradient(135deg, rgba(99,102,241,.95), rgba(34,211,238,.95));
+    color:#04121e;
     cursor:pointer;
-    box-shadow:0 18px 35px rgba(37,99,235,.24);
+    box-shadow:0 20px 36px rgba(67,56,202,.28);
     transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
   }
   .truckBookBtn:hover{
@@ -794,17 +942,17 @@
     color:var(--text-muted);
   }
   #modeToggle{
-    border:1px solid rgba(56,189,248,.5);
-    background:var(--accent-soft);
-    color:#0c4a6e;
+    border:1px solid rgba(99,102,241,.5);
+    background:rgba(99,102,241,.12);
+    color:#312e81;
     font-weight:700;
     font-size:.75rem;
     padding:.35rem .6rem;
     border-radius:.55rem;
     cursor:pointer;
   }
-  .statusChip{ font-size:.7rem; background:var(--panel-muted); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.35rem .5rem; color:var(--text-muted); }
-  .summaryCard{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.75rem; margin-bottom:.8rem; font-family:var(--mono); font-size:.7rem; line-height:1.4; color:#0c4a6e; white-space:pre-wrap; word-break:break-word; max-height:240px; overflow:auto; }
+  .statusChip{ font-size:.62rem; background:var(--panel-muted); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.25rem .4rem; color:var(--text-muted); }
+  .summaryCard{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.75rem; margin-bottom:.8rem; font-family:var(--mono); font-size:.7rem; line-height:1.4; color:var(--text); white-space:pre-wrap; word-break:break-word; max-height:240px; overflow:auto; }
   .waybillSheetPreview{ background:#fff; color:#000; border-radius:var(--radius-md); padding:.75rem; font-family:var(--mono); font-size:.72rem; line-height:1.4; min-height:180px; overflow:auto; }
 
   /* ===== PRINT LOCK (100×150mm exact) ===== */
@@ -859,12 +1007,186 @@
   display:flex;
   flex-direction:column;
   gap:.85rem;
-  padding:1.25rem 1.5rem;
+  padding:1.25rem 0 1.25rem 1.5rem;
   border-radius:var(--radius-lg);
-  background:#fff;
+  background:var(--panel);
   border:1px solid var(--panel-strong);
-  box-shadow:0 18px 48px rgba(15,23,42,.08);
+  box-shadow:var(--shadow-soft);
   min-height:calc(100dvh - 160px);
+}
+
+.dispatchSelectionPanel{
+  width:100%;
+  border-radius:var(--radius-lg);
+  border:1px solid var(--panel-strong);
+  padding:.85rem 1rem;
+  background:rgba(255,255,255,.98);
+  box-shadow:0 18px 32px rgba(15,23,42,.12);
+  display:flex;
+  flex-direction:column;
+  gap:.65rem;
+}
+.dispatchSelectionHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:.82rem;
+  font-weight:700;
+  color:#0f172a;
+}
+.dispatchSelectionActions{
+  display:flex;
+  gap:.4rem;
+  align-items:center;
+}
+.dispatchSelectionClear{
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.7);
+  background:#fff;
+  color:#475569;
+  font-size:.7rem;
+  font-weight:600;
+  padding:.2rem .6rem;
+  cursor:pointer;
+}
+.dispatchSelectionClear:hover{
+  border-color:rgba(56,189,248,.7);
+  color:#0c4a6e;
+}
+.dispatchSelectionCount{
+  font-size:.7rem;
+  padding:.2rem .5rem;
+  border-radius:999px;
+  border:1px solid rgba(56,189,248,.4);
+  background:rgba(56,189,248,.15);
+  color:#075985;
+}
+.dispatchSelectionBody{
+  display:flex;
+  flex-direction:column;
+  gap:.65rem;
+  font-size:.72rem;
+  color:var(--text);
+}
+.dispatchSelectionLabel{
+  font-weight:700;
+  color:#0f172a;
+  margin-bottom:.35rem;
+}
+.dispatchSelectionList{
+  display:flex;
+  flex-direction:column;
+  gap:.35rem;
+  padding:.2rem .1rem;
+}
+.dispatchSelectionRow{
+  display:flex;
+  justify-content:space-between;
+  gap:.6rem;
+  padding:.3rem .35rem;
+  border-radius:.45rem;
+  background:rgba(148,163,184,.12);
+  font-variant-numeric:tabular-nums;
+}
+.dispatchSelectionMeta{
+  display:grid;
+  gap:.3rem;
+  font-variant-numeric:tabular-nums;
+}
+.dispatchSelectionPanel.is-hidden{
+  display:none;
+}
+
+.dispatchSelectionBulkActions{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:.35rem;
+}
+.dispatchSelectionBtn{
+  border:1px solid rgba(148,163,184,.7);
+  background:#fff;
+  color:#334155;
+  font-size:.7rem;
+  font-weight:700;
+  padding:.35rem .55rem;
+  border-radius:.5rem;
+  cursor:pointer;
+}
+.dispatchSelectionBtn:hover{ border-color:rgba(56,189,248,.6); color:#0c4a6e; }
+.dispatchSelectionBtn--primary{
+  border-color:rgba(34,197,94,.55);
+  background:rgba(34,197,94,.16);
+  color:#065f46;
+}
+.dispatchLaneSelectAll{
+  display:flex;
+  align-items:center;
+  gap:.3rem;
+  font-size:.62rem;
+  color:#0f172a;
+  font-weight:700;
+  text-transform:uppercase;
+}
+.dispatchColHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+}
+.dispatchCard.is-combined{
+  border-width:2px;
+  border-color:var(--combined-color, rgba(94,234,212,.8));
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--combined-color, #5eead4) 35%, transparent), 0 8px 16px rgba(15,23,42,.12);
+}
+
+.dispatchBoardLayout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 320px;
+  gap:1rem;
+  align-items:stretch;
+  min-height:100%;
+}
+@media (max-width:1100px){
+  .dispatchBoardLayout{
+    grid-template-columns:1fr;
+  }
+}
+.dispatchBoardMain{
+  display:flex;
+  flex-direction:column;
+  gap:.85rem;
+}
+.dispatchBoardSidebar{
+  display:flex;
+  flex-direction:column;
+  gap:.85rem;
+  height:100%;
+  padding-right:1.5rem;
+}
+.dispatchShipmentsPanel{
+  border-radius:var(--radius-lg);
+  border:1px solid var(--panel-strong);
+  padding:1rem;
+  background:var(--panel);
+  box-shadow:0 12px 28px rgba(15,23,42,.08);
+  display:flex;
+  flex-direction:column;
+  flex:1;
+}
+.dispatchShipmentsHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.5rem;
+  margin-bottom:.75rem;
+  font-weight:700;
+  font-size:.85rem;
+}
+.dispatchShipmentsBody{
+  display:flex;
+  flex-direction:column;
+  gap:.6rem;
+  flex:1;
 }
 
 .dispatchStatusPanel {
@@ -874,8 +1196,8 @@
   padding:.85rem 1rem;
   border-radius:var(--radius-lg);
   border:1px solid var(--panel-strong);
-  background:linear-gradient(120deg, rgba(255,255,255,.96), rgba(224,231,255,.45));
-  box-shadow:0 18px 40px rgba(15,23,42,.08);
+  background:var(--panel);
+  box-shadow:0 18px 36px rgba(15,23,42,.08);
 }
 .dispatchStatusPanel--compact{
   padding:.65rem .8rem;
@@ -896,9 +1218,9 @@
   font-size:.72rem;
   padding:.25rem .6rem;
   border-radius:999px;
-  border:1px solid rgba(251,191,36,.5);
-  background:rgba(251,191,36,.18);
-  color:#92400e;
+  border:1px solid rgba(249,115,22,.45);
+  background:rgba(249,115,22,.15);
+  color:#9a3412;
   font-weight:700;
   text-transform:uppercase;
   letter-spacing:.05em;
@@ -908,8 +1230,8 @@
   height:18px;
   border-radius:999px;
   overflow:hidden;
-  background:linear-gradient(90deg, rgba(254,240,138,.7), rgba(251,191,36,.2));
-  border:1px solid rgba(250,204,21,.65);
+  background:linear-gradient(90deg, rgba(226,232,240,.9), rgba(148,163,184,.25));
+  border:1px solid rgba(148,163,184,.5);
 }
 .dispatchProgressBar.is-pulse{
   animation:dispatchPulse .6s ease;
@@ -940,7 +1262,7 @@
   justify-content:space-between;
   gap:.4rem;
   font-size:.7rem;
-  color:#334155;
+  color:var(--text-muted);
   width:100%;
 }
 .dispatchStatusPanel--compact .dispatchProgressSteps{
@@ -954,7 +1276,7 @@
   padding:.25rem .2rem;
   border-radius:.5rem;
   border:1px solid var(--panel-strong);
-  background:#fff;
+  background:var(--panel-muted);
   flex:1 1 0;
   min-width:0;
   text-align:center;
@@ -966,16 +1288,16 @@
   background:#cbd5f5;
 }
 .dispatchProgressStep.is-active{
-  border-color:rgba(56,189,248,.8);
-  background:rgba(56,189,248,.12);
-  color:#0c4a6e;
+  border-color:rgba(34,211,238,.8);
+  background:rgba(34,211,238,.12);
+  color:var(--text);
 }
 .dispatchProgressStep.is-active .dispatchProgressDot{
-  background:#38bdf8;
-  box-shadow:0 0 10px rgba(56,189,248,.8);
+  background:#22d3ee;
+  box-shadow:0 0 10px rgba(34,211,238,.8);
 }
 .dispatchProgressStep.is-complete{
-  border-color:rgba(34,197,94,.7);
+  border-color:rgba(34,197,94,.6);
   background:rgba(34,197,94,.12);
   color:#065f46;
 }
@@ -992,92 +1314,9 @@
 .dispatchLogPanel{
   border:1px solid var(--panel-strong);
   border-radius:var(--radius-lg);
-  background:#fff;
+  background:var(--panel);
   padding:.75rem 1rem;
   box-shadow:0 14px 32px rgba(15,23,42,.08);
-}
-.dispatchTodoPanel{
-  border:1px solid var(--panel-strong);
-  border-radius:var(--radius-lg);
-  background:#fff;
-  padding:.75rem 1rem;
-  display:flex;
-  flex-direction:column;
-  gap:.65rem;
-  box-shadow:0 14px 32px rgba(15,23,42,.08);
-}
-.dispatchTodoHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:.5rem;
-}
-.dispatchTodoHeader h3{
-  font-size:.95rem;
-  margin:0;
-  color:#0f172a;
-}
-.dispatchTodoMeta{
-  font-size:.7rem;
-  text-transform:uppercase;
-  letter-spacing:.08em;
-  color:#64748b;
-  font-weight:600;
-}
-.dispatchTodoForm{
-  display:flex;
-  gap:.5rem;
-}
-.dispatchTodoForm input{
-  flex:1;
-  border:1px solid var(--panel-strong);
-  border-radius:var(--radius-md);
-  padding:.45rem .6rem;
-  font-size:.85rem;
-}
-.dispatchTodoForm button{
-  border:none;
-  border-radius:var(--radius-md);
-  padding:.45rem .8rem;
-  background:#0ea5e9;
-  color:#fff;
-  font-weight:600;
-}
-.dispatchTodoList{
-  display:flex;
-  flex-direction:column;
-  gap:.4rem;
-}
-.dispatchTodoEmpty{
-  font-size:.8rem;
-  color:#64748b;
-  padding:.35rem .2rem;
-}
-.dispatchTodoItem{
-  display:flex;
-  align-items:center;
-  gap:.5rem;
-  padding:.45rem .55rem;
-  border-radius:var(--radius-md);
-  border:1px solid var(--panel-strong);
-  background:var(--panel-muted);
-}
-.dispatchTodoItem input{
-  width:16px;
-  height:16px;
-}
-.dispatchTodoItem span{
-  flex:1;
-  font-size:.85rem;
-  color:#0f172a;
-}
-.dispatchTodoItem.is-complete{
-  background:rgba(34,197,94,.1);
-  border-color:rgba(34,197,94,.4);
-}
-.dispatchTodoItem.is-complete span{
-  text-decoration:line-through;
-  color:#64748b;
 }
 .dispatchLogPanel--compact{
   padding:.65rem .8rem;
@@ -1088,14 +1327,14 @@
   justify-content:space-between;
   font-size:.8rem;
   font-weight:700;
-  color:#0f172a;
+  color:var(--text);
   margin-bottom:.4rem;
 }
 .dispatchLog{
   max-height:180px;
   overflow:auto;
   font-size:.72rem;
-  color:#1f2937;
+  color:var(--text);
   line-height:1.4;
 }
 .dispatchLogPanel--compact .dispatchLog{
@@ -1103,7 +1342,7 @@
 }
 .dispatchLogEntry{
   padding:.35rem .25rem;
-  border-bottom:1px dashed rgba(226,232,240,.9);
+  border-bottom:1px dashed rgba(148,163,184,.25);
   display:flex;
   gap:.5rem;
   align-items:flex-start;
@@ -1113,25 +1352,25 @@
 }
 .dispatchLogEntry span{
   font-family:var(--mono);
-  color:#64748b;
+  color:var(--text-muted);
   min-width:75px;
 }
 
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.3fr);
+  grid-template-columns: repeat(5, minmax(260px, 1fr));
   gap: 1rem;
   padding: .35rem;
   min-height: 65vh;
-  overflow-y: auto;
-  background:#f8fafc;
+  background:var(--panel-muted);
+  overflow-x:auto;
 }
 @media (max-width:1400px){
-  #dispatchBoardGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #dispatchBoardGrid { grid-template-columns: repeat(3, minmax(260px, 1fr)); }
 }
 @media (max-width:1100px){
-  #dispatchBoardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #dispatchBoardGrid { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
 }
 @media (max-width:700px){
   #dispatchBoardGrid { grid-template-columns: 1fr; }
@@ -1141,7 +1380,7 @@
 .dispatchColHeader {
   font-size: .9rem;
   font-weight: 700;
-  color: #0284c7;
+  color: #1e3a8a;
   margin-bottom: 0.4rem;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -1149,7 +1388,7 @@
 
 /* cards in columns */
 .dispatchCard {
-  background: #ffffff;
+  background: var(--panel);
   border: 1px solid var(--panel-strong);
   border-radius: 10px;
   padding: 0.6rem 0.65rem;
@@ -1158,10 +1397,22 @@
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
 }
+.dispatchCard.is-selected{
+  border-color: rgba(56,189,248,.6);
+  box-shadow: 0 0 0 1px rgba(56,189,248,.25), 0 6px 14px rgba(56,189,248,.18);
+}
+.dispatchCard.is-active-card{
+  border-color: rgba(37,99,235,.75);
+  box-shadow: 0 0 0 2px rgba(37,99,235,.2), 0 10px 22px rgba(37,99,235,.22);
+  background: linear-gradient(160deg, rgba(239,246,255,.95), rgba(255,255,255,.98));
+}
+.dispatchCard.is-active-card .dispatchCardTitleText{
+  color:#1d4ed8;
+}
 
 .dispatchCard:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(56,189,248,0.18);
+  box-shadow: 0 6px 14px rgba(34,211,238,0.18);
 }
 
 .dispatchCardTitle {
@@ -1169,12 +1420,33 @@
   font-size: 0.85rem;
   color: var(--text);
   margin-bottom: 0.2rem;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:.5rem;
+}
+.dispatchCardTitleText{
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   line-clamp: 2;
   overflow: hidden;
   word-break: break-word;
+}
+.dispatchCardSelect{
+  display:flex;
+  align-items:center;
+  gap:.25rem;
+  font-size:.62rem;
+  font-weight:700;
+  color:#0f172a;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.dispatchCardSelect input{
+  width:.8rem;
+  height:.8rem;
+  accent-color:#38bdf8;
 }
 
 .dispatchCardMeta {
@@ -1184,6 +1456,35 @@
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+}
+
+.dispatchCardParcel {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.dispatchCardParcel label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dispatchParcelCountInput {
+  width: 3.2rem;
+  border: 1px solid var(--panel-strong);
+  border-radius: 0.45rem;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.72rem;
+  background: #fff;
+  color: var(--text);
+}
+
+.dispatchParcelCountInput:focus {
+  outline: 2px solid rgba(56,189,248,0.4);
+  outline-offset: 1px;
 }
 
 
@@ -1216,6 +1517,24 @@
     flex-wrap:wrap;
     gap:.35rem;
     margin-top:.5rem;
+  }
+
+  .dispatchFulfillBtn{
+    border:1px solid rgba(34,197,94,.55);
+    background:rgba(34,197,94,.16);
+    color:#065f46;
+    font-size:.7rem;
+    font-weight:700;
+    padding:.35rem .55rem;
+    border-radius:.5rem;
+    cursor:pointer;
+  }
+  .dispatchFulfillBtn:hover{
+    background:rgba(34,197,94,.26);
+  }
+  .dispatchFulfillBtn:disabled{
+    opacity:.5;
+    cursor:not-allowed;
   }
 
   .dispatchBookBtn{
@@ -1268,7 +1587,7 @@
   }
   .dispatchOppBtn{
     border:1px solid rgba(14,116,144,.45);
-    background:rgba(14,116,144,.12);
+    background:rgba(14,116,144,.18);
     color:#0f172a;
     font-size:.7rem;
     font-weight:700;
@@ -1285,7 +1604,7 @@
   }
   .dispatchNotifyBtn{
     border:1px solid rgba(234,179,8,.5);
-    background:rgba(254,240,138,.5);
+    background:rgba(234,179,8,.18);
     color:#92400e;
     font-size:.7rem;
     font-weight:700;
@@ -1294,7 +1613,7 @@
     cursor:pointer;
   }
   .dispatchNotifyBtn:hover{
-    background:rgba(254,240,138,.75);
+    background:rgba(234,179,8,.3);
   }
   .dispatchNotifyBtn:disabled{
     opacity:.5;
@@ -1310,17 +1629,17 @@
     border:1px solid var(--panel-strong);
     border-radius:10px;
     overflow:hidden;
-    box-shadow:0 2px 6px rgba(15,23,42,0.08);
+    box-shadow:0 2px 6px rgba(15,23,42,.08);
   }
 
   .dispatchShipmentRow{
     display:grid;
-    grid-template-columns: 1.4fr 1.1fr 1.1fr;
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
     gap:.5rem;
     padding:.55rem .6rem;
-    border-bottom:1px solid #e2e8f0;
+    border-bottom:1px solid var(--panel-strong);
     font-size:.72rem;
-    color:#0f172a;
+    color:var(--text);
     cursor:pointer;
   }
   .dispatchShipmentCell{
@@ -1328,7 +1647,7 @@
   }
 
   .dispatchShipmentRow--header{
-    background:#f1f5f9;
+    background:var(--panel-muted);
     font-weight:700;
     text-transform:uppercase;
     letter-spacing:.6px;
@@ -1341,32 +1660,49 @@
 
   .dispatchShipmentCell--tracking{
     font-family:var(--mono);
-    color:#0f172a;
+    color:var(--text);
   }
 
   .dispatchShipmentCell--status{
-    color:#475569;
+    color:var(--text-muted);
+  }
+
+  .dispatchShipmentCell--actions{
     display:flex;
     gap:.35rem;
-    flex-wrap:wrap;
+    justify-content:flex-end;
     align-items:center;
   }
 
-  .dispatchShipmentTag{
-    font-size:.6rem;
+  .dispatchShipmentActionBtn{
+    border:1px solid rgba(30,64,175,.25);
+    background:#eff6ff;
+    color:#1e3a8a;
+    border-radius:.45rem;
+    font-size:.68rem;
     font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:.04em;
-    padding:.12rem .35rem;
-    border-radius:999px;
-    background:rgba(16,185,129,.15);
-    color:#047857;
+    padding:.25rem .45rem;
+    cursor:pointer;
+  }
+
+  .dispatchShipmentActionBtn:hover{
+    background:#dbeafe;
+  }
+
+  .dispatchShipmentActionBtn--link{
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+  }
+
+  .contactsPhone{
+    font-family:var(--mono);
   }
 
   .dispatchShipmentEmpty{
     padding:.75rem;
     font-size:.75rem;
-    color:#94a3b8;
+    color:var(--text-muted);
   }
 
   .dispatchShipmentInfo{
@@ -1576,7 +1912,7 @@
     border-radius:.45rem;
     border:1px solid rgba(234,88,12,.35);
     background:rgba(251,146,60,.15);
-    color:#9a3412;
+    color:#fdba74;
     font-size:.65rem;
     font-weight:700;
     padding:.3rem .55rem;
@@ -1607,17 +1943,17 @@
   .dispatchOrderModal__backdrop{
     position:absolute;
     inset:0;
-    background:rgba(15,23,42,.55);
+    background:rgba(15,23,42,.45);
   }
   .dispatchOrderModal__content{
     position:relative;
-    background:#ffffff;
+    background:var(--panel);
     border-radius:16px;
-    border:1px solid rgba(148,163,184,.6);
+    border:1px solid var(--panel-strong);
     width:min(900px, 92vw);
     max-height:90vh;
     overflow:hidden;
-    box-shadow:0 18px 40px rgba(15,23,42,.25);
+    box-shadow:0 18px 40px rgba(15,23,42,.2);
     display:flex;
     flex-direction:column;
   }
@@ -1631,7 +1967,7 @@
   .dispatchOrderModal__title{
     font-size:1rem;
     font-weight:700;
-    color:#0f172a;
+    color:var(--text);
   }
   .dispatchOrderModal__meta{
     font-size:.75rem;
@@ -1669,17 +2005,17 @@
   .dispatchShipmentModal__backdrop{
     position:absolute;
     inset:0;
-    background:rgba(15,23,42,.55);
+    background:rgba(15,23,42,.45);
   }
   .dispatchShipmentModal__content{
     position:relative;
-    background:#ffffff;
+    background:var(--panel);
     border-radius:16px;
-    border:1px solid rgba(148,163,184,.6);
+    border:1px solid var(--panel-strong);
     width:min(820px, 92vw);
     max-height:90vh;
     overflow:hidden;
-    box-shadow:0 18px 40px rgba(15,23,42,.25);
+    box-shadow:0 18px 40px rgba(15,23,42,.2);
     display:flex;
     flex-direction:column;
   }
@@ -1693,11 +2029,11 @@
   .dispatchShipmentModal__title{
     font-size:1rem;
     font-weight:700;
-    color:#0f172a;
+    color:var(--text);
   }
   .dispatchShipmentModal__meta{
     font-size:.75rem;
-    color:#64748b;
+    color:var(--text-muted);
     margin-top:.2rem;
   }
   .dispatchShipmentModal__body{
@@ -1759,7 +2095,7 @@
     max-width:1200px;
     width:100%;
     margin:0 auto;
-    background:rgba(255,255,255,.96);
+    background:var(--panel);
     border:1px solid var(--panel-strong);
     border-radius:var(--radius-lg);
     box-shadow:0 18px 48px rgba(15,23,42,.1);
@@ -1773,11 +2109,19 @@
     font-size:.9rem;
     margin:1rem 0 .4rem;
   }
+  .docsShell h4{
+    font-size:.85rem;
+    margin:.85rem 0 .35rem;
+  }
   .docsShell p,
   .docsShell li{
     font-size:.85rem;
     color:var(--text);
     line-height:1.5;
+  }
+  .docsShell ul,
+  .docsShell ol{
+    padding-left:1.1rem;
   }
   .docsGrid{
     display:grid;
@@ -1789,6 +2133,44 @@
     border-radius:var(--radius-md);
     padding:1rem;
     background:var(--panel);
+  }
+  .docsTopNav{
+    position:sticky;
+    top:.75rem;
+    z-index:3;
+    display:flex;
+    flex-wrap:wrap;
+    gap:.45rem;
+    margin:.9rem 0 1.2rem;
+    padding:.55rem;
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-md);
+    background:color-mix(in srgb, var(--panel) 92%, #ffffff);
+    backdrop-filter:blur(4px);
+  }
+  .docsTopNav a{
+    display:inline-flex;
+    align-items:center;
+    border:1px solid var(--panel-strong);
+    border-radius:999px;
+    padding:.3rem .7rem;
+    font-size:.74rem;
+    color:var(--text-muted);
+    text-decoration:none;
+    font-family:var(--mono);
+    transition:all .15s ease;
+  }
+  .docsTopNav a:hover,
+  .docsTopNav a:focus-visible{
+    color:#075985;
+    border-color:#7dd3fc;
+    background:#e0f2fe;
+    outline:none;
+  }
+  .docsInlineLink{
+    color:#075985;
+    text-decoration:underline;
+    text-underline-offset:2px;
   }
   .docsMeta{
     font-family:var(--mono);
@@ -1803,6 +2185,41 @@
     padding:.5rem .6rem;
     border-radius:var(--radius-md);
     color:#0c4a6e;
+  }
+  .docsBlock{
+    font-family:var(--mono);
+    font-size:.78rem;
+    background:var(--panel-muted);
+    border:1px solid var(--panel-strong);
+    padding:.85rem 1rem;
+    border-radius:var(--radius-md);
+    color:var(--text);
+    overflow:auto;
+    white-space:pre;
+  }
+  .docsDivider{
+    border:none;
+    height:1px;
+    background:var(--panel-strong);
+    margin:1.5rem 0;
+  }
+  .docsTable{
+    width:100%;
+    border-collapse:collapse;
+    font-size:.82rem;
+    color:var(--text);
+    margin:0 0 1rem;
+  }
+  .docsTable th,
+  .docsTable td{
+    border:1px solid var(--panel-strong);
+    padding:.6rem .7rem;
+    text-align:left;
+    vertical-align:top;
+  }
+  .docsTable th{
+    background:var(--panel-muted);
+    font-weight:700;
   }
   .slotEgg{
     position:fixed;
@@ -1819,17 +2236,17 @@
   .slotEgg__backdrop{
     position:absolute;
     inset:0;
-    background:rgba(15,23,42,.72);
+    background:rgba(15,23,42,.35);
   }
   .slotEgg__panel{
     position:relative;
-    background:#0f172a;
-    color:#f8fafc;
+    background:var(--panel);
+    color:var(--text);
     border-radius:1rem;
     padding:1.4rem 1.6rem;
     width:min(420px,92vw);
-    box-shadow:0 30px 80px rgba(15,23,42,.55);
-    border:1px solid rgba(148,163,184,.3);
+    box-shadow:0 30px 80px rgba(15,23,42,.2);
+    border:1px solid var(--panel-strong);
     z-index:1;
   }
   .slotEgg__header{
@@ -1846,12 +2263,12 @@
   .slotEgg__close{
     border:none;
     background:transparent;
-    color:#f8fafc;
+    color:var(--text);
     font-size:1.2rem;
     cursor:pointer;
   }
   .slotEgg__hint{
-    color:#cbd5f5;
+    color:var(--text-muted);
     font-size:.85rem;
     margin:0 0 1rem;
   }
@@ -1862,8 +2279,8 @@
     margin-bottom:1rem;
   }
   .slotEgg__reel{
-    background:#111827;
-    border:1px solid rgba(148,163,184,.35);
+    background:var(--panel-muted);
+    border:1px solid var(--panel-strong);
     border-radius:.75rem;
     padding:.9rem .6rem;
     text-align:center;
@@ -1899,7 +2316,7 @@
   }
   .slotEgg__result{
     font-size:.85rem;
-    color:#cbd5f5;
+    color:var(--text-muted);
     flex:1;
     min-width:160px;
   }
@@ -1909,134 +2326,14 @@
     gap:.35rem;
     padding:.2rem .5rem;
     border-radius:999px;
-    border:1px solid rgba(56,189,248,.5);
-    background:var(--accent-soft);
-    color:#0c4a6e;
+    border:1px solid rgba(34,211,238,.5);
+    background:rgba(34,211,238,.12);
+    color:#0e7490;
     font-size:.7rem;
     font-weight:600;
   }
-  .invoiceShell{
-    background:#fff;
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-lg);
-    padding:1.5rem;
-    box-shadow:0 10px 28px rgba(15,23,42,.08);
-    display:flex;
-    flex-direction:column;
-    gap:1.25rem;
-  }
-  .invoiceHeader{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:1rem;
-    flex-wrap:wrap;
-  }
-  .invoiceHeader h1{
-    margin:0;
-    font-size:1.35rem;
-  }
-  .invoiceHeader p{
-    margin:.3rem 0 0;
-    color:var(--text-muted);
-    font-size:.85rem;
-  }
-  .invoiceTemplateRow{
-    display:flex;
-    flex-direction:column;
-    gap:.5rem;
-  }
-  .invoiceTemplateRow label{
-    font-size:.8rem;
-    font-weight:700;
-    color:var(--text);
-  }
-  .invoiceTemplateInput{
-    display:flex;
-    gap:.6rem;
-    flex-wrap:wrap;
-  }
-  .invoiceTemplateInput input{
-    flex:1;
-    min-width:240px;
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-md);
-    padding:.5rem .65rem;
-    font-family:var(--mono);
-    font-size:.85rem;
-  }
-  .invoiceHint{
-    margin:0;
-    font-size:.72rem;
-    color:var(--text-muted);
-  }
-  .invoiceFilters{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
-    gap:.75rem;
-    align-items:end;
-  }
-  .invoiceField{
-    display:flex;
-    flex-direction:column;
-    gap:.35rem;
-  }
-  .invoiceField label{
-    font-size:.75rem;
-    font-weight:600;
-    color:var(--text-muted);
-  }
-  .invoiceField input{
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-md);
-    padding:.45rem .6rem;
-    font-size:.85rem;
-    font-family:var(--mono);
-  }
-  .invoiceTableWrap{
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-md);
-    overflow:hidden;
-    background:#fff;
-  }
-  .invoiceTable{
-    width:100%;
-    border-collapse:collapse;
-    font-size:.82rem;
-  }
-  .invoiceTable thead{
-    background:var(--panel-muted);
-  }
-  .invoiceTable th,
-  .invoiceTable td{
-    padding:.6rem .75rem;
-    border-bottom:1px solid var(--panel-strong);
-    text-align:left;
-    vertical-align:middle;
-  }
-  .invoiceTable th{
-    font-size:.72rem;
-    text-transform:uppercase;
-    letter-spacing:.04em;
-    color:var(--text-muted);
-  }
-  .invoiceActions{
-    display:flex;
-    gap:.4rem;
-    flex-wrap:wrap;
-  }
-  .invoiceActions .btn{
-    padding:.4rem .6rem;
-    font-size:.72rem;
-  }
-  .invoiceEmpty{
-    padding:1.5rem;
-    text-align:center;
-    color:var(--text-muted);
-    font-size:.85rem;
-  }
   .parcelNumbersPanel{
-    background:linear-gradient(145deg, rgba(15,23,42,.04), rgba(148,163,184,.1));
+    background:var(--panel);
     border:1px solid var(--panel-strong);
     border-radius:var(--radius-lg);
     padding:1rem;
@@ -2068,17 +2365,17 @@
     font-weight:800;
     border-radius:1rem;
     min-height:80px;
-    background:#fff;
-    border:2px dashed rgba(148,163,184,.5);
-    color:#94a3b8;
+    background:var(--panel-muted);
+    border:2px dashed rgba(148,163,184,.6);
+    color:var(--text-muted);
     transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
   }
   .parcelNumber.is-scanned{
     border-style:solid;
     border-color:rgba(34,197,94,.6);
-    color:#16a34a;
-    box-shadow:0 10px 25px rgba(34,197,94,.15);
-    background:rgba(240,253,244,.9);
+    color:#065f46;
+    box-shadow:0 10px 25px rgba(34,197,94,.2);
+    background:rgba(22,163,74,.14);
     transform:translateY(-2px);
   }
   .parcelNumbersEmpty{
@@ -2095,6 +2392,13 @@
   }
 
 </style>
+  <link rel="stylesheet" href="/views/flocs.css">
+  <link rel="stylesheet" href="/views/stock.css">
+  <link rel="stylesheet" href="/views/price-manager.css">
+  <link rel="stylesheet" href="/views/wholesale-automation.css">
+  <link rel="stylesheet" href="/views/traceability.css">
+  <link rel="stylesheet" href="/views/stockists.css">
+  <link rel="stylesheet" href="/views/year-planner.css">
 </head>
  <body>
   <div class="flApp">
@@ -2102,211 +2406,265 @@
       <aside class="flSide">
         <div class="flSideHeader">
           <div class="flNavTitle">Flippen Lekka Operations</div>
-          <button id="navToggle" class="flHamburger" type="button" aria-label="Toggle navigation" aria-expanded="true">
-            <span class="flHamburgerLines"><span></span></span>
-          </button>
+          <button id="navToggle" class="navToggle" type="button" aria-expanded="true" aria-label="Toggle sidebar">☰</button>
         </div>
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
-            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true"><span class="flNavBtnText">Dashboard</span></button>
-            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false"><span class="flNavBtnText">Scan Station</span></button>
-            <button id="navOps" class="flNavBtn" type="button" role="tab" aria-controls="viewOps" aria-selected="false"><span class="flNavBtnText">Dispatch Board</span></button>
-            <button id="navInvoices" class="flNavBtn" type="button" role="tab" aria-controls="viewInvoices" aria-selected="false"><span class="flNavBtnText">Order invoices</span></button>
-            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false"><span class="flNavBtnText">Documentation</span></button>
-            <a class="flNavBtn" href="/flocs"><span class="flNavBtnText">Order capture (FLOCS)</span></a>
-            <a class="flNavBtn" href="/stock.html"><span class="flNavBtnText">Stock take</span></a>
-            <a class="flNavBtn" href="/price-manager.html"><span class="flNavBtnText">Price manager</span></a>
+            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
+            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch Console</span></button>
+            <button id="navFulfillmentHistory" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillmentHistory" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnIcon" aria-hidden="true">🧾</span><span class="flNavBtnText">Fulfillment Timeline</span></button>
+            <button id="navContacts" class="flNavBtn" type="button" role="tab" aria-controls="viewContacts" aria-selected="false" data-route="/contacts"><span class="flNavBtnIcon" aria-hidden="true">📇</span><span class="flNavBtnText">Customer Directory</span></button>
+            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Knowledge Hub</span></button>
+            <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Process Blueprints</span></button>
+            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Sales Order Workbench</span></button>
+            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Inventory Control</span></button>
+            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Pricing Control Center</span></button>
+            <button id="navPrintStation" class="flNavBtn" type="button" role="tab" aria-controls="viewPrintStation" aria-selected="false" data-route="/print-station"><span class="flNavBtnIcon" aria-hidden="true">🖨️</span><span class="flNavBtnText">Print Station</span></button>
+            <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
+            <button id="navStockists" class="flNavBtn" type="button" role="tab" aria-controls="viewStockists" aria-selected="false" data-route="/stockists"><span class="flNavBtnIcon" aria-hidden="true">📍</span><span class="flNavBtnText">Distribution Network</span></button>
+            <button id="navYearPlanner" class="flNavBtn" type="button" role="tab" aria-controls="viewYearPlanner" aria-selected="false" data-route="/year-planner"><span class="flNavBtnIcon" aria-hidden="true">🗓️</span><span class="flNavBtnText">Year Planner</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
-            <span id="actionFlash" class="actionFlash">Ready to scan orders…</span>
           </div>
         </nav>
       </aside>
       <main class="flMain">
-        <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite">
-          <span class="statusBarLabel">Connections</span>
-          <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
+        <div class="sharedStickyHeader" aria-label="Shared dispatch and connection controls">
+          <div class="sharedHeaderSection">
+            <div id="serverStatusBar" class="statusBar sharedStatusBar" role="status" aria-live="polite">
+              <span class="statusBarLabel">Connections</span>
+              <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
+            </div>
+          </div>
+          <div class="sharedHeaderSection">
+            <div class="sharedDispatchControls" aria-live="polite">
+              <button id="truckBookBtn" class="dispatchTruckButton is-unbooked sharedControlCard" type="button" aria-pressed="false">
+                <span class="dispatchTruckIcon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h9.5A1.75 1.75 0 0 1 16 6.75V14h1.25c.41 0 .8.18 1.06.49l2.5 3a1.75 1.75 0 0 1 .44 1.13v1.13A1.25 1.25 0 0 1 20 21h-1.1a2.5 2.5 0 0 1-4.9 0H9a2.5 2.5 0 0 1-4.9 0H3.75A.75.75 0 0 1 3 20.25zM16 14V6.75a.25.25 0 0 0-.25-.25h-9.5a.25.25 0 0 0-.25.25V14zm1.8 0h2.25l-2-2.4zm-11.4 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2m10.4-1a1 1 0 1 0-2 0 1 1 0 0 0 2 0"/>
+                  </svg>
+                </span>
+                <span id="truckStatus">Not booked</span>
+              </button>
+              <div class="dispatchTruckMeta sharedControlCard" aria-label="Truck parcel count">
+                <span class="dispatchTruckBox">
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M6.75 3.5A1.75 1.75 0 0 0 5 5.25v13.5c0 .97.78 1.75 1.75 1.75h10.5A1.75 1.75 0 0 0 19 18.75V5.25a1.75 1.75 0 0 0-1.75-1.75zm0 1.5h10.5a.25.25 0 0 1 .25.25v2.6l-5.5 2.67-5.5-2.67v-2.6a.25.25 0 0 1 .25-.25m-.25 4.5 4.75 2.3v7.2h-4.5a.25.25 0 0 1-.25-.25zm6.25 9.5v-7.2l4.75-2.3v9.25a.25.25 0 0 1-.25.25z"/>
+                  </svg>
+                  <span id="truckParcelCount">0</span>
+                </span>
+              </div>
+              <div class="sharedControlCard" aria-label="Selected parcel and box count">
+                <span class="sharedControlCardLabel">Selected boxes</span>
+                <strong id="dispatchSelectionBoxes">0</strong>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="flView flView--active" id="viewDashboard">
-        <div class="dashboardShell">
-          <div class="dashboardHeader">
-            <div>
-              <h1>Operations Dashboard</h1>
-              <p>Launch an app module below. Add new modules in <strong>public/app.js</strong> when you build more tools.</p>
+          <div class="dashboardShell">
+            <div class="dashboardHeader">
+              <div>
+                <h1>Operations Dashboard</h1>
+                <p>Quick status glance plus instant access to the core operations apps.</p>
+              </div>
+            </div>
+            <section class="dashboardKpis" aria-label="Key performance indicators">
+              <div class="kpiCard">
+                <div class="kpiLabel">Today's parcels</div>
+                <div class="kpiValue" id="kpiParcels">0</div>
+                <div class="kpiMeta">Auto + manual bookings</div>
+              </div>
+              <div class="kpiCard">
+                <div class="kpiLabel">Open dispatch orders</div>
+                <div class="kpiValue" id="kpiOpenOrders">0</div>
+                <div class="kpiMeta">Shipping, delivery, pickup</div>
+              </div>
+              <div class="kpiCard">
+                <div class="kpiLabel">Recently shipped</div>
+                <div class="kpiValue" id="kpiRecentShipments">0</div>
+                <div class="kpiMeta">Latest fulfillment events</div>
+              </div>
+              <div class="kpiCard">
+                <div class="kpiLabel">Mode</div>
+                <div class="kpiValue" id="kpiMode">Auto</div>
+                <div class="kpiMeta">Dispatch scanning mode</div>
+              </div>
+              <div class="kpiCard">
+                <div class="kpiLabel">Truck status</div>
+                <div class="kpiValue" id="kpiTruckStatus">Not booked</div>
+                <div class="kpiMeta">Collection booking state</div>
+              </div>
+              <div class="kpiCard">
+                <div class="kpiLabel">Last scan</div>
+                <div class="kpiValue" id="kpiLastScan">--</div>
+                <div class="kpiMeta">Most recent barcode scan</div>
+              </div>
+            </section>
+            <section>
+              <div class="appsHeader">
+                <h2>Apps</h2>
+              </div>
+              <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
+            </section>
           </div>
-          <span class="pill">Modular launcher</span>
         </div>
-       
-        <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
-      </div>
-    </div>
 
         <div class="flView" id="viewScan" hidden>
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
-      <div class="scanTopBar">
-        <div class="scanBox scanBox--centered">
-          <label for="scanInput"><span>Scan parcel sticker barcode</span><small>Example: 252051001</small></label>
-          <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." />
-          <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
-        </div>
-      </div>
-      <div class="shell" role="application" aria-label="Flippen Lekka Scan Station">
-  <!-- LEFT -->
-  <section class="leftPane">
-    <div class="headerRow">
-      <div class="line1">Flippen Lekka Scan Station <span class="badge" aria-live="polite">v1.0</span></div>
-      <div class="sessionInfo" aria-live="polite">
-        <div>Order: <span id="uiOrderNo">--</span></div>
-        <div>Bundled orders: <span id="uiBundleOrders">--</span></div>
-        <div>Multi-ship: <span id="uiMultiShip">Off</span></div>
-        <div>Session mode: <span id="uiSessionMode">Waiting</span></div>
-        <div>Parcels: <span id="uiParcelCount">0</span> / <span id="uiExpectedCount">--</span></div>
-        <div>Parcel source: <span id="uiParcelSource">--</span></div>
-        <div>Auto-book: <span id="uiAutoBook">Idle</span></div>
-      
-      </div>
-      <div class="sessionControlRow">
-        <button id="multiShipToggle" class="btn btnToggle" type="button">Multi-shipment override: Off</button>
-      </div>
-    </div>
-
-    <!-- Address search/select (toggle display if needed) -->
-    <div class="addrBox" id="addrBox" hidden>
-      <label>Destination address <span class="addrHint" style="font-weight:400">(search & select)</span></label>
-      <div class="row">
-        <input id="addrSearch" type="text" placeholder="Type name, city, postal, street…" />
-        <input id="placeCode" type="text" placeholder="place code" title="ParcelPerfect place code (optional)" />
-      </div>
-      <div class="addrList" id="addrResults" role="listbox" aria-label="Address results"></div>
-      <div class="addrHint">Tip: selecting an item sets the destination and its place code (if present). You can paste a code too.</div>
-    </div>
-
-    <!-- Service override (toggle display if needed) -->
-    <div class="card" id="svcBox" hidden>
-      <div class="cardHeader">Service</div>
-      <div class="svcRow">
-        <label for="serviceOverride" class="addrHint" style="font-size:.8rem">Prefer:</label>
-        <select id="serviceOverride" title="Choose a service or Auto">
-          <option value="AUTO">Auto (RFX→ECO→RDF→first)</option>
-          <option value="RFX">RFX (Road Express)</option>
-          <option value="ECO">ECO (Economy Road)</option>
-          <option value="RDF" selected>RDF (Roadfreight)</option>
-          <option value="ONX">ONX (Overnight Air)</option>
-          <option value="OVN">OVN (Overnight 2)</option>
-          <option value="CSS">CSS (ChainStores)</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Info cards -->
-    <div class="minigrid">
-      <div class="card"><div class="cardHeader">Scanned Parcel Details</div><div class="cardBody" id="parcelList">No parcels scanned yet.</div></div>
-      <div class="card"><div class="cardHeader">Ship To</div><div class="cardBody" id="shipToCard">None yet.</div></div>
-      
-        <div id="last-booking" class="card">
-  <div class="card-title">Last Booking Status</div>
-  <div id="last-booking-body"></div>
-      </div>
-    </div>
-
-    <div id="debugLog" aria-live="polite"></div>
-  </section>
-
-  <!-- RIGHT -->
-  <section class="rightPane">
-
-    <div class="truckPanel" aria-live="polite">
-      <div class="truckHeader">
-        <div>
-          <div class="truckTitle">Truck collection</div>
-          <div class="truckMeta">Today's parcels: <span id="truckParcelCount">0</span></div>
-        </div>
-        <span id="truckStatus" class="truckStatus">Not booked</span>
-      </div>
-      <button id="truckBookBtn" class="truckBookBtn" type="button" aria-pressed="false">
-        <span class="truckIcon" aria-hidden="true">🚚</span>
-        <span class="truckLabel">Book Truck</span>
-      </button>
-      <div class="truckHint">Auto-books when today's parcels exceed 25.</div>
-    </div>
-
-    <div class="sectionTitle sessionControls" style="margin-top:.8rem">
-      <div class="sessionControlsGroup">
-        <button id="modeToggle" type="button">MODE: AUTO</button>
-      </div>
-    </div>
-    <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
-      <div class="dispatchStatusHeader">
-        <h3>Booking progress</h3>
-        <span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span>
-      </div>
-      <div class="dispatchProgressBar" id="scanProgressBar">
-        <div id="scanProgressFill" class="dispatchProgressFill"></div>
-        <div class="dispatchProgressSun" aria-hidden="true"></div>
-      </div>
-      <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
-    </div>
-    <div class="dispatchLogPanel dispatchLogPanel--compact">
-      <div class="dispatchLogHeader">
-        <span>Dispatch log</span>
-        <span class="dispatchStamp">Latest activity</span>
-      </div>
-      <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
-    </div>
-    <div class="parcelNumbersPanel" aria-live="polite">
-      <div class="parcelNumbersHeader">
-        <span>Parcel Numbers</span>
-        <span class="parcelNumbersSub">Large scan confirmation</span>
-      </div>
-      <div id="parcelNumbers" class="parcelNumbersGrid">
-        <div class="parcelNumbersEmpty">Scan an order to show parcel numbers.</div>
-      </div>
-    </div>
-  </section>
-</div>
-    </div>
-
-        <div class="flView" id="viewOps" hidden>
-      <div id="dispatchBoardContainer">
-        <div class="dispatchStatusPanel" aria-live="polite">
-          <div class="dispatchStatusHeader">
-            <h3>Booking progress</h3>
-            <span id="dispatchProgressLabel" class="dispatchStatusLabel">Idle</span>
+      <div class="dispatchTopBar" aria-label="Dispatch controls">
+        <div class="dispatchTopRow">
+          <div class="dispatchHeading">Dispatch</div>
+          <div class="dispatchScanField">
+            <label for="scanInput">Scan barcode</label>
+            <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." autofocus />
           </div>
-          <div class="dispatchProgressBar" id="dispatchProgressBar">
-            <div id="dispatchProgressFill" class="dispatchProgressFill"></div>
-            <div class="dispatchProgressSun" aria-hidden="true"></div>
+          <div class="dispatchTopActions">
+            <button id="dispatchExpandToggle" class="btn dispatchExpandToggle btn--compact" type="button" aria-expanded="false">Expand</button>
+            <button id="dispatchCreateCombined" class="btn btnToggle btn--compact" type="button">Create Combined Shipment</button>
+            <button id="modeToggle" class="btn btn--compact" type="button">MODE: AUTO</button>
+            <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
           </div>
-          <div class="dispatchProgressSteps" id="dispatchProgressSteps"></div>
         </div>
-        <div class="dispatchLogPanel">
-          <div class="dispatchLogHeader">
-            <span>Dispatch log</span>
-            <span class="dispatchStamp">Latest activity</span>
+        <div class="dispatchTopDetails">
+          <div class="dispatchDetailGrid">
+            <div class="dispatchDetailCard">
+              <span class="dispatchDetailLabel">Customer</span>
+              <span id="uiCustomerName" class="dispatchDetailValue">--</span>
+            </div>
+            <div class="dispatchDetailCard">
+              <span class="dispatchDetailLabel">Order</span>
+              <span id="uiOrderNo" class="dispatchDetailValue">--</span>
+            </div>
+            <div class="dispatchDetailCard">
+              <span class="dispatchDetailLabel">Order weight</span>
+              <span id="uiOrderWeight" class="dispatchDetailValue">--</span>
+            </div>
+            <div class="dispatchDetailCard dispatchDetailAddress">
+              <span class="dispatchDetailLabel">Shipping address</span>
+              <span id="shipToCard" class="dispatchDetailValue">None yet.</span>
+            </div>
           </div>
-          <div id="dispatchLog" class="dispatchLog" aria-live="polite"></div>
-        </div>
-        <div class="dispatchTodoPanel">
-          <div class="dispatchTodoHeader">
-            <h3>Dispatch todo</h3>
-            <span class="dispatchTodoMeta">Notes</span>
+          <div class="dispatchTopPanels">
+            <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
+              <div class="dispatchStatusHeader">
+                <h3>Booking progress</h3>
+                <span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span>
+              </div>
+              <div class="dispatchProgressBar" id="scanProgressBar">
+                <div id="scanProgressFill" class="dispatchProgressFill"></div>
+                <div class="dispatchProgressSun" aria-hidden="true"></div>
+              </div>
+              <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
+            </div>
+            <div class="dispatchLogPanel dispatchLogPanel--compact">
+              <div class="dispatchLogHeader">
+                <span>Dispatch log</span>
+                <span class="dispatchStamp">Latest activity</span>
+              </div>
+              <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
+            </div>
           </div>
-          <form id="dispatchTodoForm" class="dispatchTodoForm">
-            <input id="dispatchTodoInput" type="text" placeholder="Add a dispatch note…" autocomplete="off" />
-            <button type="submit">Add</button>
-          </form>
-          <div id="dispatchTodoList" class="dispatchTodoList" role="list"></div>
         </div>
-        <div class="dispatchBoardPanel">
+      </div>
+      <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
+        <div class="dispatchBoardLayout">
+          <div class="dispatchBoardMain">
+            <div class="dispatchBoardPanel">
+              <div class="sectionTitle" style="margin-top:.4rem">
+                <span>Whiteboard</span>
+                <span id="dispatchStamp" class="dispatchStamp">–</span>
+              </div>
+              <div class="dispatchBoard" id="dispatchBoardGrid">
+                <div class="dispatchBoardEmpty">Loading open orders…</div>
+              </div>
+            </div>
+          </div>
+          <aside class="dispatchBoardSidebar" aria-label="Dispatch sidebar">
+            <div class="dispatchSelectionPanel" id="dispatchSelectionPanel" aria-live="polite">
+              <div class="dispatchSelectionHeader">
+                <span>Selected orders</span>
+                <div class="dispatchSelectionActions">
+                  <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
+                  <button class="dispatchSelectionClear" id="dispatchSelectionClear" type="button">Clear</button>
+                </div>
+              </div>
+              <div class="dispatchSelectionBody">
+                <div>
+                  <div class="dispatchSelectionLabel">Units by size &amp; flavour</div>
+                  <div class="dispatchSelectionList" id="dispatchSelectionUnits">
+                    <div class="dispatchSelectionRow">Select orders to see totals.</div>
+                  </div>
+                </div>
+                <div class="dispatchSelectionMeta">
+                  <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxesReadonly">0</strong></div>
+                  <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
+                  <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
+                </div>
+                <div class="dispatchSelectionBulkActions">
+                  <button id="dispatchPrintDocs" class="dispatchSelectionBtn" type="button">Print Delivery Docs</button>
+                  <button id="dispatchDeliverSelected" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Deliver</button>
+                  <button id="dispatchMarkDelivered" class="dispatchSelectionBtn" type="button">Mark as delivered</button>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+      <div class="flView" id="viewFulfillmentHistory" hidden>
+        <div class="dispatchBoardPanel" style="margin:1rem">
           <div class="sectionTitle" style="margin-top:.4rem">
-            <span>Dispatch Whiteboard</span>
-            <span id="dispatchStamp" class="dispatchStamp">–</span>
+            <span><span class="flNavBtnText">Fulfillment Timeline</span>
+            <input id="fulfillmentHistorySearch" class="flocs-input" style="max-width:260px" placeholder="Search by order #" />
           </div>
-          <div class="dispatchBoard" id="dispatchBoardGrid">
-            <div class="dispatchBoardEmpty">Loading open orders…</div>
+          <div id="fulfillmentHistoryMeta" class="dispatchShipmentInfo" style="margin-bottom:.6rem">Loading history…</div>
+          <div id="fulfillmentHistoryBoard" class="dispatchBoard">
+            <div class="dispatchCol">
+              <div class="dispatchColHeader"><span>Recently Shipped</span></div>
+              <div class="dispatchColBody" id="fulfillmentHistoryShipped"><div class="dispatchBoardEmptyCol">No records.</div></div>
+              <div id="fulfillmentHistoryShippedPager" class="stockistsPager" style="margin-top:.45rem"></div>
+            </div>
+            <div class="dispatchCol">
+              <div class="dispatchColHeader"><span>Recently Delivered</span></div>
+              <div class="dispatchColBody" id="fulfillmentHistoryDelivered"><div class="dispatchBoardEmptyCol">No records.</div></div>
+              <div id="fulfillmentHistoryDeliveredPager" class="stockistsPager" style="margin-top:.45rem"></div>
+            </div>
+            <div class="dispatchCol">
+              <div class="dispatchColHeader"><span>Pickup orders (open)</span></div>
+              <div class="dispatchColBody" id="fulfillmentHistoryPickup"><div class="dispatchBoardEmptyCol">No records.</div></div>
+              <div id="fulfillmentHistoryPickupPager" class="stockistsPager" style="margin-top:.45rem"></div>
+            </div>
+            <div class="dispatchCol">
+              <div class="dispatchColHeader"><span>Recently Collected (Pickups)</span></div>
+              <div class="dispatchColBody" id="fulfillmentHistoryCollected"><div class="dispatchBoardEmptyCol">No records.</div></div>
+              <div id="fulfillmentHistoryCollectedPager" class="stockistsPager" style="margin-top:.45rem"></div>
+            </div>
           </div>
+          <div id="fulfillmentHistoryList" class="dispatchShipmentsBody" hidden></div>
+          <select id="fulfillmentHistoryStatusFilter" class="dispatchSearchInput" hidden>
+            <option value="all" selected>All statuses</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="pickup">Pickup</option>
+            <option value="collected">Collected</option>
+          </select>
+        </div>
+      </div>
+      <div class="flView" id="viewContacts" hidden>
+        <div class="dispatchBoardPanel" style="margin:1rem">
+          <div class="sectionTitle" style="margin-top:.4rem">
+            <span><span class="flNavBtnText">Customer Directory</span>
+            <input id="contactsSearch" class="flocs-input" style="max-width:300px" placeholder="Search customer, phone, or email" />
+          </div>
+          <div class="dispatchSearchRow" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:.5rem;">
+            <select id="contactsTierFilter" class="dispatchSearchInput"><option value="">All tiers</option></select>
+            <select id="contactsProvinceFilter" class="dispatchSearchInput"><option value="">All provinces</option></select>
+          </div>
+          <div id="contactsMeta" class="dispatchShipmentInfo" style="margin-top:.55rem">Loading contacts…</div>
+          <div id="contactsList" class="dispatchShipmentsBody"></div>
         </div>
       </div>
       <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
@@ -2335,128 +2693,1015 @@
           <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
         </div>
       </div>
+  
+
+        <div class="flView" id="viewOps" hidden></div>
+
+        <div class="flView" id="viewDocs" hidden>
+      <div class="docsShell">
+        <h2>FLSS Knowledge Hub</h2>
+        <p class="docsMeta">Documentation is now split by audience so teams can find the right runbook faster.</p>
+
+        <nav class="docsTopNav" aria-label="Documentation sections">
+          <a href="#docs-operator">Operator Runbooks</a>
+          <a href="#docs-admin">Admin Governance</a>
+          <a href="#docs-dev">Developer Engineering</a>
+          <a href="#docs-naming">Enterprise module naming</a>
+        </nav>
+
+        <div class="docsGrid">
+          <article id="docs-operator" class="docsCard">
+            <h3>Operator Runbooks</h3>
+            <p>Warehouse and dispatch workflows, packing flowcharts, station setup, and day-to-day handling procedures.</p>
+            <ul>
+              <li><a class="docsInlineLink" href="/docs/operator-docs.md" target="_blank" rel="noopener">Open operator docs bundle</a></li>
+              <li><a class="docsInlineLink" href="/docs/raspberry-pi-physical-station.md" target="_blank" rel="noopener">Physical station and Pi guidance</a></li>
+            </ul>
+          </article>
+
+          <article id="docs-admin" class="docsCard">
+            <h3>Admin Governance</h3>
+            <p>Platform controls, pricing and stockist governance, integration ownership, and audit responsibilities.</p>
+            <ul>
+              <li><a class="docsInlineLink" href="/docs/admin-docs.md" target="_blank" rel="noopener">Open admin docs bundle</a></li>
+              <li><a class="docsInlineLink" href="/docs/stockists-module.md" target="_blank" rel="noopener">Stockist network module reference</a></li>
+            </ul>
+          </article>
+
+          <article id="docs-dev" class="docsCard">
+            <h3>Developer Engineering</h3>
+            <p>Architecture, backend modules, frontend view ownership, local runbook, and integration contracts.</p>
+            <ul>
+              <li><a class="docsInlineLink" href="/docs/dev-docs.md" target="_blank" rel="noopener">Open developer docs bundle</a></li>
+              <li><a class="docsInlineLink" href="/README.md" target="_blank" rel="noopener">Repository overview and startup guide</a></li>
+            </ul>
+          </article>
+        </div>
+
+        <hr class="docsDivider" />
+
+        <h3 id="docs-naming">Enterprise module and view naming</h3>
+        <p>The console now uses business-friendly product names in navigation and dashboard cards while preserving existing routes.</p>
+        <ul>
+          <li><strong>Dispatch Console</strong> (<span class="docsCode">/scan</span>) for parcel scanning and shipment booking.</li>
+          <li><strong>Order Operations Board</strong> (<span class="docsCode">/ops</span>) for triage and exception handling.</li>
+          <li><strong>Customer Directory</strong> (<span class="docsCode">/contacts</span>) for account search and contact intelligence.</li>
+          <li><strong>Knowledge Hub</strong> (<span class="docsCode">/docs</span>) for persona-based documentation.</li>
+          <li><strong>Process Blueprints</strong> (<span class="docsCode">/flowcharts</span>) for operational process maps.</li>
+          <li><strong>Sales Order Workbench</strong> (<span class="docsCode">/flocs</span>) for customer and order capture.</li>
+          <li><strong>Inventory Control</strong> (<span class="docsCode">/stock</span>) for stock checks and adjustments.</li>
+          <li><strong>Pricing Control Center</strong> (<span class="docsCode">/price-manager</span>) for tier and channel pricing governance.</li>
+          <li><strong>Distribution Network</strong> (<span class="docsCode">/stockists</span>) for agent and retail network records.</li>
+        </ul>
+      </div>
     </div>
 
-        <div class="flView" id="viewInvoices" hidden>
-      <div class="invoiceShell">
-        <div class="invoiceHeader">
-          <div>
-            <h1>Order invoices</h1>
-            <p>Filter by order, customer, or date, then download, share, or print invoices.</p>
-          </div>
-          <span id="invoiceSyncStatus" class="pill">Not loaded</span>
+    <div class="flView" id="viewFlowcharts" hidden>
+      <div class="docsShell">
+        <div class="pill">FLOW LOGIC</div>
+        <h2>Packing and Dispatch Flowcharts</h2>
+        <p>This page documents the operational logic for packing prediction, parcel planning, and box allocation. It separates hard rules (must obey) from soft rules (optimization preferences) so packing behavior is consistent and explainable.</p>
+
+        <h3>1) End-to-end packing orchestration</h3>
+        <pre class="docsBlock"><code>flowchart TD
+  A[Order enters dispatch queue] --> B[Normalize items and quantities]
+  B --> C[Validate SKU master data]
+  C --> D[Estimate total mass and volume]
+  D --> E[Predict parcel count]
+  E --> F[Generate candidate packing plans]
+  F --> G[Run hard-rule validation]
+  G -->|Fail| H[Reject plan and regenerate]
+  G -->|Pass| I[Score plans with soft rules]
+  I --> J[Pick best plan]
+  J --> K[Assign items to boxes]
+  K --> L[Finalize box sizes and parcel weights]
+  L --> M[Create booking payload]</code></pre>
+
+        <h3>2) Predict parcel count and total weight</h3>
+        <pre class="docsBlock"><code>flowchart TD
+  A[Start prediction] --> B[Load per-SKU unit mass and dimensions]
+  B --> C{Missing mass or dims?}
+  C -->|Yes| D[Apply default fallback profile]
+  C -->|No| E[Use SKU profile]
+  D --> F[Compute order totals]
+  E --> F[Compute order totals]
+  F --> G[Apply packaging overhead per box]
+  G --> H[Estimate minimum boxes by mass limit]
+  H --> I[Estimate minimum boxes by volume limit]
+  I --> J[Predicted parcels = max mass/volume constraints]
+  J --> K[Clamp to service limits]
+  K --> L[Return predicted parcel count + weight range]</code></pre>
+
+        <h3>3) Packing plan generation and box allocation</h3>
+        <pre class="docsBlock"><code>flowchart TD
+  A[Take normalized line items] --> B[Sort items by constraint priority]
+  B --> C[Select allowed box catalog]
+  C --> D[Seed plan with largest constrained items]
+  D --> E[Pack remaining items using best-fit strategy]
+  E --> F{Any overflow?}
+  F -->|Yes| G[Open next box and continue]
+  F -->|No| H[Compute plan metrics]
+  G --> H
+  H --> I{Hard rules pass?}
+  I -->|No| J[Try next candidate strategy]
+  I -->|Yes| K[Store candidate]
+  J --> D
+  K --> L{More candidates?}
+  L -->|Yes| D
+  L -->|No| M[Pick highest scored candidate]</code></pre>
+
+        <h3>4) Hard-rule decision tree (must pass)</h3>
+        <pre class="docsBlock"><code>flowchart TD
+  A[Candidate plan] --> B{Any prohibited SKU pair in same box?}
+  B -->|Yes| X[Fail candidate]
+  B -->|No| C{Box mass exceeds service limit?}
+  C -->|Yes| X
+  C -->|No| D{Box dimensions exceed max?}
+  D -->|Yes| X
+  D -->|No| E{Fragile orientation constraints broken?}
+  E -->|Yes| X
+  E -->|No| F{Temperature / hazard separation required?}
+  F -->|Yes| X
+  F -->|No| G{Predicted parcel count outside allowed range?}
+  G -->|Yes| X
+  G -->|No| H[Hard rules pass]</code></pre>
+
+        <h3>5) Soft-rule scoring tree (optimize)</h3>
+        <pre class="docsBlock"><code>flowchart TD
+  A[Hard-valid candidate] --> B[Score box utilization]
+  B --> C[Penalty for excess void space]
+  C --> D[Penalty for too many parcels]
+  D --> E[Penalty for mixing odd-size SKUs]
+  E --> F[Bonus for standard box sizes]
+  F --> G[Bonus for picking efficiency]
+  G --> H[Bonus for lower chargeable mass]
+  H --> I[Total weighted score]
+  I --> J[Compare against other candidates]</code></pre>
+
+        <h3>Hard rules (examples)</h3>
+        <ul>
+          <li>Per-parcel weight must never exceed courier contract maximum.</li>
+          <li>Per-parcel dimensions must remain under service constraints.</li>
+          <li>Non-compatible product classes must be separated.</li>
+          <li>Fragile items must remain upright and buffered in approved boxes.</li>
+          <li>If SKU master data is missing, the fallback profile must be applied and flagged.</li>
+        </ul>
+
+        <h3>Soft rules (examples)</h3>
+        <ul>
+          <li>Prefer fewer parcels when shipping cost impact is acceptable.</li>
+          <li>Prefer box sizes that are already high-rotation in warehouse stock.</li>
+          <li>Prefer packing plans with higher fill rate but still safe to handle.</li>
+          <li>Prefer grouping similar SKUs for easier pick-and-pack operations.</li>
+          <li>Prefer plans with lower total chargeable weight when hard rules are equal.</li>
+        </ul>
+
+        <h3>Operational outputs expected from this logic</h3>
+        <ul>
+          <li><strong>Predicted parcels:</strong> integer count plus confidence range.</li>
+          <li><strong>Total weight:</strong> physical and chargeable mass per parcel and order.</li>
+          <li><strong>Packing plan:</strong> per-box item allocation and box size chosen.</li>
+          <li><strong>Decision trace:</strong> failed hard-rule checks and soft-rule score rationale.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flView" id="viewFlocs" hidden>
+      <div class="flocs-shell" id="flocs-shell">
+          <header class="flocs-header">
+            <div class="flocs-titleBlock">
+              <div class="flocs-title">Order Capture</div>
+            </div>
+            <div class="flocs-headerActions">
+              <button id="flocs-createDraftBtn" class="flocs-actionBtn" type="button">
+                <span>📝</span>
+                <span>Create draft order</span>
+              </button>
+              <button id="flocs-createOrderBtn" class="flocs-actionBtn" type="button">
+                <span>✅</span>
+                <span>Create live order</span>
+              </button>
+            </div>
+          </header>
+
+          <main class="flocs-layout">
+            <section class="flocs-panel form" id="flocs-formPanel">
+              <div class="flocs-topGrid">
+                <div class="flocs-column">
+                  <!-- Customer -->
+                  <div class="flocs-formSection">
+                    <div class="flocs-azBar" id="flocs-azBar">
+                      <button type="button" data-letter="A">A</button>
+                      <button type="button" data-letter="B">B</button>
+                      <button type="button" data-letter="C">C</button>
+                      <button type="button" data-letter="D">D</button>
+                      <button type="button" data-letter="E">E</button>
+                      <button type="button" data-letter="F">F</button>
+                      <button type="button" data-letter="G">G</button>
+                      <button type="button" data-letter="H">H</button>
+                      <button type="button" data-letter="I">I</button>
+                      <button type="button" data-letter="J">J</button>
+                      <button type="button" data-letter="K">K</button>
+                      <button type="button" data-letter="L">L</button>
+                      <button type="button" data-letter="M">M</button>
+                      <button type="button" data-letter="N">N</button>
+                      <button type="button" data-letter="O">O</button>
+                      <button type="button" data-letter="P">P</button>
+                      <button type="button" data-letter="Q">Q</button>
+                      <button type="button" data-letter="R">R</button>
+                      <button type="button" data-letter="S">S</button>
+                      <button type="button" data-letter="T">T</button>
+                      <button type="button" data-letter="U">U</button>
+                      <button type="button" data-letter="V">V</button>
+                      <button type="button" data-letter="W">W</button>
+                      <button type="button" data-letter="X">X</button>
+                      <button type="button" data-letter="Y">Y</button>
+                      <button type="button" data-letter="Z">Z</button>
+                    </div>
+                    <div class="flocs-labelRow">
+                      <span>Customer</span>
+                      <span class="flocs-hint" id="flocs-customerStatus">Customer search</span>
+                    </div>
+                    <div class="flocs-searchRow">
+                      <input id="flocs-customerSearch" class="flocs-input" type="text"
+                             placeholder="Type to search Shopify customers…" autocomplete="off" />
+                      <button id="flocs-customerSearchClear" class="flocs-miniBtn flocs-clearBtn" type="button">Clear</button>
+                    </div>
+                    <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
+                    <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
+                    <div class="flocs-inlineActions" style="margin-top:.5rem">
+                      <button id="flocs-customerCreateToggle" class="flocs-miniBtn" type="button">
+                        Add new customer
+                      </button>
+                    </div>
+                    <div class="flocs-subSection" id="flocs-customerCreatePanel" hidden>
+                      <div class="flocs-labelRow">
+                        <span>Create new customer</span>
+                        <span class="flocs-hint" id="flocs-customerCreateStatus">Add a customer if search returns nothing.</span>
+                      </div>
+                      <div class="flocs-row">
+                        <input id="flocs-customerFirst" class="flocs-input" type="text" placeholder="First name" />
+                        <input id="flocs-customerLast" class="flocs-input" type="text" placeholder="Last name" />
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerEmail" class="flocs-input" type="email" placeholder="Email" />
+                        <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
+                        <select id="flocs-customerTier" class="flocs-select" required>
+                          <option value="">Customer tier (required)</option>
+                          <option value="agent">Agent</option>
+                          <option value="retail">Retail</option>
+                          <option value="export">Export</option>
+                          <option value="private">Private (internal)</option>
+                          <option value="fkb">FKB (internal)</option>
+                        </select>
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <select id="flocs-customerDelivery" class="flocs-select">
+                          <option value="">Default delivery (optional)</option>
+                          <option value="shipping">Shipping</option>
+                          <option value="pickup">Pickup</option>
+                          <option value="delivery">Delivery</option>
+                        </select>
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerVat" class="flocs-input" type="text" placeholder="VAT number (optional)" />
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <textarea id="flocs-customerDeliveryNotes" class="flocs-input" rows="2" placeholder="Delivery instructions (optional)"></textarea>
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1" />
+                        <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
+                        <select id="flocs-customerProvince" class="flocs-select">
+                          <option value="">Province</option>
+                          <option>Eastern Cape</option>
+                          <option>Free State</option>
+                          <option>Gauteng</option>
+                          <option>KwaZulu-Natal</option>
+                          <option>Limpopo</option>
+                          <option>Mpumalanga</option>
+                          <option>North West</option>
+                          <option>Northern Cape</option>
+                          <option>Western Cape</option>
+                        </select>
+                      </div>
+                      <div class="flocs-row" style="margin-top:.4rem">
+                        <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />
+                        <input id="flocs-customerCountry" class="flocs-input" type="text" placeholder="Country" value="South Africa" />
+                      </div>
+                      <div class="flocs-inlineActions" style="margin-top:.5rem">
+                        <button id="flocs-customerCreateBtn" class="flocs-btn primary" type="button">
+                          <span class="icon">➕</span><span>Create customer</span>
+                        </button>
+                        <button id="flocs-customerResetBtn" class="flocs-miniBtn" type="button">Clear form</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flocs-addressRegion" aria-label="Billing and shipping addresses">
+                    <!-- Billing address selector -->
+                    <div class="flocs-formSection flocs-addressField" id="flocs-billSection">
+                      <div class="flocs-labelRow">
+                        <span>Billing address</span>
+                      </div>
+                      <select id="flocs-billingAddressSelect" class="flocs-select">
+                        <option value="">Select a customer first…</option>
+                      </select>
+                    </div>
+
+                    <!-- Shipping address selector -->
+                    <div class="flocs-formSection flocs-addressField" id="flocs-shipSection">
+                      <div class="flocs-labelRow">
+                        <span>Shipping address</span>
+                      </div>
+                      <select id="flocs-addressSelect" class="flocs-select">
+                        <option value="">Select a customer first…</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flocs-column">
+                  <!-- PO + Delivery method -->
+                  <div class="flocs-formSection">
+                    <div class="flocs-row">
+                      <div>
+                        <div class="flocs-labelRow">
+                          <span>Customer PO</span>
+                        </div>
+                        <input id="flocs-po" class="flocs-input" type="text" placeholder="PO / reference (optional)" />
+                      </div>
+                      <div>
+                        <div class="flocs-labelRow">
+                          <span>Delivery type</span>
+                          <span class="flocs-hint" id="flocs-deliveryHint">Delivery method</span>
+                        </div>
+                        <div class="flocs-radioGroup" id="flocs-deliveryGroup">
+                          <label class="flocs-radioPill">
+                            <input type="radio" name="delivery" value="shipping" checked />
+                            <span>Shipping</span>
+                          </label>
+                          <label class="flocs-radioPill">
+                            <input type="radio" name="delivery" value="pickup" />
+                            <span>Pickup</span>
+                          </label>
+                          <label class="flocs-radioPill">
+                            <input type="radio" name="delivery" value="delivery" />
+                            <span>Delivery</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flocs-formSection">
+                    <div class="flocs-labelRow">
+                      <span>Delivery date</span>
+                      <span class="flocs-hint">Optional requested delivery date.</span>
+                    </div>
+                    <input id="flocs-deliveryDate" class="flocs-input" type="date" />
+                  </div>
+
+                  <div class="flocs-formSection">
+                    <div class="flocs-labelRow">
+                      <span>Shipping quote summary</span>
+                      <span class="flocs-hint">Updated after calculating shipping.</span>
+                    </div>
+                    <div class="flocs-actionsRow">
+                      <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
+                      <button id="flocs-calcShip" class="flocs-actionBtn" type="button">
+                        <span>⛟</span>
+                        <span>Calculate shipping</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flocs-column flocs-column--preview">
+                  <aside class="flocs-panel flocs-previewPanel" aria-label="Invoice preview">
+                    <div class="flocs-previewHeader">
+                      <div>
+                        <div class="flocs-previewTitle">Invoice preview</div>
+                      </div>
+                      <div>
+                        <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
+                        <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>
+                          Convert draft to order
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="flocs-invoice" id="flocs-invoice">
+                      <!-- Filled by JS -->
+                    </div>
+                  </aside>
+                </div>
+              </div>
+
+              <!-- Product grid -->
+              <div class="flocs-formSection">
+              <div class="flocs-labelRow flocs-labelRow--items">
+                <span>Items</span>
+                <div class="flocs-filterRow flocs-filterRow--inline" aria-label="Item filters">
+                  <div class="flocs-filterGroup">
+                    <span class="flocs-filterLabel">Category</span>
+                    <div id="flocs-filterCategory" class="flocs-filterButtons"></div>
+                  </div>
+                </div>
+              </div>
+                <table class="flocs-productsTable">
+                  <thead>
+                    <tr id="flocs-productsHeadRow">
+                      <th>Description</th>
+                      <th>Flavour</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="flocs-productsBody">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+                <div id="flocs-errors" class="flocs-errors"></div>
+              </div>
+            </section>
+
+          </main>
         </div>
-        <div class="invoiceTemplateRow">
-          <label for="invoiceTemplate">Invoice link template</label>
-          <div class="invoiceTemplateInput">
-            <input id="invoiceTemplate" type="text" placeholder="https://your-domain/invoice/{order_name}" />
-            <button id="invoiceTemplateSave" class="btn" type="button">Save template</button>
-          </div>
-          <p class="invoiceHint">Tokens: {order_name}, {order_number}, {order_id}, {customer_email}.</p>
-        </div>
-        <div class="invoiceFilters">
-          <div class="invoiceField">
-            <label for="invoiceFilterOrder">Order #</label>
-            <input id="invoiceFilterOrder" type="text" placeholder="#1001" />
-          </div>
-          <div class="invoiceField">
-            <label for="invoiceFilterCustomer">Customer</label>
-            <input id="invoiceFilterCustomer" type="text" placeholder="Customer name" />
-          </div>
-          <div class="invoiceField">
-            <label for="invoiceFilterFrom">Date from</label>
-            <input id="invoiceFilterFrom" type="date" />
-          </div>
-          <div class="invoiceField">
-            <label for="invoiceFilterTo">Date to</label>
-            <input id="invoiceFilterTo" type="date" />
-          </div>
-          <div class="invoiceField">
-            <label>&nbsp;</label>
-            <button id="invoiceRefresh" class="btn btnPrimary" type="button">Refresh orders</button>
-          </div>
-        </div>
-        <div class="invoiceTableWrap">
-          <table class="invoiceTable">
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Customer</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="invoiceTableBody">
-              <tr><td colspan="4" class="invoiceEmpty">Load orders to get started.</td></tr>
-            </tbody>
-          </table>
+
+        <!-- Global toast -->
+        <div id="flocs-toast" class="flocs-toast"></div>
+
+        
+    </div>
+
+    <div class="flView" id="viewStock" hidden>
+      <div class="stock-shell">
+        <div class="stock-grid">
+          <section class="stock-card stock-overviewCard">
+            <h2>Inventory overview</h2>
+            <div class="stock-toolbar">
+              <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU or product name..." />
+              <div class="stock-modeToggle">
+                <button class="stock-modeBtn" type="button" data-mode="stock">Stock</button>
+                <button class="stock-modeBtn is-active" type="button" data-mode="count">Count</button>
+                <button class="stock-modeBtn" type="button" data-mode="make">Make</button>
+                <button class="stock-modeBtn" type="button" data-mode="buy">Buy</button>
+                <button class="stock-modeBtn" type="button" data-mode="receive">Receive</button>
+              </div>
+              <button id="stock-createCount" class="stock-primaryBtn stock-createBtn" type="button">Create</button>
+              <div class="stock-locationPicker">
+                <span class="stock-locationLabel">Location</span>
+                <div id="stock-locationButtons" class="stock-locationButtons" role="group" aria-label="Stock location"></div>
+              </div>
+              <span class="stock-pill" id="stock-modeLabel">Mode: Count (stock take)</span>
+            </div>
+            <table class="stock-table" id="stock-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Product</th>
+                  <th>Current</th>
+                  <th>Count 1</th>
+                  <th>Count 2</th>
+                  <th>Count 3</th>
+                  <th>Total</th>
+                  <th>Crate</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="stock-tableBody"></tbody>
+            </table>
+            <h3 class="stock-logTitle">Activity log</h3>
+            <div id="stock-log" class="stock-log"></div>
+          </section>
+
+          <section class="stock-card stock-mrpCard">
+            <div class="stock-mrpHeader">
+              <div>
+                <h2>Manufacturing &amp; buying</h2>
+                <p class="stock-muted">Create manufacturing orders, plan buying, and receive open orders.</p>
+              </div>
+              <span class="stock-pill">Live plan</span>
+            </div>
+
+            <form id="mrp-batchForm" class="stock-form" data-panel="make">
+              <div class="stock-formRow">
+                <label class="stock-field">
+                  <span>Batch name</span>
+                  <input id="mrp-batchName" class="stock-input" type="text" placeholder="e.g. Hot & Spicy 500g run" />
+                </label>
+                <label class="stock-field">
+                  <span>Sample weight (kg, optional)</span>
+                  <input id="mrp-sampleWeight" class="stock-input" type="number" min="0" step="0.01" placeholder="0.00" />
+                </label>
+              </div>
+              <div class="stock-formRow stock-formRow--compact">
+                <label class="stock-field">
+                  <span>SKU</span>
+                  <select id="mrp-skuSelect" class="stock-select"></select>
+                </label>
+                <label class="stock-field">
+                  <span>Batch qty</span>
+                  <input id="mrp-skuQty" class="stock-input" type="number" min="1" step="1" placeholder="0" />
+                </label>
+                <button id="mrp-addLine" class="stock-actionBtn stock-actionBtn--inline" type="button">Add line</button>
+              </div>
+              <div class="stock-lines">
+                <table class="stock-table stock-table--compact">
+                  <thead>
+                    <tr>
+                      <th>SKU</th>
+                      <th>Product</th>
+                      <th>Qty</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="mrp-linesTable">
+                    <tr>
+                      <td colspan="4" class="stock-muted">Add line items to build the batch.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="stock-formActions">
+                <button id="mrp-createBatch" class="stock-primaryBtn" type="button">Create manufacturing order</button>
+                <button id="mrp-clearLines" class="stock-ghostBtn" type="button">Clear lines</button>
+              </div>
+            </form>
+
+            <div class="stock-subsection" data-panel="make">
+              <h3>Committed &amp; missing items</h3>
+              <table class="stock-table stock-table--compact">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Committed</th>
+                    <th>On hand</th>
+                    <th>Missing</th>
+                  </tr>
+                </thead>
+                <tbody id="mrp-summaryTable">
+                  <tr>
+                    <td colspan="4" class="stock-muted">No committed items yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="stock-subsection" data-panel="make receive">
+              <h3>Manufacturing orders</h3>
+              <div id="mrp-batchList" class="stock-batchList"></div>
+            </div>
+
+            <div class="stock-subsection" data-panel="buy receive">
+              <h3>Purchase orders (raw materials)</h3>
+              <form id="po-batchForm" class="stock-form">
+                <div class="stock-formRow">
+                  <label class="stock-field">
+                    <span>PO name</span>
+                    <input id="po-batchName" class="stock-input" type="text" placeholder="e.g. Monthly raw-material restock" />
+                  </label>
+                </div>
+                <div class="stock-formRow stock-formRow--compact">
+                  <label class="stock-field">
+                    <span>Raw material SKU</span>
+                    <select id="po-skuSelect" class="stock-select"></select>
+                  </label>
+                  <label class="stock-field">
+                    <span>Order qty</span>
+                    <input id="po-skuQty" class="stock-input" type="number" min="1" step="1" placeholder="0" />
+                  </label>
+                  <button id="po-addLine" class="stock-actionBtn stock-actionBtn--inline" type="button">Add line</button>
+                </div>
+                <div class="stock-lines">
+                  <table class="stock-table stock-table--compact">
+                    <thead>
+                      <tr>
+                        <th>SKU</th>
+                        <th>Material</th>
+                        <th>Qty</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="po-linesTable">
+                      <tr>
+                        <td colspan="4" class="stock-muted">Add raw material lines to create a purchase order.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="stock-formActions">
+                  <button id="po-createBatch" class="stock-primaryBtn" type="button">Create PO</button>
+                  <button id="po-clearLines" class="stock-ghostBtn" type="button">Clear lines</button>
+                </div>
+              </form>
+
+              <div id="po-batchList" class="stock-batchList"></div>
+            </div>
+          </section>
         </div>
       </div>
     </div>
 
-        <div class="flView" id="viewDocs" hidden>
-      <div class="docsShell">
-        <div class="pill">Operator Guide</div>
-        <h2>Scan Station Overview</h2>
-        <p>This console books shipments automatically based on scanned parcel labels and Shopify order metadata. The session banner shows the active order, mode, expected parcel count, and auto-book countdown so operators can confirm readiness before booking.</p>
 
-        <div class="docsGrid">
-          <div class="docsCard">
-            <h3>Quick Start (Daily Use)</h3>
-            <ol>
-              <li>Open the Scan Station view and keep the cursor in the scan field.</li>
-              <li>Scan parcel barcodes in order; the session panel will show scanned vs expected parcels.</li>
-              <li>Use the <strong>MODE</strong> toggle to switch between Auto (tag/idle booking) and Manual (tap Book Now).</li>
-              <li>If a <span class="pill">parcel_count_#</span> tag exists, the booking is triggered on the first scan.</li>
-              <li>If no tag exists, the system auto-books after the idle timer expires or you can tap <strong>BOOK NOW</strong>.</li>
-              
+    <div class="flView" id="viewStockists" hidden>
+      <div class="stockistsShell">
+        <section class="stockistsCard">
+          <h2>Distribution Network</h2>
+          <p class="stockistsMeta" id="stockistsStatus">Ready.</p>
+          <div class="stockistsRow">
+            <input id="stockistsAdminToken" class="stockistsInput" type="password" placeholder="Admin token (optional)" />
+            <button id="stockistsRefreshBtn" class="stockistsBtn secondary" type="button">Refresh agents</button>
+            <button id="stockistsSyncBtn" class="stockistsBtn" type="button">Sync agents from Shopify</button>
           </div>
-         
+        </section>
+
+        <section class="stockistsCard">
+          <div class="stockistsRow">
+            <label for="stockistsAgentSelect"><strong>Agent profile</strong></label>
+            <select id="stockistsAgentSelect" class="stockistsSelect"></select>
+          </div>
+          <p id="stockistsAgentMeta" class="stockistsMeta">Select an agent to view details.</p>
+        </section>
+
+        <section class="stockistsCard">
+          <h3>Network Directory</h3>
+          <div class="stockistsRow">
+            <input id="stockistsSearch" class="stockistsInput" placeholder="Search agent, retailer, city, province" />
+          </div>
+          <p id="stockistsDirectoryMeta" class="stockistsMeta">Loading network directory…</p>
+          <div class="stockistsDirectoryGrid">
+            <div>
+              <h4>Agents</h4>
+              <table class="stockistsTable">
+                <thead><tr><th>Agent</th><th>Coverage</th><th>Retailers</th></tr></thead>
+                <tbody id="stockistsAgentsDirectoryBody"><tr><td colspan="3">No agents loaded.</td></tr></tbody>
+              </table>
+              <div id="stockistsAgentsPager" class="stockistsPager"></div>
+            </div>
+            <div>
+              <h4>Retailers</h4>
+              <table class="stockistsTable">
+                <thead><tr><th>Retailer</th><th>Agent</th><th>Location</th><th>Phone</th></tr></thead>
+                <tbody id="stockistsRetailersDirectoryBody"><tr><td colspan="4">No retailers loaded.</td></tr></tbody>
+              </table>
+              <div id="stockistsRetailersPager" class="stockistsPager"></div>
+            </div>
+          </div>
+        </section>
+
+
+        <div class="stockistsGrid">
+          <section class="stockistsCard">
+            <h3>Retailers Supplied</h3>
+            <div class="stockistsRow">
+              <input id="stockistsRetailerName" class="stockistsInput" placeholder="Retailer name*" />
+              <input id="stockistsRetailerCity" class="stockistsInput" placeholder="City" />
+              <input id="stockistsRetailerProvince" class="stockistsInput" placeholder="Province" />
+            </div>
+            <div class="stockistsRow">
+              <input id="stockistsRetailerAddress" class="stockistsInput" placeholder="Address" />
+              <input id="stockistsRetailerPhone" class="stockistsInput" placeholder="Phone" />
+              <input id="stockistsRetailerNotes" class="stockistsInput" placeholder="Notes" />
+              <button id="stockistsAddRetailerBtn" class="stockistsBtn" type="button">Add retailer</button>
+            </div>
+            <label><strong>Bulk paste</strong> <span class="stockistsMeta">Store Name, City, Province</span></label>
+            <textarea id="stockistsBulkText" class="stockistsTextarea" placeholder="Lekka Mart, Cape Town, Western Cape"></textarea>
+            <button id="stockistsBulkBtn" class="stockistsBtn secondary" type="button">Import bulk list</button>
+
+            <table class="stockistsTable">
+              <thead><tr><th>Name</th><th>City</th><th>Province</th><th>Phone</th></tr></thead>
+              <tbody id="stockistsRetailersBody"><tr><td colspan="4">No retailers loaded.</td></tr></tbody>
+            </table>
+          </section>
+
+          <section class="stockistsCard">
+            <h3>SKU Range</h3>
+            <p class="stockistsMeta">One line per SKU: <code>FL002,Core Range,10</code></p>
+            <textarea id="stockistsSkuText" class="stockistsTextarea" placeholder="FL002,Core Range,10"></textarea>
+            <button id="stockistsSaveSkuBtn" class="stockistsBtn" type="button">Save SKU range</button>
+            <table class="stockistsTable">
+              <thead><tr><th>SKU</th><th>Availability</th><th>Priority</th></tr></thead>
+              <tbody id="stockistsSkuBody"><tr><td colspan="3">No SKU range loaded.</td></tr></tbody>
+            </table>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="flView" id="viewYearPlanner" hidden>
+      <div class="yp-shell">
+        <section class="yp-card">
+          <div class="yp-toolbar">
+            <div>
+              <h2>Master Year Planner</h2>
+              <p id="ypStatus" class="yp-meta">Plan annual income, expenses, and monthly spending targets.</p>
+            </div>
+            <div class="yp-actions">
+              <label class="yp-field">
+                <span>Year</span>
+                <input id="ypYear" type="number" min="2000" max="2100" step="1" />
+              </label>
+              <button id="ypExportCsv" class="yp-btn yp-btn--secondary" type="button">Export CSV</button>
+              <button id="ypResetYear" class="yp-btn" type="button">Reset Year</button>
+            </div>
+          </div>
+
+          <div class="yp-kpis">
+            <article><span>Total Income</span><strong id="ypTotalIncome">R0.00</strong></article>
+            <article><span>Planned Expenses</span><strong id="ypTotalBudget">R0.00</strong></article>
+            <article><span>Actual Expenses</span><strong id="ypTotalActual">R0.00</strong></article>
+            <article><span>Net Position</span><strong id="ypNetPosition">R0.00</strong></article>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table yp-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Income (R)</th>
+                  <th>Budgeted Expenses (R)</th>
+                  <th>Actual Expenses (R)</th>
+                  <th>Variance (R)</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="ypBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="flView" id="viewTraceability" hidden>
+      <div class="trace-shell">
+        <section class="trace-card">
+          <h2>Traceability Hub</h2>
+          <p class="trace-status" id="trace-status">Manage invoices, COAs, incoming inspections, and finished-good links.</p>
+        </section>
+
+        <div class="trace-grid">
+          <section class="trace-card">
+            <h3>1) Open purchase orders</h3>
+            <form id="trace-poForm" class="trace-form">
+              <input name="poNumber" placeholder="PO number" required />
+              <input name="supplier" placeholder="Supplier" />
+              <input name="flavor" placeholder="Flavor" />
+              <input name="expectedDate" type="date" />
+              <button type="submit">Add open PO</button>
+            </form>
+          </section>
+
+          <section class="trace-card">
+            <h3>2) Invoice register (PDF link + items)</h3>
+            <form id="trace-invoiceForm" class="trace-form">
+              <input name="invoiceNumber" placeholder="Invoice number" required />
+              <select id="trace-invoicePoNumber" name="poNumber" required></select>
+              <input name="supplier" placeholder="Supplier" />
+              <input name="flavor" placeholder="Flavor" />
+              <input name="receivedBatchNumber" placeholder="Received batch number" />
+              <input name="receivedQty" type="number" min="0" step="1" placeholder="Received quantity" />
+              <input name="pdfUrl" placeholder="Invoice PDF URL or file path" />
+              <textarea name="items" rows="4" placeholder="item | lot batch | qty | unit (one per line)"></textarea>
+              <button type="submit">Save invoice + auto-create inspection</button>
+            </form>
+          </section>
+
+          <section class="trace-card">
+            <h3>3) COA register (PDF link)</h3>
+            <form id="trace-coaForm" class="trace-form">
+              <input name="coaNumber" placeholder="COA number" required />
+              <input name="productName" placeholder="Product name" />
+              <input name="batchNumber" placeholder="Batch number on COA" required />
+              <input name="supplier" placeholder="Supplier" />
+              <input name="pdfUrl" placeholder="COA PDF URL or file path" />
+              <button type="submit">Save COA</button>
+            </form>
+          </section>
+
+          <section class="trace-card">
+            <h3>4) Incoming inspection (mobile log equivalent)</h3>
+            <form id="trace-inspectionForm" class="trace-form">
+              <select id="trace-inspectionSelect" name="inspectionId" required></select>
+              <input name="vehicleReg" placeholder="Vehicle registration" />
+              <input name="driverName" placeholder="Driver name" />
+              <input name="receivedQty" type="number" min="0" step="1" placeholder="Confirmed quantity" />
+              <select name="quantityConfirmed"><option value="yes">Quantity confirmed - Yes</option><option value="no">Quantity confirmed - No</option></select>
+              <select name="packagingIntact"><option value="yes">Packaging intact - Yes</option><option value="no">Packaging intact - No</option></select>
+              <select name="sealIntact"><option value="yes">Seal intact - Yes</option><option value="no">Seal intact - No</option></select>
+              <select name="coaAttached"><option value="yes">COA attached - Yes</option><option value="no">COA attached - No</option></select>
+              <textarea name="comments" rows="3" placeholder="Comments"></textarea>
+              <input name="signature" placeholder="Digital signature (receiver name)" />
+              <button type="submit">Submit inspection</button>
+            </form>
+          </section>
+
+          <section class="trace-card">
+            <h3>5) Link finished-good batch</h3>
+            <form id="trace-finishedBatchForm" class="trace-form">
+              <input name="finishedBatchNumber" placeholder="Finished batch number" required />
+              <input name="flavor" placeholder="Flavor" required />
+              <input name="productionDate" type="date" />
+              <textarea name="components" rows="4" placeholder="item | source batch | invoice number (one per line)"></textarea>
+              <textarea name="notes" rows="2" placeholder="Notes"></textarea>
+              <button type="submit">Save finished batch mapping</button>
+            </form>
+          </section>
+
+          <section class="trace-card">
+            <h3>6) Audit lookup</h3>
+            <form id="trace-lookupForm" class="trace-form">
+              <input name="batchNumber" placeholder="Finished batch number" required />
+              <input name="flavor" placeholder="Flavor" required />
+              <button type="submit">Run traceability lookup</button>
+            </form>
+            <div id="trace-lookupOutput" class="trace-meta" style="margin-top:0.75rem;">Run a lookup to see linked records.</div>
+          </section>
         </div>
 
-        <h2>Dispatch Board</h2>
-        <p>The Dispatch Board groups open Shopify orders by urgency. Each card lists customer details, service code, tags, and a parcel count indicator so planners can prioritize packing.</p>
-        <p>Tap a card to open the packing modal, add boxes, and update packed quantities. Pickup orders use <strong>Notify customer</strong> once the courier can collect.</p>
-
-        <h2>Mobile Access (Same Network)</h2>
-        <p>To access the app from a phone or tablet on the same Wi-Fi, the server must listen on all interfaces. By default all origins are allowed unless <span class="docsCode">FRONTEND_ORIGIN</span> is set.</p>
-        <div class="docsCard">
-          <h3>Step-by-Step</h3>
-          <ol>
-            <li>Find the computer's IP address on your network (example: <span class="docsCode">192.168.1.25</span>).</li>
-            <li>Start the server with <span class="docsCode">HOST=0.0.0.0</span>.</li>
-            <li>Optional: set <span class="docsCode">FRONTEND_ORIGIN</span> to include both desktop and mobile origins (comma-separated). Use <span class="docsCode">*</span> to explicitly allow all origins.</li>
-            <li>On the phone, open <span class="docsCode">http://192.168.1.25:3000</span>.</li>
-          </ol>
-          <p class="docsMeta">Tip: If you see a CORS error, update <span class="docsCode">FRONTEND_ORIGIN</span> to include the mobile address or set it to <span class="docsCode">*</span>.</p>
+        <div class="trace-grid">
+          <section class="trace-card"><h3>Invoices</h3><div id="trace-invoices"></div></section>
+          <section class="trace-card"><h3>COAs</h3><div id="trace-coas"></div></section>
+          <section class="trace-card"><h3>Inspections</h3><div id="trace-inspections"></div></section>
         </div>
+      </div>
+    </div>
 
-        <h2>Endpoints</h2>
-        <div class="docsGrid">
-          <div class="docsCard">
-            <h3>Core API</h3>
-            <ul>
-              <li><span class="docsCode">POST /pp</span> — ParcelPerfect proxy for bookings and quotes.</li>
-              <li><span class="docsCode">GET /shopify/orders/by-name/:name</span> — Order lookup by Shopify name.</li>
-              <li><span class="docsCode">GET /shopify/orders/open</span> — Dispatch board feed.</li>
-              <li><span class="docsCode">POST /shopify/fulfill</span> — Fulfillment + tracking update.</li>
-              <li><span class="docsCode">GET /healthz</span> — Service health check.</li>
-            </ul>
-          </div>
-          <div class="docsCard">
-            <h3>Operator Tips</h3>
-            <ul>
-              <li>Use <strong>Emergency Stop</strong> to clear the session if the wrong order is scanned.</li>
-              <li>If an order is already booked, scans are blocked to prevent duplicates.</li>
-              <li>Keep labels flat in the printer; the preview matches the 100×150mm output.</li>
-            </ul>
-          </div>
+    <div class="flView" id="viewPriceManager" hidden>
+      <div class="pm-shell">
+          <header class="pm-header">
+            <div class="pm-titleBlock">
+              <div class="pm-title">Pricing Control Center</div>
+              <div class="pm-sub">Manage tier pricing per SKU and sync to Shopify metafields + storefront.</div>
+            </div>
+          </header>
+
+          <section class="pm-panel">
+            <div class="pm-row pm-toolbar">
+              <div class="pm-field pm-field--grow">
+                <label for="pmSearch">Search products</label>
+                <input id="pmSearch" type="search" placeholder="Search SKU, title, or flavour…" autocomplete="off" />
+              </div>
+              <label class="pm-check">
+                <input id="pmKnownOnly" type="checkbox" />
+                Show known catalogue only
+              </label>
+              <button id="pmReload" class="pm-btn" type="button">Reload full list</button>
+            </div>
+            <div class="pm-row">
+              <span id="pmStatus" class="pm-muted">Loading product list…</span>
+            </div>
+
+            <div style="overflow:auto;">
+              <table class="pm-productsTable">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Title</th>
+                    <th>Public</th>
+                    <th>Agent</th>
+                    <th>Retailer</th>
+                    <th>Export</th>
+                    <th>Private</th>
+                    <th>FKB</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="pmTableBody">
+                  <tr>
+                    <td colspan="9" class="pm-muted">Loading products…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="wa-shell" aria-label="Wholesale automation">
+            <div class="wa-grid">
+              <article class="wa-card">
+                <h3>Automatic Wholesale Discounts</h3>
+                <input id="waProfileName" type="text" placeholder="Profile name (e.g. Wholesale Tier 2)" />
+                <input id="waProfileTags" type="text" placeholder="Customer tags (comma separated)" />
+                <input id="waProfileSkus" type="text" placeholder="SKU matchers (optional, comma separated)" />
+                <textarea id="waProfileTiers" rows="6" placeholder="Tier breaks per line: minQty:discountPercent
+Example:
+1:10
+12:15
+48:22"></textarea>
+                <div class="wa-actions">
+                  <button id="waProfileSave" type="button">Save profile</button>
+                </div>
+                <div id="waProfileStatus" class="wa-status">Replace Wholesale Helper rules with tag-based tier pricing.</div>
+              </article>
+              <article class="wa-card">
+                <h3>Discount profiles</h3>
+                <div id="waProfileList" class="wa-list"></div>
+                <h3 style="margin-top:1rem;">Rule tester</h3>
+                <input id="waTestTags" type="text" value="wholesale,tier-2" placeholder="Customer tags" />
+                <input id="waTestSku" type="text" value="FL-ORI-200" placeholder="SKU" />
+                <input id="waTestQty" type="number" value="24" min="1" placeholder="Qty" />
+                <input id="waTestPrice" type="number" value="120" step="0.01" placeholder="Base price" />
+                <div class="wa-actions"><button id="waDiscountTest" type="button">Test discount</button></div>
+                <pre id="waTestResult" class="wa-preview">Run a discount test to preview final unit pricing.</pre>
+              </article>
+            </div>
+          </section>
+
         </div>
+        <div id="pmToast" class="pm-toast"></div>
+    </div>
+  </div>
+
+    <div class="flView" id="viewPrintStation" hidden>
+      <div class="pm-shell">
+        <header class="pm-header">
+          <div class="pm-titleBlock">
+            <div class="pm-title">Print Station</div>
+            <div class="pm-sub">Manage templates, print settings, history, and quick reprints from one workspace.</div>
+          </div>
+        </header>
+
+        <section class="wa-shell" aria-label="Print station">
+          <div class="wa-grid">
+            <article class="wa-card">
+              <h3>Print Template Studio</h3>
+              <input id="waTemplateName" type="text" placeholder="Template name" />
+              <input id="waTemplateDesc" type="text" placeholder="Description" />
+              <select id="waTemplateType">
+                <option value="raw_base64">Raw text label (raw_base64)</option>
+                <option value="pdf_uri">Hosted PDF URL (pdf_uri)</option>
+              </select>
+              <textarea id="waTemplateContent" rows="8" placeholder="Use tokens like {{order_number}}"></textarea>
+              <div class="wa-actions">
+                <button id="waTemplateSave" type="button">Save template</button>
+                <button id="waTemplatePreviewBtn" type="button">Preview</button>
+                <button id="waTemplatePrint" type="button">Print sample</button>
+              </div>
+              <div id="waTemplateStatus" class="wa-status">Create templates for packing slips, invoices, and pick tickets.</div>
+            </article>
+            <article class="wa-card">
+              <h3>Templates</h3>
+              <div id="waTemplateList" class="wa-list"></div>
+              <h3 style="margin-top:1rem;">Rendered preview</h3>
+              <pre id="waTemplatePreview" class="wa-preview">Preview output will appear here.</pre>
+            </article>
+          </div>
+
+          <div class="wa-grid">
+            <article class="wa-card">
+              <h3>General Printing Settings</h3>
+              <input id="waPrintTitlePrefix" type="text" placeholder="Job title prefix" />
+              <input id="waPrintCopies" type="number" min="1" step="1" placeholder="Default copies" />
+              <div class="wa-actions">
+                <button id="waPrintSettingsSave" type="button">Save settings</button>
+              </div>
+              <div id="waPrintSettingsStatus" class="wa-status">Default print options are applied to template and drag-and-drop jobs.</div>
+            </article>
+
+            <article class="wa-card">
+              <h3>Drag &amp; Drop to Print</h3>
+              <div id="waDropZone" class="wa-dropZone">Drop a PDF file here to send it to PrintNode.</div>
+              <div id="waDropStatus" class="wa-status">Waiting for a PDF file.</div>
+            </article>
+          </div>
+
+          <div class="wa-grid">
+            <article class="wa-card">
+              <h3>Global Print History Log</h3>
+              <div id="waPrintHistory" class="wa-list"></div>
+            </article>
+            <article class="wa-card">
+              <h3>Reprint Console</h3>
+              <input id="waReprintJobId" type="text" placeholder="History job id" />
+              <div class="wa-actions">
+                <button id="waReprintBtn" type="button">Reprint job</button>
+              </div>
+              <div id="waReprintStatus" class="wa-status">Select a history item to quickly reprint it.</div>
+            </article>
+          </div>
+        </section>
       </div>
     </div>
       </main>
     </div>
   </div>
+
+  <aside id="dailyTodoWidget" class="todoWidget" hidden aria-live="polite">
+    <div class="todoWidgetHeader">
+      <div>
+        <h2 class="todoWidgetTitle">Daily Operations To-Do</h2>
+        <p id="dailyTodoMeta" class="todoWidgetMeta">0 of 0 complete</p>
+      </div>
+      <button id="dailyTodoClose" class="todoWidgetClose" type="button" aria-label="Close daily to-do list">Close</button>
+    </div>
+    <div id="dailyTodoList" class="todoWidgetList"></div>
+  </aside>
 
   <div class="slotEgg" id="slotEgg" hidden aria-hidden="true">
     <div class="slotEgg__backdrop" data-slot-close></div>
@@ -2481,6 +3726,7 @@
 <!-- PRINT-ONLY MOUNT -->
 <div class="printSheetWrapper"><div id="printMount"></div></div>
 
-<script src="/app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script type="module" src="/app.js"></script>
 </body> 
 </html>
