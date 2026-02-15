@@ -178,8 +178,8 @@
     min-width:0;
   }
   .sharedStickyHeader{
-    position:sticky;
-    top:0;
+    position:relative;
+    top:auto;
     z-index:40;
     display:flex;
     flex-wrap:wrap;
@@ -229,6 +229,15 @@
     font-weight:700;
     color:var(--text-muted);
   }
+  .flTableWrap{
+    width:100%;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .flTableWrap > table{
+    min-width:640px;
+    margin-bottom:0;
+  }
   @media (max-width:900px){
     .sharedStickyHeader{
       top:.2rem;
@@ -240,6 +249,9 @@
     }
     .sharedControlCard{
       flex:1 1 calc(33.333% - .4rem);
+    }
+    .flTableWrap > table{
+      min-width:560px;
     }
   }
   @media (max-width:800px){
@@ -3117,7 +3129,8 @@
                   </div>
                 </div>
               </div>
-                <table class="flocs-productsTable">
+                <div class="table-responsive flTableWrap">
+                <table class="flocs-productsTable table table-sm align-middle">
                   <thead>
                     <tr id="flocs-productsHeadRow">
                       <th>Description</th>
@@ -3129,6 +3142,7 @@
                     <!-- Populated by JS -->
                   </tbody>
                 </table>
+              </div>
                 <div id="flocs-errors" class="flocs-errors"></div>
               </div>
             </section>
@@ -3163,7 +3177,8 @@
               </div>
               <span class="stock-pill" id="stock-modeLabel">Mode: Count (stock take)</span>
             </div>
-            <table class="stock-table" id="stock-table">
+            <div class="table-responsive flTableWrap">
+            <table class="stock-table table table-sm align-middle" id="stock-table">
               <thead>
                 <tr>
                   <th>SKU</th>
@@ -3179,6 +3194,7 @@
               </thead>
               <tbody id="stock-tableBody"></tbody>
             </table>
+            </div>
             <h3 class="stock-logTitle">Activity log</h3>
             <div id="stock-log" class="stock-log"></div>
           </section>
@@ -3215,7 +3231,8 @@
                 <button id="mrp-addLine" class="stock-actionBtn stock-actionBtn--inline" type="button">Add line</button>
               </div>
               <div class="stock-lines">
-                <table class="stock-table stock-table--compact">
+                <div class="table-responsive flTableWrap">
+                <table class="stock-table stock-table--compact table table-sm align-middle">
                   <thead>
                     <tr>
                       <th>SKU</th>
@@ -3231,6 +3248,7 @@
                   </tbody>
                 </table>
               </div>
+              </div>
               <div class="stock-formActions">
                 <button id="mrp-createBatch" class="stock-primaryBtn" type="button">Create manufacturing order</button>
                 <button id="mrp-clearLines" class="stock-ghostBtn" type="button">Clear lines</button>
@@ -3239,7 +3257,8 @@
 
             <div class="stock-subsection" data-panel="make">
               <h3>Committed &amp; missing items</h3>
-              <table class="stock-table stock-table--compact">
+              <div class="table-responsive flTableWrap">
+              <table class="stock-table stock-table--compact table table-sm align-middle">
                 <thead>
                   <tr>
                     <th>SKU</th>
@@ -3254,6 +3273,7 @@
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
 
             <div class="stock-subsection" data-panel="make receive">
@@ -3282,7 +3302,8 @@
                   <button id="po-addLine" class="stock-actionBtn stock-actionBtn--inline" type="button">Add line</button>
                 </div>
                 <div class="stock-lines">
-                  <table class="stock-table stock-table--compact">
+                  <div class="table-responsive flTableWrap">
+                  <table class="stock-table stock-table--compact table table-sm align-middle">
                     <thead>
                       <tr>
                         <th>SKU</th>
@@ -3297,6 +3318,7 @@
                       </tr>
                     </tbody>
                   </table>
+                  </div>
                 </div>
                 <div class="stock-formActions">
                   <button id="po-createBatch" class="stock-primaryBtn" type="button">Create PO</button>
@@ -3341,18 +3363,22 @@
           <div class="stockistsDirectoryGrid">
             <div>
               <h4>Agents</h4>
-              <table class="stockistsTable">
+              <div class="table-responsive flTableWrap">
+              <table class="stockistsTable table table-sm align-middle">
                 <thead><tr><th>Agent</th><th>Coverage</th><th>Retailers</th></tr></thead>
                 <tbody id="stockistsAgentsDirectoryBody"><tr><td colspan="3">No agents loaded.</td></tr></tbody>
               </table>
+              </div>
               <div id="stockistsAgentsPager" class="stockistsPager"></div>
             </div>
             <div>
               <h4>Retailers</h4>
-              <table class="stockistsTable">
+              <div class="table-responsive flTableWrap">
+              <table class="stockistsTable table table-sm align-middle">
                 <thead><tr><th>Retailer</th><th>Agent</th><th>Location</th><th>Phone</th></tr></thead>
                 <tbody id="stockistsRetailersDirectoryBody"><tr><td colspan="4">No retailers loaded.</td></tr></tbody>
               </table>
+              </div>
               <div id="stockistsRetailersPager" class="stockistsPager"></div>
             </div>
           </div>
@@ -3377,10 +3403,12 @@
             <textarea id="stockistsBulkText" class="stockistsTextarea" placeholder="Lekka Mart, Cape Town, Western Cape"></textarea>
             <button id="stockistsBulkBtn" class="stockistsBtn secondary" type="button">Import bulk list</button>
 
-            <table class="stockistsTable">
+            <div class="table-responsive flTableWrap">
+            <table class="stockistsTable table table-sm align-middle">
               <thead><tr><th>Name</th><th>City</th><th>Province</th><th>Phone</th></tr></thead>
               <tbody id="stockistsRetailersBody"><tr><td colspan="4">No retailers loaded.</td></tr></tbody>
             </table>
+            </div>
           </section>
 
           <section class="stockistsCard">
@@ -3388,10 +3416,12 @@
             <p class="stockistsMeta">One line per SKU: <code>FL002,Core Range,10</code></p>
             <textarea id="stockistsSkuText" class="stockistsTextarea" placeholder="FL002,Core Range,10"></textarea>
             <button id="stockistsSaveSkuBtn" class="stockistsBtn" type="button">Save SKU range</button>
-            <table class="stockistsTable">
+            <div class="table-responsive flTableWrap">
+            <table class="stockistsTable table table-sm align-middle">
               <thead><tr><th>SKU</th><th>Availability</th><th>Priority</th></tr></thead>
               <tbody id="stockistsSkuBody"><tr><td colspan="3">No SKU range loaded.</td></tr></tbody>
             </table>
+            </div>
           </section>
         </div>
       </div>
@@ -3560,8 +3590,8 @@
               <span id="pmStatus" class="pm-muted">Loading product list…</span>
             </div>
 
-            <div style="overflow:auto;">
-              <table class="pm-productsTable">
+            <div class="table-responsive flTableWrap">
+              <table class="pm-productsTable table table-sm align-middle">
                 <thead>
                   <tr>
                     <th>SKU</th>
