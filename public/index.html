@@ -2770,9 +2770,10 @@
         <div class="flView" id="viewDocs" hidden>
       <div class="docsShell">
         <h2>FLSS Knowledge Hub</h2>
-        <p class="docsMeta">Documentation is now split by audience so teams can find the right runbook faster.</p>
+        <p class="docsMeta">Documentation is split by audience with direct links to every maintained markdown guide in this repository.</p>
 
         <nav class="docsTopNav" aria-label="Documentation sections">
+          <a href="#docs-index">Documentation index</a>
           <a href="#docs-operator">Operator Runbooks</a>
           <a href="#docs-admin">Admin Governance</a>
           <a href="#docs-dev">Developer Engineering</a>
@@ -2780,12 +2781,25 @@
         </nav>
 
         <div class="docsGrid">
+
+          <article id="docs-index" class="docsCard">
+            <h3>Documentation Index</h3>
+            <p>Start here for the complete FLSS knowledge base and deep-dive references.</p>
+            <ul>
+              <li><a class="docsInlineLink" href="/docs/README.md" target="_blank" rel="noopener">Open docs index</a></li>
+              <li><a class="docsInlineLink" href="/docs/database-and-remote-access.md" target="_blank" rel="noopener">Database and remote access runbook</a></li>
+              <li><a class="docsInlineLink" href="/docs/feature-module-upgrade-map.md" target="_blank" rel="noopener">Feature module upgrade map</a></li>
+              <li><a class="docsInlineLink" href="/docs/progress-checkpoint-2026-02-12.md" target="_blank" rel="noopener">Progress checkpoint</a></li>
+            </ul>
+          </article>
+
           <article id="docs-operator" class="docsCard">
             <h3>Operator Runbooks</h3>
             <p>Warehouse and dispatch workflows, packing flowcharts, station setup, and day-to-day handling procedures.</p>
             <ul>
               <li><a class="docsInlineLink" href="/docs/operator-docs.md" target="_blank" rel="noopener">Open operator docs bundle</a></li>
               <li><a class="docsInlineLink" href="/docs/raspberry-pi-physical-station.md" target="_blank" rel="noopener">Physical station and Pi guidance</a></li>
+              <li><a class="docsInlineLink" href="/docs/flss-metaobject-migration.md" target="_blank" rel="noopener">Metaobject migration notes</a></li>
             </ul>
           </article>
 
@@ -2795,6 +2809,7 @@
             <ul>
               <li><a class="docsInlineLink" href="/docs/admin-docs.md" target="_blank" rel="noopener">Open admin docs bundle</a></li>
               <li><a class="docsInlineLink" href="/docs/stockists-module.md" target="_blank" rel="noopener">Stockist network module reference</a></li>
+              <li><a class="docsInlineLink" href="/docs/price-tiers-theme.md" target="_blank" rel="noopener">Price tiers and theme notes</a></li>
             </ul>
           </article>
 
@@ -2804,6 +2819,7 @@
             <ul>
               <li><a class="docsInlineLink" href="/docs/dev-docs.md" target="_blank" rel="noopener">Open developer docs bundle</a></li>
               <li><a class="docsInlineLink" href="/README.md" target="_blank" rel="noopener">Repository overview and startup guide</a></li>
+              <li><a class="docsInlineLink" href="/docs/flss-metaobject-migration.md" target="_blank" rel="noopener">Developer migration notes</a></li>
             </ul>
           </article>
         </div>
@@ -2821,7 +2837,10 @@
           <li><strong>Sales Order Workbench</strong> (<span class="docsCode">/flocs</span>) for customer and order capture.</li>
           <li><strong>Inventory Control</strong> (<span class="docsCode">/stock</span>) for stock checks and adjustments.</li>
           <li><strong>Pricing Control Center</strong> (<span class="docsCode">/price-manager</span>) for tier and channel pricing governance.</li>
+          <li><strong>Print Station</strong> (<span class="docsCode">/print-station</span>) for templates, settings, history, and reprints.</li>
+          <li><strong>Traceability</strong> (<span class="docsCode">/traceability</span>) for ingredient and batch lineage records.</li>
           <li><strong>Distribution Network</strong> (<span class="docsCode">/stockists</span>) for agent and retail network records.</li>
+          <li><strong>Year Planner</strong> (<span class="docsCode">/year-planner</span>) for annual planning and scheduling.</li>
         </ul>
       </div>
     </div>

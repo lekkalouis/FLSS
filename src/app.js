@@ -123,7 +123,12 @@ export function createApp() {
   app.use("/api", stockistAdminRouter);
   app.use("/api/v1", (_req, res) => res.status(404).json({ error: "Not found" }));
 
-  const publicDir = path.join(__dirname, "..", "public");
+  const repoRootDir = path.join(__dirname, "..");
+  const publicDir = path.join(repoRootDir, "public");
+  const docsDir = path.join(repoRootDir, "docs");
+
+  app.use("/docs", express.static(docsDir));
+  app.get("/README.md", (_req, res) => res.sendFile(path.join(repoRootDir, "README.md")));
   app.use(express.static(publicDir));
   app.get("*", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
 
