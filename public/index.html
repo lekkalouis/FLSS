@@ -265,33 +265,26 @@
       align-items:stretch;
     }
     .flNavGroup{
-      flex-direction:row;
+      flex-direction:column;
       flex-wrap:nowrap;
-      overflow-x:auto;
+      overflow:visible;
       width:100%;
       padding-bottom:.2rem;
-      scrollbar-width:thin;
     }
     .flNavBtn{
-      flex:0 0 auto;
-      min-width:180px;
-      justify-content:center;
+      flex:1 1 auto;
+      width:100%;
+      min-width:0;
+      justify-content:flex-start;
     }
     body.flNavCollapsed .flSide{
       width:100%;
       min-width:0;
       max-width:none;
+      overflow:visible;
     }
-    body.flNavCollapsed .flNavTitle,
-    body.flNavCollapsed .flNavBtnText,
-    body.flNavCollapsed .flNavStatus{
-      display:initial;
-    }
-    body.flNavCollapsed .flNavStatus{
-      display:flex;
-    }
-    body.flNavCollapsed .flNavBtn{
-      padding:.55rem .9rem;
+    body.flNavCollapsed .flNav{
+      display:none;
     }
   }
   .actionFlash{
