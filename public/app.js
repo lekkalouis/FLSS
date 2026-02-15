@@ -6,6 +6,8 @@ import { initModuleDashboard } from "./views/dashboard.js";
 import { initContactsView } from "./views/contacts.js";
 import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
 import { initStockistsView } from "./views/stockists.js";
+import { initOrderEconomicsView } from "./views/order-economics.js";
+import { initAdminCostsView } from "./views/admin-costs.js";
 
 (() => {
   "use strict";
@@ -101,6 +103,8 @@ import { initStockistsView } from "./views/stockists.js";
   const navPriceManager = $("navPriceManager");
   const navTraceability = $("navTraceability");
   const navStockists = $("navStockists");
+  const navOrderEconomics = $("navOrderEconomics");
+  const navAdminCosts = $("navAdminCosts");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
@@ -114,6 +118,8 @@ import { initStockistsView } from "./views/stockists.js";
   const viewPriceManager = $("viewPriceManager");
   const viewTraceability = $("viewTraceability");
   const viewStockists = $("viewStockists");
+  const viewOrderEconomics = $("viewOrderEconomics");
+  const viewAdminCosts = $("viewAdminCosts");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -3930,6 +3936,8 @@ async function startOrder(orderNo) {
     const showPriceManager = view === "price-manager";
     const showTraceability = view === "traceability";
     const showStockists = view === "stockists";
+    const showOrderEconomics = view === "order-economics";
+    const showAdminCosts = view === "admin-costs";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3979,6 +3987,14 @@ async function startOrder(orderNo) {
       viewStockists.hidden = !showStockists;
       viewStockists.classList.toggle("flView--active", showStockists);
     }
+    if (viewOrderEconomics) {
+      viewOrderEconomics.hidden = !showOrderEconomics;
+      viewOrderEconomics.classList.toggle("flView--active", showOrderEconomics);
+    }
+    if (viewAdminCosts) {
+      viewAdminCosts.hidden = !showAdminCosts;
+      viewAdminCosts.classList.toggle("flView--active", showAdminCosts);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
@@ -3992,6 +4008,8 @@ async function startOrder(orderNo) {
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
     navStockists?.classList.toggle("flNavBtn--active", showStockists);
+    navOrderEconomics?.classList.toggle("flNavBtn--active", showOrderEconomics);
+    navAdminCosts?.classList.toggle("flNavBtn--active", showAdminCosts);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navFulfillmentHistory?.setAttribute("aria-selected", showFulfillmentHistory ? "true" : "false");
@@ -4004,6 +4022,8 @@ async function startOrder(orderNo) {
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
     navTraceability?.setAttribute("aria-selected", showTraceability ? "true" : "false");
     navStockists?.setAttribute("aria-selected", showStockists ? "true" : "false");
+    navOrderEconomics?.setAttribute("aria-selected", showOrderEconomics ? "true" : "false");
+    navAdminCosts?.setAttribute("aria-selected", showAdminCosts ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
@@ -4032,6 +4052,10 @@ async function startOrder(orderNo) {
       statusExplain("Traceability tools ready.", "info");
     } else if (showStockists) {
       statusExplain("Distribution network ready.", "info");
+    } else if (showOrderEconomics) {
+      statusExplain("Order economics analytics ready.", "info");
+    } else if (showAdminCosts) {
+      statusExplain("Cost ledger admin ready.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -4050,7 +4074,9 @@ async function startOrder(orderNo) {
     ["/stock", "stock"],
     ["/price-manager", "price-manager"],
 ["/traceability", "traceability"],
-    ["/stockists", "stockists"]
+    ["/stockists", "stockists"],
+    ["/dashboard/analytics/order-economics", "order-economics"],
+    ["/admin/costs", "admin-costs"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -4065,7 +4091,9 @@ async function startOrder(orderNo) {
     stock: "/stock",
     "price-manager": "/price-manager",
     traceability: "/traceability",
-    stockists: "/stockists"
+    stockists: "/stockists",
+    "order-economics": "/dashboard/analytics/order-economics",
+    "admin-costs": "/admin/costs"
   };
 
   const viewInitializers = {
@@ -4073,7 +4101,9 @@ async function startOrder(orderNo) {
     stock: initStockView,
     "price-manager": initPriceManagerView,
     traceability: initTraceabilityView,
-    stockists: initStockistsView
+    stockists: initStockistsView,
+    "order-economics": () => initOrderEconomicsView({ mount: viewOrderEconomics, apiBase: API_BASE }),
+    "admin-costs": () => initAdminCostsView({ mount: viewAdminCosts, apiBase: API_BASE })
   };
   const contactsView = initContactsView({
     state: contactsState,

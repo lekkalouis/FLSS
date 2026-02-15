@@ -152,6 +152,50 @@ UI_FEATURE_MULTI_SHIP=true
 
 ---
 
+
+## Database setup (required for Order Economics + existing modules)
+
+If your database is empty, install the **full existing schema**:
+
+```bash
+export DATABASE_URL=postgres://<user>:<pass>@<host>:5432/<db>
+export DATABASE_SSL=true
+npm run db:setup
+```
+
+This applies `db/schema.sql`, including all existing FLSS tables and the Order Economics tables:
+
+- `flss_cost_categories` (seeded defaults)
+- `flss_cost_ledger`
+- `flss_kpi_snapshots`
+
+### Verify installation
+
+```bash
+psql "$DATABASE_URL" -c "\dt"
+psql "$DATABASE_URL" -c "SELECT code, label FROM flss_cost_categories ORDER BY code;"
+```
+
+### Usage quick-start (Order Economics)
+
+1. Start the app:
+   ```bash
+   npm run dev
+   ```
+2. Add monthly/per-order costs from UI at `/admin/costs`.
+3. Load KPIs from `/dashboard/analytics/order-economics`.
+4. Optional API checks:
+   ```bash
+   curl "http://localhost:3000/api/v1/costs?month=2026-02"
+   curl "http://localhost:3000/api/v1/analytics/order-economics?period=month&month=2026-02"
+   ```
+
+### Troubleshooting
+
+- `Database not configured`: set `DATABASE_URL` (and `DATABASE_SSL` if required by host).
+- `psql: command not found`: install PostgreSQL client tools before running setup script.
+- Empty KPI cost breakdown: ensure entries exist in `flss_cost_ledger` for selected month.
+
 ## Run locally
 
 ```bash

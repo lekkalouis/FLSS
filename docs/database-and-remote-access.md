@@ -27,7 +27,7 @@ Use the SQL file in this repo:
 Apply it with:
 
 ```bash
-psql "$DATABASE_URL" -f db/schema.sql
+npm run db:setup
 ```
 
 What it creates:
@@ -48,7 +48,7 @@ What it creates:
 4. Save it as `DATABASE_URL` in your server environment.
 5. Run schema:
    ```bash
-   psql "$DATABASE_URL" -f db/schema.sql
+   npm run db:setup
    ```
 
 ### Option B: Self-host PostgreSQL on Ubuntu
@@ -73,7 +73,7 @@ Connect/apply schema:
 
 ```bash
 export DATABASE_URL='postgres://flss_app:REPLACE_ME_STRONG_PASSWORD@127.0.0.1:5432/flss_prod'
-psql "$DATABASE_URL" -f db/schema.sql
+npm run db:setup
 ```
 
 ---
@@ -84,7 +84,7 @@ Add these to your server `.env` (or secrets manager):
 
 ```bash
 DATABASE_URL=postgres://flss_app:...@db-host:5432/flss_prod?sslmode=require
-DB_SSL=true
+DATABASE_SSL=true
 ```
 
 Keep existing integrations (Shopify, PrintNode, SMTP, ParcelPerfect) unchanged.
@@ -111,17 +111,52 @@ Suggested migration approach:
 
 ---
 
-## 6) Remote access tunnel (recommended: Cloudflare Tunnel)
+## 6) FLSS database usage (Order Economics)
+
+After DB setup, Order Economics relies on the following:
+
+- `flss_cost_categories`: seeded default categories
+- `flss_cost_ledger`: monthly + per-order costs
+- `flss_kpi_snapshots`: scheduled KPI history
+
+### Typical workflow
+
+1. Ensure app env includes:
+   ```bash
+   DATABASE_URL=postgres://...
+   DATABASE_SSL=true
+   FLSS_STAFF_HOURLY_RATE=0
+   ```
+2. Start server (`npm run dev`).
+3. Enter costs in `/admin/costs` or POST to `/api/v1/costs`.
+4. Query monthly totals via `/api/v1/costs?month=YYYY-MM`.
+5. View computed KPIs at `/api/v1/analytics/order-economics` and dashboard page.
+
+### Useful SQL checks
+
+```sql
+SELECT month, cost_category, SUM(amount_zar) AS total
+FROM flss_cost_ledger
+GROUP BY month, cost_category
+ORDER BY month DESC, cost_category;
+
+SELECT date, total_orders, avg_sale_price, cost_per_order, margin_percent
+FROM flss_kpi_snapshots
+ORDER BY created_at DESC
+LIMIT 30;
+```
+
+## 7) Remote access tunnel (recommended: Cloudflare Tunnel)
 
 Cloudflare Tunnel gives stable secure access without opening inbound firewall ports.
 
-### 6.1 Create account + domain
+### 7.1 Create account + domain
 
 1. Sign up at Cloudflare.
 2. Add your domain to Cloudflare DNS.
 3. Point registrar nameservers to Cloudflare (if prompted).
 
-### 6.2 Install `cloudflared`
+### 7.2 Install `cloudflared`
 
 Ubuntu/Debian example:
 
@@ -131,7 +166,7 @@ sudo dpkg -i cloudflared-linux-amd64.deb
 cloudflared --version
 ```
 
-### 6.3 Authenticate machine
+### 7.3 Authenticate machine
 
 ```bash
 cloudflared tunnel login
@@ -141,7 +176,7 @@ cloudflared tunnel login
 - Choose your domain.
 - Cloudflare stores cert at `~/.cloudflared/`.
 
-### 6.4 Create tunnel
+### 7.4 Create tunnel
 
 ```bash
 cloudflared tunnel create flss-prod
@@ -149,7 +184,7 @@ cloudflared tunnel create flss-prod
 
 Save returned **Tunnel UUID**.
 
-### 6.5 Create config file
+### 7.5 Create config file
 
 `~/.cloudflared/config.yml`
 
@@ -163,13 +198,13 @@ ingress:
   - service: http_status:404
 ```
 
-### 6.6 Route DNS to tunnel
+### 7.6 Route DNS to tunnel
 
 ```bash
 cloudflared tunnel route dns flss-prod flss.yourdomain.com
 ```
 
-### 6.7 Run test
+### 7.7 Run test
 
 ```bash
 cloudflared tunnel run flss-prod
@@ -177,7 +212,7 @@ cloudflared tunnel run flss-prod
 
 Open `https://flss.yourdomain.com` and verify app loads.
 
-### 6.8 Install as service (auto restart)
+### 7.8 Install as service (auto restart)
 
 ```bash
 sudo cloudflared service install
@@ -185,7 +220,7 @@ sudo systemctl enable --now cloudflared
 sudo systemctl status cloudflared
 ```
 
-### 6.9 Maintenance
+### 7.9 Maintenance
 
 - Update binary monthly:
   ```bash
@@ -200,7 +235,7 @@ sudo systemctl status cloudflared
 
 ---
 
-## 7) Alternative tunnel (ngrok)
+## 8) Alternative tunnel (ngrok)
 
 Use this if you want quick testing.
 
@@ -221,7 +256,7 @@ For long-running production endpoints, Cloudflare Tunnel is usually more stable 
 
 ---
 
-## 8) Production hardening checklist
+## 9) Production hardening checklist
 
 - Run FLSS behind process manager (`pm2` or systemd).
 - Enforce HTTPS at tunnel edge.
@@ -232,11 +267,11 @@ For long-running production endpoints, Cloudflare Tunnel is usually more stable 
 
 ---
 
-## 9) Quick command checklist
+## 10) Quick command checklist
 
 ```bash
 # 1) Apply schema
-psql "$DATABASE_URL" -f db/schema.sql
+npm run db:setup
 
 # 2) Start app (example)
 npm ci

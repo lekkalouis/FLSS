@@ -1,9 +1,11 @@
 import { config } from "./src/config.js";
 import { createApp } from "./src/app.js";
+import { startOrderEconomicsCron, stopOrderEconomicsCron } from "./src/services/order-economics-cron.js";
 
 const { app, allowAllOrigins, allowedOrigins } = createApp();
 
 const server = app.listen(config.PORT, config.HOST, () => {
+  startOrderEconomicsCron();
   const hostLabel = config.HOST === "0.0.0.0" ? "all interfaces" : config.HOST;
   const shopifyConfigured = Boolean(
     config.SHOPIFY_STORE && config.SHOPIFY_CLIENT_ID && config.SHOPIFY_CLIENT_SECRET
@@ -29,6 +31,7 @@ function shutdown(signal) {
       console.error("Error while closing server:", err);
       process.exit(1);
     }
+    stopOrderEconomicsCron();
     process.exit(0);
   });
 }
