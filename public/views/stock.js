@@ -43,14 +43,52 @@ export function initStockView() {
   const poCreateBatch = document.getElementById("po-createBatch");
   const poClearLines = document.getElementById("po-clearLines");
   const poBatchList = document.getElementById("po-batchList");
+  const poIconPicker = document.getElementById("po-iconPicker");
 
   const RAW_MATERIALS = [
-    { sku: "RM-BASE-ORIG", title: "Original base blend (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
-    { sku: "RM-BASE-HOT", title: "Hot & spicy base blend (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
-    { sku: "RM-PACK-200", title: "200ml shaker packs (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
-    { sku: "RM-PACK-500", title: "500g pouches (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
-    { sku: "RM-LABEL", title: "Product labels (Draft)", variantId: null, isRawMaterial: true, isDraft: true }
+    { sku: "RM-LABEL-FLIP-CORE", title: "Labels — Flippen Lekka core range", variantId: null, isRawMaterial: true, isDraft: true, icon: "🏷️", shortName: "LBL-CORE", category: "labels", group: "Labels" },
+    { sku: "RM-LABEL-FLAVOR", title: "Labels — flavor variant labels", variantId: null, isRawMaterial: true, isDraft: true, icon: "🏷️", shortName: "LBL-FLV", category: "labels", group: "Labels" },
+
+    { sku: "RM-BOX-BOTTLES", title: "Carton box of bottles", variantId: null, isRawMaterial: true, isDraft: true, icon: "🍾", shortName: "BOT", category: "bottles", group: "Bottles & Caps" },
+    { sku: "RM-CAPS-RED", title: "Cap box — red caps", variantId: null, isRawMaterial: true, isDraft: true, icon: "🔴", shortName: "CAP-R", category: "caps", group: "Bottles & Caps" },
+    { sku: "RM-CAPS-BROWN", title: "Cap box — brown caps", variantId: null, isRawMaterial: true, isDraft: true, icon: "🟤", shortName: "CAP-BR", category: "caps", group: "Bottles & Caps" },
+    { sku: "RM-CAPS-ORANGE", title: "Cap box — orange caps", variantId: null, isRawMaterial: true, isDraft: true, icon: "🟠", shortName: "CAP-O", category: "caps", group: "Bottles & Caps" },
+    { sku: "RM-CAPS-BLUE", title: "Cap box — blue caps", variantId: null, isRawMaterial: true, isDraft: true, icon: "🔵", shortName: "CAP-BL", category: "caps", group: "Bottles & Caps" },
+
+    { sku: "RM-SUBASM-SPICE-BASE", title: "Subassembly — spice base pre-mix", variantId: null, isRawMaterial: true, isDraft: true, icon: "🧪", shortName: "SUB-BASE", category: "subassembly", group: "Subassemblies / WIP" },
+    { sku: "RM-WIP-BATCH-HOLD", title: "Work in progress — held blend batch", variantId: null, isRawMaterial: true, isDraft: true, icon: "⚗️", shortName: "WIP-HOLD", category: "wip", group: "Subassemblies / WIP" },
+
+    { sku: "RM-BAG-CINNAMON", title: "Bag of cinnamon sticks", variantId: null, isRawMaterial: true, isDraft: true, icon: "🪵", shortName: "CIN", category: "spice", group: "Spices & Herbs" },
+    { sku: "RM-BAG-BAY", title: "Bag of bay leaves", variantId: null, isRawMaterial: true, isDraft: true, icon: "🍃", shortName: "BAY", category: "herb", group: "Spices & Herbs" },
+
+    { sku: "RM-SPICE-ORANGE-MPWSCSSH", title: "Orange spice bag — MPWSCSSH blend", variantId: null, isRawMaterial: true, isDraft: true, icon: "🟧", shortName: "MPWSCSSH", category: "blend", group: "Custom Blends" },
+    { sku: "RM-SPICE-ORANGE-MPWSC", title: "Orange spice bag — MPWSC blend", variantId: null, isRawMaterial: true, isDraft: true, icon: "🟧", shortName: "MPWSC", category: "blend", group: "Custom Blends" },
+
+    { sku: "RM-SPICE-ORANGE-ORIG", title: "Orange spice bag — Original in-house blend", variantId: null, isRawMaterial: true, isDraft: true, icon: "🟧", shortName: "ORIG", category: "blend", group: "In-house Blends" },
+    { sku: "RM-SPICE-ORANGE-HOT", title: "Orange spice bag — Hot in-house blend", variantId: null, isRawMaterial: true, isDraft: true, icon: "🟧", shortName: "HOT", category: "blend", group: "In-house Blends" },
+
+    { sku: "RM-PACK-BOX-S", title: "Empty cartons — small", variantId: null, isRawMaterial: true, isDraft: true, icon: "📦", shortName: "BOX-S", category: "packaging", group: "Packaging" },
+    { sku: "RM-PACK-BOX-M", title: "Empty cartons — medium", variantId: null, isRawMaterial: true, isDraft: true, icon: "📦", shortName: "BOX-M", category: "packaging", group: "Packaging" },
+    { sku: "RM-PACK-BOX-L", title: "Empty cartons — large", variantId: null, isRawMaterial: true, isDraft: true, icon: "📦", shortName: "BOX-L", category: "packaging", group: "Packaging" },
+    { sku: "RM-PACK-TAPE", title: "Packaging tape", variantId: null, isRawMaterial: true, isDraft: true, icon: "🧻", shortName: "TAPE", category: "packaging", group: "Packaging" },
+    { sku: "RM-PACK-PAPER", title: "Packaging paper", variantId: null, isRawMaterial: true, isDraft: true, icon: "📜", shortName: "PAPER", category: "packaging", group: "Packaging" },
+    { sku: "RM-VAC-500G", title: "Vacuum bag — 500g", variantId: null, isRawMaterial: true, isDraft: true, icon: "🛍️", shortName: "VAC-500", category: "packaging", group: "Packaging" },
+    { sku: "RM-VAC-1KG", title: "Vacuum bag — 1kg", variantId: null, isRawMaterial: true, isDraft: true, icon: "🛍️", shortName: "VAC-1KG", category: "packaging", group: "Packaging" },
+    { sku: "RM-TUB-750G-1L", title: "Tub — 750g (1L)", variantId: null, isRawMaterial: true, isDraft: true, icon: "🫙", shortName: "TUB-750", category: "packaging", group: "Packaging" },
+    { sku: "RM-TUB-280ML-CLEAR", title: "Clear tub — 280ml (curry mix)", variantId: null, isRawMaterial: true, isDraft: true, icon: "🥣", shortName: "TUB-280", category: "packaging", group: "Packaging" }
   ];
+
+  const RAW_MATERIAL_GROUP_ORDER = [
+    "Labels",
+    "Bottles & Caps",
+    "Subassemblies / WIP",
+    "Spices & Herbs",
+    "Custom Blends",
+    "In-house Blends",
+    "Packaging"
+  ];
+
+
 
   const finishedGoods = PRODUCT_LIST.filter((item) => !item.isRawMaterial);
   const rawMaterials = RAW_MATERIALS;
@@ -212,7 +250,7 @@ export function initStockView() {
   function renderMrpSkuOptions() {
     if (!mrpSkuSelect) return;
     mrpSkuSelect.innerHTML = finishedGoods
-      .map((item) => `<option value="${item.sku}">${item.sku} — ${item.title}</option>`)
+      .map((item) => `<option value="${item.sku}">${item.icon || "📦"} ${item.shortName ? `[${item.shortName}] ` : ""}${item.sku} — ${item.title}</option>`)
       .join("");
   }
 
@@ -243,8 +281,64 @@ export function initStockView() {
 
   function renderPoSkuOptions() {
     if (!poSkuSelect) return;
-    poSkuSelect.innerHTML = rawMaterials
-      .map((item) => `<option value="${item.sku}">${item.sku} — ${item.title}</option>`)
+    const grouped = new Map();
+    RAW_MATERIAL_GROUP_ORDER.forEach((group) => grouped.set(group, []));
+    rawMaterials.forEach((item) => {
+      const group = item.group || "Other";
+      if (!grouped.has(group)) grouped.set(group, []);
+      grouped.get(group).push(item);
+    });
+
+    poSkuSelect.innerHTML = Array.from(grouped.entries())
+      .filter(([, list]) => list.length)
+      .map(([group, list]) => `
+        <optgroup label="${group}">
+          ${list.map((item) => `<option value="${item.sku}">${item.icon || "📦"} ${item.shortName ? `[${item.shortName}] ` : ""}${item.sku} — ${item.title}</option>`).join("")}
+        </optgroup>
+      `)
+      .join("");
+  }
+
+  function addPoLine(sku, qty = 1) {
+    if (!sku) return;
+    const safeQty = Number(qty);
+    if (!Number.isFinite(safeQty) || safeQty <= 0) return;
+    const existing = poDraftLines.find((line) => line.sku === sku);
+    if (existing) {
+      existing.qty += safeQty;
+    } else {
+      poDraftLines.push({ sku, qty: safeQty });
+    }
+    renderPoDraftLines();
+  }
+
+  function renderPoIconPicker() {
+    if (!poIconPicker) return;
+    const grouped = new Map();
+    RAW_MATERIAL_GROUP_ORDER.forEach((group) => grouped.set(group, []));
+    rawMaterials.forEach((item) => {
+      const group = item.group || "Other";
+      if (!grouped.has(group)) grouped.set(group, []);
+      grouped.get(group).push(item);
+    });
+
+    poIconPicker.innerHTML = Array.from(grouped.entries())
+      .filter(([, list]) => list.length)
+      .map(([group, list]) => `
+        <section class="stock-iconGroup">
+          <h5 class="stock-iconGroupTitle">${group}</h5>
+          <div class="stock-iconGroupGrid">
+            ${list
+              .map((item) => `
+                <button type="button" class="stock-rmIconBtn" data-rm-sku="${item.sku}" title="${item.title}">
+                  <span class="stock-rmIconGlyph">${item.icon || "📦"}</span>
+                  <span class="stock-rmIconCode">${item.shortName || item.sku}</span>
+                </button>
+              `)
+              .join("")}
+          </div>
+        </section>
+      `)
       .join("");
   }
 
@@ -1016,15 +1110,15 @@ export function initStockView() {
     poAddLine?.addEventListener("click", () => {
       const sku = poSkuSelect?.value;
       const qty = Number(poSkuQty?.value);
-      if (!sku || !Number.isFinite(qty) || qty <= 0) return;
-      const existing = poDraftLines.find((line) => line.sku === sku);
-      if (existing) {
-        existing.qty += qty;
-      } else {
-        poDraftLines.push({ sku, qty });
-      }
+      addPoLine(sku, qty);
       if (poSkuQty) poSkuQty.value = "";
-      renderPoDraftLines();
+    });
+
+    poIconPicker?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-rm-sku]");
+      if (!button) return;
+      const sku = button.dataset.rmSku;
+      addPoLine(sku, 1);
     });
 
     poLinesTable?.addEventListener("click", (event) => {
@@ -1129,6 +1223,7 @@ export function initStockView() {
   loadMrpState();
   renderMrpSkuOptions();
   renderPoSkuOptions();
+  renderPoIconPicker();
   renderDraftLines();
   renderPoDraftLines();
   renderMrpBatches();
