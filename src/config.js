@@ -30,6 +30,7 @@ export const config = {
 
   PRINTNODE_API_KEY: process.env.PRINTNODE_API_KEY,
   PRINTNODE_PRINTER_ID: process.env.PRINTNODE_PRINTER_ID,
+  CUSTOMER_DOCS_DIR: process.env.CUSTOMER_DOCS_DIR,
 
   SMTP_HOST: process.env.SMTP_HOST,
   SMTP_PORT: process.env.SMTP_PORT || 587,
