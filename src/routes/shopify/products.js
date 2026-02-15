@@ -7,6 +7,7 @@ import {
   updateVariantPrice,
   upsertVariantPriceTiers
 } from "../../services/shopify.js";
+import { linkMetaobjectToResource, upsertSkuMaster } from "../../services/flssMeta.js";
 import { badRequest } from "../../utils/http.js";
 import {
   parsePageInfo,
@@ -341,6 +342,21 @@ router.post("/shopify/variants/price-tiers", async (req, res) => {
 
         const metaResp = await upsertVariantPriceTiers(variantId, cleaned);
         const metaOk = metaResp.ok;
+
+        try {
+          const skuObj = await upsertSkuMaster({
+            id: variantId,
+            sku: update?.sku || `variant-${variantId}`,
+            weight_grams: update?.weightGrams,
+            volume_cm3: update?.volumeCm3,
+            packaging_type: update?.packagingType
+          });
+          if (skuObj?.id) {
+            await linkMetaobjectToResource("variant", variantId, "sku_master_ref", skuObj.id);
+          }
+        } catch (skuErr) {
+          console.warn("SKU master metaobject warning:", skuErr);
+        }
 
         let publicPriceUpdated = false;
         if (update?.updatePublicPrice) {

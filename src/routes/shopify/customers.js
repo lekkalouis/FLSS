@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import { config } from "../../config.js";
 import { shopifyFetch } from "../../services/shopify.js";
+import { linkMetaobjectToResource, upsertCustomerProfile } from "../../services/flssMeta.js";
 import { badRequest } from "../../utils/http.js";
 import { requireShopifyConfigured } from "./shared.js";
 
@@ -312,6 +313,21 @@ router.post("/shopify/customers", async (req, res) => {
       vat_number: vatNumber || null,
       tier: normalizedTier || null
     });
+
+    try {
+      const profile = await upsertCustomerProfile(customer.id, {
+        tier: normalizedTier || null,
+        price_group: normalizedTier || null,
+        delivery_method: deliveryMethod || null,
+        parcelperfect_place_code: null
+      });
+      if (profile?.id) {
+        await linkMetaobjectToResource("customer", customer.id, "profile_ref", profile.id);
+      }
+    } catch (profileErr) {
+      console.warn("Customer profile metaobject warning:", profileErr);
+    }
+
     return res.json({ ok: true, customer });
   } catch (err) {
     console.error("Shopify customer create error:", err);

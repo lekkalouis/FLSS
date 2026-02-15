@@ -2,6 +2,12 @@ import { Router } from "express";
 
 import { config } from "../../config.js";
 import { fetchVariantPriceTiers, shopifyFetch } from "../../services/shopify.js";
+import {
+  createCourierBooking,
+  createDispatchState,
+  createPackingPlan,
+  linkMetaobjectToResource
+} from "../../services/flssMeta.js";
 import { badRequest } from "../../utils/http.js";
 import {
   fetchOrderEstimatedParcels,
@@ -49,6 +55,60 @@ async function ensureCustomerDeliveryType({ base, customerId, shippingMethod }) 
   });
 }
 
+
+
+async function persistOrderMetaobjects({
+  orderId,
+  estimatedParcels,
+  shippingQuoteNo,
+  shippingMethod,
+  shippingService
+}) {
+  if (!orderId) return;
+
+  try {
+    const parcelCount = Number(estimatedParcels);
+    const packingPlan = await createPackingPlan(orderId, {
+      parcels_json: {
+        estimated_parcels: Number.isFinite(parcelCount) ? Math.round(parcelCount) : null
+      },
+      confidence_score: Number.isFinite(parcelCount) ? 0.5 : 0,
+      generated_by: "order-create"
+    });
+    if (packingPlan?.id) {
+      await linkMetaobjectToResource("order", orderId, "packing_plan_ref", packingPlan.id);
+    }
+
+    const dispatchState = await createDispatchState(orderId, {
+      lane: shippingMethod || "shipping",
+      packed: false,
+      booked: false,
+      fulfilled: false,
+      scan_station_state: {
+        shipping_method: shippingMethod || null,
+        shipping_service: shippingService || null,
+        shipping_quote_no: shippingQuoteNo || null
+      }
+    });
+    if (dispatchState?.id) {
+      await linkMetaobjectToResource("order", orderId, "dispatch_state_ref", dispatchState.id);
+    }
+
+    if (shippingQuoteNo) {
+      const courierBooking = await createCourierBooking(orderId, {
+        courier_name: shippingService || "Unknown",
+        waybill_number: shippingQuoteNo,
+        service_level: shippingMethod || "shipping",
+        booking_status: "quoted"
+      });
+      if (courierBooking?.id) {
+        await linkMetaobjectToResource("order", orderId, "courier_booking_ref", courierBooking.id);
+      }
+    }
+  } catch (err) {
+    console.warn("Order metaobject persistence warning:", err);
+  }
+}
 router.post("/shopify/draft-orders", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -238,6 +298,15 @@ router.post("/shopify/draft-orders", async (req, res) => {
     }
 
     const d = data.draft_order || {};
+    if (d.id) {
+      await persistOrderMetaobjects({
+        orderId: d.id,
+        estimatedParcels,
+        shippingQuoteNo,
+        shippingMethod,
+        shippingService
+      });
+    }
     const adminUrl = d.id
       ? `https://${config.SHOPIFY_STORE}.myshopify.com/admin/draft_orders/${d.id}`
       : null;
@@ -292,6 +361,13 @@ router.post("/shopify/draft-orders/complete", async (req, res) => {
     }
 
     const order = data.order || null;
+    if (order?.id) {
+      await persistOrderMetaobjects({
+        orderId: order.id,
+        shippingMethod: "shipping",
+        shippingService: "draft-order-complete"
+      });
+    }
     return res.json({
       ok: true,
       order: order ? { id: order.id, name: order.name, orderNumber: order.order_number } : null
@@ -469,6 +545,15 @@ router.post("/shopify/orders", async (req, res) => {
     }
 
     const order = data.order || {};
+    if (order.id) {
+      await persistOrderMetaobjects({
+        orderId: order.id,
+        estimatedParcels,
+        shippingQuoteNo,
+        shippingMethod,
+        shippingService
+      });
+    }
     return res.json({
       ok: true,
       order: {
@@ -544,6 +629,13 @@ router.post("/shopify/orders/cash", async (req, res) => {
     }
 
     const order = data.order || null;
+    if (order?.id) {
+      await persistOrderMetaobjects({
+        orderId: order.id,
+        shippingMethod: "pos",
+        shippingService: "cash-sale"
+      });
+    }
     return res.json({
       ok: true,
       order: order ? { id: order.id, name: order.name, orderNumber: order.order_number } : null
@@ -658,6 +750,13 @@ router.post("/shopify/orders/parcel-count", async (req, res) => {
       return badRequest(res, "parcelCount must be a non-negative integer");
     }
 
+    await persistOrderMetaobjects({
+      orderId,
+      estimatedParcels: parsed,
+      shippingMethod: "shipping"
+    });
+
+    // Backward-compatible fallback for older reads still using custom.parcel_count
     const existing = await fetchOrderParcelMetafield(base, orderId);
     if (existing?.id) {
       const updateResp = await shopifyFetch(`${base}/metafields/${existing.id}.json`, {
@@ -679,7 +778,7 @@ router.post("/shopify/orders/parcel-count", async (req, res) => {
           body
         });
       }
-      return res.json({ ok: true, parcelCount: parsed });
+      return res.json({ ok: true, parcelCount: parsed, persistedIn: "metaobject+metafield" });
     }
 
     const createResp = await shopifyFetch(`${base}/orders/${orderId}/metafields.json`, {
@@ -703,7 +802,7 @@ router.post("/shopify/orders/parcel-count", async (req, res) => {
       });
     }
 
-    return res.json({ ok: true, parcelCount: parsed });
+    return res.json({ ok: true, parcelCount: parsed, persistedIn: "metaobject+metafield" });
   } catch (err) {
     console.error("Shopify parcel-count error:", err);
     return res.status(502).json({

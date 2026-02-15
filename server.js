@@ -1,5 +1,9 @@
 import { config } from "./src/config.js";
 import { createApp } from "./src/app.js";
+import {
+  ensureMetafieldDefinitions,
+  ensureMetaobjectDefinitions
+} from "./src/services/flssMeta.js";
 
 const { app, allowAllOrigins, allowedOrigins } = createApp();
 
@@ -20,6 +24,16 @@ const server = app.listen(config.PORT, config.HOST, () => {
   console.log(`Allowed origins: ${allowAllOrigins ? "*" : [...allowedOrigins].join(", ") || "(none)"}`);
   console.log("PP_BASE_URL:", config.PP_BASE_URL || "(NOT SET)");
   console.log("Shopify configured:", shopifyConfigured);
+
+  if (shopifyConfigured) {
+    Promise.all([ensureMetaobjectDefinitions(), ensureMetafieldDefinitions()])
+      .then(() => {
+        console.log("FLSS Shopify metaobject/metafield definitions verified.");
+      })
+      .catch((err) => {
+        console.warn("FLSS Shopify definitions bootstrap skipped:", String(err?.message || err));
+      });
+  }
 });
 
 function shutdown(signal) {
