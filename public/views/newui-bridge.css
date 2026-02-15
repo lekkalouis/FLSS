@@ -1,0 +1,129 @@
+:root {
+  --flss-sidebar-bg: #1b2432;
+  --flss-sidebar-panel: #222e40;
+  --flss-sidebar-border: rgba(255, 255, 255, 0.09);
+  --flss-sidebar-text: rgba(229, 236, 246, 0.82);
+  --flss-sidebar-text-strong: #ffffff;
+  --flss-primary: #2d6cdf;
+  --flss-body-bg: #f5f7fb;
+  --flss-card-border: #d9e1ec;
+}
+
+body.newui-shell {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--flss-body-bg);
+  color: #263443;
+}
+
+.flLayout {
+  background: var(--flss-body-bg);
+}
+
+.flSide {
+  background: linear-gradient(180deg, var(--flss-sidebar-panel) 0%, var(--flss-sidebar-bg) 100%);
+  border: 0;
+  border-right: 1px solid var(--flss-sidebar-border);
+  box-shadow: none;
+}
+
+.flSideHeader {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.75rem;
+}
+
+.flNavTitle {
+  color: var(--flss-sidebar-text-strong);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.navToggle {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #dce8fa;
+}
+
+.flNavBtn {
+  border: 0;
+  background: transparent;
+  color: var(--flss-sidebar-text);
+  border-radius: 0.4rem;
+  font-size: 0.79rem;
+  font-weight: 500;
+  padding: 0.58rem 0.7rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.flNavBtnIcon {
+  width: 1.25rem;
+  font-size: 0.9rem;
+}
+
+.flNavBtn:hover {
+  color: var(--flss-sidebar-text-strong);
+  background: rgba(45, 108, 223, 0.2);
+  box-shadow: none;
+  transform: none;
+}
+
+.flNavBtn--active {
+  background: linear-gradient(90deg, rgba(45, 108, 223, 0.35), rgba(45, 108, 223, 0.1));
+  border-left: 3px solid var(--flss-primary);
+  color: var(--flss-sidebar-text-strong);
+  box-shadow: none;
+}
+
+.statusChip {
+  font-size: 0.71rem;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #eef4ff;
+}
+
+.flMain {
+  background: var(--flss-body-bg);
+}
+
+.sharedStickyHeader,
+.dashboardShell,
+.shell,
+.pm-shell,
+.wa-shell,
+.moduleCard,
+.kpiCard {
+  border-radius: 0.5rem !important;
+  border: 1px solid var(--flss-card-border) !important;
+  box-shadow: 0 2px 12px rgba(23, 40, 77, 0.06) !important;
+  background: #fff !important;
+}
+
+.dashboardHeader h1,
+.appsHeader h2,
+.pm-title,
+h1,
+h2,
+h3 {
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+.kpiValue {
+  color: #1f2d3d;
+}
+
+.moduleOpenBtn {
+  background: var(--flss-primary);
+  color: #fff;
+  border-color: var(--flss-primary);
+  border-radius: 0.35rem;
+}
+
+.todoWidget {
+  border-radius: 0.5rem;
+  border: 1px solid #30445d;
+}
+
+.slotEgg {
+  display: none !important;
+}

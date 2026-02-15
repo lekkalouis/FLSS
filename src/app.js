@@ -122,6 +122,8 @@ export function createApp() {
   app.use("/api/v1", (_req, res) => res.status(404).json({ error: "Not found" }));
 
   const publicDir = path.join(__dirname, "..", "public");
+  const newUiAssetsDir = path.join(__dirname, "..", "NEWUI", "Codebase_app", "src", "assets");
+  app.use("/newui-assets", express.static(newUiAssetsDir));
   app.use(express.static(publicDir));
   app.get("*", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
 

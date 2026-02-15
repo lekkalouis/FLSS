@@ -6,6 +6,7 @@ FLSS is an operations web app for warehouse dispatch, Shopify fulfillment, prici
 
 - **Backend:** Node.js + Express (`server.js`, `src/`)
 - **Frontend:** single-page app served from `public/index.html` + `public/app.js`
+- **UI foundation:** FLSS views are now visually skinned with Codebase (NEWUI template) assets served from `NEWUI/Codebase_app/src/assets` under `/newui-assets`.
 - **API base path:** `/api/v1`
 
 The repository has been trimmed to the current product scope. Legacy standalone page entrypoints (`/pos.html`, `/stock.html`, `/price-manager.html`) have been removed in favor of SPA routes only.
@@ -170,7 +171,8 @@ Open `http://localhost:3000` and navigate modules via the sidebar.
 - `src/config.js` — env-driven config
 - `src/routes/` — API routers
 - `src/services/` — integration services
-- `public/index.html` — SPA shell + views
+- `public/index.html` — SPA shell + views (now includes NEWUI Codebase styling bridge)
+- `public/views/newui-bridge.css` — FLSS-to-Codebase business-theme bridge (icons, typography, surfaces, navigation polish)
 - `public/app.js` — SPA orchestration and route/state logic
 - `public/views/` — modular frontend feature logic/styles
 - `data/` — local JSON stores for pricing + traceability
