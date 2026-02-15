@@ -70,6 +70,15 @@ const MODULES = [
     target: "/price-manager",
     meta: "Revenue governance",
     tag: "Business"
+  },
+  {
+    id: "print-station",
+    title: "Print Station",
+    description: "Run templates, view global print history, adjust print settings, and reprint quickly.",
+    type: "route",
+    target: "/print-station",
+    meta: "Printing operations",
+    tag: "Core"
   }
 ];
 

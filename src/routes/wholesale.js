@@ -5,10 +5,15 @@ import { badRequest } from "../utils/http.js";
 import { renderTemplate, resolveTieredDiscount } from "../services/wholesale/engine.js";
 import {
   deleteDiscountProfile,
+  createPrintHistoryEntry,
   deleteTemplate,
+  getPrintHistoryEntry,
+  getPrintSettings,
   listDiscountProfiles,
+  listPrintHistory,
   listTemplates,
   upsertDiscountProfile,
+  upsertPrintSettings,
   upsertTemplate
 } from "../services/wholesale/store.js";
 
@@ -110,12 +115,15 @@ router.post("/wholesale/templates/:templateId/print", async (req, res) => {
     ? rendered
     : Buffer.from(rendered, "utf8").toString("base64");
 
+  const settings = await getPrintSettings();
+  const title = req.body?.title || template.name;
+  const copies = req.body?.copies || template.copies || settings.copies || 1;
   const result = await sendPrintNodeJob({
     content,
     contentType: template.contentType,
-    title: req.body?.title || template.name,
+    title,
     printerId: template.printerId,
-    copies: req.body?.copies || template.copies || 1
+    copies
   });
 
   if (!result.ok) {
@@ -127,7 +135,104 @@ router.post("/wholesale/templates/:templateId/print", async (req, res) => {
     });
   }
 
+  await createPrintHistoryEntry({
+    mode: "template",
+    templateId: template.id,
+    templateName: template.name,
+    title,
+    contentType: template.contentType,
+    content,
+    copies
+  });
+
   return res.json({ ok: true, rendered, printJob: result.data, template });
+});
+
+router.get("/wholesale/print-settings", async (_req, res) => {
+  const settings = await getPrintSettings();
+  return res.json({ settings });
+});
+
+router.put("/wholesale/print-settings", async (req, res) => {
+  const settings = await upsertPrintSettings(req.body || {});
+  return res.json({ settings });
+});
+
+router.get("/wholesale/print-history", async (_req, res) => {
+  const history = await listPrintHistory();
+  return res.json({ history });
+});
+
+router.post("/wholesale/print-history/reprint", async (req, res) => {
+  const printId = String(req.body?.printId || "");
+  if (!printId) return badRequest(res, "Missing printId");
+  const existing = await getPrintHistoryEntry(printId);
+  if (!existing) return res.status(404).json({ error: "NOT_FOUND" });
+
+  const result = await sendPrintNodeJob({
+    content: existing.content,
+    contentType: existing.contentType,
+    title: existing.title,
+    copies: existing.copies
+  });
+
+  if (!result.ok) {
+    return res.status(result.status || 502).json({
+      error: "PRINTNODE_UPSTREAM",
+      status: result.status,
+      statusText: result.statusText,
+      body: result.body
+    });
+  }
+
+  const historyEntry = await createPrintHistoryEntry({
+    mode: "reprint",
+    templateId: existing.templateId,
+    templateName: existing.templateName,
+    title: existing.title,
+    contentType: existing.contentType,
+    content: existing.content,
+    copies: existing.copies
+  });
+
+  return res.json({ ok: true, historyEntry, printJob: result.data });
+});
+
+router.post("/wholesale/print-drop", async (req, res) => {
+  const pdfBase64 = String(req.body?.pdfBase64 || "").trim();
+  if (!pdfBase64) return badRequest(res, "Missing pdfBase64");
+
+  const settings = await getPrintSettings();
+  const titlePrefix = settings.titlePrefix ? `${settings.titlePrefix} ` : "";
+  const title = String(req.body?.title || `${titlePrefix}Drop Print`).trim();
+  const copies = Math.max(1, Number(req.body?.copies || settings.copies || 1));
+  const content = `data:application/pdf;base64,${pdfBase64}`;
+
+  const result = await sendPrintNodeJob({
+    content,
+    contentType: "pdf_uri",
+    title,
+    copies
+  });
+
+  if (!result.ok) {
+    return res.status(result.status || 502).json({
+      error: "PRINTNODE_UPSTREAM",
+      status: result.status,
+      statusText: result.statusText,
+      body: result.body
+    });
+  }
+
+  const historyEntry = await createPrintHistoryEntry({
+    mode: "drop",
+    title,
+    contentType: "pdf_uri",
+    content,
+    copies
+  });
+
+  return res.json({ ok: true, historyEntry, printJob: result.data });
 });
 
 router.get("/wholesale/discount-profiles", async (_req, res) => {
