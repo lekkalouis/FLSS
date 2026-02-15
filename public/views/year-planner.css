@@ -1,0 +1,106 @@
+.yp-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.yp-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-strong);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-soft);
+  padding: 1rem;
+}
+
+.yp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.yp-meta {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.yp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.yp-field {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.yp-field input,
+.yp-input {
+  border: 1px solid var(--panel-strong);
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.55rem;
+  background: #fff;
+}
+
+.yp-btn {
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  background: linear-gradient(130deg, var(--accent), var(--accent-strong));
+  color: #0f172a;
+  font-weight: 700;
+  padding: 0.52rem 0.75rem;
+}
+
+.yp-btn--secondary {
+  background: var(--panel-muted);
+  border-color: var(--panel-strong);
+  color: var(--text);
+}
+
+.yp-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.yp-kpis article {
+  border: 1px solid var(--panel-strong);
+  border-radius: 0.75rem;
+  background: var(--panel-muted);
+  padding: 0.7rem;
+}
+
+.yp-kpis span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.yp-kpis strong {
+  font-size: 1.05rem;
+}
+
+.yp-table td,
+.yp-table th {
+  vertical-align: middle;
+}
+
+.yp-table .yp-input {
+  width: 100%;
+}
+
+.yp-negative {
+  color: #b91c1c !important;
+}
+
+.yp-positive {
+  color: #166534;
+}

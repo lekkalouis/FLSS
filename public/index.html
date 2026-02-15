@@ -2394,6 +2394,7 @@
   <link rel="stylesheet" href="/views/price-manager.css">
   <link rel="stylesheet" href="/views/traceability.css">
   <link rel="stylesheet" href="/views/stockists.css">
+  <link rel="stylesheet" href="/views/year-planner.css">
 </head>
  <body>
   <div class="flApp">
@@ -2416,6 +2417,7 @@
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Pricing Control Center</span></button>
             <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
             <button id="navStockists" class="flNavBtn" type="button" role="tab" aria-controls="viewStockists" aria-selected="false" data-route="/stockists"><span class="flNavBtnIcon" aria-hidden="true">📍</span><span class="flNavBtnText">Distribution Network</span></button>
+            <button id="navYearPlanner" class="flNavBtn" type="button" role="tab" aria-controls="viewYearPlanner" aria-selected="false" data-route="/year-planner"><span class="flNavBtnIcon" aria-hidden="true">🗓️</span><span class="flNavBtnText">Year Planner</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -3349,6 +3351,50 @@
             </table>
           </section>
         </div>
+      </div>
+    </div>
+
+    <div class="flView" id="viewYearPlanner" hidden>
+      <div class="yp-shell">
+        <section class="yp-card">
+          <div class="yp-toolbar">
+            <div>
+              <h2>Master Year Planner</h2>
+              <p id="ypStatus" class="yp-meta">Plan annual income, expenses, and monthly spending targets.</p>
+            </div>
+            <div class="yp-actions">
+              <label class="yp-field">
+                <span>Year</span>
+                <input id="ypYear" type="number" min="2000" max="2100" step="1" />
+              </label>
+              <button id="ypExportCsv" class="yp-btn yp-btn--secondary" type="button">Export CSV</button>
+              <button id="ypResetYear" class="yp-btn" type="button">Reset Year</button>
+            </div>
+          </div>
+
+          <div class="yp-kpis">
+            <article><span>Total Income</span><strong id="ypTotalIncome">R0.00</strong></article>
+            <article><span>Planned Expenses</span><strong id="ypTotalBudget">R0.00</strong></article>
+            <article><span>Actual Expenses</span><strong id="ypTotalActual">R0.00</strong></article>
+            <article><span>Net Position</span><strong id="ypNetPosition">R0.00</strong></article>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table yp-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Income (R)</th>
+                  <th>Budgeted Expenses (R)</th>
+                  <th>Actual Expenses (R)</th>
+                  <th>Variance (R)</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="ypBody"></tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
 
