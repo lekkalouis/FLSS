@@ -63,6 +63,24 @@ const MODULES = [
     tag: "Business"
   },
   {
+    id: "order-economics",
+    title: "Order Economics",
+    description: "Track average sale price, cost per sold order, and margin performance.",
+    type: "route",
+    target: "/dashboard/analytics/order-economics",
+    meta: "Analytics",
+    tag: "Insights"
+  },
+  {
+    id: "admin-costs",
+    title: "Cost Ledger Admin",
+    description: "Capture monthly operating costs and per-order assumptions for KPI calculations.",
+    type: "route",
+    target: "/admin/costs",
+    meta: "Admin",
+    tag: "Finance"
+  },
+  {
     id: "price-manager",
     title: "Pricing Control Center",
     description: "Administer tier pricing and synchronize pricing data to Shopify.",

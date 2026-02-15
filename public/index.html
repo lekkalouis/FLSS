@@ -2416,6 +2416,8 @@
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Pricing Control Center</span></button>
             <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
             <button id="navStockists" class="flNavBtn" type="button" role="tab" aria-controls="viewStockists" aria-selected="false" data-route="/stockists"><span class="flNavBtnIcon" aria-hidden="true">📍</span><span class="flNavBtnText">Distribution Network</span></button>
+            <button id="navOrderEconomics" class="flNavBtn" type="button" role="tab" aria-controls="viewOrderEconomics" aria-selected="false" data-route="/dashboard/analytics/order-economics"><span class="flNavBtnIcon" aria-hidden="true">📈</span><span class="flNavBtnText">Order Economics</span></button>
+            <button id="navAdminCosts" class="flNavBtn" type="button" role="tab" aria-controls="viewAdminCosts" aria-selected="false" data-route="/admin/costs"><span class="flNavBtnIcon" aria-hidden="true">🧮</span><span class="flNavBtnText">Admin Costs</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -2651,6 +2653,51 @@
           <div id="contactsList" class="dispatchShipmentsBody"></div>
         </div>
       </div>
+            <div class="flView" id="viewOrderEconomics" hidden>
+        <div class="dispatchBoardPanel" style="margin:1rem">
+          <div class="sectionTitle" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:center;">
+            <span>Order Economics</span>
+            <div style="display:flex;gap:.5rem;align-items:center;">
+              <input type="month" data-role="month" class="dispatchSearchInput" style="max-width:180px" />
+              <button data-role="reload" class="dispatchSelectionBtn" type="button">Reload</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;margin-top:.8rem;">
+            <div class="dispatchSelectionCard"><div class="dispatchSelectionLabel">Average Sale Price</div><div data-role="avg-sale">R0.00</div></div>
+            <div class="dispatchSelectionCard"><div class="dispatchSelectionLabel">Cost Per Sold Order</div><div data-role="cost-order">R0.00</div></div>
+            <div class="dispatchSelectionCard"><div class="dispatchSelectionLabel">Profit Per Order</div><div data-role="profit-order">R0.00</div></div>
+            <div class="dispatchSelectionCard"><div class="dispatchSelectionLabel">Order Margin</div><div data-role="margin">0%</div></div>
+          </div>
+          <div class="dispatchShipmentInfo" style="margin-top:.8rem" data-role="totals">0 orders</div>
+          <div class="dispatchShipmentInfo" data-role="fulfil">0s avg fulfillment</div>
+          <h4 style="margin-top:1rem">Cost Breakdown</h4>
+          <ul data-role="breakdown" style="list-style:none;padding:0;margin:0;display:grid;gap:.4rem"></ul>
+        </div>
+      </div>
+
+      <div class="flView" id="viewAdminCosts" hidden>
+        <div class="dispatchBoardPanel" style="margin:1rem">
+          <div class="sectionTitle">Admin Costs</div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;">
+            <label>Month <input type="month" data-role="month" class="dispatchSearchInput" /></label>
+            <label>Date <input type="date" data-role="date" class="dispatchSearchInput" /></label>
+            <label>Labour Cost (R) <input name="Labour Cost (R)" type="number" min="0" step="0.01" class="dispatchSearchInput" /></label>
+            <label>Packaging Total (R) <input name="Packaging Total (R)" type="number" min="0" step="0.01" class="dispatchSearchInput" /></label>
+            <label>Courier Total (R) <input name="Courier Total (R)" type="number" min="0" step="0.01" class="dispatchSearchInput" /></label>
+            <label>Utilities (R) <input name="Utilities (R)" type="number" min="0" step="0.01" class="dispatchSearchInput" /></label>
+            <label>Software (R) <input name="Software (R)" type="number" min="0" step="0.01" class="dispatchSearchInput" /></label>
+            <label>Other Operational Costs (R) <input name="Other Operational Costs (R)" type="number" min="0" step="0.01" class="dispatchSearchInput" /></label>
+            <label>Staff Hourly Rate (R/hour) <input name="Staff Hourly Rate (R/hour)" type="number" min="0" step="0.01" class="dispatchSearchInput" /></label>
+            <label>Avg Packaging Cost per Order (R) <input name="Avg Packaging Cost per Order (R)" type="number" min="0" step="0.01" class="dispatchSearchInput" /></label>
+            <label>Avg Courier Cost per Order (R) <input name="Avg Courier Cost per Order (R)" type="number" min="0" step="0.01" class="dispatchSearchInput" /></label>
+          </div>
+          <button data-role="save" class="dispatchSelectionBtn dispatchSelectionBtn--primary" style="margin-top:.8rem" type="button">Save Monthly Cost Ledger</button>
+          <div data-role="status" class="dispatchShipmentInfo" style="margin-top:.4rem"></div>
+          <h4 style="margin-top:1rem">Monthly Breakdown</h4>
+          <ul data-role="monthly-breakdown" style="list-style:none;padding:0;margin:0;display:grid;gap:.4rem"></ul>
+        </div>
+      </div>
+
       <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
         <div class="dispatchOrderModal__backdrop" data-action="close-modal" aria-hidden="true"></div>
         <div class="dispatchOrderModal__content" role="dialog" aria-modal="true" aria-labelledby="dispatchOrderModalTitle">

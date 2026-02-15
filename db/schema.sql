@@ -145,4 +145,64 @@ CREATE TABLE IF NOT EXISTS finished_batch_components (
 CREATE INDEX IF NOT EXISTS idx_finished_batch_components_source
   ON finished_batch_components (source_batch_number);
 
+
+-- Order Economics module ----------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS flss_cost_categories (
+  code VARCHAR(50) PRIMARY KEY,
+  label VARCHAR(100) NOT NULL,
+  default_allocation_type VARCHAR(20) NOT NULL DEFAULT 'monthly',
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT chk_flss_cost_categories_allocation CHECK (
+    default_allocation_type IN ('monthly', 'per_order', 'hybrid')
+  )
+);
+
+INSERT INTO flss_cost_categories (code, label, default_allocation_type)
+VALUES
+  ('labour', 'Labour', 'monthly'),
+  ('packaging', 'Packaging', 'monthly'),
+  ('courier', 'Courier', 'monthly'),
+  ('payment_fees', 'Payment Fees', 'per_order'),
+  ('utilities', 'Utilities', 'monthly'),
+  ('software', 'Software', 'monthly'),
+  ('warehouse_overhead', 'Warehouse Overhead', 'monthly'),
+  ('misc', 'Misc', 'monthly')
+ON CONFLICT (code) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS flss_cost_ledger (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE NOT NULL,
+  month VARCHAR(7) NOT NULL,
+  cost_category VARCHAR(50) NOT NULL,
+  cost_name VARCHAR(100),
+  amount_zar DECIMAL(12, 2) NOT NULL,
+  allocation_type VARCHAR(20) NOT NULL DEFAULT 'monthly',
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT fk_flss_cost_ledger_category
+    FOREIGN KEY (cost_category) REFERENCES flss_cost_categories(code),
+  CONSTRAINT chk_flss_cost_ledger_allocation CHECK (
+    allocation_type IN ('monthly', 'per_order', 'hybrid')
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_flss_cost_ledger_month ON flss_cost_ledger (month, date DESC);
+
+CREATE TABLE IF NOT EXISTS flss_kpi_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE NOT NULL,
+  total_orders INT NOT NULL DEFAULT 0,
+  total_revenue DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  avg_sale_price DECIMAL(10, 2) NOT NULL DEFAULT 0,
+  cost_per_order DECIMAL(10, 2) NOT NULL DEFAULT 0,
+  profit_per_order DECIMAL(10, 2) NOT NULL DEFAULT 0,
+  margin_percent DECIMAL(5, 2) NOT NULL DEFAULT 0,
+  avg_fulfillment_seconds INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_flss_kpi_snapshots_date ON flss_kpi_snapshots (date DESC);
+
 COMMIT;

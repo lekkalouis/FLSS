@@ -152,6 +152,18 @@ UI_FEATURE_MULTI_SHIP=true
 
 ---
 
+
+## Database setup (required for Order Economics + existing modules)
+
+If your database is empty, install the **full existing schema**:
+
+```bash
+export DATABASE_URL=postgres://<user>:<pass>@<host>:5432/<db>
+npm run db:setup
+```
+
+This applies `db/schema.sql`, including existing FLSS tables and new Order Economics tables (`flss_cost_categories`, `flss_cost_ledger`, `flss_kpi_snapshots`).
+
 ## Run locally
 
 ```bash

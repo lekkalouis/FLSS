@@ -41,6 +41,9 @@ export const config = {
 
   FRONTEND_ORIGIN: frontendOrigin,
   ADMIN_TOKEN: process.env.ADMIN_TOKEN,
+  DATABASE_URL: process.env.DATABASE_URL,
+  DATABASE_SSL: process.env.DATABASE_SSL || "false",
+  FLSS_STAFF_HOURLY_RATE: process.env.FLSS_STAFF_HOURLY_RATE || "0",
 
   UI_COST_ALERT_THRESHOLD: process.env.UI_COST_ALERT_THRESHOLD,
   UI_BOOKING_IDLE_MS: process.env.UI_BOOKING_IDLE_MS,
