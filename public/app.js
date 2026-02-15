@@ -140,6 +140,11 @@ import { initYearPlannerView } from "./views/year-planner.js";
   const fulfillmentHistoryShipped = $("fulfillmentHistoryShipped");
   const fulfillmentHistoryDelivered = $("fulfillmentHistoryDelivered");
   const fulfillmentHistoryCollected = $("fulfillmentHistoryCollected");
+  const fulfillmentHistoryPickup = $("fulfillmentHistoryPickup");
+  const fulfillmentHistoryShippedPager = $("fulfillmentHistoryShippedPager");
+  const fulfillmentHistoryDeliveredPager = $("fulfillmentHistoryDeliveredPager");
+  const fulfillmentHistoryPickupPager = $("fulfillmentHistoryPickupPager");
+  const fulfillmentHistoryCollectedPager = $("fulfillmentHistoryCollectedPager");
   const contactsSearch = $("contactsSearch");
   const contactsTierFilter = $("contactsTierFilter");
   const contactsProvinceFilter = $("contactsProvinceFilter");
@@ -176,6 +181,7 @@ import { initYearPlannerView } from "./views/year-planner.js";
     streams: {
       shipped: [],
       delivered: [],
+      pickup: [],
       collected: []
     }
   };
@@ -4114,7 +4120,12 @@ async function startOrder(orderNo) {
       fulfillmentHistoryList,
       fulfillmentHistoryShipped,
       fulfillmentHistoryDelivered,
-      fulfillmentHistoryCollected
+      fulfillmentHistoryPickup,
+      fulfillmentHistoryCollected,
+      fulfillmentHistoryShippedPager,
+      fulfillmentHistoryDeliveredPager,
+      fulfillmentHistoryPickupPager,
+      fulfillmentHistoryCollectedPager
     },
     getProxyBase: () => CONFIG.SHOPIFY.PROXY_BASE,
     fetchImpl: fetch,
