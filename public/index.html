@@ -1366,17 +1366,18 @@
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(260px, 1fr));
   gap: 1rem;
   padding: .35rem;
   min-height: 65vh;
   background:var(--panel-muted);
+  overflow-x:auto;
 }
 @media (max-width:1400px){
-  #dispatchBoardGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #dispatchBoardGrid { grid-template-columns: repeat(3, minmax(260px, 1fr)); }
 }
 @media (max-width:1100px){
-  #dispatchBoardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #dispatchBoardGrid { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
 }
 @media (max-width:700px){
   #dispatchBoardGrid { grid-template-columns: 1fr; }
@@ -2618,14 +2619,22 @@
             <div class="dispatchCol">
               <div class="dispatchColHeader"><span>Recently Shipped</span></div>
               <div class="dispatchColBody" id="fulfillmentHistoryShipped"><div class="dispatchBoardEmptyCol">No records.</div></div>
+              <div id="fulfillmentHistoryShippedPager" class="stockistsPager" style="margin-top:.45rem"></div>
             </div>
             <div class="dispatchCol">
               <div class="dispatchColHeader"><span>Recently Delivered</span></div>
               <div class="dispatchColBody" id="fulfillmentHistoryDelivered"><div class="dispatchBoardEmptyCol">No records.</div></div>
+              <div id="fulfillmentHistoryDeliveredPager" class="stockistsPager" style="margin-top:.45rem"></div>
+            </div>
+            <div class="dispatchCol">
+              <div class="dispatchColHeader"><span>Pickup orders (open)</span></div>
+              <div class="dispatchColBody" id="fulfillmentHistoryPickup"><div class="dispatchBoardEmptyCol">No records.</div></div>
+              <div id="fulfillmentHistoryPickupPager" class="stockistsPager" style="margin-top:.45rem"></div>
             </div>
             <div class="dispatchCol">
               <div class="dispatchColHeader"><span>Recently Collected (Pickups)</span></div>
               <div class="dispatchColBody" id="fulfillmentHistoryCollected"><div class="dispatchBoardEmptyCol">No records.</div></div>
+              <div id="fulfillmentHistoryCollectedPager" class="stockistsPager" style="margin-top:.45rem"></div>
             </div>
           </div>
           <div id="fulfillmentHistoryList" class="dispatchShipmentsBody" hidden></div>
@@ -2633,6 +2642,7 @@
             <option value="all" selected>All statuses</option>
             <option value="shipped">Shipped</option>
             <option value="delivered">Delivered</option>
+            <option value="pickup">Pickup</option>
             <option value="collected">Collected</option>
           </select>
         </div>
@@ -3313,6 +3323,33 @@
           </div>
           <p id="stockistsAgentMeta" class="stockistsMeta">Select an agent to view details.</p>
         </section>
+
+        <section class="stockistsCard">
+          <h3>Network Directory</h3>
+          <div class="stockistsRow">
+            <input id="stockistsSearch" class="stockistsInput" placeholder="Search agent, retailer, city, province" />
+          </div>
+          <p id="stockistsDirectoryMeta" class="stockistsMeta">Loading network directory…</p>
+          <div class="stockistsDirectoryGrid">
+            <div>
+              <h4>Agents</h4>
+              <table class="stockistsTable">
+                <thead><tr><th>Agent</th><th>Coverage</th><th>Retailers</th></tr></thead>
+                <tbody id="stockistsAgentsDirectoryBody"><tr><td colspan="3">No agents loaded.</td></tr></tbody>
+              </table>
+              <div id="stockistsAgentsPager" class="stockistsPager"></div>
+            </div>
+            <div>
+              <h4>Retailers</h4>
+              <table class="stockistsTable">
+                <thead><tr><th>Retailer</th><th>Agent</th><th>Location</th><th>Phone</th></tr></thead>
+                <tbody id="stockistsRetailersDirectoryBody"><tr><td colspan="4">No retailers loaded.</td></tr></tbody>
+              </table>
+              <div id="stockistsRetailersPager" class="stockistsPager"></div>
+            </div>
+          </div>
+        </section>
+
 
         <div class="stockistsGrid">
           <section class="stockistsCard">

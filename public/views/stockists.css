@@ -11,3 +11,10 @@
 .stockistsTable th,.stockistsTable td{border-bottom:1px solid #e2e8f0;padding:.45rem;text-align:left;vertical-align:top}
 .stockistsPill{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:999px;padding:.15rem .5rem;font-size:.75rem}
 @media (max-width:1000px){.stockistsGrid{grid-template-columns:1fr}}
+
+.stockistsDirectoryGrid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.stockistsPager{display:flex;align-items:center;gap:.45rem;margin-top:.55rem;flex-wrap:wrap}
+.stockistsPager button{border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:8px;padding:.3rem .55rem;cursor:pointer}
+.stockistsPager button[disabled]{opacity:.5;cursor:not-allowed}
+.stockistsPager span{color:#475569;font-size:.85rem}
+@media (max-width:1000px){.stockistsDirectoryGrid{grid-template-columns:1fr}}
