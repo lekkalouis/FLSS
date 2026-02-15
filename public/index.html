@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Flippen Lekka Scan Station — v5 (cleaned + 100×150 print lock)</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<link rel="stylesheet" href="/newui-assets/css/codebase.min.css">
 <style>
   :root{
     --bg:#f5f7fb;
@@ -2399,30 +2400,31 @@
   <link rel="stylesheet" href="/views/traceability.css">
   <link rel="stylesheet" href="/views/stockists.css">
   <link rel="stylesheet" href="/views/year-planner.css">
+  <link rel="stylesheet" href="/views/newui-bridge.css">
 </head>
- <body>
+ <body class="newui-shell">
   <div class="flApp">
     <div class="flLayout">
       <aside class="flSide">
         <div class="flSideHeader">
-          <div class="flNavTitle">Flippen Lekka Operations</div>
+          <div class="flNavTitle">FLSS Operations Suite</div>
           <button id="navToggle" class="navToggle" type="button" aria-expanded="true" aria-label="Toggle sidebar">☰</button>
         </div>
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
-            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
-            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch Console</span></button>
-            <button id="navFulfillmentHistory" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillmentHistory" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnIcon" aria-hidden="true">🧾</span><span class="flNavBtnText">Fulfillment Timeline</span></button>
-            <button id="navContacts" class="flNavBtn" type="button" role="tab" aria-controls="viewContacts" aria-selected="false" data-route="/contacts"><span class="flNavBtnIcon" aria-hidden="true">📇</span><span class="flNavBtnText">Customer Directory</span></button>
-            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Knowledge Hub</span></button>
-            <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Process Blueprints</span></button>
-            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Sales Order Workbench</span></button>
-            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Inventory Control</span></button>
-            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Pricing Control Center</span></button>
-            <button id="navPrintStation" class="flNavBtn" type="button" role="tab" aria-controls="viewPrintStation" aria-selected="false" data-route="/print-station"><span class="flNavBtnIcon" aria-hidden="true">🖨️</span><span class="flNavBtnText">Print Station</span></button>
-            <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
-            <button id="navStockists" class="flNavBtn" type="button" role="tab" aria-controls="viewStockists" aria-selected="false" data-route="/stockists"><span class="flNavBtnIcon" aria-hidden="true">📍</span><span class="flNavBtnText">Distribution Network</span></button>
-            <button id="navYearPlanner" class="flNavBtn" type="button" role="tab" aria-controls="viewYearPlanner" aria-selected="false" data-route="/year-planner"><span class="flNavBtnIcon" aria-hidden="true">🗓️</span><span class="flNavBtnText">Year Planner</span></button>
+            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-speedometer" aria-hidden="true"></i></span><span class="flNavBtnText">Dashboard</span></button>
+            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-basket-loaded" aria-hidden="true"></i></span><span class="flNavBtnText">Dispatch Console</span></button>
+            <button id="navFulfillmentHistory" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillmentHistory" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-list" aria-hidden="true"></i></span><span class="flNavBtnText">Fulfillment Timeline</span></button>
+            <button id="navContacts" class="flNavBtn" type="button" role="tab" aria-controls="viewContacts" aria-selected="false" data-route="/contacts"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-people" aria-hidden="true"></i></span><span class="flNavBtnText">Customer Directory</span></button>
+            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-book-open" aria-hidden="true"></i></span><span class="flNavBtnText">Knowledge Hub</span></button>
+            <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-direction" aria-hidden="true"></i></span><span class="flNavBtnText">Process Blueprints</span></button>
+            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-note" aria-hidden="true"></i></span><span class="flNavBtnText">Sales Order Workbench</span></button>
+            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-bar-chart" aria-hidden="true"></i></span><span class="flNavBtnText">Inventory Control</span></button>
+            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-wallet" aria-hidden="true"></i></span><span class="flNavBtnText">Pricing Control Center</span></button>
+            <button id="navPrintStation" class="flNavBtn" type="button" role="tab" aria-controls="viewPrintStation" aria-selected="false" data-route="/print-station"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-printer" aria-hidden="true"></i></span><span class="flNavBtnText">Print Station</span></button>
+            <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-magnifier" aria-hidden="true"></i></span><span class="flNavBtnText">Traceability</span></button>
+            <button id="navStockists" class="flNavBtn" type="button" role="tab" aria-controls="viewStockists" aria-selected="false" data-route="/stockists"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-map" aria-hidden="true"></i></span><span class="flNavBtnText">Distribution Network</span></button>
+            <button id="navYearPlanner" class="flNavBtn" type="button" role="tab" aria-controls="viewYearPlanner" aria-selected="false" data-route="/year-planner"><span class="flNavBtnIcon" aria-hidden="true"><i class="si si-calendar" aria-hidden="true"></i></span><span class="flNavBtnText">Year Planner</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -3727,6 +3729,7 @@ Example:
 <div class="printSheetWrapper"><div id="printMount"></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script src="/newui-assets/js/codebase.app.min.js"></script>
 <script type="module" src="/app.js"></script>
 </body> 
 </html>
