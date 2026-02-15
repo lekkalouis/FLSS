@@ -18,6 +18,7 @@ import configRouter from "./routes/config.js";
 import traceabilityRouter from "./routes/traceability.js";
 import stockistAdminRouter from "./routes/stockists/admin.js";
 import stockistPublicRouter from "./routes/stockists/public.js";
+import wholesaleRouter from "./routes/wholesale.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,6 +115,7 @@ export function createApp() {
   apiRouter.use(traceabilityRouter);
   apiRouter.use(stockistPublicRouter);
   apiRouter.use(stockistAdminRouter);
+  apiRouter.use(wholesaleRouter);
   app.use("/api/v1", apiRouter);
   app.use("/api", stockistPublicRouter);
   app.use("/api", stockistAdminRouter);

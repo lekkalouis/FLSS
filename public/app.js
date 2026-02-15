@@ -7,6 +7,7 @@ import { initContactsView } from "./views/contacts.js";
 import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
 import { initStockistsView } from "./views/stockists.js";
 import { initYearPlannerView } from "./views/year-planner.js";
+import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
 
 (() => {
   "use strict";
@@ -4091,7 +4092,10 @@ async function startOrder(orderNo) {
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
-    "price-manager": initPriceManagerView,
+    "price-manager": () => {
+      initPriceManagerView();
+      initWholesaleAutomationView();
+    },
     traceability: initTraceabilityView,
     stockists: initStockistsView,
     "year-planner": initYearPlannerView
