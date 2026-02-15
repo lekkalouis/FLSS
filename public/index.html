@@ -2643,6 +2643,11 @@
             <select id="contactsProvinceFilter" class="dispatchSearchInput"><option value="">All provinces</option></select>
           </div>
           <div id="contactsMeta" class="dispatchShipmentInfo" style="margin-top:.55rem">Loading contacts…</div>
+          <div class="dispatchSearchRow" style="grid-template-columns:auto auto 1fr;gap:.5rem;align-items:center;margin-top:.45rem;">
+            <button id="contactsPrevPage" class="dispatchSearchInput" type="button" style="max-width:110px;cursor:pointer;">← Prev</button>
+            <button id="contactsNextPage" class="dispatchSearchInput" type="button" style="max-width:110px;cursor:pointer;">Next →</button>
+            <span id="contactsPageInfo" class="dispatchShipmentInfo">Page 1 of 1</span>
+          </div>
           <div id="contactsList" class="dispatchShipmentsBody"></div>
         </div>
       </div>
@@ -3307,6 +3312,11 @@
             <select id="stockistsAgentSelect" class="stockistsSelect"></select>
           </div>
           <p id="stockistsAgentMeta" class="stockistsMeta">Select an agent to view details.</p>
+          <div class="stockistsRow">
+            <button id="stockistsAgentPrevPage" class="stockistsBtn secondary" type="button">← Prev agents</button>
+            <button id="stockistsAgentNextPage" class="stockistsBtn secondary" type="button">Next agents →</button>
+            <span id="stockistsAgentPageInfo" class="stockistsMeta">Page 1 of 1</span>
+          </div>
         </section>
 
         <div class="stockistsGrid">
@@ -3331,6 +3341,11 @@
               <thead><tr><th>Name</th><th>City</th><th>Province</th><th>Phone</th></tr></thead>
               <tbody id="stockistsRetailersBody"><tr><td colspan="4">No retailers loaded.</td></tr></tbody>
             </table>
+            <div class="stockistsRow">
+              <button id="stockistsRetailersPrevPage" class="stockistsBtn secondary" type="button">← Prev retailers</button>
+              <button id="stockistsRetailersNextPage" class="stockistsBtn secondary" type="button">Next retailers →</button>
+              <span id="stockistsRetailersPageInfo" class="stockistsMeta">Page 1 of 1</span>
+            </div>
           </section>
 
           <section class="stockistsCard">
@@ -3342,6 +3357,11 @@
               <thead><tr><th>SKU</th><th>Availability</th><th>Priority</th></tr></thead>
               <tbody id="stockistsSkuBody"><tr><td colspan="3">No SKU range loaded.</td></tr></tbody>
             </table>
+            <div class="stockistsRow">
+              <button id="stockistsSkuPrevPage" class="stockistsBtn secondary" type="button">← Prev SKUs</button>
+              <button id="stockistsSkuNextPage" class="stockistsBtn secondary" type="button">Next SKUs →</button>
+              <span id="stockistsSkuPageInfo" class="stockistsMeta">Page 1 of 1</span>
+            </div>
           </section>
         </div>
       </div>
