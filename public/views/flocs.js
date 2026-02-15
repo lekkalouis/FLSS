@@ -1361,8 +1361,7 @@ ${state.customer.email || ""}${
     if (customerResults) customerResults.hidden = true;
     if (customerStatus) customerStatus.textContent = `Selected: ${c.name}`;
     state.customerTags = normalizeTags(c.tags);
-    const metafieldTier = normalizeCustomerTier(c.tier);
-    state.priceTier = metafieldTier || resolvePriceTier(state.customerTags);
+    state.priceTier = resolvePriceTier(state.customerTags);
     renderCustomerChips();
     renderProductsTable();
     renderBillingAddressSelect();

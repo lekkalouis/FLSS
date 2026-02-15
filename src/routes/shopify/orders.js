@@ -44,9 +44,26 @@ function toMoneyString(value) {
   return Number(value).toFixed(2);
 }
 
+const TAG_TIER_MAP = new Map([
+  ["agent", "agent"],
+  ["retail", "retail"],
+  ["retailer", "retail"],
+  ["export", "export"],
+  ["fkb", "fkb"],
+  ["private", "private"]
+]);
+
 function normalizeTier(value) {
   const normalized = String(value || "").trim().toLowerCase();
-  return normalized || null;
+  return TAG_TIER_MAP.get(normalized) || null;
+}
+
+function resolveTierFromCustomerTags(tags = []) {
+  for (const rawTag of tags) {
+    const tier = normalizeTier(rawTag);
+    if (tier) return tier;
+  }
+  return null;
 }
 
 async function resolveTargetUnitPrice({
@@ -58,7 +75,7 @@ async function resolveTargetUnitPrice({
   tierCache
 }) {
   const directPrice = Number(lineItem.price);
-  if (Number.isFinite(directPrice)) {
+  if (Number.isFinite(directPrice) && directPrice > 0) {
     return {
       targetPrice: directPrice,
       ruleMatched: "PAYLOAD_PRICE",
@@ -179,8 +196,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
       billingAddress,
       shippingAddress,
       lineItems,
-      customerTags,
-      priceTier
+      customerTags
     } = req.body || {};
 
     if (!customerId) {
@@ -192,10 +208,10 @@ router.post("/shopify/draft-orders", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     await ensureCustomerDeliveryType({ base, customerId, shippingMethod });
-    const normalizedTier = normalizeTier(priceTier);
     const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
       tag.toLowerCase()
     );
+    const normalizedTier = resolveTierFromCustomerTags(normalizedCustomerTags);
     const variantIds = lineItems
       .map((li) => Number(li.variantId))
       .filter((id) => Number.isFinite(id));
