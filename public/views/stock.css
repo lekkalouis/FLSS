@@ -46,6 +46,9 @@
       gap:1rem;
       align-items:start;
     }
+    #viewStock[data-mode="make"] .stock-grid{
+      grid-template-columns:minmax(0,260px) minmax(0,1fr);
+    }
     @media (max-width:1200px){
       #viewStock .stock-grid{
         grid-template-columns:1fr;
@@ -81,6 +84,9 @@
     #viewStock[data-mode="buy"] .stock-mrpCard,
     #viewStock[data-mode="receive"] .stock-mrpCard{
       display:block;
+    }
+    #viewStock[data-mode="make"] .stock-mrpCard{
+      max-width:100%;
     }
     @media (max-width:1200px){
       #viewStock .stock-mrpCard{
@@ -542,4 +548,12 @@
       border-color:rgba(239,68,68,.6);
       background:rgba(239,68,68,.12);
       color:#991b1b;
+    }
+
+    #viewStock .stock-opsSummary{
+      margin-top:.55rem;
+      display:flex;
+      gap:.5rem;
+      align-items:center;
+      font-size:.8rem;
     }
