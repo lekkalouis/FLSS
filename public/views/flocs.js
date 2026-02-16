@@ -51,7 +51,10 @@ export function initFlocsView() {
   const billingAddrPreview = document.getElementById("flocs-billingAddressPreview");
 
   const productsBody     = document.getElementById("flocs-productsBody");
+  const productsHeadRow  = document.getElementById("flocs-productsHeadRow");
   const productTypeFilter = document.getElementById("flocs-productTypeFilter");
+  const bulkColumnsToggle = document.getElementById("flocs-bulkColumnsToggle");
+  const bulkColumnsWrap  = document.getElementById("flocs-bulkColumnsWrap");
   const qtyModeGroup     = document.getElementById("flocs-qtyModeGroup");
   const cartonSizeGroup  = document.getElementById("flocs-cartonSizeGroup");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
@@ -76,7 +79,7 @@ export function initFlocsView() {
     shippingAddressIndex: null,      // index in customer.addresses
     billingAddressIndex: null,       // index in customer.addresses
     items: {},               // sku -> qty
-    products: PRODUCT_LIST.filter((product) => product.variantId),
+    products: PRODUCT_LIST.filter((product) => product.variantId || product.sku === "GBOX"),
     shippingQuote: null,     // { service, total, quoteno, raw }
     errors: [],
     isSubmitting: false,
@@ -84,6 +87,7 @@ export function initFlocsView() {
     priceTier: null,
     customerTags: [],
     productType: "spices",
+    showBulkColumns: false,
     qtyMode: "units",
     cartonUnits: 12,
     priceOverrides: {},
@@ -93,7 +97,6 @@ export function initFlocsView() {
 
   const FLAVOUR_COLORS = {
     "hot & spicy": "#DA291C",
-    "chutney": "#DA291C",
     "original": "#8BAF84",
     "worcester sauce": "#FF8200",
     "red wine & garlic": "#904066",
@@ -108,7 +111,13 @@ export function initFlocsView() {
   };
 
   const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
-  const flavourColor = (flavour) => FLAVOUR_COLORS[flavourKey(flavour)] || "#22d3ee";
+  const flavourColor = (flavour) => {
+    const key = flavourKey(flavour);
+    if (key === "chutney") {
+      return state.productType === "popcorn" ? "#DA291C" : "#7E22CE";
+    }
+    return FLAVOUR_COLORS[key] || "#22d3ee";
+  };
   const flavourTag = (flavour) =>
     flavour
       ? `<span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span>`
@@ -168,7 +177,10 @@ export function initFlocsView() {
 
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
   const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 48, 50, 100, 250];
-  const MATRIX_SIZES = ["100ml", "200ml", "250ml", "500g", "1kg", "750g", "750g Tubs"];
+  const MATRIX_POPCORN_SIZES = ["100ml"];
+  const MATRIX_BASE_SIZES = ["200ml", "250ml"];
+  const MATRIX_BULK_SIZES = ["500g", "1kg", "750g", "750g Tubs"];
+  const MATRIX_SIZES = [...MATRIX_POPCORN_SIZES, ...MATRIX_BASE_SIZES, ...MATRIX_BULK_SIZES];
   const SPICE_FLAVOUR_ORDER = [
     "original",
     "hot & spicy",
@@ -500,6 +512,24 @@ export function initFlocsView() {
     return normalized;
   }
 
+  function visibleMatrixSizes() {
+    if (state.productType === "popcorn") return [...MATRIX_POPCORN_SIZES];
+    const sizes = [...MATRIX_BASE_SIZES];
+    if (state.showBulkColumns) sizes.push(...MATRIX_BULK_SIZES);
+    return sizes;
+  }
+
+  function renderProductsHeader() {
+    if (!productsHeadRow) return;
+    const sizeHeaders = visibleMatrixSizes().map((size) => `<th>${size}</th>`).join("");
+    productsHeadRow.innerHTML = `<th>SKU</th><th>Description</th>${sizeHeaders}`;
+  }
+
+  function renderBulkToggleState() {
+    if (bulkColumnsWrap) bulkColumnsWrap.hidden = state.productType === "popcorn";
+    if (bulkColumnsToggle) bulkColumnsToggle.checked = Boolean(state.showBulkColumns);
+  }
+
   function isPopcornSprinkleProduct(product) {
     const title = String(product?.title || "").toLowerCase();
     return title.includes("popcorn sprinkle");
@@ -578,14 +608,44 @@ export function initFlocsView() {
 
   function renderProductsTable() {
     if (!productsBody) return;
+    const activeSizes = visibleMatrixSizes();
+    renderProductsHeader();
+    renderBulkToggleState();
     const grouped = groupedProductsForMatrix();
+    const nonMatrixProducts = filteredProductsForMatrix().filter((product) => {
+      const normalizedSize = normalizeMatrixSize(product.size);
+      return !normalizedSize || !MATRIX_SIZES.includes(normalizedSize);
+    });
     if (!grouped.length) {
-      productsBody.innerHTML = `<tr><td colspan="${2 + MATRIX_SIZES.length}" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
+      const extraRows = nonMatrixProducts.map((product) => {
+        const key = productKey(product);
+        const units = Number(state.items[key] || 0);
+        const value = toDisplayQty(units);
+        const quickButtons = QUICK_QTY.map(
+          (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
+        ).join("");
+        return `<tr style="--flavour-color:${flavourColor(product.flavour)}">
+          <td>${product.sku || ""}</td>
+          <td><span class="flocs-productName">${displayProductTitle(product)}</span></td>
+          <td class="flocs-matrixCell" colspan="${activeSizes.length}">
+            <div class="flocs-qtyArea">
+              <div class="flocs-qtyQuick">${quickButtons}</div>
+              <div class="flocs-qtyWrap">
+                <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
+                <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
+                <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+      }).join("");
+      const emptyRow = `<tr><td colspan="${2 + activeSizes.length}" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
+      productsBody.innerHTML = `${emptyRow}${extraRows}`;
       return;
     }
-    productsBody.innerHTML = grouped
+    const groupedRows = grouped
       .map(([flavour, bySize]) => {
-        const cells = MATRIX_SIZES.map((label) => {
+        const cells = activeSizes.map((label) => {
           const lookup = normalizeMatrixSize(label);
           const product = bySize.get(lookup);
           if (!product) return `<td class="flocs-matrixCell flocs-matrixCell--empty">—</td>`;
@@ -617,6 +677,31 @@ export function initFlocsView() {
           </tr>`;
       })
       .join("");
+
+    const extraRows = nonMatrixProducts.map((product) => {
+      const key = productKey(product);
+      const units = Number(state.items[key] || 0);
+      const value = toDisplayQty(units);
+      const quickButtons = QUICK_QTY.map(
+        (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
+      ).join("");
+      return `<tr style="--flavour-color:${flavourColor(product.flavour)}">
+        <td>${product.sku || ""}</td>
+        <td><span class="flocs-productName">${displayProductTitle(product)}</span></td>
+        <td class="flocs-matrixCell" colspan="${activeSizes.length}">
+          <div class="flocs-qtyArea">
+            <div class="flocs-qtyQuick">${quickButtons}</div>
+            <div class="flocs-qtyWrap">
+              <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
+              <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
+              <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }).join("");
+
+    productsBody.innerHTML = `${groupedRows}${extraRows}`;
   }
 
 
@@ -1982,6 +2067,13 @@ ${state.customer.email || ""}${
         productTypeFilter.querySelectorAll("button[data-type]").forEach((node) => {
           node.classList.toggle("is-active", node === btn);
         });
+        renderProductsTable();
+      });
+    }
+
+    if (bulkColumnsToggle) {
+      bulkColumnsToggle.addEventListener("change", () => {
+        state.showBulkColumns = Boolean(bulkColumnsToggle.checked);
         renderProductsTable();
       });
     }

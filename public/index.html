@@ -2927,23 +2927,24 @@ npm run dev</code></pre>
               <div class="flocs-formSection">
                 <div class="flocs-labelRow flocs-labelRow--items">
                   <span>Items</span>
-                  <div class="flocs-productTypeFilter" id="flocs-productTypeFilter">
-                    <button type="button" class="is-active" data-type="spices">Spices</button>
-                    <button type="button" data-type="popcorn">Popcorn sprinkle</button>
+                  <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+                    <div class="flocs-productTypeFilter" id="flocs-productTypeFilter">
+                      <button type="button" class="is-active" data-type="spices">Spices</button>
+                      <button type="button" data-type="popcorn">Popcorn sprinkle</button>
+                    </div>
+                    <label id="flocs-bulkColumnsWrap" class="flocs-hint" style="display:inline-flex;align-items:center;gap:.35rem;margin:0">
+                      <input id="flocs-bulkColumnsToggle" type="checkbox" />
+                      Show bulk columns (500g, 1kg, 750g)
+                    </label>
                   </div>
                 </div>
                 <table class="flocs-productsTable">
                   <thead>
-                    <tr>
+                    <tr id="flocs-productsHeadRow">
                       <th>SKU</th>
                       <th>Description</th>
-                      <th>100ml</th>
                       <th>200ml</th>
                       <th>250ml</th>
-                      <th>500g</th>
-                      <th>1kg</th>
-                      <th>750g</th>
-                      <th>750g Tubs</th>
                     </tr>
                   </thead>
                   <tbody id="flocs-productsBody"></tbody>
