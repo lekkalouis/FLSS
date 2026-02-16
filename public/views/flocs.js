@@ -72,7 +72,7 @@ export function initFlocsView() {
     customer: null,
     po: "",
     deliveryDate: "",
-    delivery: "shipping",        // shipping | pickup | delivery
+    delivery: "",        // shipping | pickup | delivery
     shippingAddressIndex: null,      // index in customer.addresses
     billingAddressIndex: null,       // index in customer.addresses
     items: {},               // sku -> qty
@@ -93,7 +93,7 @@ export function initFlocsView() {
 
   const FLAVOUR_COLORS = {
     "hot & spicy": "#DA291C",
-    "chutney": "#7340B2",
+    "chutney": "#DA291C",
     "original": "#8BAF84",
     "worcester sauce": "#FF8200",
     "red wine & garlic": "#904066",
@@ -103,7 +103,7 @@ export function initFlocsView() {
     "curry": "#FFC72C",
     "butter": "#FFE66D",
     "sour cream & chives": "#7BC96F",
-    "parmesan cheese": "#FACC15",
+    "parmesan cheese": "#7E22CE",
     "cheese & onion": "#C4E36A"
   };
 
@@ -167,7 +167,7 @@ export function initFlocsView() {
     String(p.variantId || p.sku || p.title || "").trim();
 
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
-  const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 48, 50, 100];
+  const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 48, 50, 100, 250];
   const MATRIX_SIZES = ["200ml", "500g", "1kg", "750g", "750g Bags"];
   const SPICE_FLAVOUR_ORDER = [
     "original",
@@ -178,6 +178,14 @@ export function initFlocsView() {
     "savoury herb",
     "salt & vinegar",
     "curry"
+  ];
+  const POPCORN_FLAVOUR_ORDER = [
+    "butter",
+    "sour cream & chives",
+    "chutney",
+    "parmesan cheese",
+    "cheese & onion",
+    "salt & vinegar"
   ];
   const AUTO_QUOTE_DELAY_MS = 3000;
   const REQUIRE_RESOLVED_PRICING = CONFIG?.FLOCS?.REQUIRE_RESOLVED_PRICING !== false;
@@ -333,7 +341,7 @@ export function initFlocsView() {
   }
 
   function currentDelivery() {
-    return state.delivery || "shipping";
+    return state.delivery || "";
   }
 
   function currentShippingAddress() {
@@ -442,7 +450,7 @@ export function initFlocsView() {
     if (normalized === "ship" || normalized === "shipping") return "shipping";
     if (normalized === "deliver" || normalized === "delivery") return "delivery";
     if (normalized === "pickup") return "pickup";
-        return "shipping";
+        return "";
   }
 
   function syncDeliveryGroup() {
@@ -508,7 +516,8 @@ export function initFlocsView() {
 
   function flavourSortIndex(flavour) {
     const key = flavourKey(flavour);
-    const idx = SPICE_FLAVOUR_ORDER.indexOf(key);
+    const order = state.productType === "popcorn" ? POPCORN_FLAVOUR_ORDER : SPICE_FLAVOUR_ORDER;
+    const idx = order.indexOf(key);
     return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
   }
 
@@ -586,11 +595,12 @@ export function initFlocsView() {
           const quickButtons = QUICK_QTY.map(
             (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
           ).join("");
+          const sourceButtons = `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="12">Source</button><button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="24">G-box</button>`;
           return `
             <td class="flocs-matrixCell">
               <div class="flocs-matrixSku">${product.sku || ""}</div>
               <div class="flocs-qtyArea">
-                <div class="flocs-qtyQuick">${quickButtons}</div>
+                <div class="flocs-qtyQuick">${quickButtons}${sourceButtons}</div>
                 <div class="flocs-qtyWrap">
                   <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
                   <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
@@ -746,7 +756,9 @@ export function initFlocsView() {
     const customerName = state.customer ? state.customer.name : "—";
     const po = state.po || "—";
     const deliveryLabel =
-      delivery === "pickup"
+      delivery === ""
+        ? "Not selected"
+        : delivery === "pickup"
         ? "Pickup at Flippen Lekka"
         : delivery === "delivery"
         ? "Delivery (own vehicle)"
@@ -791,7 +803,7 @@ ${state.customer.email || ""}${
           <tr>
             <td>${li.title || li.sku}</td>
             <td>${li.sku}</td>
-            <td>${li.quantity}</td>
+            <td>${state.qtyMode === "cartons" ? Math.floor(li.quantity / Number(state.cartonUnits || 12)) : li.quantity}</td>
             <td>${li.price != null ? money(li.price) : "—"}</td>
             <td>${li.price != null ? money(li.price * li.quantity) : "—"}</td>
           </tr>
@@ -839,7 +851,7 @@ ${state.customer.email || ""}${
           <tr>
             <th>Item</th>
             <th>SKU</th>
-            <th>Qty</th>
+            <th>${state.qtyMode === "cartons" ? "Cartons" : "Qty"}</th>
             <th>Unit price</th>
             <th>Line total</th>
           </tr>
@@ -1178,7 +1190,7 @@ ${state.customer.email || ""}${
   }
 
   // ===== Shopify calls =====
-  const searchCustomersDebounced = debounce(searchCustomersNow, 320);
+  const searchCustomersDebounced = debounce(searchCustomersNow, 1000);
 
   async function searchCustomersNow() {
     const q = (customerSearch.value || "").trim();
@@ -1369,8 +1381,17 @@ ${state.customer.email || ""}${
     if (hasDeliveryMethod) {
       state.delivery = normalizeDeliveryMethod(c.delivery_method);
     } else {
-      state.delivery = "shipping";
+      state.delivery = "";
     }
+
+    const tags = normalizeTags(c.tags).map((tag) => tag.toLowerCase());
+    state.qtyMode = tags.includes("export") ? "cartons" : "units";
+    if (qtyModeGroup) {
+      qtyModeGroup.querySelectorAll("input[name='qtyMode']").forEach((radio) => {
+        radio.checked = radio.value === state.qtyMode;
+      });
+    }
+    if (cartonSizeGroup) cartonSizeGroup.hidden = state.qtyMode !== "cartons";
     syncDeliveryGroup();
 
     const addrs = Array.isArray(c.addresses) ? c.addresses : [];

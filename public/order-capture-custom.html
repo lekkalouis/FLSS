@@ -71,15 +71,13 @@
     .quickSegments{display:flex;gap:.35rem;flex-wrap:wrap;margin:.4rem 0 .2rem}
     .quickSegments button.active{background:#0f766e;color:#fff;border-color:#0f766e}
     .modal{position:fixed;inset:0;background:rgba(17,24,39,.78);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:90}
-    .modalCard{width:min(880px,100%);max-height:78vh;overflow:auto;background:#fff;border-radius:10px;padding:.8rem;display:grid;gap:.5rem}
+    .modalCard{width:min(980px,100%);max-height:78vh;overflow:auto;background:#fff;border-radius:10px;padding:.8rem;display:grid;gap:.5rem}
     .customerGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.45rem}
     .customerTile{padding:.45rem;border:1px solid var(--line);border-radius:8px;background:#fff;text-align:left}
     .customerTile small{display:block;color:#6b7280;margin-top:.2rem}
+    .pickerTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem}
+    .pickerTools select,.pickerTools input{width:100%;padding:.4rem .45rem;border:1px solid var(--line-strong);border-radius:6px}
     .receipt{font-family:var(--mono);font-size:.78rem;background:#0f172a;color:#e2e8f0;padding:.5rem;border-radius:6px;white-space:pre-wrap;max-height:180px;overflow:auto}
-
-    .lock{position:fixed;inset:0;background:rgba(17,24,39,.92);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:100}
-    .lockCard{width:min(430px,100%);background:#fff;border-radius:10px;padding:1rem;display:grid;gap:.55rem}
-    .lockCard input{padding:.55rem;border:1px solid #d1d5db;border-radius:6px}
     [hidden]{display:none !important}
 
     @media(max-width:980px){
@@ -138,7 +136,6 @@
             <label class="span-2">Province<input id="bill-province" type="text" /></label>
             <label class="span-2">Postcode<input id="bill-zip" type="text" /></label>
             <label class="span-2">Tel<input id="bill-phone" type="text" /></label>
-            <label class="span-2">Email<input id="bill-email" type="email" /></label>
             <label class="span-2">VAT Nr<input id="bill-vat" type="text" /></label>
           </div>
         </section>
@@ -155,7 +152,6 @@
             <label class="span-2">Province<input id="ship-province" type="text" /></label>
             <label class="span-2">Postcode<input id="ship-zip" type="text" /></label>
             <label class="span-2">Tel<input id="ship-phone" type="text" /></label>
-            <label class="span-2">Email<input id="ship-email" type="email" /></label>
             <label class="span-6">Special instructions<textarea id="ship-notes"></textarea></label>
           </div>
         </section>
@@ -187,8 +183,6 @@
         <div class="actions">
           <button id="submit-order" class="primary" type="button">Create order</button>
           <button id="print-form" type="button">Print</button>
-          <button id="lock-page" type="button">Lock</button>
-          <button id="reset-password" type="button" class="danger">Reset password</button>
         </div>
       </div>
     </section>
@@ -200,20 +194,18 @@
         <strong>Quick customer picker</strong>
         <button id="quick-picker-close" type="button">Close</button>
       </div>
+      <div class="pickerTools">
+        <select id="quick-picker-sort">
+          <option value="name">Sort: Name</option>
+          <option value="city">Sort: City / Town</option>
+        </select>
+        <select id="quick-picker-province">
+          <option value="">All provinces</option>
+        </select>
+        <input id="quick-picker-search" type="text" placeholder="Filter name/company/city" />
+      </div>
       <div id="quick-picker-segments" class="quickSegments"></div>
       <div id="quick-picker-grid" class="customerGrid"></div>
-    </div>
-  </section>
-
-  <section id="lock-screen" class="lock" aria-live="polite">
-    <div class="lockCard">
-      <h2 style="margin:0">Secure access</h2>
-      <p id="lock-copy" style="margin:.1rem 0 .3rem;color:#4b5563">Set a local password to protect this page.</p>
-      <input id="lock-password" type="password" placeholder="Password (min 8 chars)" autocomplete="current-password" />
-      <input id="lock-confirm" type="password" placeholder="Confirm password for first setup" autocomplete="new-password" />
-      <button id="lock-action" class="primary" type="button">Unlock</button>
-      <div id="lock-status" class="status" style="color:#374151"></div>
-      <p style="margin:0;color:#6b7280;font-size:.8rem">Password hash is stored in this browser's localStorage using PBKDF2 + salt.</p>
     </div>
   </section>
 
