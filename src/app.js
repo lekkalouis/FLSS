@@ -90,6 +90,12 @@ export function createApp() {
             // ignore parsing errors
           }
         }
+        console.warn("CORS origin denied", {
+          origin,
+          allowedOrigins: Array.from(allowedOrigins),
+          allowAllOrigins,
+          nodeEnv: config.NODE_ENV
+        });
         return cb(new Error("CORS: origin not allowed"));
       },
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

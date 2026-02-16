@@ -116,7 +116,9 @@ Key environment variables:
 ```bash
 PORT=3000
 HOST=0.0.0.0
+NODE_ENV=development
 FRONTEND_ORIGIN=http://localhost:3000
+ADMIN_TOKEN=replace-with-strong-token
 
 # ParcelPerfect
 PP_BASE_URL=...
@@ -153,6 +155,18 @@ UI_FEATURE_MULTI_SHIP=true
 
 ---
 
+### Mobile/LAN dev CORS profile
+
+For LAN/mobile/tunnel testing in development only:
+
+```bash
+NODE_ENV=development
+FRONTEND_ORIGIN=*
+ADMIN_TOKEN=replace-with-strong-token
+```
+
+For production, keep `FRONTEND_ORIGIN` explicit (comma-separated allow-list) and do not use `*`.
+
 ## Run locally
 
 ```bash
@@ -178,3 +192,30 @@ Open `http://localhost:3000` and navigate modules via the sidebar.
 - `data/` — local JSON stores for pricing + traceability
 - `docs/` — audience-based documentation (operator/admin/dev) plus deep dives
 - `pi_station/` — Raspberry Pi helper scripts
+
+---
+
+
+## Verification commands
+
+```bash
+# health endpoint remains public
+curl -i http://localhost:3000/statusz
+
+# protected endpoint should fail without token
+curl -i http://localhost:3000/api/v1/shopify/orders/open
+
+# protected endpoint should pass with token
+curl -i \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  http://localhost:3000/api/v1/shopify/orders/open
+
+# run lightweight QA checks
+npm run qa:checks
+```
+
+In browser/mobile dev tools, set the admin token once per device:
+
+```js
+localStorage.setItem("flss_admin_token", "<ADMIN_TOKEN>");
+```
