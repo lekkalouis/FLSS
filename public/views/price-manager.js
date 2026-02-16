@@ -32,6 +32,7 @@ export function initPriceManagerView() {
     products: [],
     loading: false
   };
+  const STANDARD_CATALOGUE = PRODUCT_LIST.filter((product) => product.variantId);
 
   const tableBody = document.getElementById("pmTableBody");
   const statusEl = document.getElementById("pmStatus");
@@ -182,10 +183,83 @@ export function initPriceManagerView() {
     }
   }
 
-  async function loadProducts(url, contextLabel) {
+  function buildStandardCatalogueProducts(remoteProducts) {
+    const byVariantId = new Map();
+    const bySku = new Map();
+
+    remoteProducts.forEach((product) => {
+      if (product?.variantId) byVariantId.set(String(product.variantId), product);
+      if (product?.sku) bySku.set(String(product.sku).trim().toLowerCase(), product);
+    });
+
+    return STANDARD_CATALOGUE.map((product) => {
+      const byId = byVariantId.get(String(product.variantId));
+      const byCode = bySku.get(String(product.sku || "").trim().toLowerCase());
+      const live = byId || byCode || null;
+      const livePrice = live?.price;
+
+      return {
+        ...product,
+        ...(live || {}),
+        variantId: live?.variantId || product.variantId,
+        sku: product.sku,
+        title: product.title,
+        price: Number.isFinite(Number(livePrice)) ? Number(livePrice) : product.price,
+        priceTiers: normalizePriceTiers(live) || normalizePriceTiers(product)
+      };
+    });
+  }
+
+  async function loadSearchProductsPaginated(query) {
+    const seenVariantIds = new Set();
+    const seenSkus = new Set();
+    const products = [];
+    let productPageInfo = "";
+    let variantPageInfo = "";
+    const maxPages = 25;
+
+    for (let page = 0; page < maxPages; page += 1) {
+      const params = new URLSearchParams({
+        q: query,
+        includePriceTiers: "1",
+        limit: "50"
+      });
+      if (productPageInfo) params.set("productPageInfo", productPageInfo);
+      if (variantPageInfo) params.set("variantPageInfo", variantPageInfo);
+
+      const resp = await fetch(`/api/v1/shopify/products/search?${params.toString()}`);
+      const payload = await resp.json();
+      if (!resp.ok) {
+        throw new Error(payload?.message || payload?.error || "Unable to load product catalogue");
+      }
+
+      const current = Array.isArray(payload.products) ? payload.products : [];
+      current.forEach((product) => {
+        const variantKey = product?.variantId ? String(product.variantId) : "";
+        const skuKey = String(product?.sku || "").trim().toLowerCase();
+        if (!variantKey && !skuKey) return;
+        if (variantKey && seenVariantIds.has(variantKey)) return;
+        if (!variantKey && skuKey && seenSkus.has(skuKey)) return;
+        if (variantKey) seenVariantIds.add(variantKey);
+        if (skuKey) seenSkus.add(skuKey);
+        products.push(product);
+      });
+
+      const nextProductPage = payload?.pageInfo?.products?.next || "";
+      const nextVariantPage = payload?.pageInfo?.variants?.next || "";
+      if (!nextProductPage && !nextVariantPage) break;
+      if (nextProductPage === productPageInfo && nextVariantPage === variantPageInfo) break;
+      productPageInfo = nextProductPage;
+      variantPageInfo = nextVariantPage;
+    }
+
+    return products;
+  }
+
+  async function loadDefaultProducts() {
     if (state.loading) return;
     state.loading = true;
-    setStatus(`Loading ${contextLabel}…`);
+    setStatus("Loading standard catalogue…");
     tableBody.innerHTML = `
       <tr>
         <td colspan="9" class="pm-muted">Loading…</td>
@@ -193,38 +267,35 @@ export function initPriceManagerView() {
     `;
 
     try {
-      const resp = await fetch(url);
-      const payload = await resp.json();
-      const list = Array.isArray(payload.products) ? payload.products : [];
-      const filteredList = list
+      let remoteProducts = [];
+      try {
+        remoteProducts = await loadSearchProductsPaginated("FL");
+      } catch (err) {
+        console.warn("Search catalogue load failed, falling back to collection", err);
+        const collectionUrl = `/api/v1/shopify/products/collection?handle=${encodeURIComponent(
+          DEFAULT_COLLECTION_HANDLE
+        )}&includePriceTiers=1`;
+        const collectionResp = await fetch(collectionUrl);
+        const collectionPayload = await collectionResp.json();
+        remoteProducts = Array.isArray(collectionPayload.products) ? collectionPayload.products : [];
+      }
+
+      state.products = buildStandardCatalogueProducts(remoteProducts)
         .filter((product) => skuOrder.has(product.sku))
-        .sort(
-          (a, b) => skuOrder.get(a.sku) - skuOrder.get(b.sku)
-        );
-      state.products = filteredList;
+        .sort((a, b) => skuOrder.get(a.sku) - skuOrder.get(b.sku));
+
+      const pricedCount = state.products.filter((product) => product.price != null).length;
       renderTable();
-      setStatus(
-        filteredList.length ? `Loaded ${filteredList.length} SKUs.` : "No products found."
-      );
-      return filteredList.length;
+      setStatus(`Loaded ${state.products.length} standard SKUs (${pricedCount} with live Shopify pricing).`);
     } catch (err) {
       console.error("Load failed", err);
       setStatus("Error loading products.");
       showToast("Failed to load products.", "err");
-      return 0;
+      state.products = [];
+      renderTable();
     } finally {
       state.loading = false;
     }
-  }
-
-  async function loadDefaultProducts() {
-    const collectionUrl = `/api/v1/shopify/products/collection?handle=${encodeURIComponent(
-      DEFAULT_COLLECTION_HANDLE
-    )}&includePriceTiers=1`;
-    const count = await loadProducts(collectionUrl, "product list");
-    if (count) return;
-    const fallbackUrl = `/api/v1/shopify/products/search?q=${encodeURIComponent("FL")}&includePriceTiers=1`;
-    await loadProducts(fallbackUrl, "product list");
   }
 
   if (tableBody) {
