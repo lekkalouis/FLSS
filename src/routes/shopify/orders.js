@@ -85,6 +85,22 @@ async function resolveTargetUnitPrice({
     };
   }
 
+  if (!Number.isFinite(basePrice)) {
+    return {
+      targetPrice: null,
+      ruleMatched: null,
+      fallbackReason: "MISSING_BASE_PRICE"
+    };
+  }
+
+  if (!normalizedTier) {
+    return {
+      targetPrice: basePrice,
+      ruleMatched: null,
+      fallbackReason: "MISSING_TIER"
+    };
+  }
+
   const context = {
     salesChannel: "flss",
     variantId,
@@ -134,10 +150,61 @@ async function resolveTargetUnitPrice({
   }
 
   return {
-    targetPrice: Number.isFinite(basePrice) ? basePrice : null,
+    targetPrice: basePrice,
     ruleMatched: null,
-    fallbackReason: resolution?.fallbackReason || "BASE_PRICE_FALLBACK"
+    fallbackReason: resolution?.fallbackReason || "MISSING_RULE"
   };
+}
+
+export function buildDraftOrderLineItem({
+  lineItem,
+  quantity,
+  variantId,
+  basePrice,
+  targetPrice,
+  normalizedTier
+}) {
+  const hasVariant = Number.isFinite(variantId);
+  const entry = {
+    quantity: quantity > 0 ? quantity : 1
+  };
+  let discountApplied = false;
+  let enforcementReason = null;
+
+  if (hasVariant) {
+    entry.variant_id = variantId;
+
+    if (!Number.isFinite(basePrice)) {
+      enforcementReason = "MISSING_BASE_PRICE";
+    } else if (Number.isFinite(targetPrice) && targetPrice < basePrice) {
+      const discount = toMoneyString(basePrice - targetPrice);
+      entry.applied_discount = {
+        description: `Tier pricing (${normalizedTier || "default"})`,
+        value: discount,
+        value_type: "fixed_amount",
+        amount: discount
+      };
+      discountApplied = true;
+    } else if (Number.isFinite(targetPrice) && targetPrice > basePrice) {
+      enforcementReason = "TARGET_ABOVE_BASE_CLAMPED";
+      console.warn("Tier price higher than base price; using base price", {
+        variantId,
+        basePrice,
+        targetPrice,
+        tier: normalizedTier
+      });
+    }
+
+    if (lineItem.sku) entry.sku = lineItem.sku;
+    return { entry, discountApplied, enforcementReason };
+  }
+
+  entry.title = lineItem.title || lineItem.sku || "Custom item";
+  if (Number.isFinite(targetPrice)) {
+    entry.price = toMoneyString(targetPrice);
+  }
+  if (lineItem.sku) entry.sku = lineItem.sku;
+  return { entry, discountApplied, enforcementReason };
 }
 
 async function ensureCustomerDeliveryType({ base, customerId, shippingMethod }) {
@@ -274,38 +341,14 @@ router.post("/shopify/draft-orders", async (req, res) => {
           pricingMetrics
         });
 
-        const entry = {
-          quantity: quantity > 0 ? quantity : 1
-        };
-
-        let discountApplied = false;
-        if (hasVariant) {
-          entry.variant_id = variantId;
-          if (Number.isFinite(targetPrice) && Number.isFinite(basePrice) && targetPrice < basePrice) {
-            const discount = toMoneyString(basePrice - targetPrice);
-            entry.applied_discount = {
-              description: `Tier pricing (${normalizedTier || "default"})`,
-              value: discount,
-              value_type: "fixed_amount",
-              amount: discount
-            };
-            discountApplied = true;
-          } else if (Number.isFinite(targetPrice) && Number.isFinite(basePrice) && targetPrice > basePrice) {
-            console.warn("Tier price higher than base price; using base price", {
-              variantId,
-              basePrice,
-              targetPrice,
-              tier: normalizedTier
-            });
-          }
-          if (li.sku) entry.sku = li.sku;
-        } else {
-          entry.title = li.title || li.sku || "Custom item";
-          if (Number.isFinite(targetPrice)) {
-            entry.price = toMoneyString(targetPrice);
-          }
-          if (li.sku) entry.sku = li.sku;
-        }
+        const { entry, discountApplied, enforcementReason } = buildDraftOrderLineItem({
+          lineItem: li,
+          quantity,
+          variantId,
+          basePrice,
+          targetPrice,
+          normalizedTier
+        });
 
         pricingSummary.push({
           sku: li.sku || null,
@@ -315,7 +358,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
           discountApplied,
           priceTier: normalizedTier,
           ruleMatched: ruleMatched || null,
-          fallbackReason: fallbackReason || null
+          fallbackReason: enforcementReason || fallbackReason || null
         });
 
         return entry;
