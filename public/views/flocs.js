@@ -1,3 +1,4 @@
+import { adminFetch } from "./api-client.js";
 import { PRODUCT_LIST } from "./products.js";
 
 let flocsInitialized = false;
@@ -618,7 +619,7 @@ export function initFlocsView() {
     priceTierLoading = true;
     try {
       const resp = await fetch(
-        `${CONFIG.SHOPIFY.PROXY_BASE}/variants/price-tiers/fetch`,
+        `/api/v1/client/shopify/variants/price-tiers/fetch`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1172,7 +1173,7 @@ ${state.customer.email || ""}${
       const url = `${CONFIG.SHOPIFY.PROXY_BASE}/customers/search?q=${encodeURIComponent(
         q
       )}`;
-      const res = await fetch(url);
+      const res = await adminFetch(url);
       const data = await res.json();
       const list = Array.isArray(data.customers) ? data.customers : [];
 
@@ -1271,7 +1272,7 @@ ${state.customer.email || ""}${
     };
 
     try {
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers`, {
+      const res = await adminFetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -1479,7 +1480,7 @@ ${state.customer.email || ""}${
     };
 
     try {
-      const resp = await fetch(
+      const resp = await adminFetch(
         `${CONFIG.SHOPIFY.PROXY_BASE}/draft-orders`,
         {
           method: "POST",
@@ -1605,7 +1606,7 @@ ${state.customer.email || ""}${
     };
 
     try {
-      const resp = await fetch(
+      const resp = await adminFetch(
         `${CONFIG.SHOPIFY.PROXY_BASE}/orders`,
         {
           method: "POST",
@@ -1718,7 +1719,7 @@ ${state.customer.email || ""}${
 
     convertBtn.disabled = true;
     try {
-      const resp = await fetch(
+      const resp = await adminFetch(
         `${CONFIG.SHOPIFY.PROXY_BASE}/draft-orders/complete`,
         {
           method: "POST",

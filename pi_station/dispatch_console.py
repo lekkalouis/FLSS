@@ -23,6 +23,7 @@ FLSS_BASE = os.getenv("FLSS_BASE", "http://127.0.0.1:3000/api/v1")
 TRUCK_TO = os.getenv("TRUCK_EMAIL_TO", "dispatch@example.com")
 READY_ORDER = os.getenv("READY_ORDER_NAME", "#1001")
 ROTARY_ENABLED = os.getenv("ROTARY_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "").strip()
 
 STATE_FILE = Path(os.getenv("PACKING_STATE_FILE", "pi_station/packing_state.json"))
 
@@ -62,6 +63,9 @@ action_selection_index = 0
 mode = "orders"  # orders | actions
 last_encoder_steps = 0
 packing_state: dict[str, PackedOrder] = {}
+
+def admin_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 
 def set_state(ok: bool = False, warn: bool = False, err: bool = False):
@@ -120,7 +124,7 @@ def load_packing_state():
 
 
 def get_open_orders() -> list[dict[str, Any]]:
-    response = requests.get(f"{FLSS_BASE}/shopify/orders/open", timeout=6)
+    response = requests.get(f"{FLSS_BASE}/shopify/orders/open", headers=admin_headers(), timeout=6)
     response.raise_for_status()
     payload = response.json()
     orders = payload.get("orders") if isinstance(payload, dict) else None
@@ -243,7 +247,10 @@ def ready_for_collection(order_name: str | None = None):
     payload = {"orderName": order_name or READY_ORDER}
     try:
         response = requests.post(
-            f"{FLSS_BASE}/shopify/ready-for-pickup", json=payload, timeout=6
+            f"{FLSS_BASE}/shopify/ready-for-pickup",
+            json=payload,
+            headers=admin_headers(),
+            timeout=6
         )
         response.raise_for_status()
         set_state(ok=True)

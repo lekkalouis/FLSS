@@ -1,3 +1,4 @@
+import { adminFetch } from "./api-client.js";
 import { PRODUCT_LIST } from "./products.js";
 
 let stockInitialized = false;
@@ -104,7 +105,7 @@ export function initStockView() {
       const variantIds = finishedGoods.map((item) => item.variantId).filter(Boolean);
       if (!variantIds.length) return;
       const locationParam = currentLocationId ? `&locationId=${currentLocationId}` : "";
-      const resp = await fetch(
+      const resp = await adminFetch(
         `${API_BASE}/inventory-levels?variantIds=${variantIds.join(",")}${locationParam}`
       );
       const payload = await resp.json();
@@ -402,7 +403,7 @@ export function initStockView() {
     if (!item?.variantId) return null;
     const qty = Number(line.qty || 0);
     if (!Number.isFinite(qty) || qty <= 0) return null;
-    const resp = await fetch(`${API_BASE}/inventory-levels/set`, {
+    const resp = await adminFetch(`${API_BASE}/inventory-levels/set`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -537,7 +538,7 @@ export function initStockView() {
 
   async function loadLocations() {
     try {
-      const resp = await fetch(`${API_BASE}/locations`);
+      const resp = await adminFetch(`${API_BASE}/locations`);
       const payload = await resp.json();
       if (!resp.ok) {
         console.warn("Failed to load Shopify locations", payload);
@@ -781,7 +782,7 @@ export function initStockView() {
     }
 
     try {
-      const resp = await fetch(`${API_BASE}/inventory-levels/set`, {
+      const resp = await adminFetch(`${API_BASE}/inventory-levels/set`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -823,7 +824,7 @@ export function initStockView() {
     if (!item?.variantId) return;
     const oldCount = getStock(sku);
     try {
-      const resp = await fetch(`${API_BASE}/inventory-levels/transfer`, {
+      const resp = await adminFetch(`${API_BASE}/inventory-levels/transfer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

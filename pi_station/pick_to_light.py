@@ -9,6 +9,11 @@ from gpiozero import Button, LED
 
 FLSS_BASE = os.getenv("FLSS_BASE", "http://127.0.0.1:3000/api/v1")
 POLL_SEC = int(os.getenv("POLL_SEC", "12"))
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "").strip()
+
+
+def auth_headers():
+    return {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 led_pick = LED(20)
 led_done = LED(21)
@@ -36,7 +41,7 @@ def set_stage(new_stage):
 def load_next_order():
     global current_order
     try:
-        response = requests.get(f"{FLSS_BASE}/shopify/orders/open", timeout=8)
+        response = requests.get(f"{FLSS_BASE}/shopify/orders/open", headers=auth_headers(), timeout=8)
         response.raise_for_status()
         orders = response.json() or []
         if orders:
@@ -59,7 +64,7 @@ def fulfill_current_order():
         "notifyCustomer": False,
     }
     try:
-        response = requests.post(f"{FLSS_BASE}/shopify/fulfill", json=payload, timeout=10)
+        response = requests.post(f"{FLSS_BASE}/shopify/fulfill", json=payload, headers=auth_headers(), timeout=10)
         response.raise_for_status()
         set_stage("done")
     except Exception:

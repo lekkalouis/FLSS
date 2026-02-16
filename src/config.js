@@ -5,10 +5,27 @@ dotenv.config();
 const nodeEnv = process.env.NODE_ENV || "development";
 const frontendOrigin = process.env.FRONTEND_ORIGIN || "";
 
-if (nodeEnv === "production" && !frontendOrigin) {
-  console.warn(
-    "[config] FRONTEND_ORIGIN is not set in production; CORS will deny browser origins until an explicit origin is configured."
-  );
+export function parseFrontendOrigins(value) {
+  return String(value || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+const frontendOrigins = parseFrontendOrigins(frontendOrigin);
+const frontendAllowsWildcard = frontendOrigins.includes("*");
+
+if (nodeEnv === "production") {
+  if (!frontendOrigins.length) {
+    console.warn(
+      "[config] FRONTEND_ORIGIN is not set in production; CORS will deny browser origins until an explicit allowlist is configured."
+    );
+  }
+  if (frontendAllowsWildcard) {
+    console.warn(
+      "[config] FRONTEND_ORIGIN includes '*' in production; this allows any origin and should only be used intentionally."
+    );
+  }
 }
 
 export const config = {
@@ -69,7 +86,11 @@ export const config = {
   RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || 600
 };
 
+export function getFrontendOrigins() {
+  if (frontendOrigins.length) return [...frontendOrigins];
+  return config.NODE_ENV === "production" ? [] : ["*"];
+}
+
 export function getFrontendOrigin() {
-  if (config.FRONTEND_ORIGIN) return config.FRONTEND_ORIGIN;
-  return config.NODE_ENV === "production" ? "" : "*";
+  return getFrontendOrigins().join(",");
 }

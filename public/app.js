@@ -8,6 +8,7 @@ import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
 import { initStockistsView } from "./views/stockists.js";
 import { initYearPlannerView } from "./views/year-planner.js";
 import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
+import { adminFetch } from "./views/api-client.js";
 
 (() => {
   "use strict";
@@ -1828,7 +1829,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       const orderId = details.raw.id;
       const lineItems = (details.raw.line_items || []).map((li) => ({ id: li.id, quantity: li.quantity }));
 
-      const resp = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
+      const resp = await adminFetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2300,7 +2301,7 @@ async function startOrder(orderNo) {
   async function fetchShopifyOrder(orderNo) {
     try {
       const url = `${CONFIG.SHOPIFY.PROXY_BASE}/orders/by-name/${encodeURIComponent(orderNo)}`;
-      const res = await fetch(url);
+      const res = await adminFetch(url);
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
       const o = data.order || data || {};
@@ -3101,7 +3102,7 @@ async function startOrder(orderNo) {
     if (!shipment?.order_id || !shipment?.fulfillment_id) return [];
     try {
       const url = `${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-events?orderId=${shipment.order_id}&fulfillmentId=${shipment.fulfillment_id}`;
-      const res = await fetch(url);
+      const res = await adminFetch(url);
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data.events) ? data.events : [];
@@ -3188,7 +3189,7 @@ async function startOrder(orderNo) {
     if (!order) return;
     try {
       setDispatchProgress(6, `Marking ${orderNo} ready for collection`);
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/ready-for-pickup`, {
+      const res = await adminFetch(`${CONFIG.SHOPIFY.PROXY_BASE}/ready-for-pickup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3216,7 +3217,7 @@ async function startOrder(orderNo) {
     if (!order) return;
     try {
       setDispatchProgress(6, `Marking ${orderNo} ready for delivery`);
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
+      const res = await adminFetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3476,7 +3477,7 @@ async function startOrder(orderNo) {
       } else {
         payload.parcelCount = value;
       }
-      const resp = await fetch(`${API_BASE}/shopify/orders/parcel-count`, {
+      const resp = await adminFetch(`${API_BASE}/shopify/orders/parcel-count`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -3635,7 +3636,7 @@ async function startOrder(orderNo) {
     let orderData = order;
 
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         `${CONFIG.SHOPIFY.PROXY_BASE}/orders/by-name/${encodeURIComponent(orderNo)}`
       );
       if (res.ok) {
@@ -3915,7 +3916,7 @@ async function startOrder(orderNo) {
 
   async function refreshDispatchData() {
     try {
-      const ordersRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`);
+      const ordersRes = await adminFetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`);
       const data = ordersRes.ok ? await ordersRes.json() : { orders: [] };
       dispatchOrdersLatest = data.orders || [];
       renderDispatchBoard(dispatchOrdersLatest);
@@ -4485,7 +4486,7 @@ async function startOrder(orderNo) {
       }
       try {
         setDispatchProgress(2, `Triggering flow for ${orderNo}`);
-        const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/run-flow`, {
+        const res = await adminFetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/run-flow`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

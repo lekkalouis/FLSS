@@ -7,7 +7,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 
-import { config, getFrontendOrigin } from "./config.js";
+import { config, getFrontendOrigins } from "./config.js";
 import alertsRouter from "./routes/alerts.js";
 import parcelPerfectRouter from "./routes/parcelperfect.js";
 import printnodeRouter from "./routes/printnode.js";
@@ -22,6 +22,31 @@ import wholesaleRouter from "./routes/wholesale.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const SHOPIFY_CLIENT_ROUTE_RULES = [
+  { method: "GET", path: "/shopify/products/search" },
+  { method: "GET", path: "/shopify/products/collection" },
+  { method: "POST", path: "/shopify/variants/price-tiers/fetch" }
+];
+
+function isAllowedClientShopifyRoute(method, routePath) {
+  return SHOPIFY_CLIENT_ROUTE_RULES.some(
+    (rule) => rule.method === method && (routePath === rule.path || routePath.startsWith(`${rule.path}/`))
+  );
+}
+
+function createClientShopifyRouter() {
+  const router = express.Router();
+  router.use((req, res, next) => {
+    if (isAllowedClientShopifyRoute(req.method, req.path)) return next();
+    return res.status(403).json({
+      error: "FORBIDDEN",
+      message: "This Shopify endpoint requires admin authorization."
+    });
+  });
+  router.use(shopifyRouter);
+  return router;
+}
 
 function isPrivateHostname(hostname) {
   if (!hostname) return false;
@@ -45,6 +70,7 @@ function requireAdminToken(req, res, next) {
 export function createApp() {
   const app = express();
   const apiRouter = express.Router();
+  const clientShopifyRouter = createClientShopifyRouter();
 
   app.disable("x-powered-by");
 
@@ -69,19 +95,18 @@ export function createApp() {
         })
       : null;
 
-  const frontendOrigin = getFrontendOrigin();
-  const allowedOrigins = new Set(
-    String(frontendOrigin || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-  );
-  const allowAllOrigins = config.NODE_ENV !== "production" && allowedOrigins.has("*");
+  const frontendOrigins = getFrontendOrigins();
+  const allowedOrigins = new Set(frontendOrigins);
+  const wildcardAllowed = allowedOrigins.has("*");
+  const allowAllOrigins = wildcardAllowed && config.NODE_ENV !== "production";
 
-  app.use(
+  app.use((req, res, next) => {
     cors({
       origin: (origin, cb) => {
-        if (!origin || allowAllOrigins || allowedOrigins.has(origin)) return cb(null, true);
+        if (!origin || allowAllOrigins || wildcardAllowed || allowedOrigins.has(origin)) {
+          return cb(null, true);
+        }
+
         if (config.NODE_ENV !== "production") {
           try {
             const { hostname } = new URL(origin);
@@ -90,14 +115,26 @@ export function createApp() {
             // ignore parsing errors
           }
         }
+
+        console.warn("[cors] Rejected request origin", {
+          origin,
+          method: req.method,
+          path: req.originalUrl,
+          ip: req.ip,
+          nodeEnv: config.NODE_ENV,
+          allowAllOrigins,
+          wildcardAllowed,
+          configuredOrigins: frontendOrigins
+        });
+
         return cb(new Error("CORS: origin not allowed"));
       },
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
       credentials: false,
       maxAge: 86400
-    })
-  );
+    })(req, res, next);
+  });
   app.options("*", (_req, res) => res.sendStatus(204));
 
   if (apiRateLimiter) {
@@ -117,6 +154,7 @@ export function createApp() {
   apiRouter.use(statusRouter);
   apiRouter.use(configRouter);
   apiRouter.use(parcelPerfectRouter);
+  apiRouter.use("/client", clientShopifyRouter);
   apiRouter.use(shopifyRouter);
   apiRouter.use(pricingRouter);
   apiRouter.use(printnodeRouter);
