@@ -971,3 +971,95 @@
       letter-spacing:.02em;
       cursor:pointer;
     }
+
+/* --- Order capture v2 layout overrides --- */
+#viewFlocs .flocs-layout{
+  grid-template-columns:minmax(0,2fr) minmax(320px,1fr);
+  align-items:stretch;
+  min-height:calc(100vh - 11rem);
+}
+#viewFlocs #flocs-formPanel{
+  min-height:0;
+}
+#viewFlocs .flocs-previewPanel{
+  position:sticky;
+  top:1rem;
+  height:calc(100vh - 9rem);
+  overflow:auto;
+}
+#viewFlocs .flocs-previewControls .flocs-formSection{
+  margin-bottom:.6rem;
+  padding-bottom:.45rem;
+}
+#viewFlocs .flocs-formSection--customer{
+  padding-top:.2rem;
+}
+#viewFlocs .flocs-searchRow--large .flocs-input{
+  font-size:1.05rem;
+  padding:.75rem .8rem;
+  max-width:none;
+}
+#viewFlocs .flocs-azBar{
+  display:grid;
+  grid-template-columns:repeat(26, minmax(0, 1fr));
+  gap:.25rem;
+  width:100%;
+}
+#viewFlocs .flocs-azBar button{
+  font-size:1rem;
+  padding:.38rem .15rem;
+  font-weight:700;
+}
+#viewFlocs .flocs-productsTable{
+  font-size:.72rem;
+  table-layout:fixed;
+}
+#viewFlocs .flocs-productsTable th,
+#viewFlocs .flocs-productsTable td{
+  padding:.2rem .28rem;
+}
+#viewFlocs .flocs-productsTable th:nth-child(1){width:11%}
+#viewFlocs .flocs-productsTable th:nth-child(2){width:15%}
+#viewFlocs .flocs-matrixCell{vertical-align:middle;}
+#viewFlocs .flocs-matrixCell--empty{color:#9ca3af;text-align:center;}
+#viewFlocs .flocs-matrixSku{
+  font-family:var(--mono);
+  font-size:.62rem;
+  color:var(--muted);
+  margin-bottom:.15rem;
+}
+#viewFlocs .flocs-productName{max-width:none;}
+#viewFlocs .flocs-qtyArea{flex-direction:column; align-items:stretch; gap:.18rem;}
+#viewFlocs .flocs-qtyQuick{flex-wrap:wrap; gap:.15rem; justify-content:flex-start;}
+#viewFlocs .flocs-qtyQuickBtn{font-size:.58rem; min-width:1.2rem; padding:.1rem .22rem;}
+#viewFlocs .flocs-qtyWrap{justify-content:flex-start; margin-left:0;}
+#viewFlocs .flocs-qtyBtn{width:1.45rem;height:1.45rem;}
+#viewFlocs .flocs-qtyInput{width:3.2rem; font-size:.72rem; padding:.13rem .2rem;}
+#viewFlocs .flocs-invoice{margin-top:.5rem;}
+
+@media (max-width:1200px){
+  #viewFlocs .flocs-layout{grid-template-columns:1fr;min-height:0;}
+  #viewFlocs .flocs-previewPanel{position:static;height:auto;}
+  #viewFlocs .flocs-azBar{grid-template-columns:repeat(13, minmax(0, 1fr));}
+}
+
+
+#viewFlocs .flocs-productTypeFilter{
+  display:inline-flex;
+  gap:.35rem;
+  align-items:center;
+}
+#viewFlocs .flocs-productTypeFilter button{
+  border:1px solid var(--panel-strong);
+  background:var(--panel);
+  color:var(--muted);
+  border-radius:.45rem;
+  padding:.2rem .55rem;
+  font-size:.66rem;
+  cursor:pointer;
+}
+#viewFlocs .flocs-productTypeFilter button.is-active{
+  border-color:rgba(0,128,96,.45);
+  color:#0f5132;
+  background:var(--accent-soft);
+}
