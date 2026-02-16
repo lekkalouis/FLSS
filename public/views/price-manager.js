@@ -116,9 +116,6 @@ export function initPriceManagerView() {
           `).join("")}
           <td>
             <div class="pm-actions" id="${rowId}">
-              <label class="pm-sync">
-                <input type="checkbox" data-field="sync" checked /> SPP
-              </label>
               <button class="pm-saveBtn" type="button" data-action="save">Save</button>
               <span class="pm-muted" data-field="row-status"></span>
             </div>
@@ -135,10 +132,6 @@ export function initPriceManagerView() {
     inputs.forEach((input) => {
       const field = input.dataset.field;
       if (!field) return;
-      if (input.type === "checkbox") {
-        data[field] = input.checked;
-        return;
-      }
       data[field] = input.value;
     });
     return data;
@@ -157,7 +150,7 @@ export function initPriceManagerView() {
     });
 
     const publicPrice = data.public !== "" ? Number(data.public) : null;
-    const updatePublicPrice = Boolean(data.sync);
+    const updatePublicPrice = true;
 
     row.querySelector("[data-field='row-status']").textContent = "Saving…";
 
