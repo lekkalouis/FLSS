@@ -168,7 +168,7 @@ export function initFlocsView() {
 
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
   const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 48, 50, 100, 250];
-  const MATRIX_SIZES = ["200ml", "500g", "1kg", "750g", "750g Bags"];
+  const MATRIX_SIZES = ["100ml", "200ml", "250ml", "500g", "1kg", "750g", "750g Tubs"];
   const SPICE_FLAVOUR_ORDER = [
     "original",
     "hot & spicy",
@@ -496,7 +496,7 @@ export function initFlocsView() {
   // ===== UI: products table rendering =====
   function normalizeMatrixSize(size) {
     const normalized = String(size || "").toLowerCase().replace(/\s+/g, " ").trim();
-    if (normalized === "750g tub") return "750g bags";
+    if (normalized === "750g tub" || normalized === "750g tubs") return "750g tubs";
     return normalized;
   }
 
@@ -580,7 +580,7 @@ export function initFlocsView() {
     if (!productsBody) return;
     const grouped = groupedProductsForMatrix();
     if (!grouped.length) {
-      productsBody.innerHTML = `<tr><td colspan="7" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
+      productsBody.innerHTML = `<tr><td colspan="${2 + MATRIX_SIZES.length}" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
       return;
     }
     productsBody.innerHTML = grouped
