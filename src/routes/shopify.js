@@ -15,7 +15,6 @@ import {
 } from "../services/shopify.js";
 import { badRequest } from "../utils/http.js";
 import {
-  mapDeliveryType,
   normalizeCustomerTier,
   resolveDraftLinePricing
 } from "../services/pricingResolver.js";
@@ -720,24 +719,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
-    const {
-      customerId,
-      poNumber,
-      deliveryDate,
-      shippingMethod,
-      shippingPrice,
-      shippingBaseTotal,
-      shippingService,
-      shippingQuoteNo,
-      estimatedParcels,
-      vatNumber,
-      companyName,
-      billingAddress,
-      shippingAddress,
-      lineItems,
-      customerTags,
-      priceTier
-    } = req.body || {};
+    const { customerId, lineItems, priceTier } = req.body || {};
 
     if (!customerId) {
       return badRequest(res, "Missing customerId");
@@ -750,139 +732,31 @@ router.post("/shopify/draft-orders", async (req, res) => {
     const customerMetaResp = await shopifyFetch(`${base}/customers/${customerId}/metafields.json`, {
       method: "GET"
     });
-    let customerTier = normalizeCustomerTier(priceTier);
-    let customerDeliveryType = null;
+    let customerTier = null;
     if (customerMetaResp.ok) {
       const customerMetaData = await customerMetaResp.json();
       const metafields = Array.isArray(customerMetaData.metafields) ? customerMetaData.metafields : [];
       const readMeta = (key) =>
         metafields.find((mf) => mf.namespace === "custom" && mf.key === key)?.value || null;
-      customerTier = normalizeCustomerTier(readMeta("tier")) || customerTier;
-      customerDeliveryType = mapDeliveryType(readMeta("delivery_type"));
+
+      customerTier = normalizeCustomerTier(readMeta("tier"));
     }
 
-    const noteParts = [];
-    if (poNumber) noteParts.push(`PO: ${poNumber}`);
-    if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
+    const tier = customerTier || normalizeCustomerTier(priceTier) || "retail";
 
-    const resolvedPricing = await resolveDraftLinePricing({
-      lineItems,
-      customerTier
+    const resolvedPricing = resolveDraftLinePricing({
+      cartItems: lineItems,
+      state: { priceTier: tier }
     });
-
-    const metafields = [];
-    if (deliveryDate) {
-      metafields.push({
-        namespace: "custom",
-        key: "delivery_date",
-        type: "single_line_text_field",
-        value: String(deliveryDate)
-      });
-    }
-    if (customerDeliveryType) {
-      metafields.push({
-        namespace: "custom",
-        key: "delivery_type",
-        type: "single_line_text_field",
-        value: String(customerDeliveryType).toLowerCase()
-      });
-    }
-    if (vatNumber) {
-      metafields.push({
-        namespace: "custom",
-        key: "vat_number",
-        type: "single_line_text_field",
-        value: String(vatNumber)
-      });
-    }
-    if (companyName) {
-      metafields.push({
-        namespace: "custom",
-        key: "company_name",
-        type: "single_line_text_field",
-        value: String(companyName)
-      });
-    }
-    const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
-    if (Number.isFinite(shippingAmount)) {
-      metafields.push({
-        namespace: "custom",
-        key: "shipping_amount",
-        type: "number_decimal",
-        value: String(shippingAmount)
-      });
-    }
-    const estimatedParcelsValue = Number(estimatedParcels);
-    if (Number.isFinite(estimatedParcelsValue)) {
-      metafields.push({
-        namespace: "custom",
-        key: "estimated_parcels",
-        type: "number_integer",
-        value: String(Math.round(estimatedParcelsValue))
-      });
-    }
 
     const payload = {
       draft_order: {
-        customer: { id: customerId },
-        note: noteParts.join(" | "),
+        customer: customerId ? { id: customerId } : undefined,
         line_items: resolvedPricing.lineItems,
-        billing_address: billingAddress || undefined,
-        shipping_address: shippingAddress || undefined,
-        payment_terms: {
-          payment_terms_name: "Net 7"
-        },
-        note_attributes: [
-          ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
-          ...(customerTier
-            ? [{ name: "price_tier", value: customerTier }]
-            : []),
-          ...(resolvedPricing.fallbackUsed
-            ? [{ name: "pricing_fallback", value: "true" }]
-            : []),
-          ...(shippingQuoteNo
-            ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
-            : [])
-        ],
-        metafields: metafields.length ? metafields : undefined
+        tags: ["FLSS", "Wholesale"],
+        note: `Tier: ${tier || "retail"}`
       }
     };
-
-    const tags = [];
-    if (config.SHOPIFY_FLOW_TAG) {
-      tags.push(config.SHOPIFY_FLOW_TAG);
-    }
-    if (resolvedPricing.fallbackUsed) {
-      tags.push("pricing_fallback=true");
-    }
-    const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
-      tag.toLowerCase()
-    );
-    if (normalizedCustomerTags.includes("local")) {
-      tags.push("local");
-    }
-    if (normalizedCustomerTags.includes("export")) {
-      tags.push("export");
-    }
-    if (tags.length) {
-      payload.draft_order.tags = Array.from(new Set(tags)).join(", ");
-    }
-
-    if (customerDeliveryType) {
-      payload.draft_order.shipping_line = {
-        title: customerDeliveryType,
-        price: Number.isFinite(shippingAmount) ? String(shippingAmount.toFixed(2)) : "0.00",
-        custom: true
-      };
-    }
-
-    if (shippingMethod && !customerDeliveryType) {
-      console.info("delivery_type_unset", {
-        customerId,
-        providedShippingMethod: shippingMethod,
-        reason: "customer_metafield_missing"
-      });
-    }
 
     const resp = await shopifyFetch(`${base}/draft_orders.json`, {
       method: "POST",
@@ -920,7 +794,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
         adminUrl
       },
       pricing: {
-        tier: customerTier,
+        tier,
         fallbackUsed: resolvedPricing.fallbackUsed
       }
     });
