@@ -4,7 +4,7 @@ let cachedToken = null;
 let tokenExpiresAtMs = 0;
 let lastShopifyRequestAtMs = 0;
 
-const SHOPIFY_MIN_REQUEST_INTERVAL_MS = 550;
+const SHOPIFY_MIN_REQUEST_INTERVAL_MS = 20;
 const SHOPIFY_MAX_RETRIES = 4;
 
 function sleep(ms) {
