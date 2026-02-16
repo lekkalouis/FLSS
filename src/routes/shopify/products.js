@@ -28,7 +28,7 @@ router.get("/shopify/products/search", async (req, res) => {
     const productPageInfo = String(req.query.productPageInfo || "").trim();
     const variantPageInfo = String(req.query.variantPageInfo || "").trim();
 
-    const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 50);
+    const limit = Math.min(Math.max(Number(req.query.limit || 250), 1), 250);
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
 
     const productParams = new URLSearchParams({
