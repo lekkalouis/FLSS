@@ -3312,9 +3312,9 @@ async function startOrder(orderNo) {
     }
 
     const cols = [
-      { id: "shipping_a", label: "Shipping A", type: "cards" },
-      { id: "shipping_b", label: "Shipping B", type: "cards" },
-      { id: "shipping_c", label: "Shipping C", type: "cards" },
+      { id: "shipping_a", label: "Shipping", type: "cards" },
+      { id: "shipping_b", label: "Shipping", type: "cards" },
+      { id: "shipping_c", label: "Shipping", type: "cards" },
       { id: "pickup", label: "Pickup", type: "cards" },
       { id: "delivery", label: "Delivery", type: "cards" }
     ];
