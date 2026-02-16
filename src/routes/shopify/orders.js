@@ -8,8 +8,10 @@ import {
 } from "../../services/shopify.js";
 import { resolveWholesalePrice } from "../../services/pricing/domain.js";
 import {
+  hasScopedRules,
   legacyPriceTiersToRules,
-  listPriceLists
+  listPriceLists,
+  pickPriceListRules
 } from "../../services/pricing/store.js";
 import { badRequest } from "../../utils/http.js";
 import {
@@ -28,17 +30,6 @@ const WHOLESALE_TAG = "wholesale";
 const FLSS_TAG = "flss";
 
 const router = Router();
-
-function pickRulesForContext(priceLists = [], context = {}) {
-  return priceLists
-    .filter((list) => {
-      if (list.channel && context.salesChannel) {
-        return String(list.channel).toLowerCase() === String(context.salesChannel).toLowerCase();
-      }
-      return true;
-    })
-    .flatMap((list) => (Array.isArray(list.rules) ? list.rules : []));
-}
 
 function toMoneyString(value) {
   return Number(value).toFixed(2);
@@ -72,19 +63,21 @@ async function resolveTargetUnitPrice({
   customerTags,
   basePrice,
   priceLists,
-  tierCache
+  tierCache,
+  pricingMetrics
 }) {
-  const directPrice = Number(lineItem.price);
-  if (Number.isFinite(directPrice) && directPrice > 0) {
-    return {
-      targetPrice: directPrice,
-      ruleMatched: "PAYLOAD_PRICE",
-      fallbackReason: null
-    };
-  }
-
   const variantId = Number(lineItem.variantId);
-  if (!Number.isFinite(variantId)) {
+  const hasVariant = Number.isFinite(variantId);
+  const directPrice = Number(lineItem.price);
+
+  if (!hasVariant) {
+    if (Number.isFinite(directPrice) && directPrice > 0) {
+      return {
+        targetPrice: directPrice,
+        ruleMatched: "PAYLOAD_PRICE_NON_VARIANT",
+        fallbackReason: null
+      };
+    }
     return {
       targetPrice: Number.isFinite(basePrice) ? basePrice : null,
       ruleMatched: null,
@@ -92,12 +85,26 @@ async function resolveTargetUnitPrice({
     };
   }
 
-  let rules = pickRulesForContext(priceLists, { salesChannel: "flss" });
-  if (!rules.length) {
+  const context = {
+    salesChannel: "flss",
+    variantId,
+    sku: lineItem.sku || null,
+    quantity: Number(lineItem.quantity || 1),
+    customerTags: Array.isArray(customerTags) ? customerTags : [],
+    customerGroup: normalizedTier,
+    basePrice
+  };
+
+  let rules = pickPriceListRules(priceLists, { salesChannel: context.salesChannel });
+  const hasLocalRules = rules.length > 0;
+
+  if (!hasLocalRules) {
     if (!tierCache.has(variantId)) {
+      pricingMetrics.metafieldFetches += 1;
       const legacy = await fetchVariantPriceTiers(variantId);
       tierCache.set(variantId, legacy?.value || null);
     }
+
     const legacyRules = legacyPriceTiersToRules({
       variantId,
       sku: lineItem.sku,
@@ -106,18 +113,7 @@ async function resolveTargetUnitPrice({
     rules = [...rules, ...legacyRules];
   }
 
-  const resolution = resolveWholesalePrice(
-    {
-      variantId,
-      sku: lineItem.sku || null,
-      quantity: Number(lineItem.quantity || 1),
-      customerTags: Array.isArray(customerTags) ? customerTags : [],
-      customerGroup: normalizedTier,
-      basePrice
-    },
-    rules
-  );
-
+  const resolution = resolveWholesalePrice(context, rules);
   if (Number.isFinite(Number(resolution?.unitPrice)) && resolution?.matchedRuleId) {
     return {
       targetPrice: Number(resolution.unitPrice),
@@ -126,17 +122,15 @@ async function resolveTargetUnitPrice({
     };
   }
 
-  if (!tierCache.has(variantId)) {
-    const legacy = await fetchVariantPriceTiers(variantId);
-    tierCache.set(variantId, legacy?.value || null);
-  }
-  const tierPrice = resolveTierPrice(tierCache.get(variantId), normalizedTier);
-  if (Number.isFinite(Number(tierPrice))) {
-    return {
-      targetPrice: Number(tierPrice),
-      ruleMatched: "METAFIELD_PRICE_TIERS",
-      fallbackReason: null
-    };
+  if (!hasLocalRules) {
+    const tierPrice = resolveTierPrice(tierCache.get(variantId), normalizedTier);
+    if (Number.isFinite(Number(tierPrice))) {
+      return {
+        targetPrice: Number(tierPrice),
+        ruleMatched: "METAFIELD_PRICE_TIERS",
+        fallbackReason: null
+      };
+    }
   }
 
   return {
@@ -255,6 +249,12 @@ router.post("/shopify/draft-orders", async (req, res) => {
     const basePriceMap = await fetchVariantBasePrices(variantIds);
     const priceLists = await listPriceLists();
     const tierCache = new Map();
+    const pricingMetrics = {
+      metafieldFetches: 0,
+      localRuleScopes: {
+        flss: hasScopedRules(priceLists, { salesChannel: "flss" })
+      }
+    };
 
     const pricingSummary = [];
     const draftLineItems = await Promise.all(
@@ -270,7 +270,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
           customerTags: normalizedCustomerTags,
           basePrice,
           priceLists,
-          tierCache
+          tierCache,
+          pricingMetrics
         });
 
         const entry = {
@@ -313,7 +314,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
           targetPrice: Number.isFinite(targetPrice) ? targetPrice : null,
           discountApplied,
           priceTier: normalizedTier,
-          ruleMatched: ruleMatched || fallbackReason || null
+          ruleMatched: ruleMatched || null,
+          fallbackReason: fallbackReason || null
         });
 
         return entry;
@@ -423,6 +425,22 @@ router.post("/shopify/draft-orders", async (req, res) => {
       };
     }
 
+    const pricingDiagnostics = {
+      requestId: req.id || null,
+      customerId,
+      tier: normalizedTier || null,
+      metafieldFetches: pricingMetrics.metafieldFetches,
+      localRuleScopes: pricingMetrics.localRuleScopes,
+      lines: pricingSummary.map((line) => ({
+        sku: line.sku,
+        variantId: line.variantId,
+        ruleMatched: line.ruleMatched,
+        fallbackReason: line.fallbackReason
+      }))
+    };
+
+    console.info("Draft order pricing diagnostics", pricingDiagnostics);
+
     const resp = await shopifyFetch(`${base}/draft_orders.json`, {
       method: "POST",
       body: JSON.stringify(payload)
@@ -458,7 +476,11 @@ router.post("/shopify/draft-orders", async (req, res) => {
         invoiceUrl: d.invoice_url || null,
         adminUrl
       },
-      pricingSummary
+      pricingSummary,
+      pricingMetrics: {
+        metafieldFetches: pricingMetrics.metafieldFetches,
+        localRuleScopes: pricingMetrics.localRuleScopes
+      }
     });
   } catch (err) {
     console.error("Shopify draft order create error:", err);

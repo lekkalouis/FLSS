@@ -39,6 +39,21 @@ export async function listPriceLists() {
   return state.priceLists;
 }
 
+export function pickPriceListRules(priceLists = [], context = {}) {
+  return priceLists
+    .filter((list) => {
+      if (list.channel && context.salesChannel) {
+        return String(list.channel).toLowerCase() === String(context.salesChannel).toLowerCase();
+      }
+      return true;
+    })
+    .flatMap((list) => (Array.isArray(list.rules) ? list.rules : []));
+}
+
+export function hasScopedRules(priceLists = [], context = {}) {
+  return pickPriceListRules(priceLists, context).length > 0;
+}
+
 export async function upsertPriceList(input = {}) {
   const state = await readPricingStore();
   const index = state.priceLists.findIndex((item) => item.id === input.id);

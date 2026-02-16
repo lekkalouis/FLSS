@@ -8,24 +8,12 @@ import {
   deleteRule,
   legacyPriceTiersToRules,
   listPriceLists,
+  pickPriceListRules,
   upsertPriceList,
   upsertRule
 } from "../services/pricing/store.js";
 
 const router = Router();
-
-function pickRulesForContext(priceLists = [], context = {}) {
-  const candidates = priceLists
-    .filter((list) => {
-      if (list.channel && context.salesChannel) {
-        return String(list.channel).toLowerCase() === String(context.salesChannel).toLowerCase();
-      }
-      return true;
-    })
-    .flatMap((list) => (Array.isArray(list.rules) ? list.rules : []));
-
-  return candidates;
-}
 
 router.get("/pricing/lists", async (_req, res) => {
   const lists = await listPriceLists();
@@ -82,6 +70,7 @@ router.post("/pricing/resolve", async (req, res) => {
   if (!contexts.length) return badRequest(res, "Provide context or contexts");
 
   const priceLists = await listPriceLists();
+  const tierCache = new Map();
 
   const results = await Promise.all(
     contexts.map(async (context) => {
@@ -92,14 +81,18 @@ router.post("/pricing/resolve", async (req, res) => {
         customerTags: Array.isArray(context.customerTags) ? context.customerTags : []
       };
 
-      let rules = pickRulesForContext(priceLists, normalizedContext);
+      let rules = pickPriceListRules(priceLists, normalizedContext);
 
       if (normalizedContext.variantId && (!rules || !rules.length)) {
-        const legacy = await fetchVariantPriceTiers(normalizedContext.variantId);
+        const variantId = Number(normalizedContext.variantId);
+        if (!tierCache.has(variantId)) {
+          const legacy = await fetchVariantPriceTiers(variantId);
+          tierCache.set(variantId, legacy?.value || null);
+        }
         const legacyRules = legacyPriceTiersToRules({
           variantId: normalizedContext.variantId,
           sku: normalizedContext.sku,
-          priceTiers: legacy?.value
+          priceTiers: tierCache.get(variantId)
         });
         rules = [...(rules || []), ...legacyRules];
       }
