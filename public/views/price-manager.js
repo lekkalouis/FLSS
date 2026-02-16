@@ -274,8 +274,49 @@ export function initPriceManagerView() {
     )}&includePriceTiers=1&limit=250`;
     const count = await loadProducts(collectionUrl, "product list");
     if (count) return;
-    const fallbackUrl = `/api/v1/shopify/products/search?q=${encodeURIComponent("FL")}&includePriceTiers=1&limit=50`;
-    await loadProducts(fallbackUrl, "product list");
+    const knownProducts = PRODUCT_LIST.filter((product) => product?.variantId).map((product) => ({
+      variantId: product.variantId,
+      sku: product.sku || "",
+      title: product.title || product.sku || "Untitled",
+      price: product.price != null ? Number(product.price) : null,
+      priceTiers: product.priceTiers && typeof product.priceTiers === "object"
+        ? { ...product.priceTiers }
+        : undefined
+    }));
+
+    const variantIdsToHydrate = knownProducts
+      .filter((product) => !product.priceTiers || !Object.keys(product.priceTiers).length)
+      .map((product) => String(product.variantId))
+      .filter(Boolean)
+      .slice(0, 250);
+
+    if (variantIdsToHydrate.length) {
+      try {
+        const resp = await fetch("/api/v1/shopify/variants/price-tiers/fetch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ variantIds: variantIdsToHydrate })
+        });
+        if (resp.ok) {
+          const payload = await resp.json();
+          const tiersByVariantId = payload?.priceTiersByVariantId || {};
+          knownProducts.forEach((product) => {
+            const tiers = tiersByVariantId[String(product.variantId)];
+            if (tiers && typeof tiers === "object") {
+              product.priceTiers = tiers;
+            }
+          });
+        }
+      } catch (err) {
+        console.warn("Known catalogue tier hydration failed", err);
+      }
+    }
+
+    state.allProducts = sortProducts(knownProducts);
+    applyFilters();
+    setStatus(
+      `Showing ${state.products.length} of ${state.allProducts.length} products (known catalogue fallback).`
+    );
   }
 
   if (tableBody) {

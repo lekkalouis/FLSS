@@ -51,20 +51,23 @@ export function createApp() {
   if (config.NODE_ENV === "production") {
     app.set("trust proxy", 1);
     app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-    app.use(
-      rateLimit({
-        windowMs: 60 * 1000,
-        max: 120,
-        standardHeaders: true,
-        legacyHeaders: false
-      })
-    );
     app.use(morgan("combined"));
   } else {
     app.use(morgan("dev"));
   }
 
   app.use(express.json({ limit: "1mb" }));
+
+  const apiRateLimiter =
+    config.NODE_ENV === "production"
+      ? rateLimit({
+          windowMs: Number(config.RATE_LIMIT_WINDOW_MS) || 60 * 1000,
+          max: Number(config.RATE_LIMIT_MAX_REQUESTS) || 600,
+          standardHeaders: true,
+          legacyHeaders: false,
+          message: { error: "Too many API requests. Please retry shortly." }
+        })
+      : null;
 
   const frontendOrigin = getFrontendOrigin();
   const allowedOrigins = new Set(
@@ -96,6 +99,12 @@ export function createApp() {
     })
   );
   app.options("*", (_req, res) => res.sendStatus(204));
+
+  if (apiRateLimiter) {
+    app.use("/flocs", apiRateLimiter);
+    app.use("/simulate", apiRateLimiter);
+    app.use("/api", apiRateLimiter);
+  }
 
   app.use("/flocs", requireAdminToken);
   app.use("/simulate", requireAdminToken);
