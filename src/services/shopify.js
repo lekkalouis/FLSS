@@ -151,6 +151,38 @@ function chunkArray(list, size) {
   return chunks;
 }
 
+export async function fetchVariantRetailPrices(variantIds = []) {
+  const ids = Array.from(
+    new Set(
+      (variantIds || [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    )
+  );
+  if (!ids.length) return new Map();
+
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const retailPrices = new Map();
+  const chunks = chunkArray(ids, 50);
+  for (const chunk of chunks) {
+    const params = new URLSearchParams();
+    params.set("ids", chunk.join(","));
+    params.set("fields", "id,price");
+    const resp = await shopifyFetch(`${base}/variants.json?${params.toString()}`, { method: "GET" });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`Shopify variant retail fetch failed (${resp.status}): ${body}`);
+    }
+    const data = await resp.json();
+    const variants = Array.isArray(data.variants) ? data.variants : [];
+    variants.forEach((variant) => {
+      if (!variant?.id) return;
+      retailPrices.set(String(variant.id), Number(variant.price));
+    });
+  }
+  return retailPrices;
+}
+
 export async function fetchPrimaryLocationId() {
   const cacheTtlMs = 5 * 60 * 1000;
   if (cachedLocationId && Date.now() - locationFetchedAtMs < cacheTtlMs) {
