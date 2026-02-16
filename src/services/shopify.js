@@ -1,4 +1,5 @@
 import { config } from "../config.js";
+import { fetchWithTimeout } from "../utils/http.js";
 
 let cachedToken = null;
 let tokenExpiresAtMs = 0;
@@ -139,11 +140,20 @@ async function fetchNewShopifyAdminToken() {
   body.set("client_id", config.SHOPIFY_CLIENT_ID);
   body.set("client_secret", config.SHOPIFY_CLIENT_SECRET);
 
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
+  const resp = await fetchWithTimeout(
+    url,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    },
+    config.SHOPIFY_TIMEOUT_MS,
+    {
+      upstream: "shopify",
+      route: "shopify-token",
+      target: url
+    }
+  );
 
   const text = await resp.text();
   if (!resp.ok) {
@@ -182,16 +192,25 @@ export async function shopifyFetch(pathname, { method = "GET", headers = {}, bod
 
     for (let attempt = 0; attempt < SHOPIFY_MAX_RETRIES; attempt += 1) {
       metric.attempts = attempt + 1;
-      const resp = await fetch(url, {
-        method,
-        headers: {
-          "X-Shopify-Access-Token": token,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          ...headers
+      const resp = await fetchWithTimeout(
+        url,
+        {
+          method,
+          headers: {
+            "X-Shopify-Access-Token": token,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...headers
+          },
+          body
         },
-        body
-      });
+        config.SHOPIFY_TIMEOUT_MS,
+        {
+          upstream: "shopify",
+          route: `shopifyFetch ${method} ${pathname}`,
+          target: url
+        }
+      );
 
       const pressureDelayMs = getPressureDelayMs(resp, attempt);
       if (pressureDelayMs > 0) {
@@ -217,16 +236,25 @@ export async function shopifyFetch(pathname, { method = "GET", headers = {}, bod
       return resp;
     }
 
-    return fetch(url, {
-      method,
-      headers: {
-        "X-Shopify-Access-Token": token,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...headers
+    return fetchWithTimeout(
+      url,
+      {
+        method,
+        headers: {
+          "X-Shopify-Access-Token": token,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...headers
+        },
+        body
       },
-      body
-    });
+      config.SHOPIFY_TIMEOUT_MS,
+      {
+        upstream: "shopify",
+        route: `shopifyFetch ${method} ${pathname}`,
+        target: url
+      }
+    );
   };
 
   let resp;

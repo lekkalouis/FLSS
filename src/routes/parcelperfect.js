@@ -2,7 +2,12 @@ import { Router } from "express";
 
 import { config } from "../config.js";
 import { normalizeParcelPerfectClass } from "../services/parcelperfect.js";
-import { badRequest } from "../utils/http.js";
+import {
+  badRequest,
+  fetchWithTimeout,
+  isUpstreamTimeoutError,
+  sendTimeoutResponse
+} from "../utils/http.js";
 
 const router = Router();
 
@@ -31,11 +36,20 @@ router.post("/pp", async (req, res) => {
     const tokenToUse = mustUseToken ? config.PP_TOKEN : "";
     if (tokenToUse) form.set("token_id", tokenToUse);
 
-    const upstream = await fetch(config.PP_BASE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form.toString()
-    });
+    const upstream = await fetchWithTimeout(
+      config.PP_BASE_URL,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString()
+      },
+      config.PP_TIMEOUT_MS,
+      {
+        upstream: "parcelperfect",
+        route: "POST /pp",
+        target: config.PP_BASE_URL
+      }
+    );
 
     const text = await upstream.text();
     const contentType =
@@ -49,6 +63,9 @@ router.post("/pp", async (req, res) => {
       return res.status(upstream.status).send(text);
     }
   } catch (err) {
+    if (isUpstreamTimeoutError(err)) {
+      return sendTimeoutResponse(res, err);
+    }
     console.error("PP proxy error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
@@ -86,11 +103,20 @@ router.get("/pp/place", async (req, res) => {
     form.set("token_id", config.PP_TOKEN);
     form.set("params", JSON.stringify(paramsObj));
 
-    const upstream = await fetch(config.PP_BASE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form.toString()
-    });
+    const upstream = await fetchWithTimeout(
+      config.PP_BASE_URL,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString()
+      },
+      config.PP_TIMEOUT_MS,
+      {
+        upstream: "parcelperfect",
+        route: "GET /pp/place",
+        target: config.PP_BASE_URL
+      }
+    );
 
     const text = await upstream.text();
     let json;
@@ -102,6 +128,9 @@ router.get("/pp/place", async (req, res) => {
 
     return res.status(upstream.status).json(json);
   } catch (err) {
+    if (isUpstreamTimeoutError(err)) {
+      return sendTimeoutResponse(res, err);
+    }
     console.error("PP place lookup error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",

@@ -1,6 +1,11 @@
 import { Router } from "express";
 
 import { config } from "../config.js";
+import {
+  fetchWithTimeout,
+  isUpstreamTimeoutError,
+  sendTimeoutResponse
+} from "../utils/http.js";
 
 const router = Router();
 
@@ -15,7 +20,7 @@ function requirePrintNodeConfigured(res) {
   return true;
 }
 
-async function sendPrintNodeJob({ pdfBase64, title }) {
+async function sendPrintNodeJob({ pdfBase64, title, route = "POST /printnode/print" }) {
   const auth = Buffer.from(config.PRINTNODE_API_KEY + ":").toString("base64");
   const payload = {
     printerId: Number(config.PRINTNODE_PRINTER_ID),
@@ -25,14 +30,23 @@ async function sendPrintNodeJob({ pdfBase64, title }) {
     source: "Flippen Lekka Scan Station"
   };
 
-  const upstream = await fetch("https://api.printnode.com/printjobs", {
-    method: "POST",
-    headers: {
-      Authorization: "Basic " + auth,
-      "Content-Type": "application/json"
+  const upstream = await fetchWithTimeout(
+    "https://api.printnode.com/printjobs",
+    {
+      method: "POST",
+      headers: {
+        Authorization: "Basic " + auth,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
     },
-    body: JSON.stringify(payload)
-  });
+    config.PRINTNODE_TIMEOUT_MS,
+    {
+      upstream: "printnode",
+      route,
+      target: "https://api.printnode.com/printjobs"
+    }
+  );
 
   const text = await upstream.text();
   let data;
@@ -64,7 +78,7 @@ router.post("/printnode/print", async (req, res) => {
 
     if (!requirePrintNodeConfigured(res)) return;
 
-    const result = await sendPrintNodeJob({ pdfBase64, title });
+    const result = await sendPrintNodeJob({ pdfBase64, title, route: "POST /printnode/print" });
     if (!result.ok) {
       return res.status(result.status).json({
         error: "PRINTNODE_UPSTREAM",
@@ -76,6 +90,9 @@ router.post("/printnode/print", async (req, res) => {
 
     return res.json({ ok: true, printJob: result.data });
   } catch (err) {
+    if (isUpstreamTimeoutError(err)) {
+      return sendTimeoutResponse(res, err);
+    }
     console.error("PrintNode proxy error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
@@ -105,7 +122,16 @@ router.post("/printnode/print-url", async (req, res) => {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Invalid invoiceUrl" });
     }
 
-    const invoiceResp = await fetch(url, { method: "GET" });
+    const invoiceResp = await fetchWithTimeout(
+      url,
+      { method: "GET" },
+      config.PRINTNODE_TIMEOUT_MS,
+      {
+        upstream: "invoice",
+        route: "POST /printnode/print-url",
+        target: String(url)
+      }
+    );
     if (!invoiceResp.ok) {
       const body = await invoiceResp.text();
       return res.status(invoiceResp.status).json({
@@ -125,7 +151,8 @@ router.post("/printnode/print-url", async (req, res) => {
 
     const result = await sendPrintNodeJob({
       pdfBase64: buffer.toString("base64"),
-      title
+      title,
+      route: "POST /printnode/print-url"
     });
 
     if (!result.ok) {
@@ -139,6 +166,9 @@ router.post("/printnode/print-url", async (req, res) => {
 
     return res.json({ ok: true, printJob: result.data });
   } catch (err) {
+    if (isUpstreamTimeoutError(err)) {
+      return sendTimeoutResponse(res, err);
+    }
     console.error("PrintNode invoice print error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
