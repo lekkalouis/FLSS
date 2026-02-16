@@ -1,3 +1,5 @@
+import { adminFetch } from "./api-client.js";
+
 let posInitialized = false;
 
 export function initPosView() {
@@ -106,7 +108,7 @@ export function initPosView() {
       includePriceTiers: "0",
       limit: "10"
     });
-    const url = `${CONFIG.SHOPIFY.PROXY_BASE}/products/search?${params.toString()}`;
+    const url = `/api/v1/client/shopify/products/search?${params.toString()}`;
     const resp = await fetch(url);
     if (!resp.ok) {
       throw new Error(`Shopify lookup failed (${resp.status})`);
@@ -155,7 +157,7 @@ export function initPosView() {
         note: "POS walk-in cash order",
         cashier: (cashierInput?.value || "").trim()
       };
-      const resp = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/cash`, {
+      const resp = await adminFetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/cash`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

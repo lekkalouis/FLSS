@@ -1,3 +1,4 @@
+import { adminFetch } from "./api-client.js";
 import { PRODUCT_LIST } from "./products.js";
 
 let priceManagerInitialized = false;
@@ -205,7 +206,7 @@ export function initPriceManagerView() {
     row.querySelector("[data-field='row-status']").textContent = "Saving…";
 
     try {
-      const resp = await fetch("/api/v1/shopify/variants/price-tiers", {
+      const resp = await adminFetch("/api/v1/shopify/variants/price-tiers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -269,7 +270,7 @@ export function initPriceManagerView() {
   }
 
   async function loadDefaultProducts() {
-    const collectionUrl = `/api/v1/shopify/products/collection?handle=${encodeURIComponent(
+    const collectionUrl = `/api/v1/client/shopify/products/collection?handle=${encodeURIComponent(
       DEFAULT_COLLECTION_HANDLE
     )}&includePriceTiers=1&limit=250`;
     const count = await loadProducts(collectionUrl, "product list");
@@ -292,7 +293,7 @@ export function initPriceManagerView() {
 
     if (variantIdsToHydrate.length) {
       try {
-        const resp = await fetch("/api/v1/shopify/variants/price-tiers/fetch", {
+        const resp = await fetch("/api/v1/client/shopify/variants/price-tiers/fetch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ variantIds: variantIdsToHydrate })
