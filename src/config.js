@@ -63,7 +63,10 @@ export const config = {
   UI_ORIGIN_NOTIFY: process.env.UI_ORIGIN_NOTIFY,
   UI_ORIGIN_EMAIL: process.env.UI_ORIGIN_EMAIL,
   UI_ORIGIN_NOTES: process.env.UI_ORIGIN_NOTES,
-  UI_FEATURE_MULTI_SHIP: process.env.UI_FEATURE_MULTI_SHIP
+  UI_FEATURE_MULTI_SHIP: process.env.UI_FEATURE_MULTI_SHIP,
+
+  RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS || 60 * 1000,
+  RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || 600
 };
 
 export function getFrontendOrigin() {
