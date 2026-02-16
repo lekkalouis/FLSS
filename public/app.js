@@ -234,7 +234,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
     "sour cream & chives popcorn sprinkle": "SCC",
     "chutney popcorn sprinkle": "CHUT",
     "parmesan popcorn sprinkle": "PAR",
-    "cheese and onion popcorn sprinkle": "CHO",
+    "cheese & onion popcorn sprinkle": "CHO",
     "salt & vinegar popcorn sprinkle": "SV",
     "flippen lekka curry mix": "Curry",
     "original multi purpose basting sauce": "Basting"
