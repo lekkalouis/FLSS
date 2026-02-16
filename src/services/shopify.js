@@ -2,6 +2,37 @@ import { config } from "../config.js";
 
 let cachedToken = null;
 let tokenExpiresAtMs = 0;
+let lastShopifyRequestAtMs = 0;
+
+const SHOPIFY_MIN_REQUEST_INTERVAL_MS = 550;
+const SHOPIFY_MAX_RETRIES = 4;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForRateLimitWindow() {
+  const elapsed = Date.now() - lastShopifyRequestAtMs;
+  const waitMs = SHOPIFY_MIN_REQUEST_INTERVAL_MS - elapsed;
+  if (waitMs > 0) {
+    await sleep(waitMs);
+  }
+  lastShopifyRequestAtMs = Date.now();
+}
+
+function parseRetryAfterSeconds(resp, responseBody = "") {
+  const headerRetryAfter = Number(resp.headers.get("Retry-After"));
+  if (Number.isFinite(headerRetryAfter) && headerRetryAfter > 0) {
+    return headerRetryAfter;
+  }
+
+  const bodyMatch = String(responseBody).match(/Exceeded\s+(\d+)\s+calls\s+per\s+second/i);
+  if (!bodyMatch) return null;
+
+  const callsPerSecond = Number(bodyMatch[1]);
+  if (!Number.isFinite(callsPerSecond) || callsPerSecond <= 0) return null;
+  return Math.ceil(1 / callsPerSecond);
+}
 
 function parsePriceTiers(raw) {
   if (!raw) return null;
@@ -58,25 +89,12 @@ export async function shopifyFetch(pathname, { method = "GET", headers = {}, bod
   const token = await getShopifyAdminToken();
   const url = `https://${config.SHOPIFY_STORE}.myshopify.com${pathname}`;
 
-  const resp = await fetch(url, {
-    method,
-    headers: {
-      "X-Shopify-Access-Token": token,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...headers
-    },
-    body
-  });
-
-  if (resp.status === 401 || resp.status === 403) {
-    cachedToken = null;
-    tokenExpiresAtMs = 0;
-    const token2 = await getShopifyAdminToken();
+  async function makeRequest(accessToken) {
+    await waitForRateLimitWindow();
     return fetch(url, {
       method,
       headers: {
-        "X-Shopify-Access-Token": token2,
+        "X-Shopify-Access-Token": accessToken,
         "Content-Type": "application/json",
         Accept: "application/json",
         ...headers
@@ -85,7 +103,28 @@ export async function shopifyFetch(pathname, { method = "GET", headers = {}, bod
     });
   }
 
-  return resp;
+  let activeToken = token;
+  for (let attempt = 0; attempt <= SHOPIFY_MAX_RETRIES; attempt += 1) {
+    const resp = await makeRequest(activeToken);
+
+    if (resp.status === 401 || resp.status === 403) {
+      cachedToken = null;
+      tokenExpiresAtMs = 0;
+      activeToken = await getShopifyAdminToken();
+      continue;
+    }
+
+    if (resp.status === 429 && attempt < SHOPIFY_MAX_RETRIES) {
+      const responseBody = await resp.text();
+      const retryAfterSec = parseRetryAfterSeconds(resp, responseBody) ?? attempt + 1;
+      await sleep(Math.max(1, retryAfterSec) * 1000);
+      continue;
+    }
+
+    return resp;
+  }
+
+  return makeRequest(activeToken);
 }
 
 export async function fetchVariantPriceTiers(variantId) {
