@@ -779,7 +779,7 @@
   display:flex;
   flex-direction:column;
   gap:.85rem;
-  padding:1.25rem 0 1.25rem 1.5rem;
+  padding:1.25rem 1.5rem;
   border-radius:var(--radius-lg);
   background:var(--panel);
   border:1px solid var(--panel-strong);
@@ -912,53 +912,15 @@
 }
 
 .dispatchBoardLayout{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) 320px;
-  gap:1rem;
-  align-items:stretch;
+  display:flex;
+  flex-direction:column;
+  gap:.85rem;
   min-height:100%;
-}
-@media (max-width:1100px){
-  .dispatchBoardLayout{
-    grid-template-columns:1fr;
-  }
 }
 .dispatchBoardMain{
   display:flex;
   flex-direction:column;
   gap:.85rem;
-}
-.dispatchBoardSidebar{
-  display:flex;
-  flex-direction:column;
-  gap:.85rem;
-  height:100%;
-  padding-right:1.5rem;
-}
-.dispatchShipmentsPanel{
-  border-radius:var(--radius-lg);
-  border:1px solid var(--panel-strong);
-  padding:1rem;
-  background:var(--panel);
-  box-shadow:0 12px 28px rgba(15,23,42,.08);
-  display:flex;
-  flex-direction:column;
-  flex:1;
-}
-.dispatchShipmentsHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:.5rem;
-  margin-bottom:.75rem;
-  font-weight:700;
-  font-size:.85rem;
-}
-.dispatchShipmentsBody{
-  display:flex;
-  flex-direction:column;
-  gap:.6rem;
-  flex:1;
 }
 
 .dispatchStatusPanel {
@@ -1131,7 +1093,7 @@
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
   padding: .35rem;
   min-height: 65vh;
@@ -2270,6 +2232,33 @@
       </div>
       <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
         <div class="dispatchBoardLayout">
+          <div class="dispatchSelectionPanel" id="dispatchSelectionPanel" aria-live="polite">
+            <div class="dispatchSelectionHeader">
+              <span>Selected orders</span>
+              <div class="dispatchSelectionActions">
+                <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
+                <button class="dispatchSelectionClear" id="dispatchSelectionClear" type="button">Clear</button>
+              </div>
+            </div>
+            <div class="dispatchSelectionBody">
+              <div>
+                <div class="dispatchSelectionLabel">Units by size &amp; flavour</div>
+                <div class="dispatchSelectionList" id="dispatchSelectionUnits">
+                  <div class="dispatchSelectionRow">Select orders to see totals.</div>
+                </div>
+              </div>
+              <div class="dispatchSelectionMeta">
+                <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
+                <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
+                <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
+              </div>
+              <div class="dispatchSelectionBulkActions">
+                <button id="dispatchPrintDocs" class="dispatchSelectionBtn" type="button">Print Delivery Docs</button>
+                <button id="dispatchDeliverSelected" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Deliver</button>
+                <button id="dispatchMarkDelivered" class="dispatchSelectionBtn" type="button">Mark as delivered</button>
+              </div>
+            </div>
+          </div>
           <div class="dispatchBoardMain">
             <div class="dispatchBoardPanel">
               <div class="sectionTitle" style="margin-top:.4rem">
@@ -2281,44 +2270,6 @@
               </div>
             </div>
           </div>
-          <aside class="dispatchBoardSidebar" aria-label="Dispatch sidebar">
-            <div class="dispatchSelectionPanel" id="dispatchSelectionPanel" aria-live="polite">
-              <div class="dispatchSelectionHeader">
-                <span>Selected orders</span>
-                <div class="dispatchSelectionActions">
-                  <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
-                  <button class="dispatchSelectionClear" id="dispatchSelectionClear" type="button">Clear</button>
-                </div>
-              </div>
-              <div class="dispatchSelectionBody">
-                <div>
-                  <div class="dispatchSelectionLabel">Units by size &amp; flavour</div>
-                  <div class="dispatchSelectionList" id="dispatchSelectionUnits">
-                    <div class="dispatchSelectionRow">Select orders to see totals.</div>
-                  </div>
-                </div>
-                <div class="dispatchSelectionMeta">
-                  <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
-                  <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
-                  <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
-                </div>
-                <div class="dispatchSelectionBulkActions">
-                  <button id="dispatchPrintDocs" class="dispatchSelectionBtn" type="button">Print Delivery Docs</button>
-                  <button id="dispatchDeliverSelected" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Deliver</button>
-                  <button id="dispatchMarkDelivered" class="dispatchSelectionBtn" type="button">Mark as delivered</button>
-                </div>
-              </div>
-            </div>
-            <div class="dispatchShipmentsPanel">
-              <div class="dispatchShipmentsHeader">
-                <span>Delivery lane</span>
-                <span class="dispatchStamp">Priority statuses</span>
-              </div>
-              <div id="dispatchShipmentsSidebar" class="dispatchShipmentsBody">
-                <div class="dispatchShipmentEmpty">Loading delivery orders…</div>
-              </div>
-            </div>
-          </aside>
         </div>
       </div>
       <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
