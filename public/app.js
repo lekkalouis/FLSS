@@ -2395,39 +2395,10 @@ async function startOrder(orderNo) {
 
   function laneFromOrder(order) {
     const assignedLane = String(order?.assigned_lane || "").trim().toLowerCase();
-    if (assignedLane === "delivery" || assignedLane === "pickup" || assignedLane === "shipping") {
+    if (["shipping_a", "shipping_b", "shipping_c", "pickup", "delivery"].includes(assignedLane)) {
       return assignedLane;
     }
-    if (assignedLane === "unassigned") {
-      return "unassigned";
-    }
-
-    const tags = String(order?.tags || "").toLowerCase();
-    const urgentFlag = Boolean(order?.urgent || order?.is_urgent || order?.rush_order);
-    const slaHours = Number(order?.sla_hours ?? order?.slaHours ?? order?.sla_target_hours);
-    const financialStatus = String(order?.financial_status || "").toLowerCase();
-    const fulfillmentStatus = String(order?.fulfillment_status || "").toLowerCase();
-    const shippingTitles = (order?.shipping_lines || [])
-      .map((line) => String(line.title || "").toLowerCase())
-      .join(" ");
-    const combined = `${tags} ${shippingTitles}`.trim();
-
-    const unpaidStatuses = new Set(["pending", "authorized", "partially_paid", "unpaid"]);
-    const isUnpaid = unpaidStatuses.has(financialStatus);
-    if (isUnpaid) return "shipping_awaiting_payment";
-
-    const isPriorityTag = /(priority|urgent|rush)/.test(tags);
-    const isPrioritySla = Number.isFinite(slaHours) && slaHours > 0 && slaHours <= 24;
-    if (isPriorityTag || urgentFlag || isPrioritySla) return "shipping_priority";
-
-    if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-    if (/(same\s*day|delivery)/.test(combined)) return "delivery_local";
-
-    const isPaid = financialStatus === "paid";
-    const isUnfulfilled = !fulfillmentStatus || fulfillmentStatus === "unfulfilled";
-    if (isPaid && isUnfulfilled) return "shipping_medium";
-
-    return "shipping_medium";
+    return "shipping_a";
   }
 
   function renderDispatchLineItems(order, packingState) {
@@ -2488,9 +2459,9 @@ async function startOrder(orderNo) {
   }
 
   function renderDispatchActions(order, laneId, orderNo) {
-    const normalizedLane = laneId === "delivery_local" || laneId === "pickup" ? laneId : "shipping";
+    const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
     const disabled = orderNo ? "" : "disabled";
-    if (normalizedLane === "delivery_local") {
+    if (normalizedLane === "delivery") {
       const printed = orderNo && printedDeliveryNotes.has(orderNo);
       return `
         <button class="dispatchFulfillBtn" type="button" data-action="print-note" data-order-no="${orderNo || ""}" ${disabled}>Print delivery note</button>
@@ -3341,23 +3312,23 @@ async function startOrder(orderNo) {
     }
 
     const cols = [
-      { id: "shipping_priority", label: "Shipping · Priority", type: "cards" },
-      { id: "shipping_medium", label: "Shipping · Standard", type: "cards" },
-      { id: "shipping_awaiting_payment", label: "Shipping · Awaiting payment", type: "cards" },
-      { id: "pickup", label: "Pickup / Collection", type: "cards" },
-      { id: "delivery_local", label: "Delivery", type: "cards" }
+      { id: "shipping_a", label: "Shipping A", type: "cards" },
+      { id: "shipping_b", label: "Shipping B", type: "cards" },
+      { id: "shipping_c", label: "Shipping C", type: "cards" },
+      { id: "pickup", label: "Pickup", type: "cards" },
+      { id: "delivery", label: "Delivery", type: "cards" }
     ];
     const lanes = {
-      shipping_priority: [],
-      shipping_medium: [],
-      shipping_awaiting_payment: [],
+      shipping_a: [],
+      shipping_b: [],
+      shipping_c: [],
       pickup: [],
-      delivery_local: []
+      delivery: []
     };
 
     list.forEach((o) => {
       const laneId = laneFromOrder(o);
-      (lanes[laneId] || lanes.shipping_medium).push(o);
+      (lanes[laneId] || lanes.shipping_a).push(o);
     });
 
     const cardHTML = (o, laneId) => {
@@ -3404,7 +3375,6 @@ async function startOrder(orderNo) {
             }
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
-          ${String(o.assigned_lane || "").trim().toLowerCase() === "unassigned" ? '<div class="dispatchCardMeta" style="color:#b91c1c;font-weight:700;">⚠️ Lane unresolved (UNASSIGNED)</div>' : ""}
           <div class="dispatchCardParcel">
             <label for="dispatchParcel-${orderNo}">Parcels</label>
             <input
@@ -4349,7 +4319,7 @@ async function startOrder(orderNo) {
   dispatchDeliverSelected?.addEventListener("click", async () => {
     const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
       const order = dispatchOrderCache.get(orderNo);
-      return laneFromOrder(order) === "delivery_local";
+      return laneFromOrder(order) === "delivery";
     });
     for (const orderNo of selected) {
       await markDeliveryReady(orderNo);
@@ -4359,7 +4329,7 @@ async function startOrder(orderNo) {
   dispatchMarkDelivered?.addEventListener("click", async () => {
     const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
       const order = dispatchOrderCache.get(orderNo);
-      return laneFromOrder(order) === "delivery_local";
+      return laneFromOrder(order) === "delivery";
     });
     for (const orderNo of selected) {
       await markDeliveryReady(orderNo);

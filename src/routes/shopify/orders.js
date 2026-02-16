@@ -28,11 +28,120 @@ const ORDER_PARCEL_KEY = "parcel_count";
 const CUSTOMER_DELIVERY_KEY = "delivery_method";
 const WHOLESALE_TAG = "wholesale";
 const FLSS_TAG = "flss";
+const SHIPPING_LANES = ["shipping_a", "shipping_b", "shipping_c"];
+const DISPATCH_META_CONCURRENCY = 5;
 
 const router = Router();
 
 function toMoneyString(value) {
   return Number(value).toFixed(2);
+}
+
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+export function buildLineItems(lineItems = []) {
+  return lineItems.map((li) => {
+    const entry = {
+      quantity: li.quantity || 1
+    };
+    if (li.variantId) {
+      entry.variant_id = li.variantId;
+    } else {
+      entry.title = li.title || li.sku || "Custom item";
+      if (li.price != null) entry.price = String(li.price);
+    }
+    if (li.sku) entry.sku = li.sku;
+    if (li.price != null && !entry.price) entry.price = String(li.price);
+    return entry;
+  });
+}
+
+export function buildOrderMetafields({
+  deliveryDate,
+  shippingMethod,
+  vatNumber,
+  companyName,
+  shippingPrice,
+  shippingBaseTotal,
+  estimatedParcels
+} = {}) {
+  const metafields = [];
+  if (deliveryDate) {
+    metafields.push({
+      namespace: "custom",
+      key: "delivery_date",
+      type: "single_line_text_field",
+      value: String(deliveryDate)
+    });
+  }
+  if (shippingMethod) {
+    metafields.push({
+      namespace: "custom",
+      key: "delivery_type",
+      type: "single_line_text_field",
+      value: String(shippingMethod)
+    });
+  }
+  if (vatNumber) {
+    metafields.push({
+      namespace: "custom",
+      key: "vat_number",
+      type: "single_line_text_field",
+      value: String(vatNumber)
+    });
+  }
+  if (companyName) {
+    metafields.push({
+      namespace: "custom",
+      key: "company_name",
+      type: "single_line_text_field",
+      value: String(companyName)
+    });
+  }
+  const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
+  if (Number.isFinite(shippingAmount)) {
+    metafields.push({
+      namespace: "custom",
+      key: "shipping_amount",
+      type: "number_decimal",
+      value: String(shippingAmount)
+    });
+  }
+  const estimatedParcelsValue = Number(estimatedParcels);
+  if (Number.isFinite(estimatedParcelsValue)) {
+    metafields.push({
+      namespace: "custom",
+      key: "estimated_parcels",
+      type: "number_integer",
+      value: String(Math.round(estimatedParcelsValue))
+    });
+  }
+  return metafields;
+}
+
+export async function parseShopifyResponse(resp) {
+  const text = await resp.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+export function getCustomerDisplayName(order = {}) {
+  const shipping = order.shipping_address || {};
+  const customer = order.customer || {};
+  const companyName =
+    (shipping.company && shipping.company.trim()) ||
+    (customer?.default_address?.company && customer.default_address.company.trim());
+  return (
+    companyName ||
+    shipping.name ||
+    `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
+    (order.name ? String(order.name).replace(/^#/, "") : "")
+  );
 }
 
 const TAG_TIER_MAP = new Map([
@@ -238,41 +347,72 @@ async function ensureCustomerDeliveryType({ base, customerId, shippingMethod }) 
   });
 }
 
-export function resolveDispatchLane(order) {
-  const tags = String(order?.tags || "").toLowerCase();
-  const shippingTitles = (order?.shipping_lines || [])
-    .map((line) => {
-      return [line?.title, line?.code, line?.source]
-        .map((value) => String(value || "").toLowerCase())
-        .join(" ")
-        .trim();
-    })
-    .join(" ")
-    .trim();
-  const combined = `${tags} ${shippingTitles}`.trim();
+function pickShippingDistributionLane(order) {
+  const numericId = Number(order?.id);
+  if (Number.isFinite(numericId)) {
+    const index = Math.abs(Math.trunc(numericId)) % SHIPPING_LANES.length;
+    return SHIPPING_LANES[index];
+  }
 
-  if (!combined) return null;
-  if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-  if (/(same\s*day|delivery(?:[_\s-]*local)?|\blocal\b)/.test(combined)) return "delivery";
-  return "shipping";
+  const fallbackSeed = String(order?.name || order?.order_number || "")
+    .split("")
+    .reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return SHIPPING_LANES[fallbackSeed % SHIPPING_LANES.length];
 }
 
-function buildDispatchLaneWarningMetadata(order) {
-  return {
-    orderId: order?.id || null,
-    orderName: order?.name || null,
-    orderNumber: order?.order_number || null,
-    customerEmail: order?.email || order?.customer?.email || null,
-    createdAt: order?.processed_at || order?.created_at || null,
-    tags: order?.tags || "",
-    shippingLines: Array.isArray(order?.shipping_lines)
-      ? order.shipping_lines.map((line) => ({
-          title: line?.title || "",
-          code: line?.code || "",
-          source: line?.source || ""
-        }))
-      : []
-  };
+function hasAnyToken(text, tokens = []) {
+  return tokens.some((token) => text.includes(token));
+}
+
+export function resolveDispatchLane(order) {
+  const tagTokens = String(order?.tags || "")
+    .split(",")
+    .map((tag) => normalizeText(tag))
+    .filter(Boolean);
+
+  const shippingTokens = (order?.shipping_lines || [])
+    .flatMap((line) => [line?.title, line?.code, line?.source])
+    .map((value) => normalizeText(value))
+    .filter(Boolean);
+
+  const deliveryType = normalizeText(
+    (order?.metafields || []).find((mf) => normalizeText(mf?.key) === "delivery_type")?.value
+  );
+
+  const pickupSignals = new Set(["delivery_pickup", "pickup", "collection", "click & collect"]);
+  if (tagTokens.some((token) => pickupSignals.has(token))) return "pickup";
+  if (shippingTokens.some((token) => token.includes("pickup") || token.includes("collection") || token.includes("click & collect"))) {
+    return "pickup";
+  }
+
+  const shippingText = shippingTokens.join(" ");
+  const hasDeliveryTag = hasAnyToken(tagTokens.join(" "), ["delivery_local", "local"]);
+  const hasDeliveryTitle = hasAnyToken(shippingText, ["delivery", "local"]);
+  const hasDeliveryMeta = deliveryType === "local";
+  if (hasDeliveryTag || hasDeliveryTitle || hasDeliveryMeta) return "delivery";
+
+  return pickShippingDistributionLane(order);
+}
+
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length || 1)) }, async () => {
+    while (nextIndex < items.length) {
+      const current = nextIndex;
+      nextIndex += 1;
+      results[current] = await mapper(items[current], current);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+function isOrderEligibleForDispatch(order) {
+  if (order?.cancelled_at) return false;
+  const fulfillmentStatus = normalizeText(order?.fulfillment_status);
+  if (fulfillmentStatus === "fulfilled") return false;
+  return ["", "unfulfilled", "partial", "in_progress"].includes(fulfillmentStatus);
 }
 
 router.post("/shopify/draft-orders", async (req, res) => {
@@ -365,57 +505,15 @@ router.post("/shopify/draft-orders", async (req, res) => {
       })
     );
 
-    const metafields = [];
-    if (deliveryDate) {
-      metafields.push({
-        namespace: "custom",
-        key: "delivery_date",
-        type: "single_line_text_field",
-        value: String(deliveryDate)
-      });
-    }
-    if (shippingMethod) {
-      metafields.push({
-        namespace: "custom",
-        key: "delivery_type",
-        type: "single_line_text_field",
-        value: String(shippingMethod)
-      });
-    }
-    if (vatNumber) {
-      metafields.push({
-        namespace: "custom",
-        key: "vat_number",
-        type: "single_line_text_field",
-        value: String(vatNumber)
-      });
-    }
-    if (companyName) {
-      metafields.push({
-        namespace: "custom",
-        key: "company_name",
-        type: "single_line_text_field",
-        value: String(companyName)
-      });
-    }
-    const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
-    if (Number.isFinite(shippingAmount)) {
-      metafields.push({
-        namespace: "custom",
-        key: "shipping_amount",
-        type: "number_decimal",
-        value: String(shippingAmount)
-      });
-    }
-    const estimatedParcelsValue = Number(estimatedParcels);
-    if (Number.isFinite(estimatedParcelsValue)) {
-      metafields.push({
-        namespace: "custom",
-        key: "estimated_parcels",
-        type: "number_integer",
-        value: String(Math.round(estimatedParcelsValue))
-      });
-    }
+    const metafields = buildOrderMetafields({
+      deliveryDate,
+      shippingMethod,
+      vatNumber,
+      companyName,
+      shippingPrice,
+      shippingBaseTotal,
+      estimatedParcels
+    });
 
     const payload = {
       draft_order: {
@@ -489,13 +587,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
       body: JSON.stringify(payload)
     });
 
-    const text = await resp.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
+    const data = await parseShopifyResponse(resp);
 
     if (!resp.ok) {
       return res.status(resp.status).json({
@@ -548,13 +640,7 @@ router.post("/shopify/draft-orders/complete", async (req, res) => {
       body: JSON.stringify({ draft_order: { id: draftOrderId } })
     });
 
-    const text = await resp.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
+    const data = await parseShopifyResponse(resp);
 
     if (!resp.ok) {
       return res.status(resp.status).json({
@@ -608,76 +694,21 @@ router.post("/shopify/orders", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const metafields = [];
-    if (deliveryDate) {
-      metafields.push({
-        namespace: "custom",
-        key: "delivery_date",
-        type: "single_line_text_field",
-        value: String(deliveryDate)
-      });
-    }
-    if (shippingMethod) {
-      metafields.push({
-        namespace: "custom",
-        key: "delivery_type",
-        type: "single_line_text_field",
-        value: String(shippingMethod)
-      });
-    }
-    if (vatNumber) {
-      metafields.push({
-        namespace: "custom",
-        key: "vat_number",
-        type: "single_line_text_field",
-        value: String(vatNumber)
-      });
-    }
-    if (companyName) {
-      metafields.push({
-        namespace: "custom",
-        key: "company_name",
-        type: "single_line_text_field",
-        value: String(companyName)
-      });
-    }
-    const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
-    if (Number.isFinite(shippingAmount)) {
-      metafields.push({
-        namespace: "custom",
-        key: "shipping_amount",
-        type: "number_decimal",
-        value: String(shippingAmount)
-      });
-    }
-    const estimatedParcelsValue = Number(estimatedParcels);
-    if (Number.isFinite(estimatedParcelsValue)) {
-      metafields.push({
-        namespace: "custom",
-        key: "estimated_parcels",
-        type: "number_integer",
-        value: String(Math.round(estimatedParcelsValue))
-      });
-    }
+    const metafields = buildOrderMetafields({
+      deliveryDate,
+      shippingMethod,
+      vatNumber,
+      companyName,
+      shippingPrice,
+      shippingBaseTotal,
+      estimatedParcels
+    });
 
     const orderPayload = {
       order: {
         customer: { id: customerId },
         note: poNumber ? `PO: ${poNumber}` : "",
-        line_items: lineItems.map((li) => {
-          const entry = {
-            quantity: li.quantity || 1
-          };
-          if (li.variantId) {
-            entry.variant_id = li.variantId;
-          } else {
-            entry.title = li.title || li.sku || "Custom item";
-            if (li.price != null) entry.price = String(li.price);
-          }
-          if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
-          return entry;
-        }),
+        line_items: buildLineItems(lineItems),
         billing_address: billingAddress || undefined,
         shipping_address: shippingAddress || undefined,
         note_attributes: [
@@ -728,13 +759,7 @@ router.post("/shopify/orders", async (req, res) => {
       body: JSON.stringify(orderPayload)
     });
 
-    const text = await resp.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
+    const data = await parseShopifyResponse(resp);
 
     if (!resp.ok) {
       return res.status(resp.status).json({
@@ -775,20 +800,7 @@ router.post("/shopify/orders/cash", async (req, res) => {
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const orderPayload = {
       order: {
-        line_items: lineItems.map((li) => {
-          const entry = {
-            quantity: li.quantity || 1
-          };
-          if (li.variantId) {
-            entry.variant_id = li.variantId;
-          } else {
-            entry.title = li.title || li.sku || "Custom item";
-            if (li.price != null) entry.price = String(li.price);
-          }
-          if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
-          return entry;
-        }),
+        line_items: buildLineItems(lineItems),
         financial_status: "paid",
         tags: "pos_cash",
         note: note || "POS cash sale",
@@ -803,13 +815,7 @@ router.post("/shopify/orders/cash", async (req, res) => {
       body: JSON.stringify(orderPayload)
     });
 
-    const text = await resp.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
+    const data = await parseShopifyResponse(resp);
 
     if (!resp.ok) {
       return res.status(resp.status).json({
@@ -996,9 +1002,6 @@ router.get("/shopify/orders/open", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const limit = 100;
-    const now = Date.now();
-    const eligibleAgeMs = 90 * 24 * 60 * 60 * 1000;
-    const createdAtCutoffMs = now - eligibleAgeMs;
 
     const firstPath =
       `${base}/orders.json?status=any` +
@@ -1040,117 +1043,94 @@ router.get("/shopify/orders/open", async (req, res) => {
       nextPath = getNextPath(resp.headers.get("link"));
     }
 
-    const isOrderEligibleForDispatch = (order) => {
-      if (order.cancelled_at) return false;
+    const filteredOrders = ordersRaw.filter(isOrderEligibleForDispatch);
+    const parcelCountCache = new Map();
+    const estimatedParcelCountCache = new Map();
 
-      const fulfillmentStatus = String(order.fulfillment_status || "").toLowerCase();
-      const isFulfilled = fulfillmentStatus === "fulfilled";
-
-      const isExplicitlyOpen =
-        String(order.status || "").toLowerCase() === "open" || !order.closed_at;
-
-      if (isExplicitlyOpen) return true;
-      if (isFulfilled) return false;
-
-      const createdAtMs = new Date(order.created_at || 0).getTime();
-      if (!Number.isFinite(createdAtMs)) return false;
-
-      return createdAtMs >= createdAtCutoffMs;
-    };
-
-    const filteredOrders = ordersRaw.filter((o) => {
-      return isOrderEligibleForDispatch(o);
-    });
-    const parcelCounts = await Promise.all(filteredOrders.map((o) => fetchOrderParcelCount(base, o.id)));
-    const estimatedParcelCounts = await Promise.all(
-      filteredOrders.map((o) => fetchOrderEstimatedParcels(base, o.id))
+    const parcelCounts = await mapWithConcurrency(
+      filteredOrders,
+      DISPATCH_META_CONCURRENCY,
+      async (order) => {
+        if (parcelCountCache.has(order.id)) return parcelCountCache.get(order.id);
+        const value = await fetchOrderParcelCount(base, order.id);
+        parcelCountCache.set(order.id, value);
+        return value;
+      }
     );
-    const parcelCountMap = new Map(
-      filteredOrders.map((o, idx) => [o.id, parcelCounts[idx]])
+    const estimatedParcelCounts = await mapWithConcurrency(
+      filteredOrders,
+      DISPATCH_META_CONCURRENCY,
+      async (order) => {
+        if (estimatedParcelCountCache.has(order.id)) return estimatedParcelCountCache.get(order.id);
+        const value = await fetchOrderEstimatedParcels(base, order.id);
+        estimatedParcelCountCache.set(order.id, value);
+        return value;
+      }
     );
+
+    const parcelCountMap = new Map(filteredOrders.map((o, idx) => [o.id, parcelCounts[idx]]));
     const estimatedParcelCountMap = new Map(
       filteredOrders.map((o, idx) => [o.id, estimatedParcelCounts[idx]])
     );
 
     const orders = filteredOrders.map((o) => {
-        const shipping = o.shipping_address || {};
-        const customer = o.customer || {};
+      const shipping = o.shipping_address || {};
 
-        let parcelCountFromTag = null;
-        if (typeof o.tags === "string" && o.tags.trim()) {
-          const parts = o.tags.split(",").map((t) => t.trim().toLowerCase());
-          for (const t of parts) {
-            const m = t.match(/^parcel_count_(\d+)$/);
-            if (m) {
-              parcelCountFromTag = parseInt(m[1], 10);
-              break;
-            }
+      let parcelCountFromTag = null;
+      if (typeof o.tags === "string" && o.tags.trim()) {
+        const parts = o.tags.split(",").map((t) => t.trim().toLowerCase());
+        for (const t of parts) {
+          const m = t.match(/^parcel_count_(\d+)$/);
+          if (m) {
+            parcelCountFromTag = parseInt(m[1], 10);
+            break;
           }
         }
+      }
 
-        const totalGrams = (o.line_items || []).reduce((sum, li) => {
-          const grams = Number(li.grams || 0);
-          const qty = Number(li.quantity || 1);
-          return sum + grams * qty;
-        }, 0);
-        const totalWeightKg = totalGrams / 1000;
+      const totalGrams = (o.line_items || []).reduce((sum, li) => {
+        const grams = Number(li.grams || 0);
+        const qty = Number(li.quantity || 1);
+        return sum + grams * qty;
+      }, 0);
+      const totalWeightKg = totalGrams / 1000;
 
-        const companyName =
-          (shipping.company && shipping.company.trim()) ||
-          (customer?.default_address?.company && customer.default_address.company.trim());
+      const parcelCountFromMeta = parcelCountMap.get(o.id) ?? null;
+      const estimatedParcelsFromMeta = estimatedParcelCountMap.get(o.id) ?? null;
 
-        const customer_name =
-          companyName ||
-          shipping.name ||
-          `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
-          (o.name ? o.name.replace(/^#/, "") : "");
-
-        const parcelCountFromMeta = parcelCountMap.get(o.id) ?? null;
-        const estimatedParcelsFromMeta = estimatedParcelCountMap.get(o.id) ?? null;
-
-        const eligibleForDispatch = isOrderEligibleForDispatch(o);
-        let assignedLane = resolveDispatchLane(o);
-        if (eligibleForDispatch && !assignedLane) {
-          assignedLane = "UNASSIGNED";
-          console.warn(
-            "Eligible dispatch order missing lane assignment",
-            buildDispatchLaneWarningMetadata(o)
-          );
-        }
-
-        return {
-          id: o.id,
-          name: o.name,
-          eligible_for_dispatch: eligibleForDispatch,
-          assigned_lane: assignedLane,
-          customer_name,
-          email: o.email || customer.email || "",
-          created_at: o.processed_at || o.created_at,
-          fulfillment_status: o.fulfillment_status,
-          tags: o.tags || "",
-          total_weight_kg: totalWeightKg,
-          shipping_lines: (o.shipping_lines || []).map((line) => ({
-            title: line.title || "",
-            code: line.code || "",
-            price: line.price || ""
-          })),
-          shipping_city: shipping.city || "",
-          shipping_postal: shipping.zip || "",
-          shipping_address1: shipping.address1 || "",
-          shipping_address2: shipping.address2 || "",
-          shipping_province: shipping.province || "",
-          shipping_country: shipping.country || "",
-          shipping_phone: shipping.phone || "",
-          shipping_name: shipping.name || customer_name,
-          parcel_count: parcelCountFromMeta ?? parcelCountFromTag,
-          estimated_parcels: estimatedParcelsFromMeta,
-          line_items: (o.line_items || []).map((li) => ({
-            title: li.title,
-            variant_title: li.variant_title,
-            quantity: li.quantity
-          }))
-        };
-      });
+      return {
+        id: o.id,
+        name: o.name,
+        eligible_for_dispatch: true,
+        assigned_lane: resolveDispatchLane(o),
+        customer_name: getCustomerDisplayName(o),
+        email: o.email || o.customer?.email || "",
+        created_at: o.processed_at || o.created_at,
+        fulfillment_status: o.fulfillment_status,
+        tags: o.tags || "",
+        total_weight_kg: totalWeightKg,
+        shipping_lines: (o.shipping_lines || []).map((line) => ({
+          title: line.title || "",
+          code: line.code || "",
+          price: line.price || ""
+        })),
+        shipping_city: shipping.city || "",
+        shipping_postal: shipping.zip || "",
+        shipping_address1: shipping.address1 || "",
+        shipping_address2: shipping.address2 || "",
+        shipping_province: shipping.province || "",
+        shipping_country: shipping.country || "",
+        shipping_phone: shipping.phone || "",
+        shipping_name: shipping.name || getCustomerDisplayName(o),
+        parcel_count: parcelCountFromMeta ?? parcelCountFromTag,
+        estimated_parcels: estimatedParcelsFromMeta,
+        line_items: (o.line_items || []).map((li) => ({
+          title: li.title,
+          variant_title: li.variant_title,
+          quantity: li.quantity
+        }))
+      };
+    });
 
     return res.json({ orders });
   } catch (err) {
@@ -1195,23 +1175,13 @@ router.get("/shopify/orders/list", async (req, res) => {
     const orders = ordersRaw
       .filter((o) => !o.cancelled_at)
       .map((o) => {
-        const shipping = o.shipping_address || {};
         const customer = o.customer || {};
-        const companyName =
-          (shipping.company && shipping.company.trim()) ||
-          (customer?.default_address?.company && customer.default_address.company.trim());
-
-        const customer_name =
-          companyName ||
-          shipping.name ||
-          `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
-          (o.name ? o.name.replace(/^#/, "") : "");
 
         return {
           id: o.id,
           name: o.name,
           order_number: o.order_number,
-          customer_name,
+          customer_name: getCustomerDisplayName(o),
           email: o.email || customer.email || "",
           created_at: o.processed_at || o.created_at
         };
