@@ -418,6 +418,9 @@ router.post("/shopify/orders", async (req, res) => {
     };
 
     const orderTags = [];
+    if (config.SHOPIFY_FLOW_TAG) {
+      orderTags.push(config.SHOPIFY_FLOW_TAG);
+    }
     if (shippingMethod && shippingMethod !== "shipping") {
       orderTags.push(`delivery_${shippingMethod}`);
     }
