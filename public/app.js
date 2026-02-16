@@ -2311,7 +2311,7 @@ async function startOrder(orderNo) {
       .map((line) => String(line.title || "").toLowerCase())
       .join(" ");
     const combined = `${tags} ${shippingTitles}`.trim();
-    if (/(Flippen Lekka|Pickup|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
+    if (/(warehouse|Pickup|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
     if (/(same\s*day|delivery)/.test(combined)) return "delivery";
     return "shipping";
   }
