@@ -2325,16 +2325,6 @@ async function startOrder(orderNo) {
     return /(^|[\s,])agent([\s,]|$)/.test(tags);
   }
 
-  function isRetailerOrder(order) {
-    const tags = String(order?.tags || "").toLowerCase();
-    return /(^|[\s,])retailer([\s,]|$)/.test(tags);
-  }
-
-  function isHenniesOrder(order) {
-    const tags = String(order?.tags || "").toLowerCase();
-    return /(^|[\s,])hennies([\s,]|$)/.test(tags);
-  }
-
   function renderDispatchLineItems(order, packingState) {
     return (order.line_items || [])
       .map((item, index) => ({ ...item, __index: index }))
@@ -3236,17 +3226,16 @@ async function startOrder(orderNo) {
 
     const cols = [
       { id: "delivery", label: "Delivery", type: "cards" },
-      { id: "shippingOnline", label: "Shipping (Online Orders)", type: "cards" },
-      { id: "shippingRetailerA", label: "Shipping (Retailers)", type: "cards" },
-      { id: "shippingRetailerB", label: "Shipping (Retailers)", type: "cards" },
-      { id: "shippingAgent", label: "Shipping (Agents)", type: "cards" },
+      { id: "shippingAgent", label: "Shipping (Agent)", type: "cards" },
+      { id: "shippingA", label: "Shipping", type: "cards" },
+      { id: "shippingB", label: "Shipping", type: "cards" },
+      { id: "shippingC", label: "Shipping", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" }
     ];
     const lanes = {
       delivery: [],
-      shippingOnline: [],
       shippingAgent: [],
-      shippingRetailer: [],
+      shippingNonAgent: [],
       pickup: []
     };
 
@@ -3255,22 +3244,20 @@ async function startOrder(orderNo) {
       if (laneId === "shipping") {
         if (isAgentOrder(o)) {
           lanes.shippingAgent.push(o);
-        } else if (isRetailerOrder(o)) {
-          lanes.shippingRetailer.push(o);
         } else {
-          lanes.shippingOnline.push(o);
+          lanes.shippingNonAgent.push(o);
         }
         return;
       }
-      (lanes[laneId] || lanes.shippingOnline).push(o);
+      (lanes[laneId] || lanes.shippingNonAgent).push(o);
     });
 
-    const retailerShippingLaneCount = 2;
-    const retailerShippingChunks = Array.from({ length: retailerShippingLaneCount }, () => []);
-    lanes.shippingRetailer.forEach((order, index) => {
-      retailerShippingChunks[index % retailerShippingLaneCount].push(order);
+    const shippingLaneCount = 3;
+    const shippingChunks = Array.from({ length: shippingLaneCount }, () => []);
+    lanes.shippingNonAgent.forEach((order, index) => {
+      shippingChunks[index % shippingLaneCount].push(order);
     });
-    const [shippingRetailerA, shippingRetailerB] = retailerShippingChunks;
+    const [shippingA, shippingB, shippingC] = shippingChunks;
 
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
@@ -3293,7 +3280,6 @@ async function startOrder(orderNo) {
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
       const priorityStatus = orderNo ? dispatchPriorityState.get(orderNo) || "" : "";
-      const isHennies = isHenniesOrder(o);
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
@@ -3301,8 +3287,6 @@ async function startOrder(orderNo) {
 
       return `
         <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} ${
-          isHennies ? "dispatchCard--hennies" : ""
-        } ${
           priorityStatus ? `dispatchCard--${priorityStatus}` : ""
         }" data-order-no="${orderNo}" ${combinedStyle}>
           <div class="dispatchCardTitle">
@@ -3353,12 +3337,12 @@ async function startOrder(orderNo) {
     dispatchBoard.innerHTML = cols
       .map((col) => {
         const laneOrders =
-          col.id === "shippingOnline"
-            ? lanes.shippingOnline
-            : col.id === "shippingRetailerA"
-            ? shippingRetailerA
-            : col.id === "shippingRetailerB"
-            ? shippingRetailerB
+          col.id === "shippingA"
+            ? shippingA
+            : col.id === "shippingB"
+            ? shippingB
+            : col.id === "shippingC"
+            ? shippingC
             : col.id === "shippingAgent"
             ? lanes.shippingAgent
             : lanes[col.id] || [];
