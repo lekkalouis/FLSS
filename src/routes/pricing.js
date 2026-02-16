@@ -27,28 +27,6 @@ function pickRulesForContext(priceLists = [], context = {}) {
   return candidates;
 }
 
-function buildLegacyRulesFromPayload({ context = {}, body = {} } = {}) {
-  const variantId = context?.variantId != null ? String(context.variantId) : "";
-  const contextTiers =
-    context?.priceTiers && typeof context.priceTiers === "object"
-      ? context.priceTiers
-      : null;
-  const bodyTiersMap =
-    body?.priceTiersByVariantId && typeof body.priceTiersByVariantId === "object"
-      ? body.priceTiersByVariantId
-      : null;
-  const mappedTiers = variantId && bodyTiersMap ? bodyTiersMap[variantId] : null;
-  const tiers = contextTiers || mappedTiers;
-
-  if (!tiers || typeof tiers !== "object") return [];
-
-  return legacyPriceTiersToRules({
-    variantId: context.variantId,
-    sku: context.sku,
-    priceTiers: tiers
-  });
-}
-
 router.get("/pricing/lists", async (_req, res) => {
   const lists = await listPriceLists();
   return res.json({ priceLists: lists });
@@ -115,14 +93,6 @@ router.post("/pricing/resolve", async (req, res) => {
       };
 
       let rules = pickRulesForContext(priceLists, normalizedContext);
-
-      const localLegacyRules = buildLegacyRulesFromPayload({
-        context: normalizedContext,
-        body
-      });
-      if (localLegacyRules.length) {
-        rules = [...(rules || []), ...localLegacyRules];
-      }
 
       if (normalizedContext.variantId && (!rules || !rules.length)) {
         const legacy = await fetchVariantPriceTiers(normalizedContext.variantId);
