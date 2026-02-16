@@ -223,8 +223,13 @@ export function initFlocsView() {
     if (!product) return null;
     const tier = state.priceTier;
     const tiers = normalizePriceTiers(product);
+    const retailPrice = retailPriceForProduct(product);
     if (tier && tiers && tiers[tier] != null) {
-      return Number(tiers[tier]);
+      const tierValue = Number(tiers[tier]);
+      if (Number.isFinite(tierValue) && Number.isFinite(retailPrice)) {
+        const discountedPrice = retailPrice - tierValue;
+        return discountedPrice > 0 ? discountedPrice : retailPrice;
+      }
     }
     if (tiers) {
       const fallback = tiers.default != null ? tiers.default : tiers.standard;
