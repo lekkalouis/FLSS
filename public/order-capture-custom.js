@@ -2,6 +2,8 @@ import { PRODUCT_LIST } from "./views/products.js";
 
 const STORAGE_KEY = "fl_custom_order_access_v1";
 const API_BASE = "/api/v1/shopify";
+const VAT_RATE = 0.15;
+const SEGMENTS = ["all", "agent", "retailer", "export", "local", "private"];
 
 const $ = (id) => document.getElementById(id);
 const els = {
@@ -17,12 +19,23 @@ const els = {
 
   customerSearch: $("customer-search"),
   customerSearchBtn: $("customer-search-btn"),
+  quickPickerBtn: $("quick-picker-btn"),
   customerStatus: $("customer-status"),
   customerResults: $("customer-results"),
+  segmentFilters: $("segment-filters"),
+
+  quickPicker: $("quick-picker"),
+  quickPickerClose: $("quick-picker-close"),
+  quickPickerSegments: $("quick-picker-segments"),
+  quickPickerGrid: $("quick-picker-grid"),
 
   productBody: $("product-body"),
   selectedCount: $("selected-count"),
   orderTotal: $("order-total"),
+  subtotalTotal: $("subtotal-total"),
+  shippingTotal: $("shipping-total"),
+  vatTotal: $("vat-total"),
+  grandTotal: $("grand-total"),
   receipt: $("receipt"),
 
   submitOrder: $("submit-order"),
@@ -58,9 +71,42 @@ const els = {
 
 const state = {
   customers: [],
+  visibleCustomers: [],
+  activeSegment: "all",
   selectedCustomer: null,
   qtyBySku: new Map()
 };
+
+function parseTags(rawTags) {
+  if (!rawTags) return [];
+  if (Array.isArray(rawTags)) {
+    return rawTags.map((t) => String(t).trim().toLowerCase()).filter(Boolean);
+  }
+  return String(rawTags)
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function customerSegment(customer) {
+  const tags = parseTags(customer?.tags);
+  if (tags.includes("online")) return "online";
+  if (tags.includes("agent")) return "agent";
+  if (tags.includes("retailer") || tags.includes("retail")) return "retailer";
+  if (tags.includes("export")) return "export";
+  if (tags.includes("local")) return "local";
+  if (tags.includes("private")) return "private";
+  return "retailer";
+}
+
+function shippingEstimate() {
+  const segment = customerSegment(state.selectedCustomer);
+  if (segment === "local") return 0;
+  const subtotal = selectedLineItems().reduce((sum, line) => sum + line.quantity * Number(line.price || 0), 0);
+  if (!subtotal) return 0;
+  const base = subtotal >= 2000 ? 120 : 180;
+  return base;
+}
 
 function money(v) {
   const n = Number(v || 0);
@@ -133,6 +179,7 @@ function configureLockScreen() {
 function unlockPage() {
   els.lockScreen.hidden = true;
   setStatus(els.lockStatus, "");
+  setTimeout(() => els.customerSearch?.focus(), 0);
 }
 
 async function handleLockAction() {
@@ -201,11 +248,11 @@ function selectedLineItems() {
 
 function renderSummary() {
   const lines = selectedLineItems();
-  let total = 0;
+  let subtotal = 0;
   const receipt = ["Flippen Lekka Order Form", "--------------------------"];
   lines.forEach((line) => {
     const lineTotal = line.quantity * Number(line.price || 0);
-    total += lineTotal;
+    subtotal += lineTotal;
     const lineCell = document.querySelector(`[data-line="${line.sku}"]`);
     if (lineCell) lineCell.textContent = money(lineTotal);
     receipt.push(`${line.sku} ${line.quantity} x ${money(line.price)} = ${money(lineTotal)}`);
@@ -219,8 +266,15 @@ function renderSummary() {
   });
 
   els.selectedCount.textContent = `${lines.length} products selected`;
-  els.orderTotal.textContent = money(total);
-  receipt.push("--------------------------", `TOTAL: ${money(total)}`);
+  const shipping = shippingEstimate();
+  const vat = (subtotal + shipping) * VAT_RATE;
+  const grand = subtotal + shipping + vat;
+  els.orderTotal.textContent = money(subtotal);
+  els.subtotalTotal.textContent = money(subtotal);
+  els.shippingTotal.textContent = money(shipping);
+  els.vatTotal.textContent = money(vat);
+  els.grandTotal.textContent = money(grand);
+  receipt.push("--------------------------", `Subtotal: ${money(subtotal)}`, `Shipping est.: ${money(shipping)}`, `VAT 15%: ${money(vat)}`, `EST. TOTAL: ${money(grand)}`);
   els.receipt.textContent = lines.length ? receipt.join("\n") : "Receipt preview appears as quantities are entered.";
 }
 
@@ -278,8 +332,10 @@ function applyAddressFields(customer) {
 }
 
 function renderCustomerOptions(customers) {
+  state.visibleCustomers = customers;
   if (!customers.length) {
     els.customerResults.innerHTML = "";
+    state.selectedCustomer = null;
     return;
   }
   els.customerResults.innerHTML = customers
@@ -291,6 +347,85 @@ function renderCustomerOptions(customers) {
   els.customerResults.value = "0";
   state.selectedCustomer = customers[0];
   applyAddressFields(state.selectedCustomer);
+  renderSummary();
+}
+
+function filteredCustomers() {
+  const list = Array.isArray(state.customers) ? state.customers : [];
+  const withoutOnline = list.filter((customer) => customerSegment(customer) !== "online");
+  if (state.activeSegment === "all") return withoutOnline;
+  return withoutOnline.filter((customer) => customerSegment(customer) === state.activeSegment);
+}
+
+function renderSegmentControls() {
+  const html = SEGMENTS.map((segment) => {
+    const label = segment === "all" ? "All" : segment[0].toUpperCase() + segment.slice(1);
+    const active = segment === state.activeSegment ? "active" : "";
+    return `<button type="button" class="${active}" data-segment="${segment}">${label}</button>`;
+  }).join("");
+  els.segmentFilters.innerHTML = html;
+  els.quickPickerSegments.innerHTML = html;
+}
+
+function renderQuickPicker() {
+  const list = filteredCustomers();
+  state.visibleCustomers = list;
+  if (!list.length) {
+    els.quickPickerGrid.innerHTML = `<div class="searchHint">No customers in this segment.</div>`;
+    return;
+  }
+  els.quickPickerGrid.innerHTML = list
+    .map((customer, idx) => {
+      const segment = customerSegment(customer);
+      return `<button type="button" class="customerTile" data-pick="${idx}">
+        <strong>${customer.name || "Unnamed"}</strong>
+        <small>${customer.companyName || customer.email || customer.phone || "No contact"}</small>
+        <small>${segment.toUpperCase()}</small>
+      </button>`;
+    })
+    .join("");
+}
+
+function openQuickPicker() {
+  renderQuickPicker();
+  els.quickPicker.hidden = false;
+}
+
+function closeQuickPicker() {
+  els.quickPicker.hidden = true;
+}
+
+function applySelectedCustomer(customer) {
+  if (!customer) return;
+  state.selectedCustomer = customer;
+  applyAddressFields(customer);
+  const all = filteredCustomers();
+  const idx = all.findIndex((entry) => Number(entry.id) === Number(customer.id));
+  if (idx >= 0) {
+    renderCustomerOptions(all);
+    els.customerResults.value = String(idx);
+    state.selectedCustomer = all[idx];
+    applyAddressFields(state.selectedCustomer);
+  }
+  renderSummary();
+}
+
+async function preloadCustomers() {
+  setStatus(els.customerStatus, "Loading recent customers...");
+  try {
+    const response = await fetch(`${API_BASE}/customers/recent?limit=50`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.message || "Unable to preload customers");
+    state.customers = Array.isArray(data.customers) ? data.customers : [];
+    renderSegmentControls();
+    const initial = filteredCustomers();
+    renderCustomerOptions(initial);
+    renderQuickPicker();
+    setStatus(els.customerStatus, `Loaded ${state.customers.length} recent customer(s).`, "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(els.customerStatus, "Recent list unavailable. Search by name/email.", "warn");
+  }
 }
 
 async function searchCustomers() {
@@ -308,7 +443,10 @@ async function searchCustomers() {
     if (!response.ok) throw new Error(data?.message || "Customer search failed");
 
     state.customers = Array.isArray(data.customers) ? data.customers : [];
-    renderCustomerOptions(state.customers);
+    renderSegmentControls();
+    const visible = filteredCustomers();
+    renderCustomerOptions(visible);
+    renderQuickPicker();
     if (!state.customers.length) {
       state.selectedCustomer = null;
       setStatus(els.customerStatus, "No customers found.", "warn");
@@ -399,9 +537,48 @@ function wireEvents() {
   });
   els.customerResults.addEventListener("change", () => {
     const index = Number(els.customerResults.value);
-    const customer = state.customers[index] || null;
-    state.selectedCustomer = customer;
-    if (customer) applyAddressFields(customer);
+    const customer = state.visibleCustomers[index] || null;
+    if (customer) applySelectedCustomer(customer);
+  });
+
+  els.segmentFilters.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement)) return;
+    const segment = target.dataset.segment;
+    if (!segment) return;
+    state.activeSegment = segment;
+    renderSegmentControls();
+    renderCustomerOptions(filteredCustomers());
+    renderQuickPicker();
+  });
+
+  els.quickPickerSegments.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLButtonElement)) return;
+    const segment = target.dataset.segment;
+    if (!segment) return;
+    state.activeSegment = segment;
+    renderSegmentControls();
+    renderCustomerOptions(filteredCustomers());
+    renderQuickPicker();
+  });
+
+  els.quickPickerGrid.addEventListener("click", (event) => {
+    const target = event.target;
+    const pickBtn = target instanceof Element ? target.closest("[data-pick]") : null;
+    if (!pickBtn) return;
+    const idx = Number(pickBtn.getAttribute("data-pick"));
+    const customer = state.visibleCustomers[idx] || null;
+    if (customer) {
+      applySelectedCustomer(customer);
+      closeQuickPicker();
+    }
+  });
+
+  els.quickPickerBtn.addEventListener("click", openQuickPicker);
+  els.quickPickerClose.addEventListener("click", closeQuickPicker);
+  els.quickPicker.addEventListener("click", (event) => {
+    if (event.target === els.quickPicker) closeQuickPicker();
   });
 
   els.submitOrder.addEventListener("click", submitOrder);
@@ -424,7 +601,9 @@ function boot() {
   ).padStart(2, "0")}`;
   buildProductTable();
   renderSummary();
+  renderSegmentControls();
   wireEvents();
+  preloadCustomers();
   configureLockScreen();
 }
 

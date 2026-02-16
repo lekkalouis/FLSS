@@ -21,8 +21,7 @@
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);padding:1rem}
     .shell{max-width:1160px;margin:0 auto;display:grid;gap:.8rem}
-    .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between;background:#111827;color:#e5e7eb;padding:.65rem .8rem;border-radius:10px}
-    .toolbar .actions{display:flex;gap:.45rem;flex-wrap:wrap}
+    .actions{display:flex;gap:.45rem;flex-wrap:wrap}
     button,input,select,textarea{font:inherit}
     button{border:1px solid #d1d5db;border-radius:6px;padding:.45rem .72rem;cursor:pointer;background:#fff}
     button.primary{background:#0f766e;color:#fff;border-color:#0f766e}
@@ -41,7 +40,7 @@
     .metaTable th,.metaTable td{border:1px solid var(--line);padding:.28rem .5rem}
     .metaTable th{background:#f3f4f6;color:#4b5563}
 
-    .searchRow{display:grid;grid-template-columns:1fr auto;gap:.5rem;margin:.65rem 0}
+    .searchRow{display:grid;grid-template-columns:1fr auto auto;gap:.5rem;margin:.65rem 0}
     .searchRow input{padding:.45rem .55rem;border:1px solid var(--line-strong);border-radius:6px}
     .searchHint{font-size:.78rem;color:var(--muted)}
 
@@ -65,6 +64,17 @@
     .qty{width:100%;border:1px solid var(--line-strong);padding:.24rem .36rem;text-align:right;border-radius:4px}
 
     .summary{display:grid;grid-template-columns:1fr auto auto;gap:.7rem;align-items:center;padding:.55rem 0}
+    .totals{border:1px solid var(--line);margin-top:.45rem;border-radius:6px;padding:.6rem;display:grid;gap:.35rem;background:#fafafa}
+    .totals .row{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
+    .totals .grand{font-weight:700;font-size:1rem;border-top:1px solid var(--line);padding-top:.35rem}
+    .bottomBar{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.65rem;padding-top:.5rem;border-top:1px solid var(--line)}
+    .quickSegments{display:flex;gap:.35rem;flex-wrap:wrap;margin:.4rem 0 .2rem}
+    .quickSegments button.active{background:#0f766e;color:#fff;border-color:#0f766e}
+    .modal{position:fixed;inset:0;background:rgba(17,24,39,.78);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:90}
+    .modalCard{width:min(880px,100%);max-height:78vh;overflow:auto;background:#fff;border-radius:10px;padding:.8rem;display:grid;gap:.5rem}
+    .customerGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.45rem}
+    .customerTile{padding:.45rem;border:1px solid var(--line);border-radius:8px;background:#fff;text-align:left}
+    .customerTile small{display:block;color:#6b7280;margin-top:.2rem}
     .receipt{font-family:var(--mono);font-size:.78rem;background:#0f172a;color:#e2e8f0;padding:.5rem;border-radius:6px;white-space:pre-wrap;max-height:180px;overflow:auto}
 
     .lock{position:fixed;inset:0;background:rgba(17,24,39,.92);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:100}
@@ -88,17 +98,6 @@
 </head>
 <body>
   <div class="shell">
-    <div class="toolbar">
-      <strong>Custom Order Form (normal Shopify order)</strong>
-      <div class="actions">
-        <button id="submit-order" class="primary" type="button">Create order</button>
-        <button id="print-form" type="button">Print</button>
-        <button id="lock-page" type="button">Lock</button>
-        <button id="reset-password" type="button" class="danger">Reset password</button>
-      </div>
-      <div id="order-status" class="status"></div>
-    </div>
-
     <section class="form-page">
       <header class="head">
         <div class="brand">
@@ -120,8 +119,10 @@
       <div class="searchRow">
         <input id="customer-search" type="text" placeholder="Search customer by name, company, email, or phone" autocomplete="off" />
         <button id="customer-search-btn" type="button">Search customer</button>
+        <button id="quick-picker-btn" type="button">Quick picker</button>
       </div>
       <div id="customer-status" class="searchHint">Select a Shopify customer to create a normal order.</div>
+      <div id="segment-filters" class="quickSegments"></div>
       <select id="customer-results"></select>
 
       <div class="addrWrap">
@@ -173,9 +174,36 @@
         <strong>Order Total:</strong>
         <strong id="order-total">R0.00</strong>
       </div>
+      <div class="totals">
+        <div class="row"><span>Subtotal</span><strong id="subtotal-total">R0.00</strong></div>
+        <div class="row"><span>Shipping estimate</span><strong id="shipping-total">R0.00</strong></div>
+        <div class="row"><span>VAT (15%)</span><strong id="vat-total">R0.00</strong></div>
+        <div class="row grand"><span>Pro forma estimate total</span><strong id="grand-total">R0.00</strong></div>
+      </div>
       <div id="receipt" class="receipt">Receipt preview appears as quantities are entered.</div>
+
+      <div class="bottomBar">
+        <div id="order-status" class="status"></div>
+        <div class="actions">
+          <button id="submit-order" class="primary" type="button">Create order</button>
+          <button id="print-form" type="button">Print</button>
+          <button id="lock-page" type="button">Lock</button>
+          <button id="reset-password" type="button" class="danger">Reset password</button>
+        </div>
+      </div>
     </section>
   </div>
+
+  <section id="quick-picker" class="modal" hidden>
+    <div class="modalCard">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.6rem">
+        <strong>Quick customer picker</strong>
+        <button id="quick-picker-close" type="button">Close</button>
+      </div>
+      <div id="quick-picker-segments" class="quickSegments"></div>
+      <div id="quick-picker-grid" class="customerGrid"></div>
+    </div>
+  </section>
 
   <section id="lock-screen" class="lock" aria-live="polite">
     <div class="lockCard">
