@@ -1336,6 +1336,23 @@ ${state.customer.email || ""}${
   }
 
 
+  async function hydrateCustomerCustomFields(customer) {
+    if (!customer?.id || customer.customFieldsLoaded) return customer;
+    try {
+      const resp = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers/${encodeURIComponent(customer.id)}/metafields`);
+      const payload = await resp.json();
+      if (!resp.ok) return customer;
+      return {
+        ...customer,
+        ...(payload?.metafields || {}),
+        tier: payload?.metafields?.tier || customer.tier || null,
+        customFieldsLoaded: true
+      };
+    } catch {
+      return customer;
+    }
+  }
+
   async function createCustomer() {
     if (!customerCreateBtn) return;
     const firstName = customerFirst?.value?.trim() || "";
@@ -1410,7 +1427,7 @@ ${state.customer.email || ""}${
         return;
       }
 
-      applySelectedCustomer(data.customer);
+      applySelectedCustomer({ ...data.customer, customFieldsLoaded: true });
       if (customerCreateStatus) {
         customerCreateStatus.textContent =
           `Created: ${data.customer.name}`;
@@ -1895,14 +1912,16 @@ ${state.customer.email || ""}${
     }
 
     if (customerResults) {
-      customerResults.addEventListener("click", (e) => {
+      customerResults.addEventListener("click", async (e) => {
         const row = e.target.closest(".flocs-customerItem");
         if (!row || !customerResults._data) return;
         const idx = Number(row.dataset.idx);
         const list = customerResults._data;
         const c = list[idx];
         if (!c) return;
-        applySelectedCustomer(c);
+        customerStatus.textContent = "Loading customer details…";
+        const hydrated = await hydrateCustomerCustomFields(c);
+        applySelectedCustomer(hydrated);
       });
     }
 

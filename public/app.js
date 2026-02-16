@@ -3283,10 +3283,14 @@ async function startOrder(orderNo) {
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
       const fallbackParcelCount = getAutoParcelCountForOrder(o.line_items);
+      const tagParcelCount =
+        typeof o.parcel_count_from_tag === "number" && o.parcel_count_from_tag >= 0
+          ? o.parcel_count_from_tag
+          : null;
       const parcelCountValue =
         typeof o.parcel_count === "number" && o.parcel_count >= 0
           ? o.parcel_count
-          : fallbackParcelCount ?? "";
+          : tagParcelCount ?? fallbackParcelCount ?? "";
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
