@@ -2307,13 +2307,22 @@ async function startOrder(orderNo) {
 
   function laneFromOrder(order) {
     const tags = String(order?.tags || "").toLowerCase();
+    if (/(^|[\s,])delivery_pickup([\s,]|$)/.test(tags)) return "pickup";
+    if (/(^|[\s,])delivery_deliver([\s,]|$)/.test(tags)) return "delivery";
+    if (/(^|[\s,])delivery_ship([\s,]|$)/.test(tags)) return "shipping";
+
     const shippingTitles = (order?.shipping_lines || [])
       .map((line) => String(line.title || "").toLowerCase())
       .join(" ");
     const combined = `${tags} ${shippingTitles}`.trim();
-    if (/(warehouse|Pickup|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
+    if (/(warehouse|pickup|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
     if (/(same\s*day|delivery)/.test(combined)) return "delivery";
     return "shipping";
+  }
+
+  function isAgentOrder(order) {
+    const tags = String(order?.tags || "").toLowerCase();
+    return /(^|[\s,])agent([\s,]|$)/.test(tags);
   }
 
   function renderDispatchLineItems(order, packingState) {
@@ -3207,7 +3216,7 @@ async function startOrder(orderNo) {
     });
 
     filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-    const list = filtered.slice(0, 60);
+    const list = filtered;
     if (!list.length) {
       dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
       dispatchSelectedOrders.clear();
@@ -3217,24 +3226,38 @@ async function startOrder(orderNo) {
 
     const cols = [
       { id: "delivery", label: "Delivery", type: "cards" },
+      { id: "shippingAgent", label: "Shipping (Agent)", type: "cards" },
       { id: "shippingA", label: "Shipping", type: "cards" },
       { id: "shippingB", label: "Shipping", type: "cards" },
+      { id: "shippingC", label: "Shipping", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" }
     ];
     const lanes = {
       delivery: [],
-      shipping: [],
+      shippingAgent: [],
+      shippingNonAgent: [],
       pickup: []
     };
 
     list.forEach((o) => {
       const laneId = laneFromOrder(o);
-      (lanes[laneId] || lanes.shipping).push(o);
+      if (laneId === "shipping") {
+        if (isAgentOrder(o)) {
+          lanes.shippingAgent.push(o);
+        } else {
+          lanes.shippingNonAgent.push(o);
+        }
+        return;
+      }
+      (lanes[laneId] || lanes.shippingNonAgent).push(o);
     });
 
-    const shippingSplitIndex = Math.ceil(lanes.shipping.length / 2);
-    const shippingA = lanes.shipping.slice(0, shippingSplitIndex);
-    const shippingB = lanes.shipping.slice(shippingSplitIndex);
+    const shippingLaneCount = 3;
+    const shippingChunks = Array.from({ length: shippingLaneCount }, () => []);
+    lanes.shippingNonAgent.forEach((order, index) => {
+      shippingChunks[index % shippingLaneCount].push(order);
+    });
+    const [shippingA, shippingB, shippingC] = shippingChunks;
 
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
@@ -3318,6 +3341,10 @@ async function startOrder(orderNo) {
             ? shippingA
             : col.id === "shippingB"
             ? shippingB
+            : col.id === "shippingC"
+            ? shippingC
+            : col.id === "shippingAgent"
+            ? lanes.shippingAgent
             : lanes[col.id] || [];
         const cards =
           laneOrders.map((order) => cardHTML(order, col.id)).join("") ||
