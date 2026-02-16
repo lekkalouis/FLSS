@@ -2,6 +2,41 @@ import { config } from "../config.js";
 
 let cachedToken = null;
 let tokenExpiresAtMs = 0;
+const SHOPIFY_MIN_REQUEST_INTERVAL_MS = 550;
+const SHOPIFY_MAX_RETRIES = 3;
+
+let nextShopifyRequestAtMs = 0;
+let shopifyRequestChain = Promise.resolve();
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryDelayMs(resp, attempt) {
+  const retryAfter = Number(resp.headers.get("retry-after"));
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    return Math.max(250, Math.ceil(retryAfter * 1000));
+  }
+  return Math.min(5000, 500 * 2 ** attempt);
+}
+
+function withShopifyThrottle(task) {
+  const scheduled = shopifyRequestChain.then(async () => {
+    const now = Date.now();
+    const waitMs = Math.max(0, nextShopifyRequestAtMs - now);
+    if (waitMs > 0) await sleep(waitMs);
+    try {
+      return await task();
+    } finally {
+      nextShopifyRequestAtMs = Date.now() + SHOPIFY_MIN_REQUEST_INTERVAL_MS;
+    }
+  });
+  shopifyRequestChain = scheduled.then(
+    () => undefined,
+    () => undefined
+  );
+  return scheduled;
+}
 
 function parsePriceTiers(raw) {
   if (!raw) return null;
@@ -55,37 +90,49 @@ export async function getShopifyAdminToken() {
 }
 
 export async function shopifyFetch(pathname, { method = "GET", headers = {}, body } = {}) {
-  const token = await getShopifyAdminToken();
   const url = `https://${config.SHOPIFY_STORE}.myshopify.com${pathname}`;
 
-  const resp = await fetch(url, {
-    method,
-    headers: {
-      "X-Shopify-Access-Token": token,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...headers
-    },
-    body
-  });
+  const executeFetch = async () => {
+    let token = await getShopifyAdminToken();
 
-  if (resp.status === 401 || resp.status === 403) {
-    cachedToken = null;
-    tokenExpiresAtMs = 0;
-    const token2 = await getShopifyAdminToken();
+    for (let attempt = 0; attempt < SHOPIFY_MAX_RETRIES; attempt += 1) {
+      const resp = await fetch(url, {
+        method,
+        headers: {
+          "X-Shopify-Access-Token": token,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          ...headers
+        },
+        body
+      });
+
+      if (resp.status === 401 || resp.status === 403) {
+        cachedToken = null;
+        tokenExpiresAtMs = 0;
+        token = await getShopifyAdminToken();
+        continue;
+      }
+
+      if (resp.status !== 429) return resp;
+
+      if (attempt >= SHOPIFY_MAX_RETRIES - 1) return resp;
+      await sleep(getRetryDelayMs(resp, attempt));
+    }
+
     return fetch(url, {
       method,
       headers: {
-        "X-Shopify-Access-Token": token2,
+        "X-Shopify-Access-Token": token,
         "Content-Type": "application/json",
         Accept: "application/json",
         ...headers
       },
       body
     });
-  }
+  };
 
-  return resp;
+  return withShopifyThrottle(executeFetch);
 }
 
 export async function fetchVariantPriceTiers(variantId) {
