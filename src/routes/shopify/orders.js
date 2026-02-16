@@ -7,10 +7,7 @@ import {
   shopifyFetch
 } from "../../services/shopify.js";
 import { resolveWholesalePrice } from "../../services/pricing/domain.js";
-import {
-  legacyPriceTiersToRules,
-  listPriceLists
-} from "../../services/pricing/store.js";
+import { listPriceLists } from "../../services/pricing/store.js";
 import { badRequest } from "../../utils/http.js";
 import {
   fetchOrderEstimatedParcels,
@@ -66,7 +63,7 @@ function resolveTierFromCustomerTags(tags = []) {
   return null;
 }
 
-async function resolveTargetUnitPrice({
+export async function resolveTargetUnitPrice({
   lineItem,
   normalizedTier,
   customerTags,
@@ -75,55 +72,53 @@ async function resolveTargetUnitPrice({
   tierCache
 }) {
   const directPrice = Number(lineItem.price);
-  if (Number.isFinite(directPrice) && directPrice > 0) {
+  const variantId = Number(lineItem.variantId);
+  const hasTierContext = Boolean(normalizedTier);
+
+  if (!hasTierContext && Number.isFinite(directPrice) && directPrice > 0) {
     return {
       targetPrice: directPrice,
       ruleMatched: "PAYLOAD_PRICE",
-      fallbackReason: null
+      fallbackReason: null,
+      source: "payload"
     };
   }
 
-  const variantId = Number(lineItem.variantId);
   if (!Number.isFinite(variantId)) {
     return {
-      targetPrice: Number.isFinite(basePrice) ? basePrice : null,
+      targetPrice: Number.isFinite(directPrice) ? directPrice : Number.isFinite(basePrice) ? basePrice : null,
       ruleMatched: null,
-      fallbackReason: Number.isFinite(basePrice) ? "NO_VARIANT_ID" : "NO_BASE_PRICE"
+      fallbackReason: Number.isFinite(directPrice)
+        ? "PAYLOAD_PRICE_NO_VARIANT"
+        : Number.isFinite(basePrice)
+          ? "NO_VARIANT_ID"
+          : "NO_BASE_PRICE",
+      source: Number.isFinite(directPrice) ? "payload" : "fallback"
     };
   }
 
-  let rules = pickRulesForContext(priceLists, { salesChannel: "flss" });
-  if (!rules.length) {
-    if (!tierCache.has(variantId)) {
-      const legacy = await fetchVariantPriceTiers(variantId);
-      tierCache.set(variantId, legacy?.value || null);
+  const rules = pickRulesForContext(priceLists, { salesChannel: "flss" });
+  if (rules.length) {
+    const resolution = resolveWholesalePrice(
+      {
+        variantId,
+        sku: lineItem.sku || null,
+        quantity: Number(lineItem.quantity || 1),
+        customerTags: Array.isArray(customerTags) ? customerTags : [],
+        customerGroup: normalizedTier,
+        basePrice
+      },
+      rules
+    );
+
+    if (Number.isFinite(Number(resolution?.unitPrice)) && resolution?.matchedRuleId) {
+      return {
+        targetPrice: Number(resolution.unitPrice),
+        ruleMatched: resolution.matchedRuleId,
+        fallbackReason: null,
+        source: "price_list"
+      };
     }
-    const legacyRules = legacyPriceTiersToRules({
-      variantId,
-      sku: lineItem.sku,
-      priceTiers: tierCache.get(variantId)
-    });
-    rules = [...rules, ...legacyRules];
-  }
-
-  const resolution = resolveWholesalePrice(
-    {
-      variantId,
-      sku: lineItem.sku || null,
-      quantity: Number(lineItem.quantity || 1),
-      customerTags: Array.isArray(customerTags) ? customerTags : [],
-      customerGroup: normalizedTier,
-      basePrice
-    },
-    rules
-  );
-
-  if (Number.isFinite(Number(resolution?.unitPrice)) && resolution?.matchedRuleId) {
-    return {
-      targetPrice: Number(resolution.unitPrice),
-      ruleMatched: resolution.matchedRuleId,
-      fallbackReason: null
-    };
   }
 
   if (!tierCache.has(variantId)) {
@@ -135,15 +130,39 @@ async function resolveTargetUnitPrice({
     return {
       targetPrice: Number(tierPrice),
       ruleMatched: "METAFIELD_PRICE_TIERS",
-      fallbackReason: null
+      fallbackReason: null,
+      source: "metafield"
     };
   }
 
   return {
     targetPrice: Number.isFinite(basePrice) ? basePrice : null,
     ruleMatched: null,
-    fallbackReason: resolution?.fallbackReason || "BASE_PRICE_FALLBACK"
+    fallbackReason: "BASE_PRICE_FALLBACK",
+    source: "fallback"
   };
+}
+
+
+export function resolveDispatchLane(order) {
+  const tags = String(order?.tags || "").toLowerCase();
+  const shippingTitles = (order?.shipping_lines || [])
+    .map((line) => {
+      return [line?.title, line?.code, line?.source]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ")
+        .trim();
+    })
+    .join(" ")
+    .trim();
+  const combined = `${tags} ${shippingTitles}`.trim();
+
+  if (!combined) return null;
+  if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
+  if (/(same\s*day|delivery|local|delivery_local|local_delivery)/.test(combined)) {
+    return "delivery";
+  }
+  return "shipping";
 }
 
 async function ensureCustomerDeliveryType({ base, customerId, shippingMethod }) {
@@ -227,7 +246,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
         const hasVariant = Number.isFinite(variantId);
         const basePrice = hasVariant ? Number(basePriceMap.get(variantId)) : null;
 
-        const { targetPrice, ruleMatched, fallbackReason } = await resolveTargetUnitPrice({
+        const { targetPrice, ruleMatched, fallbackReason, source } = await resolveTargetUnitPrice({
           lineItem: li,
           normalizedTier,
           customerTags: normalizedCustomerTags,
@@ -243,13 +262,15 @@ router.post("/shopify/draft-orders", async (req, res) => {
         let discountApplied = false;
         if (hasVariant) {
           entry.variant_id = variantId;
+          if (Number.isFinite(targetPrice)) {
+            entry.price = toMoneyString(targetPrice);
+          }
           if (Number.isFinite(targetPrice) && Number.isFinite(basePrice) && targetPrice < basePrice) {
             const discount = toMoneyString(basePrice - targetPrice);
             entry.applied_discount = {
-              description: `Tier pricing (${normalizedTier || "default"})`,
-              value: discount,
               value_type: "fixed_amount",
-              amount: discount
+              value: discount,
+              title: `Wholesale ${normalizedTier || "default"}`
             };
             discountApplied = true;
           } else if (Number.isFinite(targetPrice) && Number.isFinite(basePrice) && targetPrice > basePrice) {
@@ -276,8 +297,26 @@ router.post("/shopify/draft-orders", async (req, res) => {
           targetPrice: Number.isFinite(targetPrice) ? targetPrice : null,
           discountApplied,
           priceTier: normalizedTier,
+          source,
           ruleMatched: ruleMatched || fallbackReason || null
         });
+
+        if (normalizedTier && hasVariant) {
+          const logPayload = {
+            variantId,
+            sku: li.sku || null,
+            tier: normalizedTier,
+            resolvedPrice: Number.isFinite(targetPrice) ? targetPrice : null,
+            source,
+            ruleMatched: ruleMatched || null,
+            fallbackReason: fallbackReason || null
+          };
+          if (source === "fallback") {
+            console.warn("Draft order pricing fallback", logPayload);
+          } else {
+            console.info("Draft order pricing resolved", logPayload);
+          }
+        }
 
         return entry;
       })
@@ -956,25 +995,6 @@ router.get("/shopify/orders/open", async (req, res) => {
       return createdAtMs >= createdAtCutoffMs;
     };
 
-    const resolveDispatchLane = (order) => {
-      const tags = String(order?.tags || "").toLowerCase();
-      const shippingTitles = (order?.shipping_lines || [])
-        .map((line) => {
-          return [line?.title, line?.code, line?.source]
-            .map((value) => String(value || "").toLowerCase())
-            .join(" ")
-            .trim();
-        })
-        .join(" ")
-        .trim();
-      const combined = `${tags} ${shippingTitles}`.trim();
-
-      if (!combined) return null;
-      if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-      if (/(same\s*day|delivery)/.test(combined)) return "delivery";
-      return "shipping";
-    };
-
     const filteredOrders = ordersRaw.filter((o) => {
       return isOrderEligibleForDispatch(o);
     });
@@ -1031,7 +1051,9 @@ router.get("/shopify/orders/open", async (req, res) => {
           assignedLane = "UNASSIGNED";
           console.warn("Eligible dispatch order missing lane assignment", {
             orderId: o.id,
-            orderName: o.name
+            orderName: o.name,
+            tags: o.tags || "",
+            shippingLineTitles: (o.shipping_lines || []).map((line) => line.title || "")
           });
         }
 

@@ -1,3 +1,4 @@
+import { installApiClient } from "./api-client.js";
 import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
@@ -11,6 +12,8 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
 
 (() => {
   "use strict";
+
+  installApiClient();
 
   // Runtime UI config seeded from defaults and enriched by `/api/v1/config` on boot.
   const CONFIG = {
@@ -270,6 +273,15 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
+
+  window.addEventListener("flss:auth-error", (event) => {
+    const message = event?.detail?.message || "Missing/invalid ADMIN_TOKEN";
+    if (serverStatusBar) {
+      serverStatusBar.textContent = `⚠ ${message}`;
+      serverStatusBar.classList.add("status-warning");
+    }
+    console.warn("API authorization failed", event?.detail || {});
+  });
 
   const statusExplain = (msg, tone = "info") => {
     if (statusChip) statusChip.textContent = msg;
