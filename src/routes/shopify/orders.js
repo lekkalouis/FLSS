@@ -1,7 +1,16 @@
 import { Router } from "express";
 
 import { config } from "../../config.js";
-import { fetchVariantPriceTiers, shopifyFetch } from "../../services/shopify.js";
+import {
+  fetchVariantBasePrices,
+  fetchVariantPriceTiers,
+  shopifyFetch
+} from "../../services/shopify.js";
+import { resolveWholesalePrice } from "../../services/pricing/domain.js";
+import {
+  legacyPriceTiersToRules,
+  listPriceLists
+} from "../../services/pricing/store.js";
 import { badRequest } from "../../utils/http.js";
 import {
   fetchOrderEstimatedParcels,
@@ -15,8 +24,127 @@ import {
 const ORDER_PARCEL_NAMESPACE = "custom";
 const ORDER_PARCEL_KEY = "parcel_count";
 const CUSTOMER_DELIVERY_KEY = "delivery_method";
+const WHOLESALE_TAG = "wholesale";
+const FLSS_TAG = "flss";
 
 const router = Router();
+
+function pickRulesForContext(priceLists = [], context = {}) {
+  return priceLists
+    .filter((list) => {
+      if (list.channel && context.salesChannel) {
+        return String(list.channel).toLowerCase() === String(context.salesChannel).toLowerCase();
+      }
+      return true;
+    })
+    .flatMap((list) => (Array.isArray(list.rules) ? list.rules : []));
+}
+
+function toMoneyString(value) {
+  return Number(value).toFixed(2);
+}
+
+const TAG_TIER_MAP = new Map([
+  ["agent", "agent"],
+  ["retail", "retail"],
+  ["retailer", "retail"],
+  ["export", "export"],
+  ["fkb", "fkb"],
+  ["private", "private"]
+]);
+
+function normalizeTier(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return TAG_TIER_MAP.get(normalized) || null;
+}
+
+function resolveTierFromCustomerTags(tags = []) {
+  for (const rawTag of tags) {
+    const tier = normalizeTier(rawTag);
+    if (tier) return tier;
+  }
+  return null;
+}
+
+async function resolveTargetUnitPrice({
+  lineItem,
+  normalizedTier,
+  customerTags,
+  basePrice,
+  priceLists,
+  tierCache
+}) {
+  const directPrice = Number(lineItem.price);
+  if (Number.isFinite(directPrice) && directPrice > 0) {
+    return {
+      targetPrice: directPrice,
+      ruleMatched: "PAYLOAD_PRICE",
+      fallbackReason: null
+    };
+  }
+
+  const variantId = Number(lineItem.variantId);
+  if (!Number.isFinite(variantId)) {
+    return {
+      targetPrice: Number.isFinite(basePrice) ? basePrice : null,
+      ruleMatched: null,
+      fallbackReason: Number.isFinite(basePrice) ? "NO_VARIANT_ID" : "NO_BASE_PRICE"
+    };
+  }
+
+  let rules = pickRulesForContext(priceLists, { salesChannel: "flss" });
+  if (!rules.length) {
+    if (!tierCache.has(variantId)) {
+      const legacy = await fetchVariantPriceTiers(variantId);
+      tierCache.set(variantId, legacy?.value || null);
+    }
+    const legacyRules = legacyPriceTiersToRules({
+      variantId,
+      sku: lineItem.sku,
+      priceTiers: tierCache.get(variantId)
+    });
+    rules = [...rules, ...legacyRules];
+  }
+
+  const resolution = resolveWholesalePrice(
+    {
+      variantId,
+      sku: lineItem.sku || null,
+      quantity: Number(lineItem.quantity || 1),
+      customerTags: Array.isArray(customerTags) ? customerTags : [],
+      customerGroup: normalizedTier,
+      basePrice
+    },
+    rules
+  );
+
+  if (Number.isFinite(Number(resolution?.unitPrice)) && resolution?.matchedRuleId) {
+    return {
+      targetPrice: Number(resolution.unitPrice),
+      ruleMatched: resolution.matchedRuleId,
+      fallbackReason: null
+    };
+  }
+
+  if (!tierCache.has(variantId)) {
+    const legacy = await fetchVariantPriceTiers(variantId);
+    tierCache.set(variantId, legacy?.value || null);
+  }
+  const tierPrice = resolveTierPrice(tierCache.get(variantId), normalizedTier);
+  if (Number.isFinite(Number(tierPrice))) {
+    return {
+      targetPrice: Number(tierPrice),
+      ruleMatched: "METAFIELD_PRICE_TIERS",
+      fallbackReason: null
+    };
+  }
+
+  return {
+    targetPrice: Number.isFinite(basePrice) ? basePrice : null,
+    ruleMatched: null,
+    fallbackReason: resolution?.fallbackReason || "BASE_PRICE_FALLBACK"
+  };
+}
 
 async function ensureCustomerDeliveryType({ base, customerId, shippingMethod }) {
   const method = String(shippingMethod || "").trim().toLowerCase();
@@ -68,8 +196,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
       billingAddress,
       shippingAddress,
       lineItems,
-      customerTags,
-      priceTier
+      customerTags
     } = req.body || {};
 
     if (!customerId) {
@@ -81,22 +208,78 @@ router.post("/shopify/draft-orders", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     await ensureCustomerDeliveryType({ base, customerId, shippingMethod });
-    const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
+    const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
+      tag.toLowerCase()
+    );
+    const normalizedTier = resolveTierFromCustomerTags(normalizedCustomerTags);
+    const variantIds = lineItems
+      .map((li) => Number(li.variantId))
+      .filter((id) => Number.isFinite(id));
+    const basePriceMap = await fetchVariantBasePrices(variantIds);
+    const priceLists = await listPriceLists();
     const tierCache = new Map();
-    const lineItemsWithPrice = await Promise.all(
+
+    const pricingSummary = [];
+    const draftLineItems = await Promise.all(
       lineItems.map(async (li) => {
-        if (!normalizedTier || li.price != null || !li.variantId) {
-          return li;
+        const quantity = Number(li.quantity || 1);
+        const variantId = Number(li.variantId);
+        const hasVariant = Number.isFinite(variantId);
+        const basePrice = hasVariant ? Number(basePriceMap.get(variantId)) : null;
+
+        const { targetPrice, ruleMatched, fallbackReason } = await resolveTargetUnitPrice({
+          lineItem: li,
+          normalizedTier,
+          customerTags: normalizedCustomerTags,
+          basePrice,
+          priceLists,
+          tierCache
+        });
+
+        const entry = {
+          quantity: quantity > 0 ? quantity : 1
+        };
+
+        let discountApplied = false;
+        if (hasVariant) {
+          entry.variant_id = variantId;
+          if (Number.isFinite(targetPrice) && Number.isFinite(basePrice) && targetPrice < basePrice) {
+            const discount = toMoneyString(basePrice - targetPrice);
+            entry.applied_discount = {
+              description: `Tier pricing (${normalizedTier || "default"})`,
+              value: discount,
+              value_type: "fixed_amount",
+              amount: discount
+            };
+            discountApplied = true;
+          } else if (Number.isFinite(targetPrice) && Number.isFinite(basePrice) && targetPrice > basePrice) {
+            console.warn("Tier price higher than base price; using base price", {
+              variantId,
+              basePrice,
+              targetPrice,
+              tier: normalizedTier
+            });
+          }
+          if (li.sku) entry.sku = li.sku;
+        } else {
+          entry.title = li.title || li.sku || "Custom item";
+          if (Number.isFinite(targetPrice)) {
+            entry.price = toMoneyString(targetPrice);
+          }
+          if (li.sku) entry.sku = li.sku;
         }
-        const variantId = String(li.variantId);
-        if (!tierCache.has(variantId)) {
-          const tierData = await fetchVariantPriceTiers(variantId);
-          tierCache.set(variantId, tierData?.value || null);
-        }
-        const tiers = tierCache.get(variantId);
-        const resolved = resolveTierPrice(tiers, normalizedTier);
-        if (resolved == null) return li;
-        return { ...li, price: resolved };
+
+        pricingSummary.push({
+          sku: li.sku || null,
+          variantId: hasVariant ? variantId : null,
+          basePrice: Number.isFinite(basePrice) ? basePrice : null,
+          targetPrice: Number.isFinite(targetPrice) ? targetPrice : null,
+          discountApplied,
+          priceTier: normalizedTier,
+          ruleMatched: ruleMatched || fallbackReason || null
+        });
+
+        return entry;
       })
     );
 
@@ -156,24 +339,12 @@ router.post("/shopify/draft-orders", async (req, res) => {
       draft_order: {
         customer: { id: customerId },
         note: poNumber ? `PO: ${poNumber}` : "",
-        line_items: lineItemsWithPrice.map((li) => {
-          const entry = {
-            quantity: li.quantity || 1
-          };
-          if (li.variantId) {
-            entry.variant_id = li.variantId;
-          } else {
-            entry.title = li.title || li.sku || "Custom item";
-            if (li.price != null) entry.price = String(li.price);
-          }
-          if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
-          return entry;
-        }),
+        line_items: draftLineItems,
         billing_address: billingAddress || undefined,
         shipping_address: shippingAddress || undefined,
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
+          { name: "source", value: "FLSS" },
           ...(normalizedTier
             ? [{ name: "price_tier", value: normalizedTier }]
             : []),
@@ -195,15 +366,15 @@ router.post("/shopify/draft-orders", async (req, res) => {
     if (shippingMethod === "local") {
       tags.push("local");
     }
-    const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
-      tag.toLowerCase()
-    );
     if (normalizedCustomerTags.includes("local")) {
       tags.push("local");
     }
     if (normalizedCustomerTags.includes("export")) {
       tags.push("export");
     }
+    tags.push(FLSS_TAG);
+    tags.push(WHOLESALE_TAG);
+    if (normalizedTier) tags.push(normalizedTier);
     if (tags.length) {
       payload.draft_order.tags = Array.from(new Set(tags)).join(", ");
     }
@@ -249,7 +420,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
         name: d.name,
         invoiceUrl: d.invoice_url || null,
         adminUrl
-      }
+      },
+      pricingSummary
     });
   } catch (err) {
     console.error("Shopify draft order create error:", err);
