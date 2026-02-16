@@ -177,6 +177,43 @@ async function ensureCustomerDeliveryType({ base, customerId, shippingMethod }) 
   });
 }
 
+export function resolveDispatchLane(order) {
+  const tags = String(order?.tags || "").toLowerCase();
+  const shippingTitles = (order?.shipping_lines || [])
+    .map((line) => {
+      return [line?.title, line?.code, line?.source]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ")
+        .trim();
+    })
+    .join(" ")
+    .trim();
+  const combined = `${tags} ${shippingTitles}`.trim();
+
+  if (!combined) return null;
+  if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
+  if (/(same\s*day|delivery(?:[_\s-]*local)?|\blocal\b)/.test(combined)) return "delivery";
+  return "shipping";
+}
+
+function buildDispatchLaneWarningMetadata(order) {
+  return {
+    orderId: order?.id || null,
+    orderName: order?.name || null,
+    orderNumber: order?.order_number || null,
+    customerEmail: order?.email || order?.customer?.email || null,
+    createdAt: order?.processed_at || order?.created_at || null,
+    tags: order?.tags || "",
+    shippingLines: Array.isArray(order?.shipping_lines)
+      ? order.shipping_lines.map((line) => ({
+          title: line?.title || "",
+          code: line?.code || "",
+          source: line?.source || ""
+        }))
+      : []
+  };
+}
+
 router.post("/shopify/draft-orders", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -956,25 +993,6 @@ router.get("/shopify/orders/open", async (req, res) => {
       return createdAtMs >= createdAtCutoffMs;
     };
 
-    const resolveDispatchLane = (order) => {
-      const tags = String(order?.tags || "").toLowerCase();
-      const shippingTitles = (order?.shipping_lines || [])
-        .map((line) => {
-          return [line?.title, line?.code, line?.source]
-            .map((value) => String(value || "").toLowerCase())
-            .join(" ")
-            .trim();
-        })
-        .join(" ")
-        .trim();
-      const combined = `${tags} ${shippingTitles}`.trim();
-
-      if (!combined) return null;
-      if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-      if (/(same\s*day|delivery)/.test(combined)) return "delivery";
-      return "shipping";
-    };
-
     const filteredOrders = ordersRaw.filter((o) => {
       return isOrderEligibleForDispatch(o);
     });
@@ -1029,10 +1047,10 @@ router.get("/shopify/orders/open", async (req, res) => {
         let assignedLane = resolveDispatchLane(o);
         if (eligibleForDispatch && !assignedLane) {
           assignedLane = "UNASSIGNED";
-          console.warn("Eligible dispatch order missing lane assignment", {
-            orderId: o.id,
-            orderName: o.name
-          });
+          console.warn(
+            "Eligible dispatch order missing lane assignment",
+            buildDispatchLaneWarningMetadata(o)
+          );
         }
 
         return {
