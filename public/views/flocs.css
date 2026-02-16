@@ -1042,3 +1042,24 @@
   #viewFlocs .flocs-previewPanel{position:static;height:auto;}
   #viewFlocs .flocs-azBar{grid-template-columns:repeat(13, minmax(0, 1fr));}
 }
+
+
+#viewFlocs .flocs-productTypeFilter{
+  display:inline-flex;
+  gap:.35rem;
+  align-items:center;
+}
+#viewFlocs .flocs-productTypeFilter button{
+  border:1px solid var(--panel-strong);
+  background:var(--panel);
+  color:var(--muted);
+  border-radius:.45rem;
+  padding:.2rem .55rem;
+  font-size:.66rem;
+  cursor:pointer;
+}
+#viewFlocs .flocs-productTypeFilter button.is-active{
+  border-color:rgba(0,128,96,.45);
+  color:#0f5132;
+  background:var(--accent-soft);
+}

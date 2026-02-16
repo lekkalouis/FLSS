@@ -51,6 +51,7 @@ export function initFlocsView() {
   const billingAddrPreview = document.getElementById("flocs-billingAddressPreview");
 
   const productsBody     = document.getElementById("flocs-productsBody");
+  const productTypeFilter = document.getElementById("flocs-productTypeFilter");
   const qtyModeGroup     = document.getElementById("flocs-qtyModeGroup");
   const cartonSizeGroup  = document.getElementById("flocs-cartonSizeGroup");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
@@ -82,6 +83,7 @@ export function initFlocsView() {
     lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
+    productType: "spices",
     qtyMode: "units",
     cartonUnits: 12,
     priceOverrides: {},
@@ -167,6 +169,16 @@ export function initFlocsView() {
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
   const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 48, 50, 100];
   const MATRIX_SIZES = ["200ml", "500g", "1kg", "750g", "750g Bags"];
+  const SPICE_FLAVOUR_ORDER = [
+    "original",
+    "hot & spicy",
+    "worcester sauce",
+    "red wine & garlic",
+    "chutney",
+    "savoury herb",
+    "salt & vinegar",
+    "curry"
+  ];
   const AUTO_QUOTE_DELAY_MS = 3000;
   const REQUIRE_RESOLVED_PRICING = CONFIG?.FLOCS?.REQUIRE_RESOLVED_PRICING !== false;
   let autoQuoteTimer = null;
@@ -480,17 +492,62 @@ export function initFlocsView() {
     return normalized;
   }
 
-  function groupedProductsForMatrix() {
-    const grouped = new Map();
-    for (const product of state.products) {
-      const flavour = String(product.flavour || "Other").trim() || "Other";
-      if (!grouped.has(flavour)) grouped.set(flavour, new Map());
-      grouped.get(flavour).set(normalizeMatrixSize(product.size), product);
-    }
-    return Array.from(grouped.entries()).sort((a, b) =>
-      a[0].localeCompare(b[0], undefined, { sensitivity: "base" })
+  function isPopcornSprinkleProduct(product) {
+    const title = String(product?.title || "").toLowerCase();
+    return title.includes("popcorn sprinkle");
+  }
+
+  function filteredProductsForMatrix() {
+    const type = state.productType === "popcorn" ? "popcorn" : "spices";
+    return state.products.filter((product) =>
+      type === "popcorn"
+        ? isPopcornSprinkleProduct(product)
+        : !isPopcornSprinkleProduct(product)
     );
   }
+
+  function flavourSortIndex(flavour) {
+    const key = flavourKey(flavour);
+    const idx = SPICE_FLAVOUR_ORDER.indexOf(key);
+    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+  }
+
+  function groupedProductsForMatrix() {
+    const grouped = new Map();
+    for (const product of filteredProductsForMatrix()) {
+      const flavour = String(product.flavour || "Other").trim() || "Other";
+      if (!grouped.has(flavour)) grouped.set(flavour, []);
+      grouped.get(flavour).push(product);
+    }
+
+    return Array.from(grouped.entries())
+      .map(([flavour, products]) => {
+        const bySize = new Map();
+        products
+          .slice()
+          .sort((a, b) =>
+            String(a.sku || "").localeCompare(String(b.sku || ""), undefined, {
+              numeric: true,
+              sensitivity: "base"
+            })
+          )
+          .forEach((product) => {
+            const normalizedSize = normalizeMatrixSize(product.size);
+            if (!bySize.has(normalizedSize)) {
+              bySize.set(normalizedSize, product);
+            }
+          });
+        return [flavour, bySize];
+      })
+      .sort((a, b) => {
+        const flavourCmp = flavourSortIndex(a[0]) - flavourSortIndex(b[0]);
+        if (flavourCmp !== 0) return flavourCmp;
+        return String(a[0]).localeCompare(String(b[0]), undefined, {
+          sensitivity: "base"
+        });
+      });
+  }
+
 
   function toDisplayQty(units) {
     const base = Number(units || 0);
@@ -513,6 +570,10 @@ export function initFlocsView() {
   function renderProductsTable() {
     if (!productsBody) return;
     const grouped = groupedProductsForMatrix();
+    if (!grouped.length) {
+      productsBody.innerHTML = `<tr><td colspan="7" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
+      return;
+    }
     productsBody.innerHTML = grouped
       .map(([flavour, bySize]) => {
         const cells = MATRIX_SIZES.map((label) => {
@@ -1613,6 +1674,7 @@ ${state.customer.email || ""}${
     state.priceOverrides = {};
     state.priceOverrideEnabled = {};
     state.azLetters = [];
+    state.productType = "spices";
     state.qtyMode = "units";
     state.cartonUnits = 12;
 
@@ -1630,6 +1692,11 @@ ${state.customer.email || ""}${
     }
     if (deliveryGroup) {
       syncDeliveryGroup();
+    }
+    if (productTypeFilter) {
+      productTypeFilter.querySelectorAll("button[data-type]").forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.type === state.productType);
+      });
     }
     if (qtyModeGroup) {
       qtyModeGroup.querySelectorAll("input[name='qtyMode']").forEach((radio) => {
@@ -1882,6 +1949,18 @@ ${state.customer.email || ""}${
         if (!(t instanceof HTMLInputElement) || t.name !== "cartonUnits") return;
         const next = Number(t.value || 12);
         state.cartonUnits = next === 24 ? 24 : 12;
+        renderProductsTable();
+      });
+    }
+
+    if (productTypeFilter) {
+      productTypeFilter.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-type]");
+        if (!btn) return;
+        state.productType = btn.dataset.type === "popcorn" ? "popcorn" : "spices";
+        productTypeFilter.querySelectorAll("button[data-type]").forEach((node) => {
+          node.classList.toggle("is-active", node === btn);
+        });
         renderProductsTable();
       });
     }
