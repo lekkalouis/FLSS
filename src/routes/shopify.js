@@ -816,7 +816,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
       draft_order: {
         customer: customerId ? { id: customerId } : undefined,
         line_items: resolvedPricing.lineItems,
-        tags: ["FLSS", "Wholesale"],
+        tags: "FLSS, Wholesale",
         note: `Tier: ${tier || "retail"}`
       }
     };
