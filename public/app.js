@@ -200,10 +200,12 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
   const dispatchSelectedOrders = new Set();
+  const dispatchPriorityState = new Map();
   let dispatchOrdersLatest = [];
   let dispatchShipmentsLatest = [];
   let dispatchModalOrderNo = null;
   let dispatchModalShipmentId = null;
+  const DISPATCH_PRIORITY_KEY = "fl_dispatch_priority_v1";
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
   let dailyParcelCount = 0;
@@ -788,6 +790,49 @@ import { initPriceManagerView } from "./views/price-manager.js";
         });
       });
     } catch {}
+  }
+
+  function loadDispatchPriorityState() {
+    try {
+      const raw = localStorage.getItem(DISPATCH_PRIORITY_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      Object.entries(parsed).forEach(([orderNo, status]) => {
+        if (!orderNo) return;
+        if (status === "priority" || status === "medium" || status === "hold") {
+          dispatchPriorityState.set(orderNo, status);
+        }
+      });
+    } catch {}
+  }
+
+  function saveDispatchPriorityState() {
+    try {
+      const payload = {};
+      dispatchPriorityState.forEach((status, orderNo) => {
+        if (status === "priority" || status === "medium" || status === "hold") {
+          payload[orderNo] = status;
+        }
+      });
+      localStorage.setItem(DISPATCH_PRIORITY_KEY, JSON.stringify(payload));
+    } catch {}
+  }
+
+  function setDispatchOrderPriority(orderNo, status) {
+    if (!orderNo) return;
+    if (status === "priority" || status === "medium" || status === "hold") {
+      dispatchPriorityState.set(orderNo, status);
+      saveDispatchPriorityState();
+      statusExplain(`Order ${orderNo} marked ${status}.`, "ok");
+      logDispatchEvent(`Order ${orderNo} priority set to ${status}.`);
+      return;
+    }
+    if (dispatchPriorityState.delete(orderNo)) {
+      saveDispatchPriorityState();
+      statusExplain(`Order ${orderNo} priority cleared.`, "ok");
+      logDispatchEvent(`Order ${orderNo} priority cleared.`);
+    }
   }
 
   function savePackingState() {
@@ -3163,20 +3208,17 @@ async function startOrder(orderNo) {
 
     filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     const list = filtered.slice(0, 60);
-    const shipments = Array.isArray(dispatchShipmentsLatest) ? dispatchShipmentsLatest : [];
-    if (dispatchShipmentsSidebar) {
-      dispatchShipmentsSidebar.innerHTML = renderShipmentList(shipments);
-    }
-
     if (!list.length) {
       dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
+      if (dispatchShipmentsSidebar) {
+        dispatchShipmentsSidebar.innerHTML = `<div class="dispatchShipmentEmpty">No delivery orders in lane right now.</div>`;
+      }
       dispatchSelectedOrders.clear();
       updateDispatchSelectionSummary();
       return;
     }
 
     const cols = [
-      { id: "delivery", label: "Delivery", type: "cards" },
       { id: "shippingA", label: "Shipping", type: "cards" },
       { id: "shippingB", label: "Shipping", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" }
@@ -3195,6 +3237,47 @@ async function startOrder(orderNo) {
     const shippingSplitIndex = Math.ceil(lanes.shipping.length / 2);
     const shippingA = lanes.shipping.slice(0, shippingSplitIndex);
     const shippingB = lanes.shipping.slice(shippingSplitIndex);
+
+    if (dispatchShipmentsSidebar) {
+      const deliveryCards = lanes.delivery
+        .map((o) => {
+          const title = o.customer_name || o.name || `Order ${o.id}`;
+          const city = o.shipping_city || "";
+          const created = o.created_at ? new Date(o.created_at).toLocaleTimeString() : "";
+          const orderNo = String(o.name || "").replace("#", "").trim();
+          const status = dispatchPriorityState.get(orderNo) || "";
+          const statusLabel =
+            status === "priority"
+              ? "Priority"
+              : status === "medium"
+              ? "Medium"
+              : status === "hold"
+              ? "Hold"
+              : "No status";
+          return `
+            <div class="dispatchCard ${status ? `dispatchCard--${status}` : ""}" data-order-no="${orderNo}">
+              <div class="dispatchCardTitle">
+                <span class="dispatchCardTitleText">${title}</span>
+                <div class="dispatchCardStatusDots" role="group" aria-label="Set status for order ${orderNo}">
+                  <button class="dispatchCardStatusDot dispatchCardStatusDot--priority ${
+                    status === "priority" ? "is-active" : ""
+                  }" type="button" data-action="set-priority" data-priority="priority" data-order-no="${orderNo}" aria-label="Set priority status"></button>
+                  <button class="dispatchCardStatusDot dispatchCardStatusDot--medium ${
+                    status === "medium" ? "is-active" : ""
+                  }" type="button" data-action="set-priority" data-priority="medium" data-order-no="${orderNo}" aria-label="Set medium status"></button>
+                  <button class="dispatchCardStatusDot dispatchCardStatusDot--hold ${
+                    status === "hold" ? "is-active" : ""
+                  }" type="button" data-action="set-priority" data-priority="hold" data-order-no="${orderNo}" aria-label="Set hold status"></button>
+                </div>
+              </div>
+              <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
+              <div class="dispatchCardMeta">Status: ${statusLabel}</div>
+            </div>`;
+        })
+        .join("");
+      dispatchShipmentsSidebar.innerHTML =
+        deliveryCards || `<div class="dispatchShipmentEmpty">No delivery orders in lane right now.</div>`;
+    }
 
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
@@ -3216,15 +3299,29 @@ async function startOrder(orderNo) {
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
+      const priorityStatus = orderNo ? dispatchPriorityState.get(orderNo) || "" : "";
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
       }
 
       return `
-        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""}" data-order-no="${orderNo}" ${combinedStyle}>
+        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} ${
+          priorityStatus ? `dispatchCard--${priorityStatus}` : ""
+        }" data-order-no="${orderNo}" ${combinedStyle}>
           <div class="dispatchCardTitle">
             <span class="dispatchCardTitleText">${title}</span>
+            <div class="dispatchCardStatusDots" role="group" aria-label="Set status for order ${orderNo}">
+              <button class="dispatchCardStatusDot dispatchCardStatusDot--priority ${
+                priorityStatus === "priority" ? "is-active" : ""
+              }" type="button" data-action="set-priority" data-priority="priority" data-order-no="${orderNo}" aria-label="Set priority status"></button>
+              <button class="dispatchCardStatusDot dispatchCardStatusDot--medium ${
+                priorityStatus === "medium" ? "is-active" : ""
+              }" type="button" data-action="set-priority" data-priority="medium" data-order-no="${orderNo}" aria-label="Set medium status"></button>
+              <button class="dispatchCardStatusDot dispatchCardStatusDot--hold ${
+                priorityStatus === "hold" ? "is-active" : ""
+              }" type="button" data-action="set-priority" data-priority="hold" data-order-no="${orderNo}" aria-label="Set hold status"></button>
+            </div>
             ${
               orderNo
                 ? `<label class="dispatchCardSelect"><input class="dispatchCardSelectInput" type="checkbox" data-order-no="${orderNo}" ${
@@ -4154,6 +4251,15 @@ async function startOrder(orderNo) {
       closeDispatchOrderModal();
       return true;
     }
+    if (actionType === "set-priority") {
+      if (!orderNo) return true;
+      const status = action.dataset.priority || "";
+      const current = dispatchPriorityState.get(orderNo) || "";
+      const next = current === status ? "" : status;
+      setDispatchOrderPriority(orderNo, next);
+      refreshDispatchViews(orderNo);
+      return true;
+    }
     if (actionType === "start-packing") {
       if (!orderNo) return true;
       const order = dispatchOrderCache.get(orderNo);
@@ -4479,6 +4585,11 @@ async function startOrder(orderNo) {
   });
 
   dispatchShipmentsSidebar?.addEventListener("click", async (e) => {
+    const priorityButton = e.target.closest('[data-action="set-priority"]');
+    if (priorityButton) {
+      await handleDispatchAction(priorityButton);
+      return;
+    }
     const shipmentRow = e.target.closest(".dispatchShipmentRow");
     if (shipmentRow && !shipmentRow.classList.contains("dispatchShipmentRow--header")) {
       const shipmentKeyId = shipmentRow.dataset.shipmentKey;
@@ -4611,6 +4722,7 @@ async function startOrder(orderNo) {
 
     loadBookedOrders();
     loadPackingState();
+    loadDispatchPriorityState();
     loadModePreference();
     loadDailyParcelCount();
     loadTruckBooking();
