@@ -120,6 +120,7 @@ The server uses Shopify OAuth client credentials (Admin API) with token caching 
 - Search and create customers (including delivery method metafields).
 - Search products or load collections, then build draft orders/orders.
 - Request ParcelPerfect quotes to populate shipping lines.
+- Includes `/order-capture-custom.html` for local-password-protected custom normal order entry (PBKDF2 hash stored in localStorage).
 
 ### Stock Take
 
@@ -224,7 +225,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` for the Scan Station/Dispatch/Docs SPA, `http://localhost:3000/flocs` for order capture, `http://localhost:3000/stock` for stock take, and `http://localhost:3000/price-manager` for price tier management.
+Open `http://localhost:3000` for the Scan Station/Dispatch/Docs SPA, `http://localhost:3000/flocs` for order capture, `http://localhost:3000/order-capture-custom.html` for password-protected custom normal order capture, `http://localhost:3000/stock` for stock take, and `http://localhost:3000/price-manager` for price tier management.
 
 ---
 
