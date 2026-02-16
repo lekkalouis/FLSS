@@ -1,19 +1,11 @@
 import { PRODUCT_LIST } from "./views/products.js";
 
-const STORAGE_KEY = "fl_custom_order_access_v1";
 const API_BASE = "/api/v1/shopify";
 const VAT_RATE = 0.15;
-const SEGMENTS = ["all", "agent", "retailer", "export", "local", "private"];
+const SEGMENTS = ["all", "agent", "retailer", "export"];
 
 const $ = (id) => document.getElementById(id);
 const els = {
-  lockScreen: $("lock-screen"),
-  lockCopy: $("lock-copy"),
-  lockPassword: $("lock-password"),
-  lockConfirm: $("lock-confirm"),
-  lockAction: $("lock-action"),
-  lockStatus: $("lock-status"),
-
   orderDate: $("order-date"),
   poNumber: $("po-number"),
 
@@ -28,6 +20,9 @@ const els = {
   quickPickerClose: $("quick-picker-close"),
   quickPickerSegments: $("quick-picker-segments"),
   quickPickerGrid: $("quick-picker-grid"),
+  quickPickerSort: $("quick-picker-sort"),
+  quickPickerProvince: $("quick-picker-province"),
+  quickPickerSearch: $("quick-picker-search"),
 
   productBody: $("product-body"),
   selectedCount: $("selected-count"),
@@ -40,8 +35,6 @@ const els = {
 
   submitOrder: $("submit-order"),
   printForm: $("print-form"),
-  lockPage: $("lock-page"),
-  resetPassword: $("reset-password"),
   orderStatus: $("order-status"),
 
   billCompany: $("bill-company"),
@@ -53,7 +46,6 @@ const els = {
   billProvince: $("bill-province"),
   billZip: $("bill-zip"),
   billPhone: $("bill-phone"),
-  billEmail: $("bill-email"),
   billVat: $("bill-vat"),
 
   shipCompany: $("ship-company"),
@@ -65,7 +57,6 @@ const els = {
   shipProvince: $("ship-province"),
   shipZip: $("ship-zip"),
   shipPhone: $("ship-phone"),
-  shipEmail: $("ship-email"),
   shipNotes: $("ship-notes")
 };
 
@@ -73,6 +64,9 @@ const state = {
   customers: [],
   visibleCustomers: [],
   activeSegment: "all",
+  quickSort: "name",
+  quickProvince: "",
+  quickSearch: "",
   selectedCustomer: null,
   qtyBySku: new Map()
 };
@@ -99,6 +93,48 @@ function customerSegment(customer) {
   return "retailer";
 }
 
+
+function normalizePriceTiers(product) {
+  if (!product) return null;
+  const raw = product.priceTiers || product.prices || null;
+  if (!raw || typeof raw !== "object") return null;
+  return { ...raw };
+}
+
+function resolveTierValue(tiers, tier) {
+  if (!tiers || !tier) return null;
+  const aliases = { retail: ["retail", "retailer"], retailer: ["retailer", "retail"] };
+  const keys = aliases[tier] || [tier];
+  for (const key of keys) {
+    const numeric = Number(tiers[key]);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  return null;
+}
+
+function customerTier(customer) {
+  const explicit = String(customer?.tier || "").trim().toLowerCase();
+  if (explicit) return explicit;
+  const tags = parseTags(customer?.tags);
+  const tiers = ["agent", "retailer", "retail", "export", "fkb", "public"];
+  return tiers.find((tag) => tags.includes(tag)) || null;
+}
+
+function unitPriceForProduct(product) {
+  const tiers = normalizePriceTiers(product);
+  const tier = customerTier(state.selectedCustomer);
+  if (tiers && tier) {
+    const tierValue = resolveTierValue(tiers, tier);
+    if (tierValue != null) return tierValue;
+  }
+  if (tiers) {
+    const fallback = ["default", "standard", "retail", "public"].map((k) => Number(tiers[k])).find((v) => Number.isFinite(v));
+    if (Number.isFinite(fallback)) return fallback;
+  }
+  const legacy = Number(product?.prices?.retail);
+  return Number.isFinite(legacy) ? legacy : 0;
+}
+
 function shippingEstimate() {
   const segment = customerSegment(state.selectedCustomer);
   if (segment === "local") return 0;
@@ -119,105 +155,6 @@ function setStatus(el, message, tone = "") {
   el.textContent = message;
 }
 
-function toBase64(bytes) {
-  return btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(""));
-}
-function fromBase64(value) {
-  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
-}
-async function deriveHash(password, saltBytes) {
-  const encoded = new TextEncoder().encode(password);
-  const key = await crypto.subtle.importKey("raw", encoded, "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt: saltBytes, iterations: 210000, hash: "SHA-256" },
-    key,
-    256
-  );
-  return new Uint8Array(bits);
-}
-
-function getStoredAccess() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.salt || !parsed?.hash) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-async function savePassword(password) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const hash = await deriveHash(password, salt);
-  localStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({ salt: toBase64(salt), hash: toBase64(hash), createdAt: new Date().toISOString() })
-  );
-}
-
-async function verifyPassword(password) {
-  const stored = getStoredAccess();
-  if (!stored) return false;
-  const derived = await deriveHash(password, fromBase64(stored.salt));
-  return toBase64(derived) === stored.hash;
-}
-
-function configureLockScreen() {
-  const hasPassword = Boolean(getStoredAccess());
-  els.lockCopy.textContent = hasPassword
-    ? "Enter your local password to unlock this order form."
-    : "No password found yet. Create one now.";
-  els.lockConfirm.hidden = hasPassword;
-  els.lockAction.textContent = hasPassword ? "Unlock" : "Set password & unlock";
-  els.lockScreen.hidden = false;
-  els.lockPassword.value = "";
-  els.lockConfirm.value = "";
-}
-
-function unlockPage() {
-  els.lockScreen.hidden = true;
-  setStatus(els.lockStatus, "");
-  setTimeout(() => els.customerSearch?.focus(), 0);
-}
-
-async function handleLockAction() {
-  const password = String(els.lockPassword.value || "");
-  const confirm = String(els.lockConfirm.value || "");
-  const hasPassword = Boolean(getStoredAccess());
-
-  if (password.length < 8) {
-    setStatus(els.lockStatus, "Use at least 8 characters.", "err");
-    return;
-  }
-
-  els.lockAction.disabled = true;
-  try {
-    if (!hasPassword) {
-      if (password !== confirm) {
-        setStatus(els.lockStatus, "Passwords do not match.", "err");
-        return;
-      }
-      await savePassword(password);
-      unlockPage();
-      return;
-    }
-
-    const ok = await verifyPassword(password);
-    if (!ok) {
-      setStatus(els.lockStatus, "Wrong password.", "err");
-      return;
-    }
-    unlockPage();
-  } catch (error) {
-    console.error(error);
-    setStatus(els.lockStatus, "Unable to process password in this browser.", "err");
-  } finally {
-    els.lockAction.disabled = false;
-  }
-}
-
 function buildProductTable() {
   const products = PRODUCT_LIST.filter((product) => product.variantId && product.prices?.retail != null);
   els.productBody.innerHTML = products
@@ -225,7 +162,7 @@ function buildProductTable() {
       (product) => `<tr>
       <td>${product.sku}</td>
       <td>${product.title}</td>
-      <td>${money(product.prices.retail)}</td>
+      <td>${money(unitPriceForProduct(product))}</td>
       <td data-line="${product.sku}">${money(0)}</td>
       <td><input class="qty" type="number" min="0" step="1" value="0" data-sku="${product.sku}" /></td>
     </tr>`
@@ -241,7 +178,7 @@ function selectedLineItems() {
     variantId: product.variantId,
     sku: product.sku,
     title: product.title,
-    price: Number(product.prices?.retail || 0),
+    price: unitPriceForProduct(product),
     quantity: Number(state.qtyBySku.get(product.sku) || 0)
   }));
 }
@@ -317,7 +254,6 @@ function applyAddressFields(customer) {
   els.billProvince.value = first.province || "";
   els.billZip.value = first.zip || "";
   els.billPhone.value = customer?.phone || first.phone || "";
-  els.billEmail.value = customer?.email || "";
 
   els.shipCompany.value = first.company || "";
   els.shipName.value = `${first.first_name || ""} ${first.last_name || ""}`.trim();
@@ -328,7 +264,6 @@ function applyAddressFields(customer) {
   els.shipProvince.value = first.province || "";
   els.shipZip.value = first.zip || "";
   els.shipPhone.value = customer?.phone || first.phone || "";
-  els.shipEmail.value = customer?.email || "";
 }
 
 function renderCustomerOptions(customers) {
@@ -350,11 +285,39 @@ function renderCustomerOptions(customers) {
   renderSummary();
 }
 
+function customerProvince(customer) {
+  const first = (Array.isArray(customer?.addresses) ? customer.addresses[0] : null) || customer?.default_address || {};
+  return String(first?.province || "").trim();
+}
+
+function customerCity(customer) {
+  const first = (Array.isArray(customer?.addresses) ? customer.addresses[0] : null) || customer?.default_address || {};
+  return String(first?.city || "").trim();
+}
+
 function filteredCustomers() {
   const list = Array.isArray(state.customers) ? state.customers : [];
-  const withoutOnline = list.filter((customer) => customerSegment(customer) !== "online");
-  if (state.activeSegment === "all") return withoutOnline;
-  return withoutOnline.filter((customer) => customerSegment(customer) === state.activeSegment);
+  let next = list.filter((customer) => !["online", "local", "private"].includes(customerSegment(customer)));
+  if (state.activeSegment !== "all") next = next.filter((customer) => customerSegment(customer) === state.activeSegment);
+  if (state.quickProvince) {
+    next = next.filter((customer) => customerProvince(customer).toLowerCase() === state.quickProvince.toLowerCase());
+  }
+  const q = state.quickSearch.trim().toLowerCase();
+  if (q) {
+    next = next.filter((customer) => {
+      const hay = [customer?.name, customer?.companyName, customerCity(customer), customerProvince(customer)]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  next.sort((a, b) => {
+    const aValue = state.quickSort === "city" ? customerCity(a) || a?.name || "" : a?.name || "";
+    const bValue = state.quickSort === "city" ? customerCity(b) || b?.name || "" : b?.name || "";
+    return String(aValue).localeCompare(String(bValue), undefined, { sensitivity: "base" });
+  });
+  return next;
 }
 
 function renderSegmentControls() {
@@ -379,11 +342,17 @@ function renderQuickPicker() {
       const segment = customerSegment(customer);
       return `<button type="button" class="customerTile" data-pick="${idx}">
         <strong>${customer.name || "Unnamed"}</strong>
-        <small>${customer.companyName || customer.email || customer.phone || "No contact"}</small>
+        <small>${customer.companyName || customerCity(customer) || customerProvince(customer) || customer.phone || "No contact"}</small>
         <small>${segment.toUpperCase()}</small>
       </button>`;
     })
     .join("");
+}
+
+function renderProvinceFilterOptions() {
+  const provinces = Array.from(new Set((state.customers || []).map(customerProvince).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+  els.quickPickerProvince.innerHTML = `<option value="">All provinces</option>` + provinces.map((p)=>`<option value="${p}">${p}</option>`).join("");
+  els.quickPickerProvince.value = state.quickProvince;
 }
 
 function openQuickPicker() {
@@ -418,6 +387,7 @@ async function preloadCustomers() {
     if (!response.ok) throw new Error(data?.message || "Unable to preload customers");
     state.customers = Array.isArray(data.customers) ? data.customers : [];
     renderSegmentControls();
+    renderProvinceFilterOptions();
     const initial = filteredCustomers();
     renderCustomerOptions(initial);
     renderQuickPicker();
@@ -427,6 +397,8 @@ async function preloadCustomers() {
     setStatus(els.customerStatus, "Recent list unavailable. Search by name/email.", "warn");
   }
 }
+
+let searchTimer = null;
 
 async function searchCustomers() {
   const q = els.customerSearch.value.trim();
@@ -444,6 +416,7 @@ async function searchCustomers() {
 
     state.customers = Array.isArray(data.customers) ? data.customers : [];
     renderSegmentControls();
+    renderProvinceFilterOptions();
     const visible = filteredCustomers();
     renderCustomerOptions(visible);
     renderQuickPicker();
@@ -512,11 +485,6 @@ async function submitOrder() {
 }
 
 function wireEvents() {
-  els.lockAction.addEventListener("click", handleLockAction);
-  els.lockPassword.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") handleLockAction();
-  });
-
   els.productBody.addEventListener("input", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
@@ -534,6 +502,12 @@ function wireEvents() {
       event.preventDefault();
       searchCustomers();
     }
+  });
+  els.customerSearch.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      searchCustomers();
+    }, 1000);
   });
   els.customerResults.addEventListener("change", () => {
     const index = Number(els.customerResults.value);
@@ -575,6 +549,22 @@ function wireEvents() {
     }
   });
 
+  els.quickPickerSort.addEventListener("change", () => {
+    state.quickSort = els.quickPickerSort.value === "city" ? "city" : "name";
+    renderCustomerOptions(filteredCustomers());
+    renderQuickPicker();
+  });
+  els.quickPickerProvince.addEventListener("change", () => {
+    state.quickProvince = els.quickPickerProvince.value || "";
+    renderCustomerOptions(filteredCustomers());
+    renderQuickPicker();
+  });
+  els.quickPickerSearch.addEventListener("input", () => {
+    state.quickSearch = els.quickPickerSearch.value || "";
+    renderCustomerOptions(filteredCustomers());
+    renderQuickPicker();
+  });
+
   els.quickPickerBtn.addEventListener("click", openQuickPicker);
   els.quickPickerClose.addEventListener("click", closeQuickPicker);
   els.quickPicker.addEventListener("click", (event) => {
@@ -583,15 +573,6 @@ function wireEvents() {
 
   els.submitOrder.addEventListener("click", submitOrder);
   els.printForm.addEventListener("click", () => window.print());
-  els.lockPage.addEventListener("click", () => {
-    configureLockScreen();
-    setStatus(els.orderStatus, "Page locked.", "warn");
-  });
-  els.resetPassword.addEventListener("click", () => {
-    localStorage.removeItem(STORAGE_KEY);
-    configureLockScreen();
-    setStatus(els.orderStatus, "Password reset. Set a new password to continue.", "warn");
-  });
 }
 
 function boot() {
@@ -604,7 +585,7 @@ function boot() {
   renderSegmentControls();
   wireEvents();
   preloadCustomers();
-  configureLockScreen();
+  renderProvinceFilterOptions();
 }
 
 boot();

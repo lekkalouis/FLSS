@@ -680,10 +680,10 @@
       border:1px solid var(--panel-strong);
       background:var(--panel-soft);
       color:var(--text);
-      font-size:.65rem;
-      padding:.15rem .35rem;
+      font-size:.62rem;
+      padding:.1rem .28rem;
       cursor:pointer;
-      min-width:1.6rem;
+      min-width:1.4rem;
       text-align:center;
     }
     #viewFlocs .flocs-qtyQuickBtn:hover{
