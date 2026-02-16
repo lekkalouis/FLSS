@@ -51,8 +51,8 @@ export function initFlocsView() {
   const billingAddrPreview = document.getElementById("flocs-billingAddressPreview");
 
   const productsBody     = document.getElementById("flocs-productsBody");
-  const filterFlavour    = document.getElementById("flocs-filterFlavour");
-  const filterSize       = document.getElementById("flocs-filterSize");
+  const qtyModeGroup     = document.getElementById("flocs-qtyModeGroup");
+  const cartonSizeGroup  = document.getElementById("flocs-cartonSizeGroup");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
@@ -82,7 +82,8 @@ export function initFlocsView() {
     lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
-    filters: { flavour: "", size: "200ml" },
+    qtyMode: "units",
+    cartonUnits: 12,
     priceOverrides: {},
     priceOverrideEnabled: {},
     azLetters: []
@@ -164,7 +165,8 @@ export function initFlocsView() {
     String(p.variantId || p.sku || p.title || "").trim();
 
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
-  const QUICK_QTY = [1, 3, 6, 10, 12, 24, 50, 100];
+  const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 48, 50, 100];
+  const MATRIX_SIZES = ["200ml", "500g", "1kg", "750g", "750g Bags"];
   const AUTO_QUOTE_DELAY_MS = 3000;
   const REQUIRE_RESOLVED_PRICING = CONFIG?.FLOCS?.REQUIRE_RESOLVED_PRICING !== false;
   let autoQuoteTimer = null;
@@ -383,7 +385,7 @@ export function initFlocsView() {
         subtotal += Number(li.price) * li.quantity;
       }
     }
-    const shipping = state.shippingQuote?.total || 0;
+    const shipping = state.shippingQuote?.subtotal ?? state.shippingQuote?.total ?? 0;
     return {
       subtotal,
       shipping,
@@ -472,97 +474,80 @@ export function initFlocsView() {
   }
 
   // ===== UI: products table rendering =====
+  function normalizeMatrixSize(size) {
+    const normalized = String(size || "").toLowerCase().replace(/\s+/g, " ").trim();
+    if (normalized === "750g tub") return "750g bags";
+    return normalized;
+  }
+
+  function groupedProductsForMatrix() {
+    const grouped = new Map();
+    for (const product of state.products) {
+      const flavour = String(product.flavour || "Other").trim() || "Other";
+      if (!grouped.has(flavour)) grouped.set(flavour, new Map());
+      grouped.get(flavour).set(normalizeMatrixSize(product.size), product);
+    }
+    return Array.from(grouped.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0], undefined, { sensitivity: "base" })
+    );
+  }
+
+  function toDisplayQty(units) {
+    const base = Number(units || 0);
+    if (!base) return "";
+    if (state.qtyMode === "cartons") {
+      return String(Math.floor(base / Number(state.cartonUnits || 12)));
+    }
+    return String(base);
+  }
+
+  function displayQtyToUnits(displayQty) {
+    const base = Number(displayQty || 0);
+    if (!Number.isFinite(base) || base <= 0) return 0;
+    if (state.qtyMode === "cartons") {
+      return Math.floor(base) * Number(state.cartonUnits || 12);
+    }
+    return Math.floor(base);
+  }
+
   function renderProductsTable() {
     if (!productsBody) return;
-    const flavourFilter = (state.filters.flavour || "").toLowerCase();
-    const sizeFilter = (state.filters.size || "").toLowerCase();
-
-    const filtered = state.products.filter((p) => {
-      const flavour = (p.flavour || "").toLowerCase();
-      const size = (p.size || "").toLowerCase();
-      if (flavourFilter && flavour !== flavourFilter) return false;
-      if (sizeFilter) {
-        if (sizeFilter === "other") {
-          if (size === "100ml" || size === "200ml") return false;
-        } else if (size !== sizeFilter) {
-          return false;
-        }
-      }
-      return true;
-    });
-
-    productsBody.innerHTML = filtered
-      .map((p) => {
-        const name = displayProductTitle(p);
-        const key = productKey(p);
-        const value = state.items[key] || "";
-        const qty = Number(state.items[key] || 0);
-        const unitPrice = resolveLinePrice(p);
-        const lineTotal =
-          unitPrice != null && qty > 0 ? unitPrice * qty : null;
-        const overrideEnabled = !!state.priceOverrideEnabled[key];
-        const overrideValue =
-          state.priceOverrides[key] != null ? state.priceOverrides[key] : "";
-        const overridePrice = priceOverrideForKey(key);
-        const rowStyle = p.flavour ? ` style="--flavour-color:${flavourColor(p.flavour)}"` : "";
-        const quickButtons = QUICK_QTY.map(
-          (qty) =>
-            `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
-        ).join("");
+    const grouped = groupedProductsForMatrix();
+    productsBody.innerHTML = grouped
+      .map(([flavour, bySize]) => {
+        const cells = MATRIX_SIZES.map((label) => {
+          const lookup = normalizeMatrixSize(label);
+          const product = bySize.get(lookup);
+          if (!product) return `<td class="flocs-matrixCell flocs-matrixCell--empty">—</td>`;
+          const key = productKey(product);
+          const units = Number(state.items[key] || 0);
+          const value = toDisplayQty(units);
+          const quickButtons = QUICK_QTY.map(
+            (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
+          ).join("");
+          return `
+            <td class="flocs-matrixCell">
+              <div class="flocs-matrixSku">${product.sku || ""}</div>
+              <div class="flocs-qtyArea">
+                <div class="flocs-qtyQuick">${quickButtons}</div>
+                <div class="flocs-qtyWrap">
+                  <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
+                  <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
+                  <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+                </div>
+              </div>
+            </td>`;
+        }).join("");
         return `
-        <tr${rowStyle}>
-          <td><code>${p.sku}</code></td>
-          <td><span class="flocs-productName" title="${name}">${name}</span></td>
-          <td>${flavourTag(p.flavour)}</td>
-          <td>${p.size || "—"}</td>
-          <td>${retailPriceForProduct(p) != null ? money(retailPriceForProduct(p)) : "—"}</td>
-          <td>${unitPrice != null ? money(unitPrice) : "—"}</td>
-          <td>${qty > 0 && retailPriceForProduct(p) != null && unitPrice != null && retailPriceForProduct(p) > unitPrice ? money((retailPriceForProduct(p) - unitPrice) * qty) : "—"}</td>
-          <td>${lineTotal != null ? money(lineTotal) : "—"}</td>
-          <td>
-            <div class="flocs-overrideWrap">
-              <button class="flocs-overrideBtn ${overrideEnabled ? "is-active" : ""}" type="button" data-action="toggle-override" data-key="${key}">
-                ${overrideEnabled ? "Custom" : "Override"}
-              </button>
-              <input class="flocs-overrideInput"
-                     type="number"
-                     min="0"
-                     step="0.01"
-                     inputmode="decimal"
-                     placeholder="R0.00"
-                     data-action="override-input"
-                     data-key="${key}"
-                     value="${overrideValue}"
-                     ${overrideEnabled ? "" : "disabled"} />
-            </div>
-            <div class="flocs-overrideHint">
-              ${overridePrice != null ? `Using ${money(overridePrice)}` : "Auto price"}
-            </div>
-          </td>
-          <td>
-            <div class="flocs-qtyArea">
-              <div class="flocs-qtyQuick">
-                ${quickButtons}
-              </div>
-              <div class="flocs-qtyWrap">
-                <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
-                <input class="flocs-qtyInput"
-                       type="number"
-                       min="0"
-                       step="1"
-                       data-key="${key}"
-                       data-sku="${p.sku || ""}"
-                       inputmode="numeric"
-                       value="${value}" />
-                <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
-              </div>
-            </div>
-          </td>
-        </tr>
-      `;
+          <tr style="--flavour-color:${flavourColor(flavour)}">
+            <td><span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span></td>
+            <td><span class="flocs-productName">${flavour} products</span></td>
+            ${cells}
+          </tr>`;
       })
       .join("");
   }
+
 
   async function hydratePriceTiersForProducts(products) {
     if (priceTierLoading) return;
@@ -732,7 +717,7 @@ ${state.customer.email || ""}${
         ? `Shipping (${state.shippingQuote.service || "Courier"} @ ${money(
             state.shippingQuote.ratePerKg || 0
           )}/kg, quoteno ${state.shippingQuote.quoteno}): ${money(
-            state.shippingQuote.total
+            state.shippingQuote.subtotal ?? state.shippingQuote.total
           )}`
         : delivery === "shipping"
         ? "Shipping will be added once SWE quote is calculated"
@@ -1093,14 +1078,15 @@ ${state.customer.email || ""}${
       }
 
       const baseTotal =
-        Number(picked.total ?? picked.subtotal ?? picked.charge ?? 0) || 0;
-      const total = baseTotal;
+        Number(picked.subtotal ?? picked.total ?? picked.charge ?? 0) || 0;
+      const subtotal = baseTotal;
       const marginRate = 1;
       const marginAmount = 0;
-      const ratePerKg = grossWeightKg ? total / grossWeightKg : 0;
+      const ratePerKg = grossWeightKg ? subtotal / grossWeightKg : 0;
       state.shippingQuote = {
         service: picked.service,
-        total,
+        total: subtotal,
+        subtotal,
         baseTotal,
         marginRate,
         marginAmount,
@@ -1113,7 +1099,7 @@ ${state.customer.email || ""}${
       };
 
       shippingSummary.textContent =
-        `Quote: ${picked.service} – ${money(total)}` +
+        `Quote: ${picked.service} – ${money(subtotal)}` +
         ` · ${money(ratePerKg)}/kg · ${grossWeightKg.toFixed(2)}kg gross incl ${boxCount} boxes` +
         ` (quoteno ${quoteno})`;
 
@@ -1360,72 +1346,7 @@ ${state.customer.email || ""}${
     validate();
   }
 
-  function updateFiltersFromProducts() {
-    if (!filterFlavour || !filterSize) return;
-    const flavours = new Set();
-    const sizes = new Set();
-    const flavourStats = new Map();
-    state.products.forEach((p) => {
-      if (p.flavour) {
-        flavours.add(p.flavour);
-        const stats = flavourStats.get(p.flavour) || {
-          hasPopcorn: false,
-          hasNonPopcorn: false
-        };
-        const isPopcorn = String(p.title || "")
-          .toLowerCase()
-          .includes("popcorn sprinkle");
-        if (isPopcorn) {
-          stats.hasPopcorn = true;
-        } else {
-          stats.hasNonPopcorn = true;
-        }
-        flavourStats.set(p.flavour, stats);
-      }
-      if (p.size) sizes.add(p.size);
-    });
-    const flavourOptions = [
-      "",
-      ...Array.from(flavours)
-        .filter((flavour) => {
-          const stats = flavourStats.get(flavour);
-          return !(stats?.hasPopcorn && !stats.hasNonPopcorn);
-        })
-        .sort()
-    ];
-    const sizeOptions = ["", "100ml", "200ml", "Other"].filter((s) => {
-      if (!s) return true;
-      if (s === "Other") {
-        return Array.from(sizes).some(
-          (size) => !["100ml", "200ml"].includes(String(size).toLowerCase())
-        );
-      }
-      return Array.from(sizes).some(
-        (size) => String(size).toLowerCase() === s.toLowerCase()
-      );
-    });
 
-    filterFlavour.innerHTML = flavourOptions
-      .map((f) => {
-        const label = f || "All flavours";
-        const active = (state.filters.flavour || "") === f;
-        const flavourStyle = f
-          ? ` style="--flavour-color:${flavourColor(f)}"`
-          : "";
-        const neutralClass = f ? "" : " is-neutral";
-        return `<button class="flocs-filterBtn flocs-filterBtn--flavour${neutralClass} ${
-          active ? "is-active" : ""
-        }" type="button" data-filter="flavour" data-value="${f}"${flavourStyle}>${label}</button>`;
-      })
-      .join("");
-    filterSize.innerHTML = sizeOptions
-      .map((s) => {
-        const label = s || "All sizes";
-        const active = (state.filters.size || "") === s;
-        return `<button class="flocs-filterBtn ${active ? "is-active" : ""}" type="button" data-filter="size" data-value="${s}">${label}</button>`;
-      })
-      .join("");
-  }
 
   async function createDraftOrder() {
     if (state.errors.length) {
@@ -1450,7 +1371,7 @@ ${state.customer.email || ""}${
     const addr = currentShippingAddress();
     const shippingPrice =
       delivery === "shipping" && state.shippingQuote
-        ? state.shippingQuote.total
+        ? state.shippingQuote.subtotal ?? state.shippingQuote.total
         : null;
     const shippingBaseTotal =
       delivery === "shipping" && state.shippingQuote
@@ -1539,6 +1460,10 @@ ${state.customer.email || ""}${
       if (d.adminUrl) {
         console.log("Draft order admin URL:", d.adminUrl);
       }
+      const openUrl = d.adminUrl || d.invoiceUrl || null;
+      if (openUrl) {
+        window.open(openUrl, "_blank", "noopener");
+      }
 
       state.lastDraftOrderId = d.id || null;
 
@@ -1578,7 +1503,7 @@ ${state.customer.email || ""}${
     const addr = currentShippingAddress();
     const shippingPrice =
       delivery === "shipping" && state.shippingQuote
-        ? state.shippingQuote.total
+        ? state.shippingQuote.subtotal ?? state.shippingQuote.total
         : null;
     const shippingBaseTotal =
       delivery === "shipping" && state.shippingQuote
@@ -1685,10 +1610,11 @@ ${state.customer.email || ""}${
     }
     state.customerTags = [];
     state.priceTier = null;
-    state.filters = { flavour: "", size: "200ml" };
     state.priceOverrides = {};
     state.priceOverrideEnabled = {};
     state.azLetters = [];
+    state.qtyMode = "units";
+    state.cartonUnits = 12;
 
     if (customerSearch) customerSearch.value = "";
     updateAzBarActive([]);
@@ -1704,6 +1630,17 @@ ${state.customer.email || ""}${
     }
     if (deliveryGroup) {
       syncDeliveryGroup();
+    }
+    if (qtyModeGroup) {
+      qtyModeGroup.querySelectorAll("input[name='qtyMode']").forEach((radio) => {
+        radio.checked = radio.value === state.qtyMode;
+      });
+    }
+    if (cartonSizeGroup) {
+      cartonSizeGroup.hidden = true;
+      cartonSizeGroup.querySelectorAll("input[name='cartonUnits']").forEach((radio) => {
+        radio.checked = Number(radio.value) === state.cartonUnits;
+      });
     }
     if (shippingSummary) {
       shippingSummary.textContent = "No shipping quote yet.";
@@ -1722,7 +1659,6 @@ ${state.customer.email || ""}${
     }
 
     renderCustomerChips();
-    updateFiltersFromProducts();
     renderProductsTable();
     renderBillingAddressSelect();
     renderShippingAddressSelect();
@@ -1888,24 +1824,12 @@ ${state.customer.email || ""}${
         if (!(t instanceof HTMLInputElement)) return;
         const key = t.dataset.key;
         if (!key) return;
-        if (t.dataset.action === "override-input") {
-          const raw = t.value;
-          if (raw === "") {
-            delete state.priceOverrides[key];
-          } else {
-            const num = Number(raw);
-            if (Number.isFinite(num)) {
-              state.priceOverrides[key] = num;
-            }
-          }
+        const units = displayQtyToUnits(t.value || 0);
+        if (!units) {
+          delete state.items[key];
         } else {
-          const v = Number(t.value || 0);
-          if (!v || v < 0) {
-            delete state.items[key];
-          } else {
-            state.items[key] = Math.floor(v);
-            t.value = String(Math.floor(v));
-          }
+          state.items[key] = units;
+          t.value = toDisplayQty(units);
         }
         renderInvoice();
         validate();
@@ -1919,61 +1843,45 @@ ${state.customer.email || ""}${
         const key = btn.dataset.key;
         if (!key) return;
         const current = Number(state.items[key] || 0);
-        if (action === "toggle-override") {
-          state.priceOverrideEnabled[key] = !state.priceOverrideEnabled[key];
-          if (!state.priceOverrideEnabled[key]) {
-            delete state.priceOverrides[key];
-          }
-          renderProductsTable();
-          renderInvoice();
-          validate();
-          return;
-        }
+        const step = state.qtyMode === "cartons" ? Number(state.cartonUnits || 12) : 1;
         if (action === "quick-add") {
           const amount = Number(btn.dataset.amount || 0);
           if (Number.isFinite(amount) && amount > 0) {
-            state.items[key] = current + amount;
+            state.items[key] = current + displayQtyToUnits(amount);
           }
         } else if (action === "inc") {
-          state.items[key] = current + 1;
+          state.items[key] = current + step;
         } else if (action === "dec") {
-          const next = Math.max(0, current - 1);
-          if (next === 0) {
-            delete state.items[key];
-          } else {
-            state.items[key] = next;
-          }
+          const next = Math.max(0, current - step);
+          if (next === 0) delete state.items[key];
+          else state.items[key] = next;
         } else {
           return;
         }
-        const input = productsBody.querySelector(
-          `.flocs-qtyInput[data-key="${CSS.escape(key)}"]`
-        );
-        if (input) {
-          input.value = state.items[key] ? String(state.items[key]) : "";
-        }
+        const input = productsBody.querySelector(`.flocs-qtyInput[data-key="${CSS.escape(key)}"]`);
+        if (input) input.value = toDisplayQty(state.items[key] || 0);
         renderInvoice();
         validate();
         scheduleAutoQuote();
       });
     }
 
-    if (filterFlavour) {
-      filterFlavour.addEventListener("click", (e) => {
-        const btn = e.target.closest("[data-filter='flavour']");
-        if (!btn) return;
-        state.filters.flavour = btn.dataset.value || "";
-        updateFiltersFromProducts();
+    if (qtyModeGroup) {
+      qtyModeGroup.addEventListener("change", (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLInputElement) || t.name !== "qtyMode") return;
+        state.qtyMode = t.value === "cartons" ? "cartons" : "units";
+        if (cartonSizeGroup) cartonSizeGroup.hidden = state.qtyMode !== "cartons";
         renderProductsTable();
       });
     }
 
-    if (filterSize) {
-      filterSize.addEventListener("click", (e) => {
-        const btn = e.target.closest("[data-filter='size']");
-        if (!btn) return;
-        state.filters.size = btn.dataset.value || "";
-        updateFiltersFromProducts();
+    if (cartonSizeGroup) {
+      cartonSizeGroup.addEventListener("change", (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLInputElement) || t.name !== "cartonUnits") return;
+        const next = Number(t.value || 12);
+        state.cartonUnits = next === 24 ? 24 : 12;
         renderProductsTable();
       });
     }
@@ -2018,6 +1926,8 @@ ${state.customer.email || ""}${
       customerSearchClear.addEventListener("click", () => {
         customerSearch.value = "";
         state.azLetters = [];
+    state.qtyMode = "units";
+    state.cartonUnits = 12;
         updateAzBarActive([]);
         searchCustomersNow();
       });
@@ -2050,7 +1960,6 @@ ${state.customer.email || ""}${
 
   // ===== BOOT =====
   function boot() {
-    updateFiltersFromProducts();
     renderProductsTable();
     resetForm();
     hydratePriceTiersForProducts(state.products);
