@@ -224,11 +224,7 @@ import { adminFetch } from "./views/api-client.js";
   const DAILY_TODO_SHORTCUT = "Alt+Shift+T";
   // Operations checklist shown on dashboard; persisted per-browser in localStorage.
   const DAILY_TODO_ITEMS = [
-    "Inventory count",
-    "Production planning",
-    "Receive stock",
-    "Dispatch checks",
-    "Warehouse housekeeping"
+    "Inventory count"
   ];
   let dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
   // Shared dispatch progress timeline used in scan and board views.
