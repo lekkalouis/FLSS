@@ -140,7 +140,7 @@
     #viewPriceManager .pm-productsTable{
       width:100%;
       border-collapse:collapse;
-      font-size:.78rem;
+      font-size:.74rem;
       border:1px solid var(--panel-strong);
       border-radius:.6rem;
       overflow:hidden;
@@ -151,12 +151,12 @@
     }
     #viewPriceManager .pm-productsTable th, #viewPriceManager .pm-productsTable td{
       text-align:left;
-      padding:.4rem .5rem;
+      padding:.28rem .4rem;
       border-bottom:1px solid rgba(148,163,184,.2);
       vertical-align:middle;
     }
     #viewPriceManager .pm-productsTable th{
-      font-size:.68rem;
+      font-size:.64rem;
       text-transform:uppercase;
       letter-spacing:.05em;
       color:var(--muted);
@@ -165,15 +165,15 @@
       background:rgba(56,189,248,.08);
     }
 
-    #viewPriceManager .pm-sku{ font-family:var(--mono); font-size:.75rem; }
+    #viewPriceManager .pm-sku{ font-family:var(--mono); font-size:.71rem; }
 
     #viewPriceManager .pm-input{
-      width:4.5rem;
+      width:4.2rem;
       text-align:right;
-      border-radius:.45rem;
+      border-radius:.4rem;
       border:1px solid var(--panel-strong);
-      padding:.2rem .35rem;
-      font-size:.78rem;
+      padding:.15rem .28rem;
+      font-size:.72rem;
       background:#fff;
     }
 
@@ -185,7 +185,7 @@
     }
 
     #viewPriceManager .pm-productTitle{
-      font-size:.8rem;
+      font-size:.74rem;
       color:var(--text);
     }
 
@@ -194,10 +194,10 @@
       display:inline-flex;
       align-items:center;
       gap:.3rem;
-      padding:.1rem .45rem;
+      padding:.06rem .38rem;
       border-radius:999px;
       border:1px solid var(--flavour-color);
-      font-size:.65rem;
+      font-size:.6rem;
       letter-spacing:.02em;
       text-transform:uppercase;
       color:var(--text);
@@ -215,7 +215,7 @@
     #viewPriceManager .pm-actions{
       display:flex;
       flex-direction:column;
-      gap:.4rem;
+      gap:.2rem;
     }
 
     #viewPriceManager .pm-saveBtn{
@@ -223,18 +223,10 @@
       border:none;
       color:#052e16;
       border-radius:999px;
-      padding:.45rem .85rem;
+      padding:.28rem .65rem;
       font-weight:600;
       cursor:pointer;
-      font-size:.75rem;
-    }
-
-    #viewPriceManager .pm-sync{
-      display:flex;
-      align-items:center;
-      gap:.35rem;
-      font-size:.7rem;
-      color:var(--muted);
+      font-size:.68rem;
     }
 
     #viewPriceManager .pm-status{

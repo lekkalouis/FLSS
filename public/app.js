@@ -6,7 +6,9 @@ import { initPriceManagerView } from "./views/price-manager.js";
   "use strict";
 
   const CONFIG = {
-    PROGRESS_STEP_DELAY_MS: 450
+    PROGRESS_STEP_DELAY_MS: 450,
+    DISPATCH_POLL_INTERVAL_MS: 60000,
+    SERVER_STATUS_POLL_INTERVAL_MS: 45000
   };
   const API_BASE = "/api/v1";
 
@@ -3225,12 +3227,12 @@ async function startOrder(orderNo) {
     }
 
     const cols = [
-      { id: "delivery", label: "Delivery", type: "cards" },
       { id: "shippingAgent", label: "Shipping (Agent)", type: "cards" },
       { id: "shippingA", label: "Shipping", type: "cards" },
       { id: "shippingB", label: "Shipping", type: "cards" },
       { id: "shippingC", label: "Shipping", type: "cards" },
-      { id: "pickup", label: "Pickup / Collection", type: "cards" }
+      { id: "pickup", label: "Pickup / Collection", type: "cards" },
+      { id: "delivery", label: "Delivery", type: "cards" }
     ];
     const lanes = {
       delivery: [],
@@ -4721,9 +4723,9 @@ async function startOrder(orderNo) {
     setDispatchProgress(0, "Idle", { silent: true });
     initAddressSearch();
     refreshDispatchData();
-    setInterval(refreshDispatchData, 30000);
+    setInterval(refreshDispatchData, CONFIG.DISPATCH_POLL_INTERVAL_MS);
     refreshServerStatus();
-    setInterval(refreshServerStatus, 20000);
+    setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
     renderModuleDashboard();
     renderRoute(window.location.pathname);
 
