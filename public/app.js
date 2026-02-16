@@ -179,6 +179,15 @@ import { initPriceManagerView } from "./views/price-manager.js";
       target: "/price-manager",
       meta: "Pricing module",
       tag: "Module"
+    },
+    {
+      id: "custom-order-capture",
+      title: "Custom Order Capture",
+      description: "Password-protected local custom normal order entry.",
+      type: "link",
+      target: "/order-capture-custom.html",
+      meta: "Secure custom entry",
+      tag: "Module"
     }
   ];
 

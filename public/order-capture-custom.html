@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Custom Order Form</title>
+  <style>
+    :root{
+      --ink:#1f2937;
+      --muted:#6b7280;
+      --line:#cfd3d8;
+      --line-strong:#b7bcc4;
+      --accent:#c79f2f;
+      --bg:#eef1f5;
+      --card:#ffffff;
+      --danger:#b91c1c;
+      --ok:#166534;
+      --sans:Arial,"Helvetica Neue",Helvetica,sans-serif;
+      --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);padding:1rem}
+    .shell{max-width:1160px;margin:0 auto;display:grid;gap:.8rem}
+    .toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between;background:#111827;color:#e5e7eb;padding:.65rem .8rem;border-radius:10px}
+    .toolbar .actions{display:flex;gap:.45rem;flex-wrap:wrap}
+    button,input,select,textarea{font:inherit}
+    button{border:1px solid #d1d5db;border-radius:6px;padding:.45rem .72rem;cursor:pointer;background:#fff}
+    button.primary{background:#0f766e;color:#fff;border-color:#0f766e}
+    button.danger{border-color:#fecaca;color:#991b1b;background:#fff}
+    .status{font-size:.88rem;color:#93c5fd;min-height:1rem}
+    .status.err{color:#fecaca}.status.ok{color:#bbf7d0}.status.warn{color:#fde68a}
+
+    .form-page{background:var(--card);border:1px solid var(--line);box-shadow:0 10px 30px rgba(31,41,55,.08);padding:.75rem}
+    .head{display:grid;grid-template-columns:1.2fr 1fr auto;gap:.75rem;align-items:center;border-bottom:1px solid var(--line);padding-bottom:.55rem}
+    .brand{display:flex;gap:.6rem;align-items:center}
+    .brand img{width:120px;height:auto;display:block}
+    .small{font-size:.74rem;line-height:1.35;color:#374151}
+    .titleBlock{justify-self:end;text-align:right}
+    .titleBlock h1{margin:0;font-size:1.45rem;color:var(--accent);letter-spacing:.05em}
+    .metaTable{border:1px solid var(--line);border-collapse:collapse;font-size:.9rem}
+    .metaTable th,.metaTable td{border:1px solid var(--line);padding:.28rem .5rem}
+    .metaTable th{background:#f3f4f6;color:#4b5563}
+
+    .searchRow{display:grid;grid-template-columns:1fr auto;gap:.5rem;margin:.65rem 0}
+    .searchRow input{padding:.45rem .55rem;border:1px solid var(--line-strong);border-radius:6px}
+    .searchHint{font-size:.78rem;color:var(--muted)}
+
+    .addrWrap{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.4rem}
+    .panel{border:1px solid var(--line);background:#fafafa}
+    .panel h3{margin:0;padding:.4rem .5rem;border-bottom:1px solid var(--line);font-size:.82rem;background:#e5e7eb;text-transform:uppercase;letter-spacing:.04em}
+    .fields{padding:.42rem;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.28rem}
+    .fields label{display:grid;gap:.16rem;font-size:.65rem;color:#6b7280;text-transform:uppercase}
+    .fields input,.fields textarea{width:100%;padding:.34rem .45rem;border:1px solid var(--line-strong);border-radius:4px;font-size:.86rem;background:#fff}
+    .fields textarea{min-height:54px;resize:vertical}
+    .span-2{grid-column:span 2}.span-3{grid-column:span 3}.span-6{grid-column:1/-1}
+
+    .prodHead{margin-top:.6rem;border:1px solid var(--line);border-bottom:none;background:#e5e7eb;padding:.4rem .55rem;text-align:center;font-weight:700}
+    table{width:100%;border-collapse:collapse}
+    .prodTable{border:1px solid var(--line)}
+    .prodTable th,.prodTable td{border:1px solid var(--line);padding:.28rem .4rem;font-size:.82rem}
+    .prodTable th{background:#f3f4f6;text-transform:uppercase;font-size:.72rem;color:#4b5563;letter-spacing:.04em}
+    .prodTable td:nth-child(1){width:92px;font-weight:700;font-style:italic}
+    .prodTable td:nth-child(3),.prodTable td:nth-child(4){width:120px;text-align:right;font-variant-numeric:tabular-nums}
+    .prodTable td:nth-child(5){width:92px}
+    .qty{width:100%;border:1px solid var(--line-strong);padding:.24rem .36rem;text-align:right;border-radius:4px}
+
+    .summary{display:grid;grid-template-columns:1fr auto auto;gap:.7rem;align-items:center;padding:.55rem 0}
+    .receipt{font-family:var(--mono);font-size:.78rem;background:#0f172a;color:#e2e8f0;padding:.5rem;border-radius:6px;white-space:pre-wrap;max-height:180px;overflow:auto}
+
+    .lock{position:fixed;inset:0;background:rgba(17,24,39,.92);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:100}
+    .lockCard{width:min(430px,100%);background:#fff;border-radius:10px;padding:1rem;display:grid;gap:.55rem}
+    .lockCard input{padding:.55rem;border:1px solid #d1d5db;border-radius:6px}
+    [hidden]{display:none !important}
+
+    @media(max-width:980px){
+      .head{grid-template-columns:1fr}
+      .titleBlock{justify-self:start;text-align:left}
+      .addrWrap{grid-template-columns:1fr}
+      .fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .span-3{grid-column:span 2}
+    }
+    @media print{
+      body{background:#fff;padding:0}
+      .toolbar,.lock{display:none !important}
+      .form-page{box-shadow:none;border:none;padding:0}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="toolbar">
+      <strong>Custom Order Form (normal Shopify order)</strong>
+      <div class="actions">
+        <button id="submit-order" class="primary" type="button">Create order</button>
+        <button id="print-form" type="button">Print</button>
+        <button id="lock-page" type="button">Lock</button>
+        <button id="reset-password" type="button" class="danger">Reset password</button>
+      </div>
+      <div id="order-status" class="status"></div>
+    </div>
+
+    <section class="form-page">
+      <header class="head">
+        <div class="brand">
+          <img src="/img/logo.png" alt="Flippen Lekka" />
+          <div class="small">
+            <div><strong>Flippen Lekka Holdings (PTY) Ltd</strong></div>
+            <div>7 Papaver Street, Blomtuin, Bellville, Cape Town, 7530</div>
+            <div>Email: admin@flippenlekkaspices.co.za</div>
+            <div>Phone: 071 371 0499 / 078 355 6277</div>
+          </div>
+        </div>
+        <div class="titleBlock"><h1>ORDER FORM</h1></div>
+        <table class="metaTable">
+          <tr><th>Date</th><td><input id="order-date" type="date" /></td></tr>
+          <tr><th>Reference</th><td><input id="po-number" type="text" placeholder="PO / Ref" /></td></tr>
+        </table>
+      </header>
+
+      <div class="searchRow">
+        <input id="customer-search" type="text" placeholder="Search customer by name, company, email, or phone" autocomplete="off" />
+        <button id="customer-search-btn" type="button">Search customer</button>
+      </div>
+      <div id="customer-status" class="searchHint">Select a Shopify customer to create a normal order.</div>
+      <select id="customer-results"></select>
+
+      <div class="addrWrap">
+        <section class="panel">
+          <h3>Invoice To (Billing Address)</h3>
+          <div class="fields">
+            <label class="span-3">Company / Consignee<input id="bill-company" type="text" /></label>
+            <label class="span-3">Contact name<input id="bill-name" type="text" /></label>
+            <label class="span-3">Street address<input id="bill-address1" type="text" /></label>
+            <label class="span-3">Address line 2<input id="bill-address2" type="text" /></label>
+            <label class="span-2">Suburb<input id="bill-suburb" type="text" /></label>
+            <label class="span-2">City / Town<input id="bill-city" type="text" /></label>
+            <label class="span-2">Province<input id="bill-province" type="text" /></label>
+            <label class="span-2">Postcode<input id="bill-zip" type="text" /></label>
+            <label class="span-2">Tel<input id="bill-phone" type="text" /></label>
+            <label class="span-2">Email<input id="bill-email" type="email" /></label>
+            <label class="span-2">VAT Nr<input id="bill-vat" type="text" /></label>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3>Ship To</h3>
+          <div class="fields">
+            <label class="span-3">Company / Consignee<input id="ship-company" type="text" /></label>
+            <label class="span-3">Contact name<input id="ship-name" type="text" /></label>
+            <label class="span-3">Street address<input id="ship-address1" type="text" /></label>
+            <label class="span-3">Address line 2<input id="ship-address2" type="text" /></label>
+            <label class="span-2">Suburb<input id="ship-suburb" type="text" /></label>
+            <label class="span-2">City / Town<input id="ship-city" type="text" /></label>
+            <label class="span-2">Province<input id="ship-province" type="text" /></label>
+            <label class="span-2">Postcode<input id="ship-zip" type="text" /></label>
+            <label class="span-2">Tel<input id="ship-phone" type="text" /></label>
+            <label class="span-2">Email<input id="ship-email" type="email" /></label>
+            <label class="span-6">Special instructions<textarea id="ship-notes"></textarea></label>
+          </div>
+        </section>
+      </div>
+
+      <div class="prodHead">PRODUCT LIST</div>
+      <table class="prodTable">
+        <thead>
+          <tr><th>Code</th><th>Description</th><th>Unit Price</th><th>Line</th><th>Qty</th></tr>
+        </thead>
+        <tbody id="product-body"></tbody>
+      </table>
+
+      <div class="summary">
+        <div id="selected-count">0 products selected</div>
+        <strong>Order Total:</strong>
+        <strong id="order-total">R0.00</strong>
+      </div>
+      <div id="receipt" class="receipt">Receipt preview appears as quantities are entered.</div>
+    </section>
+  </div>
+
+  <section id="lock-screen" class="lock" aria-live="polite">
+    <div class="lockCard">
+      <h2 style="margin:0">Secure access</h2>
+      <p id="lock-copy" style="margin:.1rem 0 .3rem;color:#4b5563">Set a local password to protect this page.</p>
+      <input id="lock-password" type="password" placeholder="Password (min 8 chars)" autocomplete="current-password" />
+      <input id="lock-confirm" type="password" placeholder="Confirm password for first setup" autocomplete="new-password" />
+      <button id="lock-action" class="primary" type="button">Unlock</button>
+      <div id="lock-status" class="status" style="color:#374151"></div>
+      <p style="margin:0;color:#6b7280;font-size:.8rem">Password hash is stored in this browser's localStorage using PBKDF2 + salt.</p>
+    </div>
+  </section>
+
+  <script type="module" src="/order-capture-custom.js"></script>
+</body>
+</html>
