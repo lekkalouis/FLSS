@@ -60,6 +60,66 @@ function requireCustomerEmailConfigured(res) {
 
 const ORDER_PARCEL_NAMESPACE = "custom";
 const ORDER_PARCEL_KEY = "parcel_count";
+const CUSTOMER_META_NAMESPACE = "custom";
+const ORDER_PARCEL_CACHE_TTL_MS = 2 * 60 * 1000;
+const ORDER_PARCEL_REST_FALLBACK_CAP = 20;
+const SEARCH_TIER_ENRICHMENT_CAP = 80;
+const orderParcelCountCache = new Map();
+
+function parseParcelCountFromTags(tags) {
+  if (typeof tags !== "string" || !tags.trim()) return null;
+  const parts = tags.split(",").map((t) => t.trim().toLowerCase());
+  for (const t of parts) {
+    const m = t.match(/^parcel_count_(\d+)$/);
+    if (m) return parseInt(m[1], 10);
+  }
+  return null;
+}
+
+function getCachedOrderParcelCount(orderId) {
+  const key = String(orderId || "");
+  if (!key) return undefined;
+  const cached = orderParcelCountCache.get(key);
+  if (!cached) return undefined;
+  if (cached.expiresAt <= Date.now()) {
+    orderParcelCountCache.delete(key);
+    return undefined;
+  }
+  return cached.value;
+}
+
+function cacheOrderParcelCount(orderId, value) {
+  const key = String(orderId || "");
+  if (!key) return;
+  orderParcelCountCache.set(key, {
+    value: value == null ? null : Number(value),
+    expiresAt: Date.now() + ORDER_PARCEL_CACHE_TTL_MS
+  });
+}
+
+function normalizeCustomerMetafields(metafields = []) {
+  const getValue = (key) =>
+    metafields.find((mf) => mf.namespace === CUSTOMER_META_NAMESPACE && mf.key === key)?.value || null;
+
+  return {
+    delivery_method: getValue("delivery_method"),
+    delivery_type: getValue("delivery_type"),
+    tier: normalizeCustomerTier(getValue("tier")),
+    delivery_instructions: getValue("delivery_instructions"),
+    company_name: getValue("company_name"),
+    vat_number: getValue("vat_number")
+  };
+}
+
+async function fetchCustomerCustomMetafields(base, customerId) {
+  if (!customerId) return {};
+  const metaUrl = `${base}/customers/${customerId}/metafields.json`;
+  const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
+  if (!metaResp.ok) return {};
+  const metaData = await metaResp.json();
+  const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
+  return normalizeCustomerMetafields(metafields);
+}
 
 async function fetchOrderParcelMetafield(base, orderId) {
   if (!orderId) return null;
@@ -74,18 +134,155 @@ async function fetchOrderParcelMetafield(base, orderId) {
 }
 
 async function fetchOrderParcelCount(base, orderId) {
+  const cached = getCachedOrderParcelCount(orderId);
+  if (cached !== undefined) return cached;
   try {
     const metafield = await fetchOrderParcelMetafield(base, orderId);
-    if (!metafield || metafield.value == null) return null;
+    if (!metafield || metafield.value == null) {
+      cacheOrderParcelCount(orderId, null);
+      return null;
+    }
     const parsed = Number(metafield.value);
-    return Number.isFinite(parsed) ? parsed : null;
+    const normalized = Number.isFinite(parsed) ? parsed : null;
+    cacheOrderParcelCount(orderId, normalized);
+    return normalized;
   } catch (err) {
     console.warn("Order parcel metafield fetch failed:", err);
     return null;
   }
 }
 
-function normalizeCustomer(customer, metafields = {}) {
+async function batchFetchVariantPriceTiers(base, variantIds = []) {
+  const uniqueIds = Array.from(
+    new Set(
+      (variantIds || [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    )
+  );
+  if (!uniqueIds.length) return new Map();
+
+  const gids = uniqueIds.map((id) => `gid://shopify/ProductVariant/${id}`);
+  const gqlResp = await shopifyFetch(`${base}/graphql.json`, {
+    method: "POST",
+    body: JSON.stringify({
+      query: `
+        query VariantTierMetafields($ids: [ID!]!) {
+          nodes(ids: $ids) {
+            ... on ProductVariant {
+              id
+              metafield(namespace: "custom", key: "price_tiers") {
+                value
+              }
+            }
+          }
+        }
+      `,
+      variables: { ids: gids }
+    })
+  });
+
+  const map = new Map();
+  if (gqlResp.ok) {
+    const gqlData = await gqlResp.json();
+    const nodes = Array.isArray(gqlData?.data?.nodes) ? gqlData.data.nodes : [];
+    nodes.forEach((node) => {
+      const gid = String(node?.id || "");
+      const id = gid.split("/").pop();
+      const raw = node?.metafield?.value;
+      if (!id || !raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") map.set(String(id), parsed);
+      } catch {
+        // ignore invalid metafield JSON
+      }
+    });
+  }
+
+  if (map.size === uniqueIds.length) return map;
+  const unresolved = uniqueIds.filter((id) => !map.has(String(id)));
+  await Promise.all(
+    unresolved.map(async (variantId) => {
+      const tierData = await fetchVariantPriceTiers(variantId);
+      if (tierData?.value && typeof tierData.value === "object") {
+        map.set(String(variantId), tierData.value);
+      }
+    })
+  );
+  return map;
+}
+
+async function batchFetchOrderParcelCounts(base, orderIds = []) {
+  const uniqueIds = Array.from(
+    new Set(
+      (orderIds || [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    )
+  );
+  const parcelCountMap = new Map();
+  if (!uniqueIds.length) return parcelCountMap;
+
+  const unresolved = [];
+  uniqueIds.forEach((orderId) => {
+    const cached = getCachedOrderParcelCount(orderId);
+    if (cached !== undefined) {
+      parcelCountMap.set(String(orderId), cached);
+    } else {
+      unresolved.push(orderId);
+    }
+  });
+  if (!unresolved.length) return parcelCountMap;
+
+  const gqlResp = await shopifyFetch(`${base}/graphql.json`, {
+    method: "POST",
+    body: JSON.stringify({
+      query: `
+        query OrderParcelCounts($ids: [ID!]!) {
+          nodes(ids: $ids) {
+            ... on Order {
+              id
+              metafield(namespace: "${ORDER_PARCEL_NAMESPACE}", key: "${ORDER_PARCEL_KEY}") {
+                value
+              }
+            }
+          }
+        }
+      `,
+      variables: {
+        ids: unresolved.map((id) => `gid://shopify/Order/${id}`)
+      }
+    })
+  });
+
+  if (gqlResp.ok) {
+    const gqlData = await gqlResp.json();
+    const nodes = Array.isArray(gqlData?.data?.nodes) ? gqlData.data.nodes : [];
+    nodes.forEach((node) => {
+      const orderId = String(node?.id || "").split("/").pop();
+      const raw = node?.metafield?.value;
+      if (!orderId) return;
+      const parsed = Number(raw);
+      const normalized = Number.isFinite(parsed) ? parsed : null;
+      parcelCountMap.set(orderId, normalized);
+      cacheOrderParcelCount(orderId, normalized);
+    });
+  }
+
+  const unresolvedAfterGraphql = unresolved.filter((orderId) => !parcelCountMap.has(orderId));
+  const fallbackIds = unresolvedAfterGraphql.slice(0, ORDER_PARCEL_REST_FALLBACK_CAP);
+  await Promise.all(
+    fallbackIds.map(async (orderId) => {
+      const parcelCount = await fetchOrderParcelCount(base, orderId);
+      parcelCountMap.set(String(orderId), parcelCount);
+    })
+  );
+
+  return parcelCountMap;
+}
+
+function normalizeCustomer(customer, metafields = {}, options = {}) {
   if (!customer) return null;
   const first = (customer.first_name || "").trim();
   const last = (customer.last_name || "").trim();
@@ -109,7 +306,8 @@ function normalizeCustomer(customer, metafields = {}) {
     tier: normalizeCustomerTier(metafields.tier),
     deliveryInstructions: metafields.delivery_instructions || null,
     companyName: metafields.company_name || null,
-    vatNumber: metafields.vat_number || null
+    vatNumber: metafields.vat_number || null,
+    customFieldsLoaded: Boolean(options.customFieldsLoaded)
   };
 }
 
@@ -183,32 +381,8 @@ router.get("/shopify/customers/search", async (req, res) => {
       (a, b) => Number(b.orders_count || 0) - Number(a.orders_count || 0)
     );
 
-    const metafieldsByCustomer = await Promise.all(
-      customers.map(async (cust) => {
-        try {
-          const metaUrl = `${base}/customers/${cust.id}/metafields.json`;
-          const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
-          if (!metaResp.ok) return null;
-          const metaData = await metaResp.json();
-          const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
-          const getValue = (key) =>
-            metafields.find((mf) => mf.namespace === "custom" && mf.key === key)?.value || null;
-          return {
-            delivery_method: getValue("delivery_method"),
-            delivery_type: getValue("delivery_type"),
-            tier: getValue("tier"),
-            delivery_instructions: getValue("delivery_instructions"),
-            company_name: getValue("company_name"),
-            vat_number: getValue("vat_number")
-          };
-        } catch {
-          return null;
-        }
-      })
-    );
-
     const normalized = customers
-      .map((cust, idx) => normalizeCustomer(cust, metafieldsByCustomer[idx] || {}))
+      .map((cust) => normalizeCustomer(cust, {}, { customFieldsLoaded: false }))
       .filter(Boolean);
 
     return res.json({ customers: normalized });
@@ -246,37 +420,36 @@ router.get("/shopify/customers/recent", async (req, res) => {
     const customers = Array.isArray(data.customers) ? data.customers : [];
     customers.sort((a, b) => Number(b.orders_count || 0) - Number(a.orders_count || 0));
 
-    const metafieldsByCustomer = await Promise.all(
-      customers.map(async (cust) => {
-        try {
-          const metaUrl = `${base}/customers/${cust.id}/metafields.json`;
-          const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
-          if (!metaResp.ok) return null;
-          const metaData = await metaResp.json();
-          const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
-          const getValue = (key) =>
-            metafields.find((mf) => mf.namespace === "custom" && mf.key === key)?.value || null;
-          return {
-            delivery_method: getValue("delivery_method"),
-            delivery_type: getValue("delivery_type"),
-            tier: getValue("tier"),
-            delivery_instructions: getValue("delivery_instructions"),
-            company_name: getValue("company_name"),
-            vat_number: getValue("vat_number")
-          };
-        } catch {
-          return null;
-        }
-      })
-    );
-
     const normalized = customers
-      .map((cust, idx) => normalizeCustomer(cust, metafieldsByCustomer[idx] || {}))
+      .map((cust) => normalizeCustomer(cust, {}, { customFieldsLoaded: false }))
       .filter(Boolean);
 
     return res.json({ customers: normalized });
   } catch (err) {
     console.error("Shopify recent customers error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
+router.get("/shopify/customers/:id/metafields", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const customerId = String(req.params.id || "").trim();
+    if (!customerId) return badRequest(res, "Missing customer id");
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const metafields = await fetchCustomerCustomMetafields(base, customerId);
+
+    return res.json({
+      customerId,
+      metafields,
+      customFieldsLoaded: true
+    });
+  } catch (err) {
+    console.error("Shopify customer metafields error:", err);
     return res
       .status(502)
       .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
@@ -388,12 +561,16 @@ router.post("/shopify/customers", async (req, res) => {
       });
     }
 
-    const customer = normalizeCustomer(data.customer, {
-      delivery_method: deliveryMethod || null,
-      delivery_instructions: deliveryInstructions || null,
-      company_name: company || null,
-      vat_number: vatNumber || null
-    });
+    const customer = normalizeCustomer(
+      data.customer,
+      {
+        delivery_method: deliveryMethod || null,
+        delivery_instructions: deliveryInstructions || null,
+        company_name: company || null,
+        vat_number: vatNumber || null
+      },
+      { customFieldsLoaded: true }
+    );
     return res.json({ ok: true, customer });
   } catch (err) {
     console.error("Shopify customer create error:", err);
@@ -539,15 +716,11 @@ router.get("/shopify/products/search", async (req, res) => {
     }
 
     if (includePriceTiers && filtered.length) {
-      const tiersMap = new Map();
-      await Promise.all(
-        filtered.map(async (item) => {
-          const tierData = await fetchVariantPriceTiers(item.variantId);
-          if (tierData?.value) {
-            tiersMap.set(String(item.variantId), tierData.value);
-          }
-        })
-      );
+      const enrichCandidates = filtered
+        .map((item) => String(item.variantId || "").trim())
+        .filter(Boolean)
+        .slice(0, SEARCH_TIER_ENRICHMENT_CAP);
+      const tiersMap = await batchFetchVariantPriceTiers(base, enrichCandidates);
       filtered.forEach((item) => {
         const tiers = tiersMap.get(String(item.variantId));
         if (tiers) item.priceTiers = tiers;
@@ -645,14 +818,9 @@ router.get("/shopify/products/collection", async (req, res) => {
     });
 
     if (includePriceTiers && normalized.length) {
-      const tiersMap = new Map();
-      await Promise.all(
-        normalized.map(async (item) => {
-          const tierData = await fetchVariantPriceTiers(item.variantId);
-          if (tierData?.value) {
-            tiersMap.set(String(item.variantId), tierData.value);
-          }
-        })
+      const tiersMap = await batchFetchVariantPriceTiers(
+        base,
+        normalized.map((item) => item.variantId)
       );
       normalized.forEach((item) => {
         const tiers = tiersMap.get(String(item.variantId));
@@ -759,15 +927,15 @@ router.post("/shopify/variants/price-tiers/fetch", async (req, res) => {
       )
     ).slice(0, 250);
 
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const tiersMap = await batchFetchVariantPriceTiers(base, uniqueIds);
     const tiersByVariantId = {};
-    await Promise.all(
-      uniqueIds.map(async (variantId) => {
-        const tierData = await fetchVariantPriceTiers(variantId);
-        if (tierData?.value && typeof tierData.value === "object") {
-          tiersByVariantId[String(variantId)] = tierData.value;
-        }
-      })
-    );
+    uniqueIds.forEach((variantId) => {
+      const tiers = tiersMap.get(String(variantId));
+      if (tiers && typeof tiers === "object") {
+        tiersByVariantId[String(variantId)] = tiers;
+      }
+    });
 
     return res.json({ priceTiersByVariantId: tiersByVariantId });
   } catch (err) {
@@ -1265,6 +1433,7 @@ router.post("/shopify/orders/parcel-count", async (req, res) => {
           });
         }
       }
+      cacheOrderParcelCount(orderId, null);
       return res.json({ ok: true, parcelCount: null });
     }
 
@@ -1294,6 +1463,7 @@ router.post("/shopify/orders/parcel-count", async (req, res) => {
           body
         });
       }
+      cacheOrderParcelCount(orderId, parsed);
       return res.json({ ok: true, parcelCount: parsed });
     }
 
@@ -1318,6 +1488,7 @@ router.post("/shopify/orders/parcel-count", async (req, res) => {
       });
     }
 
+    cacheOrderParcelCount(orderId, parsed);
     return res.json({ ok: true, parcelCount: parsed });
   } catch (err) {
     console.error("Shopify parcel-count error:", err);
@@ -1377,28 +1548,16 @@ router.get("/shopify/orders/open", async (req, res) => {
     }
 
     const filteredOrders = ordersRaw.filter((o) => !o.cancelled_at);
-    const parcelCounts = await Promise.all(
-      filteredOrders.map((o) => fetchOrderParcelCount(base, o.id))
-    );
-    const parcelCountMap = new Map(
-      filteredOrders.map((o, idx) => [o.id, parcelCounts[idx]])
-    );
+    const orderIdsMissingTagCount = filteredOrders
+      .filter((o) => parseParcelCountFromTags(o.tags) == null)
+      .map((o) => o.id);
+    const parcelCountMap = await batchFetchOrderParcelCounts(base, orderIdsMissingTagCount);
 
     const orders = filteredOrders.map((o) => {
         const shipping = o.shipping_address || {};
         const customer = o.customer || {};
 
-        let parcelCountFromTag = null;
-        if (typeof o.tags === "string" && o.tags.trim()) {
-          const parts = o.tags.split(",").map((t) => t.trim().toLowerCase());
-          for (const t of parts) {
-            const m = t.match(/^parcel_count_(\d+)$/);
-            if (m) {
-              parcelCountFromTag = parseInt(m[1], 10);
-              break;
-            }
-          }
-        }
+        const parcelCountFromTag = parseParcelCountFromTags(o.tags);
 
         const totalGrams = (o.line_items || []).reduce((sum, li) => {
           const grams = Number(li.grams || 0);
@@ -1442,6 +1601,7 @@ router.get("/shopify/orders/open", async (req, res) => {
           shipping_phone: shipping.phone || "",
           shipping_name: shipping.name || customer_name,
           parcel_count: parcelCountFromMeta ?? parcelCountFromTag,
+          parcel_count_from_tag: parcelCountFromTag,
           line_items: (o.line_items || []).map((li) => ({
             title: li.title,
             variant_title: li.variant_title,

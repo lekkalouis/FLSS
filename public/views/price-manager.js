@@ -221,7 +221,7 @@ export function initPriceManagerView() {
     for (let page = 0; page < maxPages; page += 1) {
       const params = new URLSearchParams({
         q: query,
-        includePriceTiers: "1",
+        includePriceTiers: "0",
         limit: "50"
       });
       if (productPageInfo) params.set("productPageInfo", productPageInfo);
@@ -256,6 +256,35 @@ export function initPriceManagerView() {
     return products;
   }
 
+
+  async function hydrateMissingPriceTiers(products) {
+    const variantIds = Array.from(
+      new Set(
+        (products || [])
+          .filter((product) => product?.variantId && (!product.priceTiers || !Object.keys(product.priceTiers).length))
+          .map((product) => product.variantId)
+      )
+    );
+    if (!variantIds.length) return products;
+
+    try {
+      const resp = await fetch("/api/v1/shopify/variants/price-tiers/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variantIds })
+      });
+      const payload = await resp.json();
+      if (!resp.ok) return products;
+      const map = payload?.priceTiersByVariantId || {};
+      return products.map((product) => {
+        const tiers = map[String(product.variantId)];
+        return tiers ? { ...product, priceTiers: tiers } : product;
+      });
+    } catch {
+      return products;
+    }
+  }
+
   async function loadDefaultProducts() {
     if (state.loading) return;
     state.loading = true;
@@ -274,15 +303,16 @@ export function initPriceManagerView() {
         console.warn("Search catalogue load failed, falling back to collection", err);
         const collectionUrl = `/api/v1/shopify/products/collection?handle=${encodeURIComponent(
           DEFAULT_COLLECTION_HANDLE
-        )}&includePriceTiers=1`;
+        )}&includePriceTiers=0`;
         const collectionResp = await fetch(collectionUrl);
         const collectionPayload = await collectionResp.json();
         remoteProducts = Array.isArray(collectionPayload.products) ? collectionPayload.products : [];
       }
 
-      state.products = buildStandardCatalogueProducts(remoteProducts)
+      const mergedProducts = buildStandardCatalogueProducts(remoteProducts)
         .filter((product) => skuOrder.has(product.sku))
         .sort((a, b) => skuOrder.get(a.sku) - skuOrder.get(b.sku));
+      state.products = await hydrateMissingPriceTiers(mergedProducts);
 
       const pricedCount = state.products.filter((product) => product.price != null).length;
       renderTable();
