@@ -111,6 +111,7 @@ export function initFlocsView() {
       : "—";
   let priceTierLoading = false;
   let resolverPreviewLoading = false;
+  let resolverPreviewQueued = false;
 
   // ===== HELPERS =====
   const money = (v) =>
@@ -541,7 +542,10 @@ export function initFlocsView() {
 
 
   async function previewPriceResolution(products) {
-    if (resolverPreviewLoading) return;
+    if (resolverPreviewLoading) {
+      resolverPreviewQueued = true;
+      return;
+    }
     const contexts = products
       .filter((p) => p && (p.variantId || p.sku))
       .map((p) => ({
@@ -588,6 +592,10 @@ export function initFlocsView() {
       console.warn("Pricing resolver preview failed:", err);
     } finally {
       resolverPreviewLoading = false;
+      if (resolverPreviewQueued) {
+        resolverPreviewQueued = false;
+        previewPriceResolution(products);
+      }
     }
   }
 
@@ -1362,6 +1370,7 @@ ${state.customer.email || ""}${
     if (customerStatus) customerStatus.textContent = `Selected: ${c.name}`;
     state.customerTags = normalizeTags(c.tags);
     state.priceTier = resolvePriceTier(state.customerTags);
+    state.priceResolutionByKey = {};
     renderCustomerChips();
     renderProductsTable();
     renderBillingAddressSelect();
