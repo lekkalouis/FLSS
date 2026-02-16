@@ -187,8 +187,24 @@ export function initFlocsView() {
   function resolvePriceTier(tags) {
     const normalized = tags.map((t) => t.toLowerCase());
     const found = PRICE_TAGS.find((tag) => normalized.includes(tag)) || null;
-    if (found === "retailer") return "retail";
     return found;
+  }
+
+  function resolveTierValue(tiers, tier) {
+    if (!tiers || !tier) return null;
+    const aliases = {
+      retail: ["retail", "retailer"],
+      retailer: ["retailer", "retail"],
+      fkb: ["fkb", "public"],
+      public: ["public", "fkb"]
+    };
+    const keys = aliases[tier] || [tier];
+    for (const key of keys) {
+      if (tiers[key] == null) continue;
+      const numeric = Number(tiers[key]);
+      if (Number.isFinite(numeric)) return numeric;
+    }
+    return null;
   }
 
   function normalizePriceTiers(product) {
@@ -223,17 +239,17 @@ export function initFlocsView() {
     if (!product) return null;
     const tier = state.priceTier;
     const tiers = normalizePriceTiers(product);
-    const retailPrice = retailPriceForProduct(product);
-    if (tier && tiers && tiers[tier] != null) {
-      const tierValue = Number(tiers[tier]);
-      if (Number.isFinite(tierValue) && Number.isFinite(retailPrice)) {
-        const discountedPrice = retailPrice - tierValue;
-        return discountedPrice > 0 ? discountedPrice : retailPrice;
-      }
+    if (tier && tiers) {
+      const tierValue = resolveTierValue(tiers, tier);
+      if (tierValue != null) return tierValue;
     }
     if (tiers) {
-      const fallback = tiers.default != null ? tiers.default : tiers.standard;
-      if (fallback != null) return Number(fallback);
+      const fallback =
+        resolveTierValue(tiers, "default") ??
+        resolveTierValue(tiers, "standard") ??
+        resolveTierValue(tiers, "retail") ??
+        resolveTierValue(tiers, "public");
+      if (fallback != null) return fallback;
     }
     if (product.price != null) {
       return Number(product.price);
