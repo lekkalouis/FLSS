@@ -14,6 +14,11 @@ import {
   updateVariantPrice
 } from "../services/shopify.js";
 import { badRequest } from "../utils/http.js";
+import {
+  mapDeliveryType,
+  normalizeCustomerTier,
+  resolveDraftLinePricing
+} from "../services/pricingResolver.js";
 
 const router = Router();
 
@@ -29,24 +34,6 @@ function normalizeTagList(tags) {
       .filter(Boolean);
   }
   return [];
-}
-
-function resolveTierPrice(tiers, tier) {
-  if (!tiers || typeof tiers !== "object") return null;
-  const normalizedTier = tier ? String(tier).toLowerCase() : null;
-  if (normalizedTier && tiers[normalizedTier] != null) {
-    const tierPrice = Number(tiers[normalizedTier]);
-    return Number.isFinite(tierPrice) ? tierPrice : null;
-  }
-  const fallback =
-    tiers.default != null
-      ? tiers.default
-      : tiers.standard != null
-      ? tiers.standard
-      : null;
-  if (fallback == null) return null;
-  const fallbackPrice = Number(fallback);
-  return Number.isFinite(fallbackPrice) ? fallbackPrice : null;
 }
 
 function requireShopifyConfigured(res) {
@@ -119,6 +106,8 @@ function normalizeCustomer(customer, metafields = {}) {
     addresses: Array.isArray(customer.addresses) ? customer.addresses : [],
     default_address: customer.default_address || null,
     delivery_method: metafields.delivery_method || null,
+    delivery_type: metafields.delivery_type || null,
+    tier: normalizeCustomerTier(metafields.tier),
     deliveryInstructions: metafields.delivery_instructions || null,
     companyName: metafields.company_name || null,
     vatNumber: metafields.vat_number || null
@@ -207,6 +196,8 @@ router.get("/shopify/customers/search", async (req, res) => {
             metafields.find((mf) => mf.namespace === "custom" && mf.key === key)?.value || null;
           return {
             delivery_method: getValue("delivery_method"),
+            delivery_type: getValue("delivery_type"),
+            tier: getValue("tier"),
             delivery_instructions: getValue("delivery_instructions"),
             company_name: getValue("company_name"),
             vat_number: getValue("vat_number")
@@ -756,29 +747,28 @@ router.post("/shopify/draft-orders", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const customerMetaResp = await shopifyFetch(`${base}/customers/${customerId}/metafields.json`, {
+      method: "GET"
+    });
+    let customerTier = normalizeCustomerTier(priceTier);
+    let customerDeliveryType = null;
+    if (customerMetaResp.ok) {
+      const customerMetaData = await customerMetaResp.json();
+      const metafields = Array.isArray(customerMetaData.metafields) ? customerMetaData.metafields : [];
+      const readMeta = (key) =>
+        metafields.find((mf) => mf.namespace === "custom" && mf.key === key)?.value || null;
+      customerTier = normalizeCustomerTier(readMeta("tier")) || customerTier;
+      customerDeliveryType = mapDeliveryType(readMeta("delivery_type"));
+    }
+
     const noteParts = [];
     if (poNumber) noteParts.push(`PO: ${poNumber}`);
-    if (shippingMethod) noteParts.push(`Delivery: ${shippingMethod}`);
     if (shippingQuoteNo) noteParts.push(`Quote: ${shippingQuoteNo}`);
 
-    const normalizedTier = priceTier ? String(priceTier).toLowerCase() : null;
-    const tierCache = new Map();
-    const lineItemsWithPrice = await Promise.all(
-      lineItems.map(async (li) => {
-        if (!normalizedTier || li.price != null || !li.variantId) {
-          return li;
-        }
-        const variantId = String(li.variantId);
-        if (!tierCache.has(variantId)) {
-          const tierData = await fetchVariantPriceTiers(variantId);
-          tierCache.set(variantId, tierData?.value || null);
-        }
-        const tiers = tierCache.get(variantId);
-        const resolved = resolveTierPrice(tiers, normalizedTier);
-        if (resolved == null) return li;
-        return { ...li, price: resolved };
-      })
-    );
+    const resolvedPricing = await resolveDraftLinePricing({
+      lineItems,
+      customerTier
+    });
 
     const metafields = [];
     if (deliveryDate) {
@@ -789,12 +779,12 @@ router.post("/shopify/draft-orders", async (req, res) => {
         value: String(deliveryDate)
       });
     }
-    if (shippingMethod) {
+    if (customerDeliveryType) {
       metafields.push({
         namespace: "custom",
         key: "delivery_type",
         type: "single_line_text_field",
-        value: String(shippingMethod)
+        value: String(customerDeliveryType).toLowerCase()
       });
     }
     if (vatNumber) {
@@ -836,26 +826,19 @@ router.post("/shopify/draft-orders", async (req, res) => {
       draft_order: {
         customer: { id: customerId },
         note: noteParts.join(" | "),
-        line_items: lineItemsWithPrice.map((li) => {
-          const entry = {
-            quantity: li.quantity || 1
-          };
-          if (li.variantId) {
-            entry.variant_id = li.variantId;
-          } else {
-            entry.title = li.title || li.sku || "Custom item";
-            if (li.price != null) entry.price = String(li.price);
-          }
-          if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
-          return entry;
-        }),
+        line_items: resolvedPricing.lineItems,
         billing_address: billingAddress || undefined,
         shipping_address: shippingAddress || undefined,
+        payment_terms: {
+          payment_terms_name: "Net 7"
+        },
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
-          ...(normalizedTier
-            ? [{ name: "price_tier", value: normalizedTier }]
+          ...(customerTier
+            ? [{ name: "price_tier", value: customerTier }]
+            : []),
+          ...(resolvedPricing.fallbackUsed
+            ? [{ name: "pricing_fallback", value: "true" }]
             : []),
           ...(shippingQuoteNo
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
@@ -869,11 +852,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
     if (config.SHOPIFY_FLOW_TAG) {
       tags.push(config.SHOPIFY_FLOW_TAG);
     }
-    if (shippingMethod && shippingMethod !== "shipping") {
-      tags.push(`delivery_${shippingMethod}`);
-    }
-    if (shippingMethod === "local") {
-      tags.push("local");
+    if (resolvedPricing.fallbackUsed) {
+      tags.push("pricing_fallback=true");
     }
     const normalizedCustomerTags = normalizeTagList(customerTags).map((tag) =>
       tag.toLowerCase()
@@ -888,11 +868,20 @@ router.post("/shopify/draft-orders", async (req, res) => {
       payload.draft_order.tags = Array.from(new Set(tags)).join(", ");
     }
 
-    if (shippingPrice != null && shippingMethod === "shipping") {
+    if (customerDeliveryType) {
       payload.draft_order.shipping_line = {
-        title: shippingService || "Courier",
-        price: String(shippingPrice)
+        title: customerDeliveryType,
+        price: Number.isFinite(shippingAmount) ? String(shippingAmount.toFixed(2)) : "0.00",
+        custom: true
       };
+    }
+
+    if (shippingMethod && !customerDeliveryType) {
+      console.info("delivery_type_unset", {
+        customerId,
+        providedShippingMethod: shippingMethod,
+        reason: "customer_metafield_missing"
+      });
     }
 
     const resp = await shopifyFetch(`${base}/draft_orders.json`, {
@@ -929,6 +918,10 @@ router.post("/shopify/draft-orders", async (req, res) => {
         name: d.name,
         invoiceUrl: d.invoice_url || null,
         adminUrl
+      },
+      pricing: {
+        tier: customerTier,
+        fallbackUsed: resolvedPricing.fallbackUsed
       }
     });
   } catch (err) {

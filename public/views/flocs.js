@@ -163,9 +163,10 @@ export function initFlocsView() {
   const productKey = (p) =>
     String(p.variantId || p.sku || p.title || "").trim();
 
-  const PRICE_TAGS = ["agent", "retailer", "export", "private", "fkb"];
+  const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
   const QUICK_QTY = [1, 3, 6, 10, 12, 24, 50, 100];
   const AUTO_QUOTE_DELAY_MS = 3000;
+  const REQUIRE_RESOLVED_PRICING = CONFIG?.FLOCS?.REQUIRE_RESOLVED_PRICING !== false;
   let autoQuoteTimer = null;
   const deliveryHintDefault = deliveryHint ? deliveryHint.textContent : "";
 
@@ -185,9 +186,9 @@ export function initFlocsView() {
 
   function resolvePriceTier(tags) {
     const normalized = tags.map((t) => t.toLowerCase());
-    return (
-      PRICE_TAGS.find((tag) => normalized.includes(tag)) || null
-    );
+    const found = PRICE_TAGS.find((tag) => normalized.includes(tag)) || null;
+    if (found === "retailer") return "retail";
+    return found;
   }
 
   function normalizePriceTiers(product) {
@@ -207,6 +208,16 @@ export function initFlocsView() {
     }
     return normalized;
   }
+
+  function retailPriceForProduct(product) {
+    if (!product) return null;
+    const tiers = normalizePriceTiers(product);
+    if (tiers && tiers.default != null) return Number(tiers.default);
+    if (tiers && tiers.standard != null) return Number(tiers.standard);
+    if (product.price != null) return Number(product.price);
+    return null;
+  }
+
 
   function priceForCustomer(product) {
     if (!product) return null;
@@ -332,7 +343,8 @@ export function initFlocsView() {
         variantId: p.variantId,
         quantity: qty,
         weightKg: p.weightKg || 0,
-        price: resolveLinePrice(p) // optional
+        retailPrice: retailPriceForProduct(p),
+        price: resolveLinePrice(p) // optional tier/net target
       });
     }
     return out.sort((a, b) =>
@@ -482,7 +494,9 @@ export function initFlocsView() {
           <td><span class="flocs-productName" title="${name}">${name}</span></td>
           <td>${flavourTag(p.flavour)}</td>
           <td>${p.size || "—"}</td>
+          <td>${retailPriceForProduct(p) != null ? money(retailPriceForProduct(p)) : "—"}</td>
           <td>${unitPrice != null ? money(unitPrice) : "—"}</td>
+          <td>${qty > 0 && retailPriceForProduct(p) != null && unitPrice != null && retailPriceForProduct(p) > unitPrice ? money((retailPriceForProduct(p) - unitPrice) * qty) : "—"}</td>
           <td>${lineTotal != null ? money(lineTotal) : "—"}</td>
           <td>
             <div class="flocs-overrideWrap">
@@ -725,6 +739,7 @@ ${state.customer.email || ""}${
     const pricingNote = state.priceTier
       ? `Pricing tier: ${state.priceTier}`
       : "Pricing tier: default";
+    const unresolvedPricingCount = items.filter((li) => state.priceTier && li.variantId && li.price == null).length;
     const overrideNote = overrideCount
       ? ` · ${overrideCount} price override${overrideCount === 1 ? "" : "s"}`
       : "";
@@ -783,7 +798,7 @@ ${state.customer.email || ""}${
       </div>
 
       <div class="flocs-invoiceNote">
-        ${pricingNote}${overrideNote}. Final pricing and tax are still controlled in Shopify.
+        ${pricingNote}${overrideNote}${unresolvedPricingCount ? ` • ${unresolvedPricingCount} line(s) missing tier pricing` : ""}. Final pricing and tax are still controlled in Shopify.
       </div>
     `;
   }
@@ -806,6 +821,13 @@ ${state.customer.email || ""}${
       }
       if (!state.shippingQuote) {
         errs.push("Calculate shipping (SWE quote) before creating the order.");
+      }
+    }
+
+    if (REQUIRE_RESOLVED_PRICING && state.priceTier) {
+      const unresolved = items.filter((li) => li.variantId && li.price == null);
+      if (unresolved.length) {
+        errs.push(`Pricing unresolved for ${unresolved.length} line(s). Tier price is required.`);
       }
     }
 
@@ -1291,7 +1313,7 @@ ${state.customer.email || ""}${
     if (customerResults) customerResults.hidden = true;
     if (customerStatus) customerStatus.textContent = `Selected: ${c.name}`;
     state.customerTags = normalizeTags(c.tags);
-    state.priceTier = resolvePriceTier(state.customerTags);
+    state.priceTier = c.tier || resolvePriceTier(state.customerTags);
     renderCustomerChips();
     renderProductsTable();
     renderBillingAddressSelect();
@@ -1449,6 +1471,7 @@ ${state.customer.email || ""}${
         title: li.title,
         variantId: li.variantId,
         quantity: li.quantity,
+        retailPrice: li.retailPrice,
         price: li.price
       }))
     };
@@ -1575,6 +1598,7 @@ ${state.customer.email || ""}${
         title: li.title,
         variantId: li.variantId,
         quantity: li.quantity,
+        retailPrice: li.retailPrice,
         price: li.price
       }))
     };
