@@ -2,40 +2,119 @@ import { config } from "../config.js";
 
 let cachedToken = null;
 let tokenExpiresAtMs = 0;
-const SHOPIFY_MIN_REQUEST_INTERVAL_MS = 550;
 const SHOPIFY_MAX_RETRIES = 3;
-
-let nextShopifyRequestAtMs = 0;
-let shopifyRequestChain = Promise.resolve();
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function getRetryDelayMs(resp, attempt) {
-  const retryAfter = Number(resp.headers.get("retry-after"));
-  if (Number.isFinite(retryAfter) && retryAfter > 0) {
-    return Math.max(250, Math.ceil(retryAfter * 1000));
-  }
-  return Math.min(5000, 500 * 2 ** attempt);
+function getNumberConfig(value, fallback, min = 0) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, parsed);
 }
 
-function withShopifyThrottle(task) {
-  const scheduled = shopifyRequestChain.then(async () => {
-    const now = Date.now();
-    const waitMs = Math.max(0, nextShopifyRequestAtMs - now);
-    if (waitMs > 0) await sleep(waitMs);
-    try {
-      return await task();
-    } finally {
-      nextShopifyRequestAtMs = Date.now() + SHOPIFY_MIN_REQUEST_INTERVAL_MS;
-    }
+const SHOPIFY_THROTTLE_MAX_CONCURRENCY = Math.max(
+  1,
+  Math.floor(getNumberConfig(config.SHOPIFY_THROTTLE_MAX_CONCURRENCY, 4, 1))
+);
+const SHOPIFY_THROTTLE_BASE_DELAY_MS = getNumberConfig(config.SHOPIFY_THROTTLE_BASE_DELAY_MS, 250, 0);
+const SHOPIFY_THROTTLE_MAX_DELAY_MS = Math.max(
+  SHOPIFY_THROTTLE_BASE_DELAY_MS,
+  getNumberConfig(config.SHOPIFY_THROTTLE_MAX_DELAY_MS, 5000, SHOPIFY_THROTTLE_BASE_DELAY_MS)
+);
+const SHOPIFY_THROTTLE_CALL_LIMIT_RATIO = Math.min(
+  1,
+  getNumberConfig(config.SHOPIFY_THROTTLE_CALL_LIMIT_RATIO, 0.85, 0)
+);
+
+let shopifyActiveRequests = 0;
+const shopifyPendingQueue = [];
+let shopifyBackoffUntilMs = 0;
+
+function parseRetryAfterMs(resp) {
+  const retryAfter = Number(resp.headers.get("retry-after"));
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    return Math.max(SHOPIFY_THROTTLE_BASE_DELAY_MS, Math.ceil(retryAfter * 1000));
+  }
+  return 0;
+}
+
+function getRetryDelayMs(resp, attempt) {
+  const retryAfterMs = parseRetryAfterMs(resp);
+  if (retryAfterMs > 0) return Math.min(SHOPIFY_THROTTLE_MAX_DELAY_MS, retryAfterMs);
+  const exponentialMs = SHOPIFY_THROTTLE_BASE_DELAY_MS * 2 ** attempt;
+  return Math.min(SHOPIFY_THROTTLE_MAX_DELAY_MS, exponentialMs);
+}
+
+function getCallLimitRatio(resp) {
+  const value = resp.headers.get("x-shopify-shop-api-call-limit");
+  if (!value) return null;
+  const [usedRaw, capRaw] = value.split("/");
+  const used = Number(usedRaw);
+  const cap = Number(capRaw);
+  if (!Number.isFinite(used) || !Number.isFinite(cap) || cap <= 0) return null;
+  return used / cap;
+}
+
+function getPressureDelayMs(resp, attempt) {
+  if (resp.status === 429) {
+    return getRetryDelayMs(resp, attempt);
+  }
+  const ratio = getCallLimitRatio(resp);
+  if (ratio == null || ratio < SHOPIFY_THROTTLE_CALL_LIMIT_RATIO) {
+    return 0;
+  }
+  const pressureWeight = (ratio - SHOPIFY_THROTTLE_CALL_LIMIT_RATIO) / Math.max(0.01, 1 - SHOPIFY_THROTTLE_CALL_LIMIT_RATIO);
+  const scaledDelay = SHOPIFY_THROTTLE_BASE_DELAY_MS * (1 + pressureWeight * 2);
+  return Math.min(SHOPIFY_THROTTLE_MAX_DELAY_MS, Math.ceil(scaledDelay));
+}
+
+function registerShopifyPressure(delayMs) {
+  if (delayMs <= 0) return;
+  shopifyBackoffUntilMs = Math.max(shopifyBackoffUntilMs, Date.now() + delayMs);
+}
+
+async function waitForShopifyBackoff() {
+  const waitMs = Math.max(0, shopifyBackoffUntilMs - Date.now());
+  if (waitMs > 0) {
+    await sleep(waitMs);
+  }
+  return waitMs;
+}
+
+function drainShopifyQueue() {
+  while (shopifyActiveRequests < SHOPIFY_THROTTLE_MAX_CONCURRENCY && shopifyPendingQueue.length > 0) {
+    const next = shopifyPendingQueue.shift();
+    if (!next) break;
+    shopifyActiveRequests += 1;
+    const queueWaitMs = Date.now() - next.enqueuedAtMs;
+
+    Promise.resolve()
+      .then(async () => {
+        const pressureWaitMs = await waitForShopifyBackoff();
+        next.onScheduled?.({ queueWaitMs, pressureWaitMs });
+        return next.task();
+      })
+      .then(next.resolve, next.reject)
+      .finally(() => {
+        shopifyActiveRequests = Math.max(0, shopifyActiveRequests - 1);
+        drainShopifyQueue();
+      });
+  }
+}
+
+function withShopifyThrottle(task, options = {}) {
+  return new Promise((resolve, reject) => {
+    shopifyPendingQueue.push({
+      task,
+      resolve,
+      reject,
+      onScheduled: options.onScheduled,
+      enqueuedAtMs: Date.now()
+    });
+    drainShopifyQueue();
   });
-  shopifyRequestChain = scheduled.then(
-    () => undefined,
-    () => undefined
-  );
-  return scheduled;
 }
 
 function parsePriceTiers(raw) {
@@ -91,11 +170,18 @@ export async function getShopifyAdminToken() {
 
 export async function shopifyFetch(pathname, { method = "GET", headers = {}, body } = {}) {
   const url = `https://${config.SHOPIFY_STORE}.myshopify.com${pathname}`;
+  const metric = {
+    queueWaitMs: 0,
+    pressureWaitMs: 0,
+    attempts: 0
+  };
+  const requestStartedAtMs = Date.now();
 
   const executeFetch = async () => {
     let token = await getShopifyAdminToken();
 
     for (let attempt = 0; attempt < SHOPIFY_MAX_RETRIES; attempt += 1) {
+      metric.attempts = attempt + 1;
       const resp = await fetch(url, {
         method,
         headers: {
@@ -107,17 +193,28 @@ export async function shopifyFetch(pathname, { method = "GET", headers = {}, bod
         body
       });
 
+      const pressureDelayMs = getPressureDelayMs(resp, attempt);
+      if (pressureDelayMs > 0) {
+        registerShopifyPressure(pressureDelayMs);
+      }
+
       if (resp.status === 401 || resp.status === 403) {
+        if (attempt >= SHOPIFY_MAX_RETRIES - 1) return resp;
         cachedToken = null;
         tokenExpiresAtMs = 0;
         token = await getShopifyAdminToken();
         continue;
       }
 
-      if (resp.status !== 429) return resp;
+      if (resp.status === 429) {
+        if (attempt >= SHOPIFY_MAX_RETRIES - 1) return resp;
+        const retryDelayMs = getRetryDelayMs(resp, attempt);
+        registerShopifyPressure(retryDelayMs);
+        await sleep(retryDelayMs);
+        continue;
+      }
 
-      if (attempt >= SHOPIFY_MAX_RETRIES - 1) return resp;
-      await sleep(getRetryDelayMs(resp, attempt));
+      return resp;
     }
 
     return fetch(url, {
@@ -132,7 +229,23 @@ export async function shopifyFetch(pathname, { method = "GET", headers = {}, bod
     });
   };
 
-  return withShopifyThrottle(executeFetch);
+  let resp;
+  try {
+    resp = await withShopifyThrottle(executeFetch, {
+      onScheduled: ({ queueWaitMs, pressureWaitMs }) => {
+        metric.queueWaitMs = queueWaitMs;
+        metric.pressureWaitMs = pressureWaitMs;
+      }
+    });
+  } finally {
+    const totalMs = Date.now() - requestStartedAtMs;
+    const status = resp?.status ?? "error";
+    console.info(
+      `[shopifyFetch] ${method} ${pathname} status=${status} attempts=${metric.attempts} totalMs=${totalMs} queueWaitMs=${metric.queueWaitMs} pressureWaitMs=${metric.pressureWaitMs}`
+    );
+  }
+
+  return resp;
 }
 
 export async function fetchVariantPriceTiers(variantId) {
