@@ -787,7 +787,12 @@ router.get("/shopify/orders/open", async (req, res) => {
     const resolveDispatchLane = (order) => {
       const tags = String(order?.tags || "").toLowerCase();
       const shippingTitles = (order?.shipping_lines || [])
-        .map((line) => String(line?.title || "").toLowerCase())
+        .map((line) => {
+          return [line?.title, line?.code, line?.source]
+            .map((value) => String(value || "").toLowerCase())
+            .join(" ")
+            .trim();
+        })
         .join(" ")
         .trim();
       const combined = `${tags} ${shippingTitles}`.trim();
