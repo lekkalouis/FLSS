@@ -16,7 +16,7 @@ router.post("/pp", async (req, res) => {
     const { method, classVal, class: classNameRaw, params } = req.body || {};
     const className = normalizeParcelPerfectClass(classVal || classNameRaw);
 
-    if (!method || !className || typeof params !== "object") {
+    if (!method || !className || typeof params !== "object" || params === null) {
       return badRequest(res, "Expected { method, classVal|class, params } in body");
     }
 
