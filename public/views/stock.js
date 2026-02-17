@@ -15,6 +15,9 @@ export function initStockView() {
   const rootView = document.getElementById("viewStock");
   const searchInput = document.getElementById("stock-search");
   const modeButtons = document.querySelectorAll(".stock-modeBtn");
+  const tabButtons = document.querySelectorAll(".stock-tabBtn");
+  const flavourFilters = document.getElementById("stock-flavourFilters");
+  const buyPanel = document.getElementById("stock-buyPanel");
   const modeLabel = document.getElementById("stock-modeLabel");
   const table = document.getElementById("stock-table");
   const tableBody = document.getElementById("stock-tableBody");
@@ -23,16 +26,6 @@ export function initStockView() {
   const transferSelect = document.getElementById("stock-transferLocation");
   const focusInput = document.getElementById("stock-focusInput");
   const focusApplyBtn = document.getElementById("stock-focusApply");
-  const mrpBatchName = document.getElementById("mrp-batchName");
-  const mrpSampleWeight = document.getElementById("mrp-sampleWeight");
-  const mrpSkuSelect = document.getElementById("mrp-skuSelect");
-  const mrpSkuQty = document.getElementById("mrp-skuQty");
-  const mrpAddLine = document.getElementById("mrp-addLine");
-  const mrpLinesTable = document.getElementById("mrp-linesTable");
-  const mrpCreateBatch = document.getElementById("mrp-createBatch");
-  const mrpClearLines = document.getElementById("mrp-clearLines");
-  const mrpSummaryTable = document.getElementById("mrp-summaryTable");
-  const mrpBatchList = document.getElementById("mrp-batchList");
   const poBatchName = document.getElementById("po-batchName");
   const poSkuSelect = document.getElementById("po-skuSelect");
   const poSkuQty = document.getElementById("po-skuQty");
@@ -55,6 +48,8 @@ export function initStockView() {
   let items = [...finishedGoods];
   let stockLevels = {};
   let currentMode = "read";
+  let activeTab = "count";
+  let activeFlavour = "all";
   let logEntries = [];
   let currentLocationId = null;
   let transferLocationId = null;
@@ -208,10 +203,12 @@ export function initStockView() {
     return items.find((entry) => entry.sku === sku);
   }
 
-  function renderMrpSkuOptions() {
-    if (!mrpSkuSelect) return;
-    mrpSkuSelect.innerHTML = finishedGoods
-      .map((item) => `<option value="${item.sku}">${item.sku} — ${item.title}</option>`)
+  function renderFlavourFilters() {
+    if (!flavourFilters) return;
+    const flavours = [...new Set(finishedGoods.map((item) => item.flavour).filter(Boolean))].sort();
+    const chips = [{ label: "All flavours", value: "all" }, ...flavours.map((flavour) => ({ label: flavour, value: flavour }))];
+    flavourFilters.innerHTML = chips
+      .map((chip) => `<button class="stock-chip ${activeFlavour === chip.value ? "is-active" : ""}" type="button" data-flavour="${chip.value}">${chip.label}</button>`)
       .join("");
   }
 
@@ -304,9 +301,7 @@ export function initStockView() {
       .join("");
   }
 
-  function getOpenBatches() {
-    return mrpState.batches.filter((batch) => batch.status !== "completed");
-  }
+  function getOpenBatches() { return []; }
 
   function computeCommittedTotals() {
     const totals = new Map();
@@ -320,6 +315,7 @@ export function initStockView() {
   }
 
   function renderMrpSummary() {
+    const mrpSummaryTable = document.getElementById("mrp-summaryTable");
     if (!mrpSummaryTable) return;
     const totals = computeCommittedTotals();
     const rows = Array.from(totals.entries())
@@ -346,6 +342,7 @@ export function initStockView() {
   }
 
   function renderMrpBatches() {
+    const mrpBatchList = document.getElementById("mrp-batchList");
     if (!mrpBatchList) return;
     const batches = mrpState.batches.slice().sort((a, b) => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -554,14 +551,19 @@ export function initStockView() {
   }
 
   function filteredItems() {
-    const sourceItems = currentMode === "receive" ? rawMaterials : finishedGoods;
+    const sourceItems = activeTab === "buy" ? rawMaterials : finishedGoods;
     items = sourceItems;
     const q = (searchInput?.value || "").trim().toLowerCase();
-    if (!q) return sourceItems;
-    return sourceItems.filter(
+    const filteredByFlavour = sourceItems.filter((item) => {
+      if (activeTab === "buy") return true;
+      return activeFlavour === "all" || item.flavour === activeFlavour;
+    });
+    if (!q) return filteredByFlavour;
+    return filteredByFlavour.filter(
       (item) =>
         item.sku.toLowerCase().includes(q) ||
-        item.title.toLowerCase().includes(q)
+        item.title.toLowerCase().includes(q) ||
+        String(item.flavour || "").toLowerCase().includes(q)
     );
   }
 
@@ -605,6 +607,7 @@ export function initStockView() {
           <tr data-sku="${item.sku}" data-crate-clicks="0" data-box-clicks="0">
             <td><strong>${item.sku}</strong></td>
             <td>${item.title}</td>
+            <td><span class="stock-flavourBadge">${item.flavour || "Raw material"}</span></td>
             <td class="stock-currentCol" data-current="${item.sku}">${current}</td>
             <td class="stock-adjustCol">
               <input class="stock-qtyInput" type="number" min="0" step="1" data-sku="${item.sku}" data-count="1" />
@@ -631,6 +634,7 @@ export function initStockView() {
             <td class="stock-actionCol">
               <button class="stock-actionBtn" type="button" data-action="apply" data-sku="${item.sku}">Set</button>
               <button class="stock-actionBtn transfer" type="button" data-action="transfer" data-sku="${item.sku}">Transfer</button>
+              ${activeTab === "buy" ? `<button class="stock-actionBtn po" type="button" data-action="add-po" data-sku="${item.sku}">Draft PO</button>` : ""}
             </td>
           </tr>
         `;
@@ -639,7 +643,7 @@ export function initStockView() {
   }
 
   function updateModeUI() {
-    const isReadOnly = currentMode === "read" || currentMode === "produce";
+    const isReadOnly = currentMode === "read";
     const isReceive = currentMode === "receive";
     modeButtons.forEach((btn) => {
       if (btn.dataset.mode === currentMode) {
@@ -653,8 +657,6 @@ export function initStockView() {
         ? "Mode: Stock received (raw materials)"
         : currentMode === "take"
         ? "Mode: Stock take"
-        : currentMode === "produce"
-        ? "Mode: Produce"
         : "Mode: Read only";
     }
     if (table) {
@@ -662,7 +664,10 @@ export function initStockView() {
     }
     if (rootView) {
       rootView.dataset.mode = currentMode;
+      rootView.dataset.tab = activeTab;
     }
+    if (buyPanel) buyPanel.hidden = activeTab !== "buy";
+    if (flavourFilters) flavourFilters.hidden = activeTab === "buy";
     tableBody?.querySelectorAll(".stock-actionBtn").forEach((btn) => {
       if (isReceive) {
         btn.classList.add("receive");
@@ -687,7 +692,7 @@ export function initStockView() {
           Number(currentLocationId) !== Number(transferLocationId);
         btn.disabled = !canTransfer;
       } else {
-        btn.disabled = isReadOnly;
+        btn.disabled = isReadOnly && btn.dataset.action !== "add-po";
       }
     });
     if (focusInput) focusInput.disabled = isReadOnly;
@@ -862,7 +867,38 @@ export function initStockView() {
         handleTransfer(row, sku, totalInput?.value || "0").finally(() => {
           resetRowCounts(row);
         });
+        return;
       }
+      if (action === "add-po") {
+        const qty = Math.max(0, Math.floor(Number(totalInput?.value) || 0));
+        if (qty <= 0) return;
+        const existing = poDraftLines.find((line) => line.sku === sku);
+        if (existing) existing.qty += qty;
+        else poDraftLines.push({ sku, qty });
+        renderPoDraftLines();
+        resetRowCounts(row);
+      }
+    });
+
+    flavourFilters?.addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-flavour]");
+      if (!chip) return;
+      activeFlavour = chip.dataset.flavour || "all";
+      renderFlavourFilters();
+      renderTable();
+      updateModeUI();
+    });
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeTab = btn.dataset.tab || "count";
+        tabButtons.forEach((tabBtn) => tabBtn.classList.toggle("is-active", tabBtn === btn));
+        if (activeTab === "buy" && currentMode === "take") currentMode = "receive";
+        if (activeTab === "count" && currentMode === "receive") currentMode = "take";
+        renderFlavourFilters();
+        renderTable();
+        updateModeUI();
+      });
     });
 
     tableBody?.addEventListener("input", (event) => {
@@ -871,58 +907,6 @@ export function initStockView() {
       const row = input.closest("tr");
       if (!row) return;
       updateRowTotal(row);
-    });
-
-    mrpAddLine?.addEventListener("click", () => {
-      const sku = mrpSkuSelect?.value;
-      const qty = Number(mrpSkuQty?.value);
-      if (!sku || !Number.isFinite(qty) || qty <= 0) return;
-      const existing = mrpDraftLines.find((line) => line.sku === sku);
-      if (existing) {
-        existing.qty += qty;
-      } else {
-        mrpDraftLines.push({ sku, qty });
-      }
-      if (mrpSkuQty) mrpSkuQty.value = "";
-      renderDraftLines();
-    });
-
-    mrpLinesTable?.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-mrp-remove]");
-      if (!button) return;
-      const sku = button.dataset.mrpRemove;
-      mrpDraftLines = mrpDraftLines.filter((line) => line.sku !== sku);
-      renderDraftLines();
-    });
-
-    mrpClearLines?.addEventListener("click", () => {
-      mrpDraftLines = [];
-      renderDraftLines();
-    });
-
-    mrpCreateBatch?.addEventListener("click", () => {
-      const name = mrpBatchName?.value.trim();
-      if (!name || !mrpDraftLines.length) return;
-      const sampleWeightValue = Number(mrpSampleWeight?.value);
-      const sampleWeight = Number.isFinite(sampleWeightValue) && sampleWeightValue > 0
-        ? sampleWeightValue
-        : null;
-      const batch = {
-        id: `batch-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        name,
-        createdAt: new Date().toISOString(),
-        sampleWeight,
-        status: "open",
-        lines: mrpDraftLines.map((line) => ({ ...line }))
-      };
-      mrpState.batches.unshift(batch);
-      saveMrpState();
-      mrpDraftLines = [];
-      if (mrpBatchName) mrpBatchName.value = "";
-      if (mrpSampleWeight) mrpSampleWeight.value = "";
-      renderDraftLines();
-      renderMrpBatches();
-      renderMrpSummary();
     });
 
 
@@ -1008,6 +992,7 @@ export function initStockView() {
       }
     });
 
+    const mrpBatchList = document.getElementById("mrp-batchList");
     mrpBatchList?.addEventListener("click", (event) => {
       const actionBtn = event.target.closest("button[data-batch-action]");
       if (!actionBtn) return;
@@ -1038,11 +1023,10 @@ export function initStockView() {
   }
 
   loadLogEntries();
+  renderFlavourFilters();
   renderLog();
   loadMrpState();
-  renderMrpSkuOptions();
   renderPoSkuOptions();
-  renderDraftLines();
   renderPoDraftLines();
   renderMrpBatches();
   renderPoBatches();
