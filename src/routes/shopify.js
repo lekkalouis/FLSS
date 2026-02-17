@@ -15,8 +15,11 @@ import {
 } from "../services/shopify.js";
 import { badRequest } from "../utils/http.js";
 import {
+  buildPricingHash,
   normalizeCustomerTier,
-  resolveDraftLinePricing
+  resolveDraftLinePricing,
+  resolvePricingForLines,
+  resolveCustomerTier
 } from "../services/pricingResolver.js";
 
 const router = Router();
@@ -65,6 +68,17 @@ const ORDER_PARCEL_CACHE_TTL_MS = 2 * 60 * 1000;
 const ORDER_PARCEL_REST_FALLBACK_CAP = 20;
 const SEARCH_TIER_ENRICHMENT_CAP = 80;
 const orderParcelCountCache = new Map();
+const pricingReconcileStatus = new Map();
+
+function setPricingStatus(draftOrderId, status) {
+  const key = String(draftOrderId || "").trim();
+  if (!key) return;
+  pricingReconcileStatus.set(key, {
+    ...status,
+    updatedAt: new Date().toISOString()
+  });
+}
+
 
 function parseParcelCountFromTags(tags) {
   if (typeof tags !== "string" || !tags.trim()) return null;
@@ -1032,6 +1046,139 @@ router.post("/shopify/variants/price-tiers/fetch", async (req, res) => {
   }
 });
 
+
+function parseNoteAttributes(noteAttributes = []) {
+  const map = new Map();
+  (Array.isArray(noteAttributes) ? noteAttributes : []).forEach((entry) => {
+    const name = String(entry?.name || "").trim();
+    if (!name) return;
+    map.set(name, String(entry?.value ?? ""));
+  });
+  return map;
+}
+
+async function fetchDraftOrder(base, draftOrderId) {
+  const resp = await shopifyFetch(`${base}/draft_orders/${draftOrderId}.json`, { method: "GET" });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Draft order fetch failed (${resp.status}): ${body}`);
+  }
+  const data = await resp.json();
+  return data?.draft_order || null;
+}
+
+function toPricingHashLineItems(draftOrder) {
+  return (Array.isArray(draftOrder?.line_items) ? draftOrder.line_items : []).map((line) => {
+    const discountAmount = Number(line?.applied_discount?.value || 0);
+    const price = Number(line?.price || 0);
+    const unitPrice = Number.isFinite(discountAmount) && discountAmount > 0 ? price - discountAmount : price;
+    return {
+      variant_id: line?.variant_id,
+      quantity: line?.quantity,
+      resolved_unit_price: Number.isFinite(unitPrice) ? unitPrice : 0,
+      source: Number.isFinite(discountAmount) && discountAmount > 0 ? "discount_fallback" : "fixed_tier"
+    };
+  });
+}
+
+async function reconcileDraftOrderPricing({ base, draftOrderId, tierDiscounts = {} }) {
+  const draftOrder = await fetchDraftOrder(base, draftOrderId);
+  if (!draftOrder) throw new Error("Draft order not found.");
+  const customerId = draftOrder?.customer?.id;
+  const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
+  const customerTags = normalizeTagList(draftOrder?.customer?.tags || "");
+  const tierResolution = resolveCustomerTier({
+    customerTier: customerMetafields?.tier,
+    customerTags,
+    defaultTier: "public"
+  });
+
+  const expected = resolvePricingForLines({
+    lineItems: (draftOrder.line_items || []).map((line) => ({
+      variant_id: line.variant_id,
+      quantity: line.quantity,
+      retailPrice: line.price,
+      product: { price_tiers: line?.properties?.price_tiers }
+    })),
+    tier: tierResolution.tier,
+    tierDiscounts
+  });
+
+  const expectedHash = expected.hash;
+  const existingAttributes = parseNoteAttributes(draftOrder.note_attributes);
+  const incomingHash = existingAttributes.get("flss_pricing_hash") || "";
+  const currentHash = buildPricingHash({
+    tier: tierResolution.tier,
+    currency: draftOrder.currency || "ZAR",
+    signatures: toPricingHashLineItems(draftOrder)
+  });
+
+  if (incomingHash && incomingHash === expectedHash && currentHash === expectedHash) {
+    setPricingStatus(draftOrderId, {
+      draftOrderId: String(draftOrderId),
+      tier: tierResolution.tier,
+      hash: expectedHash,
+      corrected: false,
+      mismatch: false,
+      message: "Already aligned"
+    });
+    return { corrected: false, expectedHash, currentHash, tier: tierResolution.tier, linesChecked: expected.lines.length };
+  }
+
+  const line_items = expected.lines.map((line) => ({
+    variant_id: Number(line.variant_id),
+    quantity: line.quantity,
+    price: Number(line.resolved_unit_price).toFixed(2)
+  }));
+  const updatedAttrs = [
+    ...Array.from(existingAttributes.entries())
+      .filter(([name]) => name !== "flss_pricing_hash")
+      .map(([name, value]) => ({ name, value })),
+    { name: "flss_pricing_hash", value: expectedHash }
+  ];
+
+  const updateResp = await shopifyFetch(`${base}/draft_orders/${draftOrderId}.json`, {
+    method: "PUT",
+    body: JSON.stringify({
+      draft_order: {
+        id: draftOrderId,
+        line_items,
+        note_attributes: updatedAttrs
+      }
+    })
+  });
+  if (!updateResp.ok) {
+    const body = await updateResp.text();
+    throw new Error(`Draft order pricing reconcile failed (${updateResp.status}): ${body}`);
+  }
+
+  const verified = await fetchDraftOrder(base, draftOrderId);
+  const verifiedHash = buildPricingHash({
+    tier: tierResolution.tier,
+    currency: verified?.currency || "ZAR",
+    signatures: toPricingHashLineItems(verified)
+  });
+  const mismatch = verifiedHash !== expectedHash;
+
+  setPricingStatus(draftOrderId, {
+    draftOrderId: String(draftOrderId),
+    tier: tierResolution.tier,
+    hash: expectedHash,
+    corrected: true,
+    mismatch,
+    message: mismatch ? "Reconciled but verification hash mismatch" : "Pricing corrected"
+  });
+
+  return {
+    corrected: true,
+    mismatch,
+    expectedHash,
+    verifiedHash,
+    tier: tierResolution.tier,
+    linesChecked: expected.lines.length
+  };
+}
+
 router.post("/shopify/draft-orders", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -1055,10 +1202,12 @@ router.post("/shopify/draft-orders", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
-    const tier =
-      normalizeCustomerTier(customerMetafields?.tier) ||
-      normalizeCustomerTier(priceTier) ||
-      "retail";
+    const tierResolution = resolveCustomerTier({
+      customerTier: customerMetafields?.tier || priceTier,
+      customerTags: normalizeTagList(customerTags),
+      defaultTier: "public"
+    });
+    const tier = tierResolution.tier;
 
     await ensureCustomerDeliveryType(base, customerId, shippingMethod, customerMetafields);
 
@@ -1066,8 +1215,17 @@ router.post("/shopify/draft-orders", async (req, res) => {
       cartItems: lineItems,
       state: { priceTier: tier }
     });
+    const pricingHash = buildPricingHash({
+      tier,
+      currency: "ZAR",
+      signatures: resolvedPricing.lineItems.map((line) => ({
+        variant_id: line.variant_id,
+        quantity: line.quantity,
+        resolved_unit_price: Number(line.price || 0),
+        source: line.applied_discount ? "discount_fallback" : "fixed_tier"
+      }))
+    });
 
-    const appliedDiscount = buildWholesaleDiscount(lineItems, tier);
     const orderTags = buildOrderTags({
       shippingMethod,
       customerTags
@@ -1105,9 +1263,11 @@ router.post("/shopify/draft-orders", async (req, res) => {
         line_items: resolvedPricing.lineItems,
         tags: orderTags.join(", "),
         note: poNumber ? `PO: ${poNumber}` : undefined,
-        note_attributes: poNumber ? [{ name: "po_number", value: String(poNumber) }] : [],
-        metafields: draftMetafields.length ? draftMetafields : undefined,
-        applied_discount: appliedDiscount || undefined
+        note_attributes: [
+          ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
+          { name: "flss_pricing_hash", value: pricingHash }
+        ],
+        metafields: draftMetafields.length ? draftMetafields : undefined
       }
     };
 
@@ -1148,7 +1308,9 @@ router.post("/shopify/draft-orders", async (req, res) => {
       },
       pricing: {
         tier,
-        fallbackUsed: resolvedPricing.fallbackUsed
+        fallbackUsed: resolvedPricing.fallbackUsed,
+        hash: pricingHash,
+        tierConflict: tierResolution.conflict
       }
     });
   } catch (err) {
@@ -1157,6 +1319,52 @@ router.post("/shopify/draft-orders", async (req, res) => {
       .status(502)
       .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
   }
+});
+
+
+router.post("/pricing/resolve", async (req, res) => {
+  try {
+    const { customerTier, customerTags, variantLines, tierDiscounts, currency } = req.body || {};
+    const tierResolution = resolveCustomerTier({
+      customerTier,
+      customerTags: normalizeTagList(customerTags),
+      defaultTier: "public"
+    });
+    const result = resolvePricingForLines({
+      lineItems: Array.isArray(variantLines) ? variantLines : [],
+      tier: tierResolution.tier,
+      currency: currency || "ZAR",
+      tierDiscounts: tierDiscounts || {}
+    });
+    return res.json({ ok: true, tierResolution, ...result });
+  } catch (err) {
+    console.error("Pricing resolve error:", err);
+    return res.status(500).json({ error: "PRICING_RESOLVE_ERROR", message: String(err?.message || err) });
+  }
+});
+
+router.post("/pricing/reconcile-draft-order", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+    const { draftOrderId, tierDiscounts } = req.body || {};
+    if (!draftOrderId) return badRequest(res, "Missing draftOrderId");
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const result = await reconcileDraftOrderPricing({ base, draftOrderId, tierDiscounts: tierDiscounts || {} });
+    return res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error("Pricing reconcile error:", err);
+    return res.status(502).json({ error: "PRICING_RECONCILE_ERROR", message: String(err?.message || err) });
+  }
+});
+
+router.get("/pricing/status/:draftOrderId", async (req, res) => {
+  const key = String(req.params?.draftOrderId || "").trim();
+  if (!key) return badRequest(res, "Missing draftOrderId");
+  const status = pricingReconcileStatus.get(key);
+  if (!status) {
+    return res.status(404).json({ error: "NOT_FOUND", message: "No pricing status available for draft order" });
+  }
+  return res.json({ ok: true, ...status });
 });
 
 router.post("/shopify/draft-orders/complete", async (req, res) => {
