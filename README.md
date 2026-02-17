@@ -133,6 +133,11 @@ The server uses Shopify OAuth client credentials (Admin API) with token caching 
 - Reads and writes `custom.price_tiers` variant metafields.
 - Optionally syncs pricing tiers into the Shopify variant `price` field.
 
+Additional pricing docs:
+
+- `docs/flss-pricing-replacement-module.md` — full FLSS pricing replacement scope for WSH migration.
+- `docs/price-tiers-theme.md` — theme-only price-tier rendering notes.
+
 ---
 
 ## API reference (server)
