@@ -17,7 +17,10 @@ export function initFlocsView() {
   // ===== DOM =====
   const shell            = document.getElementById("flocs-shell");
   const customerSearch   = document.getElementById("flocs-customerSearch");
+  const customerQuickSearch = document.getElementById("flocs-customerQuickSearch");
   const customerSearchClear = document.getElementById("flocs-customerSearchClear");
+  const customerProvinceFilter = document.getElementById("flocs-customerProvinceFilter");
+  const customerSort = document.getElementById("flocs-customerSort");
   const customerResults  = document.getElementById("flocs-customerResults");
   const customerStatus   = document.getElementById("flocs-customerStatus");
   const customerChips    = document.getElementById("flocs-selectedCustomerChips");
@@ -95,6 +98,8 @@ export function initFlocsView() {
     priceOverrideEnabled: {},
     azLetters: []
   };
+
+  const CUSTOMER_QUICK_PICK_EXCLUDED_SEGMENTS = new Set(["local", "private"]);
 
   const FLAVOUR_COLORS = {
     "hot & spicy": "#DA291C",
@@ -240,6 +245,115 @@ export function initFlocsView() {
       if (Number.isFinite(numeric)) return numeric;
     }
     return null;
+  }
+
+  function customerPrimaryAddress(customer) {
+    const addresses = Array.isArray(customer?.addresses) ? customer.addresses : [];
+    return addresses[0] || customer?.default_address || {};
+  }
+
+  function customerProvinceLabel(customer) {
+    return String(customerPrimaryAddress(customer)?.province || "").trim();
+  }
+
+  function customerCityLabel(customer) {
+    return String(customerPrimaryAddress(customer)?.city || "").trim();
+  }
+
+  function customerSegment(customer) {
+    const tags = normalizeTags(customer?.tags).map((tag) => String(tag).toLowerCase());
+    if (tags.includes("online")) return "online";
+    if (tags.includes("agent")) return "agent";
+    if (tags.includes("retailer") || tags.includes("retail")) return "retailer";
+    if (tags.includes("export")) return "export";
+    if (tags.includes("local")) return "local";
+    if (tags.includes("private")) return "private";
+    return "retailer";
+  }
+
+  function renderProvinceFilterOptions(customers = []) {
+    if (!customerProvinceFilter) return;
+    const provinces = Array.from(
+      new Set((customers || []).map(customerProvinceLabel).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
+    const selectedProvince = customerProvinceFilter.value || "";
+    customerProvinceFilter.innerHTML =
+      `<option value="">All provinces</option>` +
+      provinces.map((province) => `<option value="${province}">${province}</option>`).join("");
+    customerProvinceFilter.value = provinces.includes(selectedProvince) ? selectedProvince : "";
+  }
+
+  function filteredQuickPickCustomers(customers = []) {
+    let next = Array.isArray(customers) ? [...customers] : [];
+    next = next.filter((customer) => !CUSTOMER_QUICK_PICK_EXCLUDED_SEGMENTS.has(customerSegment(customer)));
+
+    if (customerProvinceFilter?.value) {
+      const activeProvince = customerProvinceFilter.value.toLowerCase();
+      next = next.filter((customer) => customerProvinceLabel(customer).toLowerCase() === activeProvince);
+    }
+
+    const quickSearch = (customerQuickSearch?.value || "").trim().toLowerCase();
+    if (quickSearch) {
+      next = next.filter((customer) => {
+        const haystack = [
+          customer?.name,
+          customer?.companyName,
+          customerCityLabel(customer),
+          customerProvinceLabel(customer),
+          customer?.phone
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(quickSearch);
+      });
+    }
+
+    const sortBy = customerSort?.value === "city" ? "city" : "name";
+    next.sort((a, b) => {
+      const aName = String(a?.name || "");
+      const bName = String(b?.name || "");
+      if (sortBy === "city") {
+        const byCity = String(customerCityLabel(a) || "").localeCompare(
+          String(customerCityLabel(b) || ""),
+          undefined,
+          { sensitivity: "base" }
+        );
+        if (byCity !== 0) return byCity;
+      }
+      return aName.localeCompare(bName, undefined, { sensitivity: "base" });
+    });
+
+    return next;
+  }
+
+  function renderCustomerQuickPicker(customers = []) {
+    const filtered = filteredQuickPickCustomers(customers);
+
+    if (!filtered.length) {
+      customerResults.innerHTML = `<div class="flocs-customerEmpty">No customers match the current filters.</div>`;
+      customerResults._data = [];
+      customerResults._allData = Array.isArray(customers) ? customers : [];
+      customerStatus.textContent = "No match yet. Refine search.";
+      return;
+    }
+
+    customerResults.innerHTML = filtered
+      .map((customer, idx) => {
+        const city = customerCityLabel(customer);
+        const province = customerProvinceLabel(customer);
+        const location = [city, province].filter(Boolean).join(", ") || "Location unavailable";
+        return `
+        <div class="flocs-customerItem" data-idx="${idx}">
+          <strong>${customer.name || "Unnamed"}</strong>
+          <div class="flocs-customerItem-meta">${location}</div>
+        </div>
+      `;
+      })
+      .join("");
+    customerResults._data = filtered;
+    customerResults._allData = Array.isArray(customers) ? customers : [];
+    customerStatus.textContent = "Click a row to select customer.";
   }
 
   function normalizePriceTiers(product) {
@@ -1286,6 +1400,8 @@ ${state.customer.email || ""}${
     if (!q) {
       customerResults.hidden = true;
       customerResults.innerHTML = "";
+      customerResults._data = [];
+      customerResults._allData = [];
       customerStatus.textContent = "Search by name, email, company, or phone";
       return;
     }
@@ -1303,38 +1419,26 @@ ${state.customer.email || ""}${
       const data = await res.json();
       const list = Array.isArray(data.customers) ? data.customers : [];
 
+      renderProvinceFilterOptions(list);
+
       if (!list.length) {
         customerResults.innerHTML =
           `<div class="flocs-customerEmpty">No customers found.</div>`;
+        customerResults._data = [];
+        customerResults._allData = [];
         customerStatus.textContent = "No match yet. Refine search.";
         return;
       }
 
-      customerResults.innerHTML = list
-        .map(
-          (c, idx) => `
-        <div class="flocs-customerItem" data-idx="${idx}">
-          <strong>${c.name}</strong>
-          <div class="flocs-customerItem-meta">
-            ${c.email || "no email"} · ${c.phone || "no phone"}${
-              c.delivery_method
-                ? ` · default delivery: ${c.delivery_method}`
-                : ""
-            }${c.tags ? ` · tags: ${c.tags}` : ""}
-          </div>
-        </div>
-      `
-        )
-        .join("");
-      customerResults._data = list;
-      customerStatus.textContent =
-        "Click a row to select customer.";
+      renderCustomerQuickPicker(list);
     } catch (e) {
       console.error("Customer search error:", e);
       customerResults.innerHTML =
         `<div class="flocs-customerEmpty">Error searching: ${String(
           e?.message || e
         )}</div>`;
+      customerResults._data = [];
+      customerResults._allData = [];
       customerStatus.textContent = "Error searching customers.";
     }
   }
@@ -1924,6 +2028,24 @@ ${state.customer.email || ""}${
       );
     }
 
+    if (customerQuickSearch) {
+      customerQuickSearch.addEventListener("input", () => {
+        renderCustomerQuickPicker(customerResults?._allData || []);
+      });
+    }
+
+    if (customerProvinceFilter) {
+      customerProvinceFilter.addEventListener("change", () => {
+        renderCustomerQuickPicker(customerResults?._allData || []);
+      });
+    }
+
+    if (customerSort) {
+      customerSort.addEventListener("change", () => {
+        renderCustomerQuickPicker(customerResults?._allData || []);
+      });
+    }
+
     if (customerResults) {
       customerResults.addEventListener("click", async (e) => {
         const row = e.target.closest(".flocs-customerItem");
@@ -2149,9 +2271,10 @@ ${state.customer.email || ""}${
     if (customerSearchClear && customerSearch) {
       customerSearchClear.addEventListener("click", () => {
         customerSearch.value = "";
+        if (customerQuickSearch) customerQuickSearch.value = "";
+        if (customerProvinceFilter) customerProvinceFilter.value = "";
+        if (customerSort) customerSort.value = "name";
         state.azLetters = [];
-    state.qtyMode = "units";
-    state.cartonUnits = 12;
         updateAzBarActive([]);
         searchCustomersNow();
       });

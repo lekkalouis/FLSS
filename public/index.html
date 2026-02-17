@@ -2862,6 +2862,16 @@ npm run dev</code></pre>
                   <input id="flocs-customerSearch" class="flocs-input" type="text" placeholder="Type to search Shopify customers…" autocomplete="off" />
                   <button id="flocs-customerSearchClear" class="flocs-miniBtn flocs-clearBtn" type="button">Clear</button>
                 </div>
+                <div class="flocs-row" style="margin-top:.4rem">
+                  <input id="flocs-customerQuickSearch" class="flocs-input" type="text" placeholder="Quick filter customers in results…" autocomplete="off" />
+                  <select id="flocs-customerProvinceFilter" class="flocs-select">
+                    <option value="">All provinces</option>
+                  </select>
+                  <select id="flocs-customerSort" class="flocs-select">
+                    <option value="name">Sort: Name</option>
+                    <option value="city">Sort: City/Town</option>
+                  </select>
+                </div>
                 <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
                 <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
                 <div class="flocs-inlineActions" style="margin-top:.5rem">
