@@ -8,12 +8,14 @@ const $ = (id) => document.getElementById(id);
 const els = {
   orderDate: $("order-date"),
   poNumber: $("po-number"),
+  paymentTerms: $("payment-terms"),
 
   customerSearch: $("customer-search"),
   customerSearchBtn: $("customer-search-btn"),
   quickPickerBtn: $("quick-picker-btn"),
   customerStatus: $("customer-status"),
   customerResults: $("customer-results"),
+  customerLoadMore: $("customer-load-more"),
   segmentFilters: $("segment-filters"),
 
   quickPicker: $("quick-picker"),
@@ -68,7 +70,10 @@ const state = {
   quickProvince: "",
   quickSearch: "",
   selectedCustomer: null,
-  qtyBySku: new Map()
+  qtyBySku: new Map(),
+  nextPageInfo: null,
+  lastSearchQuery: "",
+  customerLoadMode: "recent"
 };
 
 function parseTags(rawTags) {
@@ -133,6 +138,30 @@ function unitPriceForProduct(product) {
   }
   const legacy = Number(product?.prices?.retail);
   return Number.isFinite(legacy) ? legacy : 0;
+}
+
+
+async function hydratePriceTiers() {
+  try {
+    const variantIds = PRODUCT_LIST.filter((p) => p.variantId).map((p) => p.variantId);
+    if (!variantIds.length) return;
+    const response = await fetch(`${API_BASE}/variants/price-tiers/fetch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ variantIds })
+    });
+    const payload = await response.json();
+    if (!response.ok) return;
+    const tiersByVariantId = payload?.priceTiersByVariantId || {};
+    PRODUCT_LIST.forEach((product) => {
+      const tiers = tiersByVariantId[String(product.variantId || "")];
+      if (tiers && typeof tiers === "object") product.priceTiers = tiers;
+    });
+    buildProductTable();
+    renderSummary();
+  } catch (error) {
+    console.warn("Price tier hydration failed", error);
+  }
 }
 
 function shippingEstimate() {
@@ -211,7 +240,9 @@ function renderSummary() {
   els.shippingTotal.textContent = money(shipping);
   els.vatTotal.textContent = money(vat);
   els.grandTotal.textContent = money(grand);
+  const terms = state.selectedCustomer?.paymentTerms || "";
   receipt.push("--------------------------", `Subtotal: ${money(subtotal)}`, `Shipping est.: ${money(shipping)}`, `VAT 15%: ${money(vat)}`, `EST. TOTAL: ${money(grand)}`);
+  if (terms) receipt.push(`Terms: ${terms}`);
   els.receipt.textContent = lines.length ? receipt.join("\n") : "Receipt preview appears as quantities are entered.";
 }
 
@@ -241,6 +272,30 @@ function shippingAddressPayload() {
   };
 }
 
+
+async function hydrateCustomerCustomFields(customer) {
+  if (!customer?.id || customer.customFieldsLoaded) return customer;
+  try {
+    const response = await fetch(`${API_BASE}/customers/${encodeURIComponent(customer.id)}/metafields`);
+    const payload = await response.json();
+    if (!response.ok) return customer;
+    return {
+      ...customer,
+      ...(payload?.metafields || {}),
+      delivery_method: payload?.metafields?.delivery_method || customer.delivery_method || null,
+      deliveryInstructions:
+        payload?.metafields?.delivery_instructions || customer.deliveryInstructions || null,
+      companyName: payload?.metafields?.company_name || customer.companyName || null,
+      vatNumber: payload?.metafields?.vat_number || customer.vatNumber || null,
+      paymentTerms: payload?.metafields?.payment_terms || customer.paymentTerms || null,
+      tier: payload?.metafields?.tier || customer.tier || null,
+      customFieldsLoaded: true
+    };
+  } catch {
+    return customer;
+  }
+}
+
 function applyAddressFields(customer) {
   const addresses = Array.isArray(customer?.addresses) ? customer.addresses : [];
   const first = addresses[0] || customer?.default_address || {};
@@ -264,6 +319,9 @@ function applyAddressFields(customer) {
   els.shipProvince.value = first.province || "";
   els.shipZip.value = first.zip || "";
   els.shipPhone.value = customer?.phone || first.phone || "";
+  if (els.paymentTerms) {
+    els.paymentTerms.value = customer?.paymentTerms || "";
+  }
 }
 
 function renderCustomerOptions(customers) {
@@ -271,6 +329,7 @@ function renderCustomerOptions(customers) {
   if (!customers.length) {
     els.customerResults.innerHTML = "";
     state.selectedCustomer = null;
+    if (els.customerLoadMore) els.customerLoadMore.hidden = !state.nextPageInfo;
     return;
   }
   els.customerResults.innerHTML = customers
@@ -283,6 +342,7 @@ function renderCustomerOptions(customers) {
   state.selectedCustomer = customers[0];
   applyAddressFields(state.selectedCustomer);
   renderSummary();
+  if (els.customerLoadMore) els.customerLoadMore.hidden = !state.nextPageInfo;
 }
 
 function customerProvince(customer) {
@@ -297,7 +357,7 @@ function customerCity(customer) {
 
 function filteredCustomers() {
   const list = Array.isArray(state.customers) ? state.customers : [];
-  let next = list.filter((customer) => !["online", "local", "private"].includes(customerSegment(customer)));
+  let next = list.filter((customer) => !["online", "private"].includes(customerSegment(customer)));
   if (state.activeSegment !== "all") next = next.filter((customer) => customerSegment(customer) === state.activeSegment);
   if (state.quickProvince) {
     next = next.filter((customer) => customerProvince(customer).toLowerCase() === state.quickProvince.toLowerCase());
@@ -368,6 +428,7 @@ function applySelectedCustomer(customer) {
   if (!customer) return;
   state.selectedCustomer = customer;
   applyAddressFields(customer);
+  buildProductTable();
   const all = filteredCustomers();
   const idx = all.findIndex((entry) => Number(entry.id) === Number(customer.id));
   if (idx >= 0) {
@@ -375,16 +436,83 @@ function applySelectedCustomer(customer) {
     els.customerResults.value = String(idx);
     state.selectedCustomer = all[idx];
     applyAddressFields(state.selectedCustomer);
+    buildProductTable();
   }
   renderSummary();
+
+  hydrateCustomerCustomFields(customer).then((hydrated) => {
+    if (!hydrated || Number(hydrated.id) !== Number(state.selectedCustomer?.id)) return;
+    state.selectedCustomer = hydrated;
+    applyAddressFields(hydrated);
+    buildProductTable();
+    renderSummary();
+  });
+}
+
+
+function mergeCustomers(existing = [], incoming = []) {
+  const map = new Map();
+  [...existing, ...incoming].forEach((c) => {
+    if (!c?.id) return;
+    map.set(String(c.id), c);
+  });
+  return Array.from(map.values());
+}
+
+async function loadMoreCustomers() {
+  if (!state.nextPageInfo) {
+    setStatus(els.customerStatus, "No more customers to load.", "warn");
+    return;
+  }
+  if (els.customerLoadMore) els.customerLoadMore.disabled = true;
+  try {
+    const params = new URLSearchParams({
+      limit: "100",
+      pageInfo: state.nextPageInfo
+    });
+    if (state.customerLoadMode === "search" && state.lastSearchQuery) {
+      params.set("q", state.lastSearchQuery);
+      const response = await fetch(`${API_BASE}/customers/search?${params.toString()}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || "Load more search failed");
+      const more = Array.isArray(data.customers) ? data.customers : [];
+      state.customers = mergeCustomers(state.customers, more);
+      state.nextPageInfo = data.nextPageInfo || null;
+    } else {
+      const response = await fetch(`${API_BASE}/customers/recent?${params.toString()}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || "Load more failed");
+      const more = Array.isArray(data.customers) ? data.customers : [];
+      state.customers = mergeCustomers(state.customers, more);
+      state.nextPageInfo = data.nextPageInfo || null;
+    }
+    renderProvinceFilterOptions();
+    renderCustomerOptions(filteredCustomers());
+    renderQuickPicker();
+    setStatus(els.customerStatus, `Loaded ${state.customers.length} customer(s).`, "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(els.customerStatus, error.message || "Unable to load more customers.", "err");
+  } finally {
+    if (els.customerLoadMore) els.customerLoadMore.disabled = false;
+    if (els.customerLoadMore) {
+      els.customerLoadMore.hidden = !state.nextPageInfo;
+    }
+  }
 }
 
 async function preloadCustomers() {
   setStatus(els.customerStatus, "Loading recent customers...");
   try {
-    const response = await fetch(`${API_BASE}/customers/recent?limit=50`);
+    const response = await fetch(`${API_BASE}/customers/recent?limit=100`);
     const data = await response.json();
     if (!response.ok) throw new Error(data?.message || "Unable to preload customers");
+    state.customerLoadMode = "recent";
+    state.lastSearchQuery = "";
+    state.nextPageInfo = data.nextPageInfo || null;
+    state.customerLoadMode = "search";
+    state.lastSearchQuery = q;
+    state.nextPageInfo = data.nextPageInfo || null;
     state.customers = Array.isArray(data.customers) ? data.customers : [];
     renderSegmentControls();
     renderProvinceFilterOptions();
@@ -409,11 +537,14 @@ async function searchCustomers() {
 
   setStatus(els.customerStatus, "Searching Shopify customers...");
   try {
-    const params = new URLSearchParams({ q, limit: "20" });
+    const params = new URLSearchParams({ q, limit: "100" });
     const response = await fetch(`${API_BASE}/customers/search?${params.toString()}`);
     const data = await response.json();
     if (!response.ok) throw new Error(data?.message || "Customer search failed");
 
+    state.customerLoadMode = "search";
+    state.lastSearchQuery = q;
+    state.nextPageInfo = data.nextPageInfo || null;
     state.customers = Array.isArray(data.customers) ? data.customers : [];
     renderSegmentControls();
     renderProvinceFilterOptions();
@@ -432,6 +563,15 @@ async function searchCustomers() {
   }
 }
 
+
+function resolveShippingMethodForCustomer(customer) {
+  const tags = parseTags(customer?.tags);
+  if (tags.includes("local")) return "local";
+  const preferred = String(customer?.delivery_type || customer?.delivery_method || "").trim().toLowerCase();
+  if (["pickup", "delivery", "local", "shipping"].includes(preferred)) return preferred;
+  return "shipping";
+}
+
 async function submitOrder() {
   const lineItems = selectedLineItems();
   if (!state.selectedCustomer?.id) {
@@ -447,7 +587,7 @@ async function submitOrder() {
     customerId: state.selectedCustomer.id,
     poNumber: els.poNumber.value.trim() || undefined,
     deliveryDate: els.orderDate.value || undefined,
-    shippingMethod: "shipping",
+    shippingMethod: resolveShippingMethodForCustomer(state.selectedCustomer),
     billingAddress: billingAddressPayload(),
     shippingAddress: shippingAddressPayload(),
     lineItems,
@@ -497,6 +637,7 @@ function wireEvents() {
   });
 
   els.customerSearchBtn.addEventListener("click", searchCustomers);
+  els.customerLoadMore?.addEventListener("click", loadMoreCustomers);
   els.customerSearch.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -585,6 +726,7 @@ function boot() {
   renderSegmentControls();
   wireEvents();
   preloadCustomers();
+  hydratePriceTiers();
   renderProvinceFilterOptions();
 }
 
