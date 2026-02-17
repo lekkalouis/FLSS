@@ -556,6 +556,9 @@ router.post("/shopify/customers", async (req, res) => {
       email,
       phone,
       company,
+      accountEmail,
+      accountContact,
+      tier,
       vatNumber,
       paymentTerms,
       deliveryInstructions,
@@ -592,6 +595,30 @@ router.post("/shopify/customers", async (req, res) => {
         key: "company_name",
         type: "single_line_text_field",
         value: company
+      });
+    }
+    if (accountEmail) {
+      metafields.push({
+        namespace: "custom",
+        key: "account_email",
+        type: "single_line_text_field",
+        value: String(accountEmail)
+      });
+    }
+    if (accountContact) {
+      metafields.push({
+        namespace: "custom",
+        key: "account_contact",
+        type: "single_line_text_field",
+        value: String(accountContact)
+      });
+    }
+    if (tier) {
+      metafields.push({
+        namespace: "custom",
+        key: "tier",
+        type: "single_line_text_field",
+        value: String(tier)
       });
     }
     if (vatNumber) {
@@ -667,7 +694,8 @@ router.post("/shopify/customers", async (req, res) => {
         delivery_instructions: deliveryInstructions || null,
         company_name: company || null,
         vat_number: vatNumber || null,
-        payment_terms: paymentTerms || null
+        payment_terms: paymentTerms || null,
+        tier: tier || null
       },
       { customFieldsLoaded: true }
     );

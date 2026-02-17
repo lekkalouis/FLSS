@@ -116,11 +116,23 @@
       </header>
 
       <div class="searchRow">
-        <input id="customer-search" type="text" placeholder="Search customer by name, company, email, or phone" autocomplete="off" />
-        <button id="customer-search-btn" type="button">Search customer</button>
+        <input id="customer-search" type="text" placeholder="Search customer by name, company, email, or phone" autocomplete="off" hidden />
+        <span class="searchHint">Start typing anywhere to search customers and open quick picker.</span>
         <button id="quick-picker-btn" type="button">Quick picker</button>
       </div>
       <div id="customer-status" class="searchHint">Select a Shopify customer to create a normal order.</div>
+      <div class="actions" style="margin:.35rem 0">
+        <label style="display:flex;align-items:center;gap:.45rem">
+          <span class="searchHint" style="font-size:.78rem">Delivery type</span>
+          <select id="delivery-type-select">
+            <option value="">Use customer preference</option>
+            <option value="shipping">Shipping</option>
+            <option value="pickup">Pickup</option>
+            <option value="delivery">Delivery</option>
+            <option value="local">Local</option>
+          </select>
+        </label>
+      </div>
       <div id="segment-filters" class="quickSegments"></div>
       <select id="customer-results"></select>
       <div class="actions" style="margin-top:.4rem">

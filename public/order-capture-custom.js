@@ -13,6 +13,7 @@ const els = {
   customerSearch: $("customer-search"),
   customerSearchBtn: $("customer-search-btn"),
   quickPickerBtn: $("quick-picker-btn"),
+  deliveryTypeSelect: $("delivery-type-select"),
   customerStatus: $("customer-status"),
   customerResults: $("customer-results"),
   customerLoadMore: $("customer-load-more"),
@@ -73,7 +74,10 @@ const state = {
   qtyBySku: new Map(),
   nextPageInfo: null,
   lastSearchQuery: "",
-  customerLoadMode: "recent"
+  customerLoadMode: "recent",
+  shippingQuote: null,
+  shippingQuotePending: false,
+  deliveryTypeOverride: ""
 };
 
 function parseTags(rawTags) {
@@ -159,12 +163,16 @@ async function hydratePriceTiers() {
     });
     buildProductTable();
     renderSummary();
+    scheduleShippingQuote();
   } catch (error) {
     console.warn("Price tier hydration failed", error);
   }
 }
 
 function shippingEstimate() {
+  if (state.shippingQuote && Number.isFinite(Number(state.shippingQuote.total))) {
+    return Number(state.shippingQuote.total);
+  }
   const segment = customerSegment(state.selectedCustomer);
   if (segment === "local") return 0;
   const subtotal = selectedLineItems().reduce((sum, line) => sum + line.quantity * Number(line.price || 0), 0);
@@ -210,6 +218,91 @@ function selectedLineItems() {
     price: unitPriceForProduct(product),
     quantity: Number(state.qtyBySku.get(product.sku) || 0)
   }));
+}
+
+
+function currentDeliveryType() {
+  const override = String(state.deliveryTypeOverride || "").trim().toLowerCase();
+  if (override) return override;
+  return resolveShippingMethodForCustomer(state.selectedCustomer);
+}
+
+function scheduleShippingQuote() {
+  if (state.shippingQuotePending) return;
+  const lineItems = selectedLineItems();
+  const deliveryType = currentDeliveryType();
+  if (!lineItems.length || deliveryType !== "shipping") {
+    state.shippingQuote = null;
+    renderSummary();
+    return;
+  }
+  const addr = shippingAddressPayload();
+  if (!addr.city || !addr.zip || !addr.address1) {
+    state.shippingQuote = null;
+    return;
+  }
+  state.shippingQuotePending = true;
+  setStatus(els.orderStatus, "Calculating ParcelPerfect shipping…");
+  const details = {
+    origpers: "Flippen Lekka Holdings (Pty) Ltd",
+    origperadd1: "7 Papawer Street",
+    origperadd2: "Blomtuin, Bellville",
+    origperadd3: "Cape Town, Western Cape",
+    origperadd4: "ZA",
+    origperpcode: "7530",
+    origtown: "Cape Town",
+    origplace: 4663,
+    origpercontact: "Louis",
+    origperphone: "0730451885",
+    origpercell: "0730451885",
+    notifyorigpers: 1,
+    origperemail: "admin@flippenlekkaspices.co.za",
+    notes: "Custom order quote",
+    destpers: addr.name || state.selectedCustomer?.name || "Customer",
+    destperadd1: addr.address1 || "",
+    destperadd2: addr.address2 || "",
+    destperadd3: addr.city || "",
+    destperadd4: addr.province || "",
+    destperpcode: addr.zip || "",
+    desttown: addr.city || "",
+    destplace: 4663,
+    destpercontact: addr.name || "",
+    destperphone: addr.phone || "",
+    destpercell: addr.phone || "",
+    destperemail: state.selectedCustomer?.email || "",
+    notifydestpers: 1
+  };
+  const weightKg = Math.max(1, lineItems.reduce((sum, line) => sum + Number(line.quantity || 0) * 0.2, 0));
+  fetch("/api/v1/pp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      method: "requestQuote",
+      classVal: "Quote",
+      params: {
+        details,
+        contents: [{ item: 1, pieces: 1, dim1: 40, dim2: 40, dim3: 30, actmass: Number(weightKg.toFixed(2)) }]
+      }
+    })
+  })
+    .then((res) => res.json().catch(() => ({})))
+    .then((data) => {
+      const rates = Array.isArray(data?.results?.[0]?.rates) ? data.results[0].rates : Array.isArray(data?.rates) ? data.rates : [];
+      const pick = rates.find((r) => ["RFX", "ECO", "RDF"].includes(String(r?.service || "").toUpperCase())) || rates[0];
+      const total = Number(pick?.subtotal ?? pick?.total ?? pick?.charge ?? 0);
+      state.shippingQuote = Number.isFinite(total) ? { total, service: pick?.service || null } : null;
+      if (state.shippingQuote) setStatus(els.orderStatus, `Shipping updated (${state.shippingQuote.service || "SWE"}).`, "ok");
+      renderSummary();
+    })
+    .catch((error) => {
+      console.warn("ParcelPerfect quote failed", error);
+      state.shippingQuote = null;
+      setStatus(els.orderStatus, "Shipping quote unavailable; using fallback estimate.", "warn");
+      renderSummary();
+    })
+    .finally(() => {
+      state.shippingQuotePending = false;
+    });
 }
 
 function renderSummary() {
@@ -321,6 +414,11 @@ function applyAddressFields(customer) {
   els.shipPhone.value = customer?.phone || first.phone || "";
   if (els.paymentTerms) {
     els.paymentTerms.value = customer?.paymentTerms || "";
+  }
+  const preferredDelivery = String(customer?.delivery_type || customer?.delivery_method || "").trim().toLowerCase();
+  if (els.deliveryTypeSelect) {
+    const normalized = ["shipping", "pickup", "delivery", "local"].includes(preferredDelivery) ? preferredDelivery : "";
+    if (!state.deliveryTypeOverride) els.deliveryTypeSelect.value = normalized;
   }
 }
 
@@ -446,6 +544,7 @@ function applySelectedCustomer(customer) {
     applyAddressFields(hydrated);
     buildProductTable();
     renderSummary();
+    scheduleShippingQuote();
   });
 }
 
@@ -587,7 +686,7 @@ async function submitOrder() {
     customerId: state.selectedCustomer.id,
     poNumber: els.poNumber.value.trim() || undefined,
     deliveryDate: els.orderDate.value || undefined,
-    shippingMethod: resolveShippingMethodForCustomer(state.selectedCustomer),
+    shippingMethod: currentDeliveryType(),
     billingAddress: billingAddressPayload(),
     shippingAddress: shippingAddressPayload(),
     lineItems,
@@ -634,9 +733,16 @@ function wireEvents() {
     state.qtyBySku.set(sku, Math.floor(qty));
     if (String(Math.floor(qty)) !== target.value) target.value = String(Math.floor(qty));
     renderSummary();
+    scheduleShippingQuote();
   });
 
-  els.customerSearchBtn.addEventListener("click", searchCustomers);
+  els.customerSearchBtn?.addEventListener("click", searchCustomers);
+  els.deliveryTypeSelect?.addEventListener("change", () => {
+    state.deliveryTypeOverride = els.deliveryTypeSelect.value || "";
+    state.shippingQuote = null;
+    renderSummary();
+    scheduleShippingQuote();
+  });
   els.customerLoadMore?.addEventListener("click", loadMoreCustomers);
   els.customerSearch.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -648,7 +754,20 @@ function wireEvents() {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       searchCustomers();
-    }, 1000);
+      openQuickPicker();
+    }, 350);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const active = document.activeElement;
+    if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
+    if (event.ctrlKey || event.altKey || event.metaKey || event.key.length !== 1) return;
+    els.customerSearch.value = `${els.customerSearch.value || ""}${event.key}`;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      searchCustomers();
+      openQuickPicker();
+    }, 250);
   });
   els.customerResults.addEventListener("change", () => {
     const index = Number(els.customerResults.value);

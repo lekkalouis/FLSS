@@ -92,6 +92,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const navFlocs = $("navFlocs");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
+  const navDispatchSettings = $("navDispatchSettings");
+  const navLogs = $("navLogs");
   const navToggle = $("navToggle");
   const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
@@ -101,6 +103,12 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
+  const viewDispatchSettings = $("viewDispatchSettings");
+  const viewLogs = $("viewLogs");
+  const dispatchNotesBar = $("dispatchNotesBar");
+  const dispatchNotesInput = $("dispatchNotesInput");
+  const dispatchNotesClose = $("dispatchNotesClose");
+  const adminLogsPreview = $("adminLogsPreview");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -3937,6 +3945,8 @@ async function startOrder(orderNo) {
     const showFlocs = view === "flocs";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
+    const showDispatchSettings = view === "dispatch-settings";
+    const showLogs = view === "logs";
 
     if (viewDashboard) {
       viewDashboard.hidden = !showDashboard;
@@ -3970,6 +3980,14 @@ async function startOrder(orderNo) {
       viewPriceManager.hidden = !showPriceManager;
       viewPriceManager.classList.toggle("flView--active", showPriceManager);
     }
+    if (viewDispatchSettings) {
+      viewDispatchSettings.hidden = !showDispatchSettings;
+      viewDispatchSettings.classList.toggle("flView--active", showDispatchSettings);
+    }
+    if (viewLogs) {
+      viewLogs.hidden = !showLogs;
+      viewLogs.classList.toggle("flView--active", showLogs);
+    }
 
     navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
@@ -3979,6 +3997,8 @@ async function startOrder(orderNo) {
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
+    navDispatchSettings?.classList.toggle("flNavBtn--active", showDispatchSettings);
+    navLogs?.classList.toggle("flNavBtn--active", showLogs);
     navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
@@ -3987,6 +4007,8 @@ async function startOrder(orderNo) {
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
+    navDispatchSettings?.setAttribute("aria-selected", showDispatchSettings ? "true" : "false");
+    navLogs?.setAttribute("aria-selected", showLogs ? "true" : "false");
 
     if (showDashboard) {
       statusExplain("Dashboard ready — choose a module to launch.", "info");
@@ -4003,6 +4025,10 @@ async function startOrder(orderNo) {
       statusExplain("Stock take ready.", "info");
     } else if (showPriceManager) {
       statusExplain("Price manager ready.", "info");
+    } else if (showDispatchSettings) {
+      statusExplain("Dispatch settings loaded.", "info");
+    } else if (showLogs) {
+      statusExplain("Logs view loaded.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -4017,7 +4043,9 @@ async function startOrder(orderNo) {
     ["/flowcharts", "flowcharts"],
     ["/flocs", "flocs"],
     ["/stock", "stock"],
-    ["/price-manager", "price-manager"]
+    ["/price-manager", "price-manager"],
+    ["/dispatch-settings", "dispatch-settings"],
+    ["/logs", "logs"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -4028,7 +4056,9 @@ async function startOrder(orderNo) {
     flowcharts: "/flowcharts",
     flocs: "/flocs",
     stock: "/stock",
-    "price-manager": "/price-manager"
+    "price-manager": "/price-manager",
+    "dispatch-settings": "/dispatch-settings",
+    logs: "/logs"
   };
 
   const viewInitializers = {
@@ -4109,6 +4139,45 @@ async function startOrder(orderNo) {
       setDispatchExpanded(!dispatchExpanded);
     });
   }
+
+  const ADMIN_UNLOCKED_KEY = "fl_admin_unlocked";
+  const applyAdminMenuVisibility = (visible) => {
+    if (navDispatchSettings) navDispatchSettings.hidden = !visible;
+    if (navLogs) navLogs.hidden = !visible;
+  };
+  applyAdminMenuVisibility(localStorage.getItem(ADMIN_UNLOCKED_KEY) === "true");
+
+  document.addEventListener("keydown", (e) => {
+    if (e.shiftKey && e.altKey && String(e.key || "").toLowerCase() === "a") {
+      const nowVisible = navDispatchSettings?.hidden !== true;
+      const next = !nowVisible;
+      applyAdminMenuVisibility(next);
+      localStorage.setItem(ADMIN_UNLOCKED_KEY, String(next));
+      statusExplain(next ? "Admin menu unlocked." : "Admin menu hidden.", "info");
+    }
+  });
+
+  const DISPATCH_NOTES_KEY = "fl_dispatch_notes";
+  const DISPATCH_NOTES_COLLAPSED_KEY = "fl_dispatch_notes_collapsed";
+  if (dispatchNotesInput) {
+    dispatchNotesInput.value = localStorage.getItem(DISPATCH_NOTES_KEY) || "";
+    dispatchNotesInput.addEventListener("input", () => {
+      localStorage.setItem(DISPATCH_NOTES_KEY, dispatchNotesInput.value || "");
+      if (adminLogsPreview) adminLogsPreview.textContent = dispatchNotesInput.value || "";
+    });
+  }
+  const setDispatchNotesCollapsed = (collapsed) => {
+    if (dispatchNotesInput) dispatchNotesInput.hidden = collapsed;
+    if (dispatchNotesClose) dispatchNotesClose.textContent = collapsed ? "Open" : "Close";
+    localStorage.setItem(DISPATCH_NOTES_COLLAPSED_KEY, String(collapsed));
+  };
+  if (dispatchNotesBar) {
+    setDispatchNotesCollapsed(localStorage.getItem(DISPATCH_NOTES_COLLAPSED_KEY) === "true");
+  }
+  dispatchNotesClose?.addEventListener("click", () => {
+    const collapsed = dispatchNotesInput?.hidden === true;
+    setDispatchNotesCollapsed(!collapsed);
+  });
 
   scanInput?.addEventListener("keydown", async (e) => {
     if (e.key === "Enter") {
