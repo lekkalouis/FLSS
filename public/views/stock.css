@@ -1,380 +1,53 @@
 #viewStock{
-      --bg:#f5f7fb;
-      --panel:#ffffff;
-      --panel-muted:#f1f5f9;
-      --panel-strong:#e2e8f0;
-      --text:#0f172a;
-      --text-muted:#5b6b7f;
-      --accent:#38bdf8;
-      --accent-soft:rgba(56,189,248,.15);
-      --success:#22c55e;
-      --warning:#f59e0b;
-      --radius-lg:.85rem;
-      --radius-md:.6rem;
-      --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
-      --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
-    }
-    #viewStock *{ box-sizing:border-box; }
-    #viewStock{
-      margin:0;
-      min-height:100vh;
-      background:radial-gradient(circle at 12% 12%, rgba(56,189,248,.12) 0%, rgba(245,247,251,0) 55%),
-                 radial-gradient(circle at 88% 10%, rgba(168,85,247,.08) 0%, rgba(245,247,251,0) 60%),
-                 var(--bg);
-      color:var(--text);
-      font-family:var(--sans);
-    }
-    #viewStock .stock-shell{
-      max-width:none;
-      width:100%;
-      margin:0 auto;
-      padding:1.5rem 1rem 2.5rem;
-      display:flex;
-      flex-direction:column;
-      gap:1rem;
-    }
-    #viewStock .stock-grid{
-      display:grid;
-      grid-template-columns:minmax(0,1fr) minmax(340px,420px);
-      gap:1rem;
-      align-items:start;
-    }
-    @media (max-width:1200px){
-      #viewStock .stock-grid{
-        grid-template-columns:1fr;
-      }
-    }
-    #viewStock .stock-overviewCard{
-      min-width:0;
-    }
-    #viewStock .stock-mrpCard{
-      width:100%;
-      align-self:start;
-      position:sticky;
-      top:1rem;
-      z-index:1;
-      max-height:calc(100vh - 2rem);
-      overflow:auto;
-      display:none;
-    }
-    #viewStock[data-mode="produce"] .stock-mrpCard{
-      display:block;
-    }
-    @media (max-width:1200px){
-      #viewStock .stock-mrpCard{
-        position:static;
-        max-height:none;
-        overflow:visible;
-      }
-    }
-
-    #viewStock .stock-card{
-      background:var(--panel);
-      border:1px solid var(--panel-strong);
-      border-radius:var(--radius-lg);
-      padding:1rem;
-      box-shadow:0 12px 30px rgba(15,23,42,.08);
-    }
-    #viewStock .stock-card h2{
-      font-size:.9rem;
-      margin:0 0 .6rem 0;
-    }
-    #viewStock .stock-toolbar{
-      display:flex;
-      flex-wrap:wrap;
-      gap:.5rem;
-      align-items:center;
-      margin-bottom:.75rem;
-    }
-    #viewStock .stock-modeToggle{
-      display:inline-flex;
-      gap:.35rem;
-      padding:.2rem;
-      background:var(--panel-muted);
-      border-radius:999px;
-      border:1px solid var(--panel-strong);
-    }
-    #viewStock .stock-modeBtn{
-      border:none;
-      background:transparent;
-      color:var(--text-muted);
-      font-size:.72rem;
-      padding:.25rem .7rem;
-      border-radius:999px;
-      cursor:pointer;
-      font-weight:600;
-    }
-    #viewStock .stock-modeBtn.is-active{
-      background:#fff;
-      color:var(--text);
-      box-shadow:0 0 0 1px var(--panel-strong);
-    }
-    #viewStock .stock-pill{
-      display:inline-flex;
-      align-items:center;
-      padding:.25rem .6rem;
-      border-radius:999px;
-      background:rgba(56,189,248,.12);
-      color:#0f4c6b;
-      font-size:.7rem;
-      font-weight:600;
-    }
-    #viewStock .stock-muted{
-      color:var(--text-muted);
-      font-size:.75rem;
-    }
-    #viewStock .stock-mrpHeader{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:.75rem;
-      margin-bottom:.75rem;
-    }
-    #viewStock .stock-mrpHeader p{
-      margin:.3rem 0 0 0;
-    }
-    #viewStock .stock-input, #viewStock .stock-select{
-      border-radius:.55rem;
-      border:1px solid var(--panel-strong);
-      background:#fff;
-      color:var(--text);
-      padding:.45rem .6rem;
-      font-size:.85rem;
-      outline:none;
-      flex:1;
-    }
-    #viewStock .stock-input:focus, #viewStock .stock-select:focus{
-      border-color:var(--accent);
-      box-shadow:0 0 0 2px rgba(56,189,248,.2);
-    }
-
-    #viewStock .stock-table{
-      width:100%;
-      border-collapse:collapse;
-      font-size:.78rem;
-      border:1px solid var(--panel-strong);
-      border-radius:.6rem;
-      overflow:hidden;
-      background:#fff;
-    }
-    #viewStock .stock-table th, #viewStock .stock-table td{
-      padding:.4rem .5rem;
-      border-bottom:1px solid rgba(148,163,184,.2);
-      text-align:left;
-    }
-    #viewStock .stock-table th{
-      background:var(--panel-muted);
-      text-transform:uppercase;
-      letter-spacing:.05em;
-      font-size:.68rem;
-      color:var(--text-muted);
-    }
-    #viewStock .stock-table tbody tr:hover{
-      background:rgba(34,211,238,.08);
-    }
-    #viewStock .stock-qtyInput{
-      width:4.5rem;
-      border-radius:.45rem;
-      border:1px solid var(--panel-strong);
-      padding:.2rem .35rem;
-      text-align:right;
-      font-size:.78rem;
-      background:#fff;
-      color:var(--text);
-    }
-    #viewStock .stock-totalInput{
-      background:var(--panel-muted);
-      font-weight:700;
-    }
-    #viewStock .stock-actionBtn{
-      border-radius:999px;
-      border:1px solid rgba(34,197,94,.6);
-      background:rgba(34,197,94,.15);
-      color:#065f46;
-      font-size:.7rem;
-      font-weight:700;
-      padding:.25rem .7rem;
-      cursor:pointer;
-    }
-    #viewStock .stock-actionBtn--inline{
-      align-self:flex-end;
-      height:2.2rem;
-    }
-    #viewStock .stock-actionBtn.receive{
-      border-color:rgba(59,130,246,.6);
-      background:rgba(59,130,246,.15);
-      color:#1e3a8a;
-    }
-    #viewStock .stock-primaryBtn{
-      border-radius:999px;
-      border:1px solid rgba(56,189,248,.8);
-      background:rgba(56,189,248,.2);
-      color:#0c4a6e;
-      font-size:.72rem;
-      font-weight:700;
-      padding:.3rem .9rem;
-      cursor:pointer;
-    }
-    #viewStock .stock-ghostBtn{
-      border-radius:999px;
-      border:1px solid var(--panel-strong);
-      background:var(--panel-muted);
-      color:var(--text-muted);
-      font-size:.72rem;
-      font-weight:700;
-      padding:.3rem .9rem;
-      cursor:pointer;
-    }
-    #viewStock .stock-crateBtn{
-      border-radius:999px;
-      border:1px solid rgba(99,102,241,.4);
-      background:rgba(99,102,241,.12);
-      color:#312e81;
-      font-size:.75rem;
-      padding:.2rem .6rem;
-      cursor:pointer;
-    }
-    #viewStock .stock-crateBtn:disabled{
-      opacity:.4;
-      cursor:not-allowed;
-    }
-    #viewStock .stock-crateCount{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      min-width:1.4rem;
-      font-weight:700;
-      color:var(--text-muted);
-      font-size:.7rem;
-    }
-    #viewStock .stock-logTitle{
-      margin:.9rem 0 .35rem;
-      font-size:.8rem;
-      color:var(--text-muted);
-      text-transform:uppercase;
-      letter-spacing:.08em;
-    }
-    #viewStock .stock-log{
-      display:flex;
-      flex-direction:column;
-      gap:.4rem;
-      max-height:200px;
-      overflow:auto;
-      border:1px solid var(--panel-strong);
-      border-radius:.6rem;
-      padding:.5rem;
-      background:var(--panel-muted);
-    }
-    #viewStock .stock-logEntry{
-      display:grid;
-      grid-template-columns:1.2fr .7fr .7fr 1fr;
-      gap:.5rem;
-      font-size:.72rem;
-      color:var(--text);
-      padding:.35rem .45rem;
-      border-radius:.45rem;
-      background:#fff;
-      border:1px solid rgba(148,163,184,.3);
-    }
-    #viewStock .stock-form{
-      display:flex;
-      flex-direction:column;
-      gap:.75rem;
-      margin-bottom:1rem;
-    }
-    #viewStock .stock-formRow{
-      display:grid;
-      grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));
-      gap:.75rem;
-      align-items:end;
-    }
-    #viewStock .stock-formRow--compact{
-      grid-template-columns:2fr 1fr auto;
-    }
-    @media (max-width:900px){
-      #viewStock .stock-formRow--compact{
-        grid-template-columns:1fr;
-      }
-      #viewStock .stock-actionBtn--inline{
-        width:100%;
-      }
-    }
-    #viewStock .stock-field{
-      display:flex;
-      flex-direction:column;
-      gap:.35rem;
-      font-size:.7rem;
-      text-transform:uppercase;
-      letter-spacing:.06em;
-      color:var(--text-muted);
-      font-weight:700;
-    }
-    #viewStock .stock-field span{
-      font-size:.68rem;
-    }
-    #viewStock .stock-formActions{
-      display:flex;
-      gap:.5rem;
-      align-items:center;
-      flex-wrap:wrap;
-    }
-    #viewStock .stock-lines{
-      max-height:210px;
-      overflow:auto;
-    }
-    #viewStock .stock-table--compact th,
-    #viewStock .stock-table--compact td{
-      padding:.35rem .45rem;
-      font-size:.72rem;
-    }
-    #viewStock .stock-subsection{
-      margin-top:.75rem;
-    }
-    #viewStock .stock-batchList{
-      display:flex;
-      flex-direction:column;
-      gap:.6rem;
-    }
-    #viewStock .stock-batchCard{
-      border:1px solid rgba(148,163,184,.4);
-      border-radius:.7rem;
-      padding:.65rem .75rem;
-      background:rgba(248,250,252,.9);
-      display:flex;
-      flex-direction:column;
-      gap:.5rem;
-    }
-    #viewStock .stock-batchHeader{
-      display:flex;
-      justify-content:space-between;
-      gap:.6rem;
-      flex-wrap:wrap;
-    }
-    #viewStock .stock-batchMeta{
-      font-size:.72rem;
-      color:var(--text-muted);
-    }
-    #viewStock .stock-batchActions{
-      display:flex;
-      gap:.4rem;
-      flex-wrap:wrap;
-    }
-    #viewStock .stock-batchActions button{
-      border-radius:999px;
-      border:1px solid var(--panel-strong);
-      background:#fff;
-      font-size:.7rem;
-      font-weight:700;
-      padding:.25rem .7rem;
-      cursor:pointer;
-    }
-    #viewStock .stock-batchActions .is-primary{
-      border-color:rgba(59,130,246,.6);
-      background:rgba(59,130,246,.15);
-      color:#1e3a8a;
-    }
-    #viewStock .stock-batchActions .is-danger{
-      border-color:rgba(239,68,68,.6);
-      background:rgba(239,68,68,.12);
-      color:#991b1b;
-    }
+  --panel:#fff;
+  --line:#dbe3ee;
+  --muted:#607089;
+  --chip:#eef2ff;
+  --chip-border:#c7d2fe;
+}
+#viewStock .stock-shell{padding:.5rem 0 1.5rem;}
+#viewStock .stock-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1rem;box-shadow:0 8px 20px rgba(15,23,42,.06)}
+#viewStock .stock-inventoryHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:.8rem;flex-wrap:wrap}
+#viewStock h2{margin:0;font-size:1.1rem}
+#viewStock .stock-muted{margin:.2rem 0 0;color:var(--muted);font-size:.8rem}
+#viewStock .stock-tabToggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:#f8fafc;padding:.2rem}
+#viewStock .stock-tabBtn{border:0;background:transparent;padding:.35rem .8rem;border-radius:999px;font-weight:700;cursor:pointer}
+#viewStock .stock-tabBtn.is-active{background:#fff;box-shadow:0 0 0 1px var(--line)}
+#viewStock .stock-toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.55rem}
+#viewStock .stock-input,#viewStock .stock-select{border:1px solid var(--line);border-radius:10px;padding:.45rem .6rem;font-size:.82rem;min-width:140px}
+#viewStock .stock-toolbarGroup{display:flex;align-items:center;gap:.35rem}
+#viewStock .stock-toolbarLabel{font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase}
+#viewStock .stock-modeToggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+#viewStock .stock-modeBtn{border:0;background:#fff;padding:.35rem .65rem;font-size:.72rem;font-weight:700;cursor:pointer}
+#viewStock .stock-modeBtn.is-active{background:#e2e8f0}
+#viewStock .stock-pill{font-size:.7rem;background:#e0f2fe;border:1px solid #bae6fd;border-radius:999px;padding:.2rem .55rem}
+#viewStock .stock-chipRow{display:flex;gap:.4rem;flex-wrap:wrap;margin:.4rem 0 .7rem}
+#viewStock .stock-chip{border:1px solid var(--chip-border);background:var(--chip);padding:.2rem .55rem;border-radius:999px;font-size:.72rem;cursor:pointer}
+#viewStock .stock-chip.is-active{background:#1e293b;color:#fff;border-color:#1e293b}
+#viewStock .stock-table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:.76rem}
+#viewStock .stock-table th,#viewStock .stock-table td{padding:.35rem .45rem;border-bottom:1px solid #ecf1f7;vertical-align:middle}
+#viewStock .stock-table th{font-size:.64rem;text-transform:uppercase;color:var(--muted);background:#f8fafc;letter-spacing:.04em}
+#viewStock .stock-flavourBadge{display:inline-flex;border:1px solid #bae6fd;background:#ecfeff;border-radius:999px;padding:.15rem .45rem;font-size:.66rem}
+#viewStock .stock-qtyInput{width:4rem;border:1px solid var(--line);border-radius:8px;padding:.2rem .35rem}
+#viewStock .stock-totalInput{background:#f8fafc;font-weight:700}
+#viewStock .stock-iconGroup{display:inline-flex;align-items:center;gap:.3rem}
+#viewStock .stock-iconBtn{border:1px solid var(--line);border-radius:999px;background:#fff;padding:.2rem .45rem;cursor:pointer}
+#viewStock .stock-actionBtn{border:1px solid #86efac;background:#dcfce7;border-radius:999px;padding:.22rem .6rem;font-size:.68rem;font-weight:700;cursor:pointer}
+#viewStock .stock-actionBtn.transfer{border-color:#93c5fd;background:#dbeafe}
+#viewStock .stock-actionBtn.po{border-color:#fcd34d;background:#fef3c7}
+#viewStock .stock-logTitle{margin:.8rem 0 .4rem;font-size:.75rem;text-transform:uppercase;color:var(--muted)}
+#viewStock .stock-log{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:.4rem;background:#f8fafc}
+#viewStock .stock-logEntry{font-size:.72rem;padding:.35rem;border-bottom:1px dashed #dbe3ee}
+#viewStock .stock-buyPanel{margin-top:.8rem}
+#viewStock .stock-form{display:flex;flex-direction:column;gap:.65rem}
+#viewStock .stock-formRow{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.55rem;align-items:end}
+#viewStock .stock-formRow--compact{grid-template-columns:2fr 1fr auto}
+#viewStock .stock-field{display:flex;flex-direction:column;gap:.25rem;font-size:.66rem;color:var(--muted);text-transform:uppercase}
+#viewStock .stock-formActions{display:flex;gap:.5rem}
+#viewStock .stock-primaryBtn,#viewStock .stock-ghostBtn{border-radius:999px;padding:.3rem .7rem;font-size:.72rem;cursor:pointer;border:1px solid var(--line);background:#fff}
+#viewStock .stock-primaryBtn{background:#e0f2fe;border-color:#7dd3fc}
+#viewStock .stock-batchList{display:flex;flex-direction:column;gap:.5rem;margin-top:.6rem}
+#viewStock .stock-batchCard{border:1px solid var(--line);border-radius:10px;padding:.5rem;background:#fff}
+#viewStock .stock-batchHeader{display:flex;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+#viewStock .stock-batchActions{display:flex;gap:.35rem;flex-wrap:wrap}
+#viewStock .stock-batchActions button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:.2rem .6rem;font-size:.68rem;cursor:pointer}
