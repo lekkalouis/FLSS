@@ -18,7 +18,6 @@ export function initFlocsView() {
   const shell            = document.getElementById("flocs-shell");
   const customerSearch   = document.getElementById("flocs-customerSearch");
   const customerQuickSearch = document.getElementById("flocs-customerQuickSearch");
-  const customerSearchClear = document.getElementById("flocs-customerSearchClear");
   const customerProvinceFilter = document.getElementById("flocs-customerProvinceFilter");
   const customerSort = document.getElementById("flocs-customerSort");
   const customerResults  = document.getElementById("flocs-customerResults");
@@ -31,6 +30,9 @@ export function initFlocsView() {
   const customerLast     = document.getElementById("flocs-customerLast");
   const customerEmail    = document.getElementById("flocs-customerEmail");
   const customerPhone    = document.getElementById("flocs-customerPhone");
+  const customerAccountEmail = document.getElementById("flocs-customerAccountEmail");
+  const customerAccountContact = document.getElementById("flocs-customerAccountContact");
+  const customerTier = document.getElementById("flocs-customerTier");
   const customerCompany  = document.getElementById("flocs-customerCompany");
   const customerVat      = document.getElementById("flocs-customerVat");
   const customerPaymentTerms = document.getElementById("flocs-customerPaymentTerms");
@@ -182,7 +184,7 @@ export function initFlocsView() {
     String(p.variantId || p.sku || p.title || "").trim();
 
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
-  const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 48, 50, 100, 250];
+  const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 36, 48, 50, 100, 250];
   const MATRIX_POPCORN_SIZES = ["100ml"];
   const MATRIX_BASE_SIZES = ["200ml", "250ml"];
   const MATRIX_BULK_SIZES = ["500g", "1kg", "750g", "750g Tubs"];
@@ -328,6 +330,7 @@ export function initFlocsView() {
   }
 
   function renderCustomerQuickPicker(customers = []) {
+    if (customerResults) customerResults.hidden = false;
     const filtered = filteredQuickPickCustomers(customers);
 
     if (!filtered.length) {
@@ -770,12 +773,11 @@ export function initFlocsView() {
           const quickButtons = QUICK_QTY.map(
             (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
           ).join("");
-          const sourceButtons = `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="12">Source</button><button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="24">G-box</button>`;
           return `
             <td class="flocs-matrixCell">
               <div class="flocs-matrixSku">${product.sku || ""}</div>
               <div class="flocs-qtyArea">
-                <div class="flocs-qtyQuick">${quickButtons}${sourceButtons}</div>
+                <div class="flocs-qtyQuick">${quickButtons}</div>
                 <div class="flocs-qtyWrap">
                   <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
                   <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
@@ -1474,6 +1476,9 @@ ${state.customer.email || ""}${
     const email = customerEmail?.value?.trim() || "";
     const phone = customerPhone?.value?.trim() || "";
     const company = customerCompany?.value?.trim() || "";
+    const accountEmail = customerAccountEmail?.value?.trim() || "";
+    const accountContact = customerAccountContact?.value?.trim() || "";
+    const tier = customerTier?.value || "";
     const vatNumber = customerVat?.value?.trim() || "";
     const paymentTerms = customerPaymentTerms?.value || "";
     const deliveryInstructions = customerDeliveryNotes?.value?.trim() || "";
@@ -1505,6 +1510,9 @@ ${state.customer.email || ""}${
       email,
       phone,
       company,
+      accountEmail,
+      accountContact,
+      tier,
       vatNumber,
       paymentTerms,
       deliveryInstructions,
@@ -1567,6 +1575,9 @@ ${state.customer.email || ""}${
     if (customerLast) customerLast.value = "";
     if (customerEmail) customerEmail.value = "";
     if (customerPhone) customerPhone.value = "";
+    if (customerAccountEmail) customerAccountEmail.value = "";
+    if (customerAccountContact) customerAccountContact.value = "";
+    if (customerTier) customerTier.value = "";
     if (customerCompany) customerCompany.value = "";
     if (customerVat) customerVat.value = "";
     if (customerPaymentTerms) customerPaymentTerms.value = "";
@@ -2028,6 +2039,18 @@ ${state.customer.email || ""}${
       );
     }
 
+    document.addEventListener("keydown", (e) => {
+      if (!shell || shell.closest("[hidden]")) return;
+      const active = document.activeElement;
+      if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
+      if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
+      if (!customerSearch) return;
+      customerSearch.hidden = true;
+      customerSearch.value = `${customerSearch.value || ""}${e.key}`;
+      searchCustomersDebounced();
+      customerResults.hidden = false;
+    });
+
     if (customerQuickSearch) {
       customerQuickSearch.addEventListener("input", () => {
         renderCustomerQuickPicker(customerResults?._allData || []);
@@ -2264,18 +2287,6 @@ ${state.customer.email || ""}${
         state.azLetters = nextLetters;
         customerSearch.value = nextLetters.join("");
         updateAzBarActive(nextLetters);
-        searchCustomersNow();
-      });
-    }
-
-    if (customerSearchClear && customerSearch) {
-      customerSearchClear.addEventListener("click", () => {
-        customerSearch.value = "";
-        if (customerQuickSearch) customerQuickSearch.value = "";
-        if (customerProvinceFilter) customerProvinceFilter.value = "";
-        if (customerSort) customerSort.value = "name";
-        state.azLetters = [];
-        updateAzBarActive([]);
         searchCustomersNow();
       });
     }

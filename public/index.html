@@ -2091,6 +2091,8 @@
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
+            <button id="navDispatchSettings" class="flNavBtn" type="button" role="tab" aria-controls="viewDispatchSettings" aria-selected="false" data-route="/dispatch-settings" hidden><span class="flNavBtnIcon" aria-hidden="true">⚙️</span><span class="flNavBtnText">Dispatch settings</span></button>
+            <button id="navLogs" class="flNavBtn" type="button" role="tab" aria-controls="viewLogs" aria-selected="false" data-route="/logs" hidden><span class="flNavBtnIcon" aria-hidden="true">🪵</span><span class="flNavBtnText">Logs</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
@@ -2290,7 +2292,15 @@
           <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
         </div>
       </div>
+      <div id="dispatchNotesBar" style="position:sticky;bottom:0;z-index:30;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:.75rem;padding:.55rem;margin-top:.5rem;display:flex;gap:.5rem;align-items:center">
+        <strong style="font-size:.78rem">Dispatch notes</strong>
+        <textarea id="dispatchNotesInput" placeholder="Type notes for dispatch team…" style="flex:1;min-height:48px;max-height:120px;background:#111827;color:#e5e7eb;border:1px solid #475569;border-radius:.5rem;padding:.4rem"></textarea>
+        <button id="dispatchNotesClose" type="button" class="btn btn--compact">Close</button>
+      </div>
     </div>
+
+        <div class="flView" id="viewDispatchSettings" hidden><div class="dashboardShell"><h2>Dispatch settings</h2><p>Hidden admin settings panel.</p></div></div>
+        <div class="flView" id="viewLogs" hidden><div class="dashboardShell"><h2>Logs</h2><p>Hidden admin logs panel.</p><pre id="adminLogsPreview" class="dispatchLog"></pre></div></div>
 
         <div class="flView" id="viewOps" hidden></div>
 
@@ -2859,8 +2869,8 @@ npm run dev</code></pre>
                   <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
                 </div>
                 <div class="flocs-searchRow flocs-searchRow--large">
-                  <input id="flocs-customerSearch" class="flocs-input" type="text" placeholder="Type to search Shopify customers…" autocomplete="off" />
-                  <button id="flocs-customerSearchClear" class="flocs-miniBtn flocs-clearBtn" type="button">Clear</button>
+                  <input id="flocs-customerSearch" class="flocs-input" type="text" placeholder="Type to search Shopify customers…" autocomplete="off" hidden />
+                  <div class="flocs-hint">Start typing anywhere on this page to search customers instantly.</div>
                 </div>
                 <div class="flocs-row" style="margin-top:.4rem">
                   <input id="flocs-customerQuickSearch" class="flocs-input" type="text" placeholder="Quick filter customers in results…" autocomplete="off" />
@@ -2889,6 +2899,21 @@ npm run dev</code></pre>
                   <div class="flocs-row" style="margin-top:.4rem">
                     <input id="flocs-customerEmail" class="flocs-input" type="email" placeholder="Email" />
                     <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerAccountEmail" class="flocs-input" type="email" placeholder="Account email (optional)" />
+                    <input id="flocs-customerAccountContact" class="flocs-input" type="text" placeholder="Account contact (optional)" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <select id="flocs-customerTier" class="flocs-select">
+                      <option value="">Customer tier (optional)</option>
+                      <option value="agent">Agent</option>
+                      <option value="retailer">Retailer</option>
+                      <option value="export">Export</option>
+                      <option value="fkb">FKB</option>
+                      <option value="public">Public</option>
+                    </select>
+                    <div></div>
                   </div>
                   <div class="flocs-row" style="margin-top:.4rem">
                     <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
