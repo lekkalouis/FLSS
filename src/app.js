@@ -8,12 +8,7 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 
 import { config, getFrontendOrigin } from "./config.js";
-import alertsRouter from "./routes/alerts.js";
-import parcelPerfectRouter from "./routes/parcelperfect.js";
-import printnodeRouter from "./routes/printnode.js";
-import shopifyRouter from "./routes/shopify.js";
-import statusRouter from "./routes/status.js";
-import configRouter from "./routes/config.js";
+import { apiRouters } from "./routes/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,25 +24,19 @@ function isPrivateHostname(hostname) {
   return false;
 }
 
-export function createApp() {
-  const app = express();
-  const apiRouter = express.Router();
-
-  app.disable("x-powered-by");
-  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
-  app.use(express.json({ limit: "1mb" }));
-
-  const frontendOrigin = getFrontendOrigin();
+function buildCorsConfig() {
   const allowedOrigins = new Set(
-    String(frontendOrigin || "")
+    String(getFrontendOrigin() || "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean)
   );
   const allowAllOrigins = allowedOrigins.has("*");
 
-  app.use(
-    cors({
+  return {
+    allowAllOrigins,
+    allowedOrigins,
+    middleware: cors({
       origin: (origin, cb) => {
         if (!origin || allowAllOrigins || allowedOrigins.has(origin)) return cb(null, true);
         if (config.NODE_ENV !== "production") {
@@ -65,7 +54,25 @@ export function createApp() {
       credentials: false,
       maxAge: 86400
     })
-  );
+  };
+}
+
+function mountApiRouters(app, basePath = "/api/v1") {
+  const apiRouter = express.Router();
+  apiRouters.forEach(({ router }) => apiRouter.use(router));
+  app.use(basePath, apiRouter);
+  app.use(basePath, (_req, res) => res.status(404).json({ error: "Not found" }));
+}
+
+export function createApp() {
+  const app = express();
+
+  app.disable("x-powered-by");
+  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  app.use(express.json({ limit: "1mb" }));
+
+  const corsConfig = buildCorsConfig();
+  app.use(corsConfig.middleware);
   app.options("*", (_req, res) => res.sendStatus(204));
 
   app.use(
@@ -79,19 +86,15 @@ export function createApp() {
 
   app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
 
-  apiRouter.use(statusRouter);
-  apiRouter.use(configRouter);
-  apiRouter.use(parcelPerfectRouter);
-  apiRouter.use(shopifyRouter);
-  apiRouter.use(printnodeRouter);
-  apiRouter.use(alertsRouter);
-  app.use("/api/v1", apiRouter);
-  app.use("/api/v1", (_req, res) => res.status(404).json({ error: "Not found" }));
+  mountApiRouters(app);
 
   const publicDir = path.join(__dirname, "..", "public");
   app.use(express.static(publicDir));
+  app.get("*", (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
 
-  app.get("*", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
-
-  return { app, allowAllOrigins, allowedOrigins };
+  return {
+    app,
+    allowAllOrigins: corsConfig.allowAllOrigins,
+    allowedOrigins: corsConfig.allowedOrigins
+  };
 }

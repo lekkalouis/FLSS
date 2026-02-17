@@ -232,9 +232,10 @@ Open `http://localhost:3000` for the Scan Station/Dispatch/Docs SPA, `http://loc
 ## Project layout
 
 - `server.js` — entrypoint that boots the Express app.
-- `src/app.js` — middleware + router registration + static hosting.
+- `src/app.js` — middleware orchestration + static hosting bootstrap (uses route manifest).
 - `src/config.js` — environment configuration.
-- `src/routes/` — ParcelPerfect, Shopify, PrintNode, alerts, config, status.
+- `src/routes/index.js` — centralized API router manifest (single place to add/remove backend route modules).
+- `src/routes/` — ParcelPerfect, Shopify, PrintNode, alerts, config, status route modules.
 - `src/services/` — Shopify token handling + SMTP helpers.
 - `public/` — SPA UI (HTML/CSS/JS), route entrypoints, and assets.
 ```
