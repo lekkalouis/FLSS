@@ -111,6 +111,7 @@
         <table class="metaTable">
           <tr><th>Date</th><td><input id="order-date" type="date" /></td></tr>
           <tr><th>Reference</th><td><input id="po-number" type="text" placeholder="PO / Ref" /></td></tr>
+          <tr><th>Payment terms</th><td><input id="payment-terms" type="text" placeholder="Will populate from customer" readonly /></td></tr>
         </table>
       </header>
 
@@ -122,6 +123,9 @@
       <div id="customer-status" class="searchHint">Select a Shopify customer to create a normal order.</div>
       <div id="segment-filters" class="quickSegments"></div>
       <select id="customer-results"></select>
+      <div class="actions" style="margin-top:.4rem">
+        <button id="customer-load-more" type="button">Load more customers</button>
+      </div>
 
       <div class="addrWrap">
         <section class="panel">

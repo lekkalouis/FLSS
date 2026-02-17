@@ -30,6 +30,7 @@ export function initFlocsView() {
   const customerPhone    = document.getElementById("flocs-customerPhone");
   const customerCompany  = document.getElementById("flocs-customerCompany");
   const customerVat      = document.getElementById("flocs-customerVat");
+  const customerPaymentTerms = document.getElementById("flocs-customerPaymentTerms");
   const customerDeliveryNotes = document.getElementById("flocs-customerDeliveryNotes");
   const customerDelivery = document.getElementById("flocs-customerDelivery");
   const customerAddr1    = document.getElementById("flocs-customerAddr1");
@@ -770,6 +771,7 @@ export function initFlocsView() {
       c.email,
       c.phone,
       c.companyName,
+      c.paymentTerms ? `Terms: ${c.paymentTerms}` : null,
       state.priceTier ? `Tier: ${state.priceTier}` : null
     ].filter(Boolean);
 
@@ -857,6 +859,8 @@ ${state.customer.email || ""}${
           state.customer.companyName ? "\n" + state.customer.companyName : ""
         }${
           state.customer.vatNumber ? "\nVAT: " + state.customer.vatNumber : ""
+        }${
+          state.customer.paymentTerms ? "\nTerms: " + state.customer.paymentTerms : ""
         }${
           billAddr ? "\n" + formatAddress(billAddr) : ""
         }`
@@ -1294,7 +1298,7 @@ ${state.customer.email || ""}${
     try {
       const url = `${CONFIG.SHOPIFY.PROXY_BASE}/customers/search?q=${encodeURIComponent(
         q
-      )}`;
+      )}&limit=100`;
       const res = await fetch(url);
       const data = await res.json();
       const list = Array.isArray(data.customers) ? data.customers : [];
@@ -1345,6 +1349,12 @@ ${state.customer.email || ""}${
       return {
         ...customer,
         ...(payload?.metafields || {}),
+        delivery_method: payload?.metafields?.delivery_method || customer.delivery_method || null,
+        deliveryInstructions:
+          payload?.metafields?.delivery_instructions || customer.deliveryInstructions || null,
+        companyName: payload?.metafields?.company_name || customer.companyName || null,
+        vatNumber: payload?.metafields?.vat_number || customer.vatNumber || null,
+        paymentTerms: payload?.metafields?.payment_terms || customer.paymentTerms || null,
         tier: payload?.metafields?.tier || customer.tier || null,
         customFieldsLoaded: true
       };
@@ -1361,6 +1371,7 @@ ${state.customer.email || ""}${
     const phone = customerPhone?.value?.trim() || "";
     const company = customerCompany?.value?.trim() || "";
     const vatNumber = customerVat?.value?.trim() || "";
+    const paymentTerms = customerPaymentTerms?.value || "";
     const deliveryInstructions = customerDeliveryNotes?.value?.trim() || "";
     const deliveryMethod = customerDelivery?.value || "";
     const address1 = customerAddr1?.value?.trim() || "";
@@ -1391,6 +1402,7 @@ ${state.customer.email || ""}${
       phone,
       company,
       vatNumber,
+      paymentTerms,
       deliveryInstructions,
       deliveryMethod,
       address: address1 || address2 || city || province || zip || country
@@ -1453,6 +1465,7 @@ ${state.customer.email || ""}${
     if (customerPhone) customerPhone.value = "";
     if (customerCompany) customerCompany.value = "";
     if (customerVat) customerVat.value = "";
+    if (customerPaymentTerms) customerPaymentTerms.value = "";
     if (customerDeliveryNotes) customerDeliveryNotes.value = "";
     if (customerDelivery) customerDelivery.value = "";
     if (customerAddr1) customerAddr1.value = "";
