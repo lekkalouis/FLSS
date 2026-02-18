@@ -80,7 +80,7 @@
     .customerTile small{display:block;color:#6b7280;margin-top:.2rem}
     .pickerTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem}
     .pickerTools select,.pickerTools input{width:100%;padding:.4rem .45rem;border:1px solid var(--line-strong);border-radius:6px}
-    .receipt{font-family:var(--mono);font-size:.78rem;background:#0f172a;color:#e2e8f0;padding:.5rem;border-radius:6px;white-space:pre-wrap;max-height:180px;overflow:auto}
+    .receipt{display:none}
     [hidden]{display:none !important}
 
     @media(max-width:980px){
@@ -216,14 +216,13 @@
         <div class="row"><span>VAT (15%)</span><strong id="vat-total">R0.00</strong></div>
         <div class="row grand"><span>Pro forma estimate total</span><strong id="grand-total">R0.00</strong></div>
       </div>
-      <div id="receipt" class="receipt">Receipt preview appears as quantities are entered.</div>
-
       <div class="bottomBar">
         <div class="actions" style="align-items:center">
           <div id="order-status" class="status"></div>
           <div id="submit-loader" class="loader" hidden><span class="loaderDot"></span><span>Submitting…</span></div>
         </div>
         <div class="actions">
+          <button id="submit-draft-order" type="button">Create draft order</button>
           <button id="submit-order" class="primary" type="button">Create order</button>
           <button id="print-form" type="button">Print</button>
         </div>

@@ -42,9 +42,9 @@ const els = {
   shippingTotal: $("shipping-total"),
   vatTotal: $("vat-total"),
   grandTotal: $("grand-total"),
-  receipt: $("receipt"),
 
   submitOrder: $("submit-order"),
+  submitDraftOrder: $("submit-draft-order"),
   submitLoader: $("submit-loader"),
   printForm: $("print-form"),
   orderStatus: $("order-status"),
@@ -374,13 +374,11 @@ function scheduleShippingQuote() {
 function renderSummary() {
   const lines = selectedLineItems();
   let subtotal = 0;
-  const receipt = ["Flippen Lekka Order Form", "--------------------------"];
   lines.forEach((line) => {
     const lineTotal = line.quantity * Number(line.price || 0);
     subtotal += lineTotal;
     const lineCell = document.querySelector(`[data-line="${line.sku}"]`);
     if (lineCell) lineCell.textContent = money(lineTotal);
-    receipt.push(`${line.sku} ${line.quantity} x ${money(line.price)} = ${money(lineTotal)}`);
   });
   PRODUCT_LIST.forEach((product) => {
     const qty = Number(state.qtyBySku.get(product.sku) || 0);
@@ -389,15 +387,6 @@ function renderSummary() {
       if (lineCell) lineCell.textContent = money(0);
     }
   });
-
-  const po = els.poNumber.value.trim();
-  const deliveryType = currentDeliveryType();
-  const terms = els.paymentTerms?.value?.trim() || state.selectedCustomer?.paymentTerms || "";
-
-  if (po) receipt.push(`PO: ${po}`);
-  if (deliveryType) receipt.push(`Delivery: ${deliveryType}`);
-  if (terms) receipt.push(`Terms: ${terms}`);
-  receipt.push("--------------------------");
 
   els.selectedCount.textContent = `${lines.length} products selected`;
   const shipping = quotedShippingRounded();
@@ -408,8 +397,6 @@ function renderSummary() {
   els.shippingTotal.textContent = money(shipping);
   els.vatTotal.textContent = money(vat);
   els.grandTotal.textContent = money(grand);
-  receipt.push("--------------------------", `Subtotal: ${money(subtotal)}`, `Shipping est.: ${money(shipping)}`, `VAT 15%: ${money(vat)}`, `EST. TOTAL: ${money(grand)}`);
-  els.receipt.textContent = lines.length ? receipt.join("\n") : "No items selected.";
   renderOrderWeightSummary(lines);
 }
 
@@ -830,24 +817,12 @@ function resolveShippingMethodForCustomer(customer) {
   return "shipping";
 }
 
-async function submitOrder() {
-  const lineItems = selectedLineItems();
-  if (!lineItems.length) {
-    setStatus(els.orderStatus, "Enter quantities for at least one product.", "err");
-    return;
-  }
+function getOrderPayload(customer, lineItems) {
+  const shippingRounded = quotedShippingRounded();
+  const shippingService = state.shippingQuote?.service || "Courier";
+  const estimatedParcels = computeEstimatedParcels(lineItems);
 
-  els.submitOrder.disabled = true;
-  if (els.submitLoader) els.submitLoader.hidden = false;
-  setStatus(els.orderStatus, "Creating draft order...");
-  try {
-    const customer = await createCustomerForOrderIfNeeded();
-
-    const shippingRounded = quotedShippingRounded();
-    const shippingService = state.shippingQuote?.service || "Courier";
-    const estimatedParcels = computeEstimatedParcels(lineItems);
-
-    const payload = {
+  const payload = {
     customerId: customer.id,
     priceTier: els.customerTier?.value || undefined,
     poNumber: els.poNumber.value.trim() || undefined,
@@ -862,29 +837,66 @@ async function submitOrder() {
     lineItems,
     companyName: els.billCompany.value.trim() || undefined,
     vatNumber: els.billVat.value.trim() || undefined,
+    paymentTerms: els.paymentTerms?.value?.trim() || undefined,
     customerTags: customer.tags || ""
-    };
+  };
 
   const shipNotes = els.shipNotes.value.trim();
   if (shipNotes) payload.poNumber = payload.poNumber ? `${payload.poNumber} | ${shipNotes}` : shipNotes;
+  return payload;
+}
 
-    const response = await fetch(`${API_BASE}/draft-orders`, {
+async function submitLiveOrDraft(kind = "live") {
+  const lineItems = selectedLineItems();
+  if (!lineItems.length) {
+    setStatus(els.orderStatus, "Enter quantities for at least one product.", "err");
+    return;
+  }
+
+  const isDraft = kind === "draft";
+  const button = isDraft ? els.submitDraftOrder : els.submitOrder;
+  const originalLabel = button?.textContent || "";
+  if (button) button.disabled = true;
+  if (els.submitLoader) els.submitLoader.hidden = false;
+  setStatus(els.orderStatus, isDraft ? "Creating draft order..." : "Creating order...");
+
+  try {
+    const customer = await createCustomerForOrderIfNeeded();
+    const payload = getOrderPayload(customer, lineItems);
+    const endpoint = isDraft ? `${API_BASE}/draft-orders` : `${API_BASE}/orders`;
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data?.message || data?.error || "Failed to create draft order");
+      throw new Error(data?.message || data?.error || (isDraft ? "Failed to create draft order" : "Failed to create order"));
     }
-    setStatus(els.orderStatus, `Draft order created (${data.draftOrder?.name || data.draftOrder?.id || "OK"}).`, "ok");
+
+    if (isDraft) {
+      setStatus(els.orderStatus, `Draft order created (${data.draftOrder?.name || data.draftOrder?.id || "OK"}).`, "ok");
+    } else {
+      setStatus(els.orderStatus, `Order created (${data.order?.name || data.order?.id || "OK"}).`, "ok");
+    }
   } catch (error) {
     console.error(error);
     setStatus(els.orderStatus, error.message || "Unable to submit order.", "err");
   } finally {
-    els.submitOrder.disabled = false;
+    if (button) {
+      button.disabled = false;
+      if (originalLabel) button.textContent = originalLabel;
+    }
     if (els.submitLoader) els.submitLoader.hidden = true;
   }
+}
+
+async function submitOrder() {
+  await submitLiveOrDraft("live");
+}
+
+async function submitDraftOrder() {
+  await submitLiveOrDraft("draft");
 }
 
 function wireEvents() {
@@ -985,6 +997,7 @@ function wireEvents() {
   });
 
   els.submitOrder.addEventListener("click", submitOrder);
+  els.submitDraftOrder?.addEventListener("click", submitDraftOrder);
   els.customerAccessLoad?.addEventListener("click", loadCustomerByAccessCode);
   els.customerAccessCode?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
