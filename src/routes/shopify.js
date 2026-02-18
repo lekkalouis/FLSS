@@ -233,6 +233,76 @@ async function fetchOrderParcelCount(base, orderId) {
   }
 }
 
+async function upsertOrderParcelMetafield(base, orderId, parcelCount) {
+  const ownerId = `gid://shopify/Order/${orderId}`;
+  const resp = await shopifyFetch(`${base}/graphql.json`, {
+    method: "POST",
+    body: JSON.stringify({
+      query: `
+        mutation SetOrderParcelCount($metafields: [MetafieldsSetInput!]!) {
+          metafieldsSet(metafields: $metafields) {
+            metafields {
+              id
+              namespace
+              key
+              value
+              type
+            }
+            userErrors {
+              field
+              message
+              code
+            }
+          }
+        }
+      `,
+      variables: {
+        metafields: [
+          {
+            ownerId,
+            namespace: ORDER_PARCEL_NAMESPACE,
+            key: ORDER_PARCEL_KEY,
+            type: "number_integer",
+            value: String(parcelCount)
+          }
+        ]
+      }
+    })
+  });
+
+  const payload = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    return {
+      ok: false,
+      status: resp.status,
+      statusText: resp.statusText,
+      body: JSON.stringify(payload)
+    };
+  }
+
+  const topLevelErrors = Array.isArray(payload?.errors) ? payload.errors : [];
+  if (topLevelErrors.length) {
+    return {
+      ok: false,
+      status: 422,
+      statusText: "GRAPHQL_ERRORS",
+      body: JSON.stringify(topLevelErrors)
+    };
+  }
+
+  const userErrors = payload?.data?.metafieldsSet?.userErrors || [];
+  if (Array.isArray(userErrors) && userErrors.length) {
+    return {
+      ok: false,
+      status: 422,
+      statusText: "METAFIELD_USER_ERRORS",
+      body: JSON.stringify(userErrors)
+    };
+  }
+
+  return { ok: true };
+}
+
 async function batchFetchVariantPriceTiers(base, variantIds = []) {
   const uniqueIds = Array.from(
     new Set(
@@ -1799,49 +1869,13 @@ router.post("/shopify/orders/parcel-count", async (req, res) => {
       return badRequest(res, "parcelCount must be a non-negative integer");
     }
 
-    const existing = await fetchOrderParcelMetafield(base, orderId);
-    if (existing?.id) {
-      const updateResp = await shopifyFetch(`${base}/metafields/${existing.id}.json`, {
-        method: "PUT",
-        body: JSON.stringify({
-          metafield: {
-            id: existing.id,
-            type: "number_integer",
-            value: String(parsed)
-          }
-        })
-      });
-      if (!updateResp.ok) {
-        const body = await updateResp.text();
-        return res.status(updateResp.status).json({
-          error: "SHOPIFY_UPSTREAM",
-          status: updateResp.status,
-          statusText: updateResp.statusText,
-          body
-        });
-      }
-      cacheOrderParcelCount(orderId, parsed);
-      return res.json({ ok: true, parcelCount: parsed });
-    }
-
-    const createResp = await shopifyFetch(`${base}/orders/${orderId}/metafields.json`, {
-      method: "POST",
-      body: JSON.stringify({
-        metafield: {
-          namespace: ORDER_PARCEL_NAMESPACE,
-          key: ORDER_PARCEL_KEY,
-          type: "number_integer",
-          value: String(parsed)
-        }
-      })
-    });
-    if (!createResp.ok) {
-      const body = await createResp.text();
-      return res.status(createResp.status).json({
+    const setMetaResult = await upsertOrderParcelMetafield(base, orderId, parsed);
+    if (!setMetaResult.ok) {
+      return res.status(setMetaResult.status).json({
         error: "SHOPIFY_UPSTREAM",
-        status: createResp.status,
-        statusText: createResp.statusText,
-        body
+        status: setMetaResult.status,
+        statusText: setMetaResult.statusText,
+        body: setMetaResult.body
       });
     }
 
