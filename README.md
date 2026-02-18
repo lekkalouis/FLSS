@@ -17,6 +17,15 @@ FLSS is a single-page operations console for Flippen Lekka that runs on a Node/E
 
 ---
 
+
+## Quick project guide
+
+- **Build & run guide**: see `docs/build-guide.md`.
+- **Core features, add-ons, and data model**: see `docs/data-model.md`.
+- **Automated tests**: run `npm test`.
+
+---
+
 ## Architecture
 
 ```mermaid
@@ -226,6 +235,16 @@ npm run dev
 ```
 
 Open `http://localhost:3000` for the Scan Station/Dispatch/Docs SPA, `http://localhost:3000/flocs` for order capture, `http://localhost:3000/order-capture-custom.html` for password-protected custom normal order capture, `http://localhost:3000/stock` for stock take, and `http://localhost:3000/price-manager` for price tier management.
+
+---
+
+## Testing
+
+```bash
+npm test
+```
+
+The test suite includes utility unit tests and API smoke tests for core health/config routes.
 
 ---
 
