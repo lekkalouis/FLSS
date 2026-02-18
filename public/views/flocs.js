@@ -98,7 +98,10 @@ export function initFlocsView() {
     cartonUnits: 12,
     priceOverrides: {},
     priceOverrideEnabled: {},
-    azLetters: []
+    azLetters: [],
+    customers: [],
+    loadingCustomers: false,
+    spaceTapTimes: []
   };
 
   const CUSTOMER_QUICK_PICK_EXCLUDED_SEGMENTS = new Set(["local", "private"]);
@@ -351,16 +354,18 @@ export function initFlocsView() {
       return;
     }
 
+    const selectedId = String(state.customer?.id || "");
     customerResults.innerHTML = filtered
       .map((customer, idx) => {
         const city = customerCityLabel(customer);
         const province = customerProvinceLabel(customer);
         const location = [city, province].filter(Boolean).join(", ") || "Location unavailable";
+        const isActive = selectedId && String(customer?.id || "") === selectedId;
         return `
-        <div class="flocs-customerItem" data-idx="${idx}">
+        <button type="button" class="flocs-customerItem${isActive ? " is-active" : ""}" data-idx="${idx}">
           <strong>${customer.name || "Unnamed"}</strong>
           <div class="flocs-customerItem-meta">${location}</div>
-        </div>
+        </button>
       `;
       })
       .join("");
@@ -1405,54 +1410,83 @@ ${state.customer.email || ""}${
   }
 
   // ===== Shopify calls =====
-  const searchCustomersDebounced = debounce(searchCustomersNow, 1000);
+  const searchCustomersDebounced = debounce(searchCustomersNow, 300);
+
+  async function preloadCustomers() {
+    state.loadingCustomers = true;
+    if (customerStatus) customerStatus.textContent = "Loading customers…";
+    if (customerResults) {
+      customerResults.hidden = false;
+      customerResults.innerHTML = `<div class="flocs-customerEmpty">Loading customers…</div>`;
+    }
+
+    try {
+      const allCustomers = [];
+      let pageInfo = "";
+      do {
+        const params = new URLSearchParams({ limit: "250" });
+        if (pageInfo) params.set("pageInfo", pageInfo);
+        const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers/recent?${params.toString()}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || "Customer preload failed");
+        const list = Array.isArray(data.customers) ? data.customers : [];
+        allCustomers.push(...list);
+        pageInfo = data.nextPageInfo || "";
+      } while (pageInfo);
+
+      state.customers = allCustomers;
+      renderProvinceFilterOptions(state.customers);
+      await searchCustomersNow();
+      if (customerStatus) customerStatus.textContent = `Loaded ${state.customers.length} customers.`;
+    } catch (e) {
+      console.error("Customer preload error:", e);
+      if (customerResults) {
+        customerResults.innerHTML = `<div class="flocs-customerEmpty">Error loading customers: ${String(e?.message || e)}</div>`;
+      }
+      if (customerStatus) customerStatus.textContent = "Error loading customers.";
+    } finally {
+      state.loadingCustomers = false;
+    }
+  }
 
   async function searchCustomersNow() {
-    const q = (customerSearch.value || "").trim();
-    if (!q) {
-      customerResults.hidden = true;
-      customerResults.innerHTML = "";
-      customerResults._data = [];
-      customerResults._allData = [];
-      customerStatus.textContent = "Search by name, email, company, or phone";
+    const q = (customerSearch.value || "").trim().toLowerCase();
+    const source = Array.isArray(state.customers) ? state.customers : [];
+
+    if (state.loadingCustomers) {
+      if (customerStatus) customerStatus.textContent = "Loading customers…";
       return;
     }
 
-    customerStatus.textContent = "Searching…";
-    customerResults.hidden = false;
-    customerResults.innerHTML =
-      `<div class="flocs-customerEmpty">Searching…</div>`;
+    let list = source;
+    if (q) {
+      list = source.filter((customer) => {
+        const haystack = [
+          customer?.name,
+          customer?.email,
+          customer?.companyName,
+          customer?.phone,
+          customerCityLabel(customer),
+          customerProvinceLabel(customer)
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(q);
+      });
+    }
 
-    try {
-      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/customers/search?q=${encodeURIComponent(
-        q
-      )}&limit=100`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const list = Array.isArray(data.customers) ? data.customers : [];
-
-      renderProvinceFilterOptions(list);
-
-      if (!list.length) {
-        customerResults.innerHTML =
-          `<div class="flocs-customerEmpty">No customers found.</div>`;
-        customerResults._data = [];
-        customerResults._allData = [];
-        customerStatus.textContent = "No match yet. Refine search.";
-        return;
-      }
-
-      renderCustomerQuickPicker(list);
-    } catch (e) {
-      console.error("Customer search error:", e);
-      customerResults.innerHTML =
-        `<div class="flocs-customerEmpty">Error searching: ${String(
-          e?.message || e
-        )}</div>`;
+    if (!q && !source.length) {
+      customerResults.hidden = false;
+      customerResults.innerHTML = `<div class="flocs-customerEmpty">No customers loaded yet.</div>`;
       customerResults._data = [];
       customerResults._allData = [];
-      customerStatus.textContent = "Error searching customers.";
+      customerStatus.textContent = "No customers loaded.";
+      return;
     }
+
+    renderProvinceFilterOptions(list.length ? list : source);
+    renderCustomerQuickPicker(list);
   }
 
 
@@ -2042,6 +2076,23 @@ ${state.customer.email || ""}${
     }
   }
 
+  function maybeHandleDoubleSpaceQuickPicker(event) {
+    if (event.key !== " " || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return false;
+    const target = event.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return false;
+    const now = Date.now();
+    state.spaceTapTimes = state.spaceTapTimes.filter((time) => now - time < 450);
+    state.spaceTapTimes.push(now);
+    if (state.spaceTapTimes.length >= 2) {
+      state.spaceTapTimes = [];
+      event.preventDefault();
+      if (customerQuickSearch) customerQuickSearch.focus();
+      if (customerResults) customerResults.hidden = false;
+      return true;
+    }
+    return false;
+  }
+
   // ===== EVENT WIRING =====
   function initEvents() {
     if (customerSearch) {
@@ -2051,6 +2102,7 @@ ${state.customer.email || ""}${
     }
 
     document.addEventListener("keydown", (e) => {
+      if (maybeHandleDoubleSpaceQuickPicker(e)) return;
       if (!shell || shell.closest("[hidden]")) return;
       const active = document.activeElement;
       if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
@@ -2333,6 +2385,7 @@ ${state.customer.email || ""}${
     resetForm();
     hydratePriceTiersForProducts(state.products);
     initEvents();
+    preloadCustomers();
   }
 
   if (document.readyState === "loading") {
