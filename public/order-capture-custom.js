@@ -2,7 +2,7 @@ import { PRODUCT_LIST } from "./views/products.js";
 
 const API_BASE = "/api/v1/shopify";
 const VAT_RATE = 0.15;
-const SEGMENTS = ["all", "agent", "retailer", "export"];
+const QUICK_PICKER_TIERS = ["all", "agent", "retailer", "export", "fkb", "private", "local"];
 const DEFAULT_PAYMENT_TERMS = ["Due on delivery", "7 days", "30 days", "60 days", "90 days"];
 const PAGE_MODE = new URLSearchParams(window.location.search).get("mode") === "standalone" ? "standalone" : "internal";
 
@@ -80,7 +80,7 @@ const els = {
 const state = {
   customers: [],
   visibleCustomers: [],
-  activeSegment: "all",
+  activeTierFilter: "all",
   quickSort: "name",
   quickProvince: "",
   quickSearch: "",
@@ -588,7 +588,7 @@ async function loadCustomerByAccessCode() {
   }
 }
 
-function maybeHandleDoubleSpaceQuickPicker(event) {
+function maybeHandleDoubleSpaceClear(event) {
   if (event.key !== " " || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return false;
   const target = event.target;
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return false;
@@ -598,10 +598,45 @@ function maybeHandleDoubleSpaceQuickPicker(event) {
   if (state.spaceTapTimes.length >= 2) {
     state.spaceTapTimes = [];
     event.preventDefault();
-    openQuickPicker();
+    resetForm({ keepCustomerSearch: true });
     return true;
   }
   return false;
+}
+
+function customerCreatePayload() {
+  const firstName = els.customerFirstName?.value?.trim() || "";
+  const lastName = els.customerLastName?.value?.trim() || "";
+  const email = els.customerEmail?.value?.trim() || "";
+  const phone = els.customerPhone?.value?.trim() || "";
+  const company = els.billCompany?.value?.trim() || "";
+  const paymentTerms = els.paymentTerms?.value?.trim() || "";
+  const tier = els.customerTier?.value || "public";
+  const deliveryMethod = currentDeliveryType();
+  const address = {
+    address1: els.billAddress1?.value?.trim() || "",
+    address2: els.billAddress2?.value?.trim() || "",
+    city: els.billCity?.value?.trim() || "",
+    province: els.billProvince?.value?.trim() || "",
+    zip: els.billZip?.value?.trim() || "",
+    country: "South Africa"
+  };
+  return {
+    firstName,
+    lastName,
+    email,
+    phone,
+    company,
+    tier,
+    paymentTerms: paymentTerms || undefined,
+    deliveryMethod: deliveryMethod || undefined,
+    vatNumber: els.billVat?.value?.trim() || undefined,
+    address
+  };
+}
+
+function canCreateCustomerPayload(payload) {
+  return Boolean(payload.firstName || payload.lastName || payload.email || payload.phone);
 }
 
 async function createCustomerForOrderIfNeeded() {
@@ -609,7 +644,24 @@ async function createCustomerForOrderIfNeeded() {
   if (PAGE_MODE === "standalone") {
     throw new Error("Load your customer profile with your access code first.");
   }
-  throw new Error("Select a customer first.");
+  const payload = customerCreatePayload();
+  if (!canCreateCustomerPayload(payload)) {
+    throw new Error("Enter customer details (name, email, or phone) or select an existing customer.");
+  }
+  setStatus(els.orderStatus, "Creating customer profile...");
+  const response = await fetch(`${API_BASE}/customers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.customer?.id) {
+    throw new Error(data?.message || "Failed to create customer.");
+  }
+  state.customers = mergeCustomers(state.customers, [data.customer]);
+  applySelectedCustomer(data.customer);
+  setStatus(els.customerStatus, `Created customer ${data.customer.name || data.customer.email || data.customer.id}.`, "ok");
+  return data.customer;
 }
 
 function renderCustomerOptions(customers) {
@@ -649,8 +701,8 @@ function customerCity(customer) {
 
 function filteredCustomers() {
   const list = Array.isArray(state.customers) ? state.customers : [];
-  let next = list.filter((customer) => !["online", "private"].includes(customerSegment(customer)));
-  if (state.activeSegment !== "all") next = next.filter((customer) => customerSegment(customer) === state.activeSegment);
+  let next = list.filter((customer) => customerSegment(customer) !== "online");
+  if (state.activeTierFilter !== "all") next = next.filter((customer) => customerSegment(customer) === state.activeTierFilter);
   if (state.quickProvince) {
     next = next.filter((customer) => customerProvince(customer).toLowerCase() === state.quickProvince.toLowerCase());
   }
@@ -673,10 +725,10 @@ function filteredCustomers() {
 }
 
 function renderSegmentControls() {
-  const html = SEGMENTS.map((segment) => {
-    const label = segment === "all" ? "All" : segment[0].toUpperCase() + segment.slice(1);
-    const active = segment === state.activeSegment ? "active" : "";
-    return `<button type="button" class="${active}" data-segment="${segment}">${label}</button>`;
+  const html = QUICK_PICKER_TIERS.map((tier) => {
+    const label = tier === "all" ? "All" : tier[0].toUpperCase() + tier.slice(1);
+    const active = tier === state.activeTierFilter ? "active" : "";
+    return `<button type="button" class="${active}" data-tier-filter="${tier}">${label}</button>`;
   }).join("");
   if (els.quickPickerSegments) els.quickPickerSegments.innerHTML = html;
 }
@@ -954,7 +1006,7 @@ function wireEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (maybeHandleDoubleSpaceQuickPicker(event)) return;
+    if (maybeHandleDoubleSpaceClear(event)) return;
     const active = document.activeElement;
     if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
     if (event.ctrlKey || event.altKey || event.metaKey || event.key.length !== 1) return;
@@ -974,9 +1026,9 @@ function wireEvents() {
   els.quickPickerSegments?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLButtonElement)) return;
-    const segment = target.dataset.segment;
-    if (!segment) return;
-    state.activeSegment = segment;
+    const tier = target.dataset.tierFilter;
+    if (!tier) return;
+    state.activeTierFilter = tier;
     renderSegmentControls();
     renderCustomerOptions(filteredCustomers());
     renderQuickPicker();

@@ -2219,6 +2219,7 @@ router.get("/shopify/orders/open", async (req, res) => {
           shipping_phone: shipping.phone || "",
           shipping_name: shipping.name || customer_name,
           parcel_count: parcelCountFromMeta ?? parcelCountFromTag,
+          parcel_count_from_meta: parcelCountFromMeta,
           parcel_count_from_tag: parcelCountFromTag,
           line_items: (o.line_items || []).map((li) => ({
             title: li.title,
