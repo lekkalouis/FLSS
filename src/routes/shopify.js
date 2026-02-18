@@ -7,6 +7,7 @@ import {
   fetchInventoryItemIdsForVariants,
   fetchInventoryLevelsForItems,
   fetchPrimaryLocationId,
+  fetchVariantBasePrices,
   fetchVariantPriceTiers,
   shopifyFetch,
   setInventoryLevel,
@@ -17,7 +18,8 @@ import { badRequest } from "../utils/http.js";
 import {
   buildPricingHash,
   normalizeCustomerTier,
-  resolveDraftLinePricing,
+  normalizePriceTiers,
+  resolveLinePrice,
   resolvePricingForLines,
   resolveCustomerTier
 } from "../services/pricingResolver.js";
@@ -183,6 +185,65 @@ function buildWholesaleDiscount(lineItems = [], tier = "") {
     amount: total.toFixed(2),
     title: "Wholesale discount"
   };
+}
+
+
+
+function toMoney(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return null;
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
+function createPricingSummaryLine({ sku, variantId, basePrice, targetPrice, discountApplied, priceTier, ruleMatched }) {
+  return {
+    sku: sku || null,
+    variantId: variantId || null,
+    basePrice: toMoney(basePrice),
+    targetPrice: toMoney(targetPrice),
+    discountApplied: toMoney(discountApplied) || 0,
+    priceTier: normalizeCustomerTier(priceTier) || null,
+    ruleMatched: ruleMatched || null
+  };
+}
+
+async function resolveDraftLineTargetPrice({ lineItem, tier, retailPriceMap }) {
+  const variantId = Number(lineItem?.variantId || lineItem?.variant_id);
+  const fallbackRetail = toMoney(lineItem?.retailPrice);
+  const basePrice = Number.isFinite(variantId) ? toMoney(retailPriceMap.get(variantId)) : fallbackRetail;
+  const explicitPrice = toMoney(lineItem?.price);
+
+  if (explicitPrice != null && explicitPrice > 0) {
+    return { targetPrice: explicitPrice, basePrice, ruleMatched: 'payload_price' };
+  }
+
+  const pricing = resolveLinePrice({
+    lineItem: {
+      ...lineItem,
+      retailPrice: basePrice ?? fallbackRetail,
+      product: {
+        retailPrice: basePrice ?? fallbackRetail,
+        price: basePrice ?? fallbackRetail,
+        price_tiers: lineItem?.price_tiers,
+        metafields: lineItem?.metafields
+      }
+    },
+    tier
+  });
+
+  const candidate = toMoney(pricing?.unitPrice);
+  if (candidate != null && candidate > 0) {
+    return { targetPrice: candidate, basePrice, ruleMatched: pricing?.source || 'pricing_resolver' };
+  }
+
+  const parsedTiers = normalizePriceTiers(lineItem?.product || lineItem);
+  const fallbackTier = normalizeCustomerTier(tier) || 'public';
+  const tierMetafieldPrice = toMoney(parsedTiers?.[fallbackTier] ?? parsedTiers?.default ?? parsedTiers?.standard);
+  if (tierMetafieldPrice != null && tierMetafieldPrice > 0) {
+    return { targetPrice: tierMetafieldPrice, basePrice, ruleMatched: 'metafield_tier' };
+  }
+
+  return { targetPrice: basePrice ?? fallbackRetail ?? 0, basePrice: basePrice ?? fallbackRetail ?? 0, ruleMatched: 'base_price_fallback' };
 }
 
 function buildOrderTags({ shippingMethod, customerTags }) {
@@ -1314,18 +1375,96 @@ router.post("/shopify/draft-orders", async (req, res) => {
 
     await ensureCustomerDeliveryType(base, customerId, shippingMethod, customerMetafields);
 
-    const resolvedPricing = resolveDraftLinePricing({
-      cartItems: lineItems,
-      state: { priceTier: tier }
-    });
+    const variantIds = lineItems
+      .map((line) => Number(line?.variantId || line?.variant_id))
+      .filter((id) => Number.isFinite(id));
+    const retailPriceMap = await fetchVariantBasePrices(variantIds);
+
+    const pricingSummary = [];
+    let fallbackUsed = false;
+
+    const resolvedLines = [];
+    for (const lineItem of lineItems) {
+      const quantity = Math.max(1, Math.floor(Number(lineItem?.quantity || 1)));
+      const variantId = Number(lineItem?.variantId || lineItem?.variant_id);
+      const sku = lineItem?.sku || null;
+
+      const { targetPrice, basePrice, ruleMatched } = await resolveDraftLineTargetPrice({
+        lineItem,
+        tier,
+        retailPriceMap
+      });
+
+      const safeBase = toMoney(basePrice);
+      const safeTarget = toMoney(targetPrice);
+
+      if (!Number.isFinite(variantId)) {
+        fallbackUsed = true;
+        resolvedLines.push({
+          title: lineItem?.title || sku || "Custom item",
+          quantity,
+          price: String((safeTarget ?? safeBase ?? 0).toFixed(2))
+        });
+        pricingSummary.push(
+          createPricingSummaryLine({
+            sku,
+            variantId: null,
+            basePrice: safeBase,
+            targetPrice: safeTarget ?? safeBase,
+            discountApplied: 0,
+            priceTier: tier,
+            ruleMatched: "custom_line_item"
+          })
+        );
+        continue;
+      }
+
+      const resolvedLine = {
+        variant_id: variantId,
+        quantity
+      };
+
+      let discountApplied = 0;
+      if (safeBase != null && safeTarget != null && safeTarget < safeBase) {
+        discountApplied = toMoney(safeBase - safeTarget) || 0;
+        resolvedLine.applied_discount = {
+          description: `Tier pricing (${tier})`,
+          value: discountApplied.toFixed(2),
+          value_type: "fixed_amount",
+          amount: discountApplied.toFixed(2)
+        };
+      } else if (safeBase != null && safeTarget != null && safeTarget > safeBase) {
+        fallbackUsed = true;
+        console.warn("Draft order tier target exceeds base price; defaulting to Shopify base price", {
+          variantId,
+          tier,
+          basePrice: safeBase,
+          targetPrice: safeTarget
+        });
+      }
+
+      resolvedLines.push(resolvedLine);
+      pricingSummary.push(
+        createPricingSummaryLine({
+          sku,
+          variantId,
+          basePrice: safeBase,
+          targetPrice: discountApplied > 0 ? safeTarget : safeBase ?? safeTarget,
+          discountApplied,
+          priceTier: tier,
+          ruleMatched
+        })
+      );
+    }
+
     const pricingHash = buildPricingHash({
       tier,
       currency: "ZAR",
-      signatures: resolvedPricing.lineItems.map((line) => ({
-        variant_id: line.variant_id,
-        quantity: line.quantity,
-        resolved_unit_price: Number(line.price || 0),
-        source: line.applied_discount ? "discount_fallback" : "fixed_tier"
+      signatures: pricingSummary.map((line) => ({
+        variant_id: line.variantId,
+        quantity: Math.max(1, Math.floor(Number((lineItems.find((entry) => Number(entry?.variantId || entry?.variant_id) === Number(line.variantId)) || {}).quantity || 1))),
+        resolved_unit_price: line.targetPrice || line.basePrice || 0,
+        source: line.discountApplied > 0 ? "discount_fallback" : line.ruleMatched || "retail"
       }))
     });
 
@@ -1333,6 +1472,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
       shippingMethod,
       customerTags
     });
+    if (tier) orderTags.push(tier);
 
     const draftMetafields = [];
     if (deliveryDate) {
@@ -1363,11 +1503,13 @@ router.post("/shopify/draft-orders", async (req, res) => {
     const payload = {
       draft_order: {
         customer: customerId ? { id: customerId } : undefined,
-        line_items: resolvedPricing.lineItems,
+        line_items: resolvedLines,
         tags: orderTags.join(", "),
         note: poNumber ? `PO: ${poNumber}` : undefined,
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
+          { name: "price_tier", value: tier || "public" },
+          { name: "source", value: "FLSS" },
           { name: "flss_pricing_hash", value: pricingHash }
         ],
         metafields: draftMetafields.length ? draftMetafields : undefined
@@ -1392,7 +1534,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
         error: "SHOPIFY_UPSTREAM",
         status: resp.status,
         statusText: resp.statusText,
-        body: data
+        body: data,
+        pricingSummary
       });
     }
 
@@ -1411,10 +1554,11 @@ router.post("/shopify/draft-orders", async (req, res) => {
       },
       pricing: {
         tier,
-        fallbackUsed: resolvedPricing.fallbackUsed,
+        fallbackUsed,
         hash: pricingHash,
         tierConflict: tierResolution.conflict
-      }
+      },
+      pricingSummary
     });
   } catch (err) {
     console.error("Shopify draft order create error:", err);

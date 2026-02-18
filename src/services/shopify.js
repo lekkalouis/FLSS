@@ -371,6 +371,34 @@ export async function fetchVariantRetailPrices(variantIds = []) {
   return retailPrices;
 }
 
+export async function fetchVariantBasePrices(variantIds = []) {
+  const ids = (variantIds || [])
+    .map((id) => Number(id))
+    .filter((id) => Number.isFinite(id));
+
+  if (!ids.length) return new Map();
+
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const chunks = chunkArray(Array.from(new Set(ids)), 50);
+  const priceMap = new Map();
+
+  for (const chunk of chunks) {
+    const url = `${base}/variants.json?ids=${chunk.join(",")}&fields=id,price`;
+    const resp = await shopifyFetch(url, { method: "GET" });
+    if (!resp.ok) continue;
+    const data = await resp.json();
+    const variants = Array.isArray(data.variants) ? data.variants : [];
+    variants.forEach((variant) => {
+      if (!variant?.id) return;
+      const price = Number(variant.price);
+      if (!Number.isFinite(price)) return;
+      priceMap.set(Number(variant.id), price);
+    });
+  }
+
+  return priceMap;
+}
+
 export async function fetchPrimaryLocationId() {
   const cacheTtlMs = 5 * 60 * 1000;
   if (cachedLocationId && Date.now() - locationFetchedAtMs < cacheTtlMs) {
