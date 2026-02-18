@@ -3856,7 +3856,11 @@ async function startOrder(orderNo) {
       ]);
       const data = ordersRes.ok ? await ordersRes.json() : { orders: [] };
       const shipmentsData = shipmentsRes.ok ? await shipmentsRes.json() : { shipments: [] };
-      dispatchOrdersLatest = data.orders || [];
+      dispatchOrdersLatest = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.orders)
+        ? data.orders
+        : [];
       dispatchShipmentsLatest = shipmentsData.shipments || [];
       renderDispatchBoard(dispatchOrdersLatest);
       updateDashboardKpis();
