@@ -88,11 +88,12 @@ const state = {
   qtyBySku: new Map(),
   nextPageInfo: null,
   lastSearchQuery: "",
-  customerLoadMode: "recent",
+  customerLoadMode: "all",
   shippingQuote: null,
   shippingQuotePending: false,
   deliveryTypeOverride: "",
   spaceTapTimes: [],
+  preloadingCustomers: false,
   paymentTermOptions: [...DEFAULT_PAYMENT_TERMS],
   accessLockedCustomerId: null
 };
@@ -139,9 +140,14 @@ function resolveTierValue(tiers, tier) {
 }
 
 function customerTier(customer) {
-  const selectedTier = String(els.customerTier?.value || "").trim().toLowerCase();
+  const aliases = { retail: "retailer", public: "fkb" };
+  const normalizeTier = (value) => {
+    const raw = String(value || "").trim().toLowerCase();
+    return aliases[raw] || raw;
+  };
+  const selectedTier = normalizeTier(els.customerTier?.value || "");
   if (selectedTier) return selectedTier;
-  const explicit = String(customer?.tier || "").trim().toLowerCase();
+  const explicit = normalizeTier(customer?.tier || "");
   if (explicit) return explicit;
   const tags = parseTags(customer?.tags);
   const tiers = ["agent", "retailer", "retail", "export", "fkb", "public"];
@@ -260,8 +266,8 @@ function computeTotalWeightKg(lineItems = selectedLineItems()) {
 
 function computeEstimatedParcels(lineItems = selectedLineItems()) {
   const totalWeightKg = computeTotalWeightKg(lineItems);
-  const boxes = Math.ceil(totalWeightKg * 0.051 + 0.5);
-  return Math.max(boxes, 0);
+  const boxes = Math.round(totalWeightKg * 0.051);
+  return Math.max(boxes, 1);
 }
 
 function renderOrderWeightSummary(lineItems = selectedLineItems()) {
@@ -582,7 +588,7 @@ async function loadCustomerByAccessCode() {
   }
 }
 
-function maybeHandleDoubleSpaceClear(event) {
+function maybeHandleDoubleSpaceQuickPicker(event) {
   if (event.key !== " " || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return false;
   const target = event.target;
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return false;
@@ -592,7 +598,7 @@ function maybeHandleDoubleSpaceClear(event) {
   if (state.spaceTapTimes.length >= 2) {
     state.spaceTapTimes = [];
     event.preventDefault();
-    resetForm({ keepCustomerSearch: true });
+    openQuickPicker();
     return true;
   }
   return false;
@@ -750,24 +756,38 @@ async function preloadCustomers() {
     setStatus(els.customerStatus, "Enter your access code to load your profile.");
     return;
   }
-  setStatus(els.customerStatus, "Loading recent customers...");
+  state.preloadingCustomers = true;
+  if (els.submitLoader) els.submitLoader.hidden = false;
+  setStatus(els.customerStatus, "Loading all customers...");
   try {
-    const response = await fetch(`${API_BASE}/customers/recent?limit=100`);
-    const data = await response.json();
-    if (!response.ok) throw new Error(data?.message || "Unable to preload customers");
-    state.customerLoadMode = "recent";
+    const allCustomers = [];
+    let pageInfo = "";
+    do {
+      const params = new URLSearchParams({ limit: "250" });
+      if (pageInfo) params.set("pageInfo", pageInfo);
+      const response = await fetch(`${API_BASE}/customers/recent?${params.toString()}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || "Unable to preload customers");
+      const chunk = Array.isArray(data.customers) ? data.customers : [];
+      allCustomers.push(...chunk);
+      pageInfo = data.nextPageInfo || "";
+    } while (pageInfo);
+    state.customerLoadMode = "all";
     state.lastSearchQuery = "";
-    state.nextPageInfo = data.nextPageInfo || null;
-    state.customers = Array.isArray(data.customers) ? data.customers : [];
+    state.nextPageInfo = null;
+    state.customers = mergeCustomers([], allCustomers);
     renderSegmentControls();
     renderProvinceFilterOptions();
     const initial = filteredCustomers();
     renderCustomerOptions(initial);
     renderQuickPicker();
-    setStatus(els.customerStatus, `Loaded ${state.customers.length} recent customer(s).`, "ok");
+    setStatus(els.customerStatus, `Loaded ${state.customers.length} customer(s).`, "ok");
   } catch (error) {
     console.error(error);
-    setStatus(els.customerStatus, "Recent list unavailable. Search by name/email.", "warn");
+    setStatus(els.customerStatus, "Customer preload unavailable. Search by name/email.", "warn");
+  } finally {
+    state.preloadingCustomers = false;
+    if (els.submitLoader) els.submitLoader.hidden = true;
   }
 }
 
@@ -934,7 +954,7 @@ function wireEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (maybeHandleDoubleSpaceClear(event)) return;
+    if (maybeHandleDoubleSpaceQuickPicker(event)) return;
     const active = document.activeElement;
     if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
     if (event.ctrlKey || event.altKey || event.metaKey || event.key.length !== 1) return;
@@ -1013,7 +1033,7 @@ function wireEvents() {
   els.printForm.addEventListener("click", () => window.print());
 }
 
-function boot() {
+async function boot() {
   const today = new Date();
   els.orderDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(
     today.getDate()
@@ -1024,9 +1044,12 @@ function boot() {
   enforceModeUI();
   loadPaymentTermsOptions();
   wireEvents();
-  preloadCustomers();
+  await preloadCustomers();
   hydratePriceTiers();
   renderProvinceFilterOptions();
 }
 
-boot();
+boot().catch((error) => {
+  console.error("Order capture boot failed", error);
+  setStatus(els.customerStatus, "Failed to initialise order form.", "err");
+});
