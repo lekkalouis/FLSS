@@ -3298,9 +3298,13 @@ async function startOrder(orderNo) {
         typeof o.parcel_count_from_tag === "number" && o.parcel_count_from_tag >= 0
           ? o.parcel_count_from_tag
           : null;
-      const parcelCountValue =
+      const parcelCountFromMeta =
         typeof o.parcel_count === "number" && o.parcel_count >= 0
           ? o.parcel_count
+          : null;
+      const parcelCountValue =
+        parcelCountFromMeta != null
+          ? parcelCountFromMeta
           : tagParcelCount ?? fallbackParcelCount ?? "";
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
@@ -3422,7 +3426,10 @@ async function startOrder(orderNo) {
       const data = await resp.json();
       if (orderNo) {
         const order = dispatchOrderCache.get(orderNo);
-        if (order) order.parcel_count = data.parcelCount ?? null;
+        if (order) {
+          order.parcel_count = data.parcelCount ?? null;
+          order.parcel_count_from_meta = data.parcelCount ?? null;
+        }
       }
       return true;
     } catch (err) {
