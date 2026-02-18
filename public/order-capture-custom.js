@@ -3,21 +3,29 @@ import { PRODUCT_LIST } from "./views/products.js";
 const API_BASE = "/api/v1/shopify";
 const VAT_RATE = 0.15;
 const SEGMENTS = ["all", "agent", "retailer", "export"];
+const DEFAULT_PAYMENT_TERMS = ["Due on delivery", "7 days", "30 days", "60 days", "90 days"];
+const PAGE_MODE = new URLSearchParams(window.location.search).get("mode") === "standalone" ? "standalone" : "internal";
 
 const $ = (id) => document.getElementById(id);
 const els = {
   orderDate: $("order-date"),
   poNumber: $("po-number"),
   paymentTerms: $("payment-terms"),
+  orderWeight: $("order-weight"),
+  estimatedParcels: $("estimated-parcels"),
+
+  customerAccessRow: $("customer-access-row"),
+  customerAccessCode: $("customer-access-code"),
+  customerAccessLoad: $("customer-access-load"),
 
   customerSearch: $("customer-search"),
   customerSearchBtn: $("customer-search-btn"),
   quickPickerBtn: $("quick-picker-btn"),
   deliveryTypeSelect: $("delivery-type-select"),
+  customerTier: $("customer-tier"),
+  clearForm: $("clear-form"),
   customerStatus: $("customer-status"),
   customerResults: $("customer-results"),
-  customerLoadMore: $("customer-load-more"),
-  segmentFilters: $("segment-filters"),
 
   quickPicker: $("quick-picker"),
   quickPickerClose: $("quick-picker-close"),
@@ -37,8 +45,14 @@ const els = {
   receipt: $("receipt"),
 
   submitOrder: $("submit-order"),
+  submitLoader: $("submit-loader"),
   printForm: $("print-form"),
   orderStatus: $("order-status"),
+
+  customerFirstName: $("customer-first-name"),
+  customerLastName: $("customer-last-name"),
+  customerEmail: $("customer-email"),
+  customerPhone: $("customer-phone"),
 
   billCompany: $("bill-company"),
   billName: $("bill-name"),
@@ -77,7 +91,10 @@ const state = {
   customerLoadMode: "recent",
   shippingQuote: null,
   shippingQuotePending: false,
-  deliveryTypeOverride: ""
+  deliveryTypeOverride: "",
+  spaceTapTimes: [],
+  paymentTermOptions: [...DEFAULT_PAYMENT_TERMS],
+  accessLockedCustomerId: null
 };
 
 function parseTags(rawTags) {
@@ -122,6 +139,8 @@ function resolveTierValue(tiers, tier) {
 }
 
 function customerTier(customer) {
+  const selectedTier = String(els.customerTier?.value || "").trim().toLowerCase();
+  if (selectedTier) return selectedTier;
   const explicit = String(customer?.tier || "").trim().toLowerCase();
   if (explicit) return explicit;
   const tags = parseTags(customer?.tags);
@@ -181,6 +200,16 @@ function shippingEstimate() {
   return base;
 }
 
+function roundUpToNearestFive(amount) {
+  const value = Number(amount || 0);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.ceil(value / 5) * 5;
+}
+
+function quotedShippingRounded() {
+  return roundUpToNearestFive(shippingEstimate());
+}
+
 function money(v) {
   const n = Number(v || 0);
   return Number.isFinite(n) ? `R${n.toFixed(2)}` : "R0.00";
@@ -218,6 +247,43 @@ function selectedLineItems() {
     price: unitPriceForProduct(product),
     quantity: Number(state.qtyBySku.get(product.sku) || 0)
   }));
+}
+
+function computeTotalWeightKg(lineItems = selectedLineItems()) {
+  const total = lineItems.reduce((sum, line) => {
+    const product = PRODUCT_LIST.find((entry) => entry.sku === line.sku);
+    const unitWeight = Number(product?.weightKg || 0);
+    return sum + unitWeight * Number(line.quantity || 0);
+  }, 0);
+  return total > 0 ? total : 0;
+}
+
+function computeEstimatedParcels(lineItems = selectedLineItems()) {
+  const totalWeightKg = computeTotalWeightKg(lineItems);
+  const boxes = Math.ceil(totalWeightKg * 0.051 + 0.5);
+  return Math.max(boxes, 0);
+}
+
+function renderOrderWeightSummary(lineItems = selectedLineItems()) {
+  const totalWeightKg = computeTotalWeightKg(lineItems);
+  const estimatedParcels = computeEstimatedParcels(lineItems);
+  if (els.orderWeight) els.orderWeight.textContent = `${totalWeightKg.toFixed(2)} kg`;
+  if (els.estimatedParcels) els.estimatedParcels.textContent = String(estimatedParcels);
+}
+
+function updatePaymentTermsOptions(options = state.paymentTermOptions, preferredValue = "") {
+  if (!els.paymentTerms) return;
+  const unique = Array.from(new Set((Array.isArray(options) ? options : []).map((v) => String(v || "").trim()).filter(Boolean)));
+  state.paymentTermOptions = unique.length ? unique : [...DEFAULT_PAYMENT_TERMS];
+  const current = preferredValue || els.paymentTerms.value || "";
+  els.paymentTerms.innerHTML =
+    `<option value="">Payment terms (optional)</option>` +
+    state.paymentTermOptions.map((value) => `<option value="${value}">${value}</option>`).join("");
+  if (current && state.paymentTermOptions.includes(current)) {
+    els.paymentTerms.value = current;
+  } else {
+    els.paymentTerms.value = current || "";
+  }
 }
 
 
@@ -324,8 +390,17 @@ function renderSummary() {
     }
   });
 
+  const po = els.poNumber.value.trim();
+  const deliveryType = currentDeliveryType();
+  const terms = els.paymentTerms?.value?.trim() || state.selectedCustomer?.paymentTerms || "";
+
+  if (po) receipt.push(`PO: ${po}`);
+  if (deliveryType) receipt.push(`Delivery: ${deliveryType}`);
+  if (terms) receipt.push(`Terms: ${terms}`);
+  receipt.push("--------------------------");
+
   els.selectedCount.textContent = `${lines.length} products selected`;
-  const shipping = shippingEstimate();
+  const shipping = quotedShippingRounded();
   const vat = (subtotal + shipping) * VAT_RATE;
   const grand = subtotal + shipping + vat;
   els.orderTotal.textContent = money(subtotal);
@@ -333,10 +408,9 @@ function renderSummary() {
   els.shippingTotal.textContent = money(shipping);
   els.vatTotal.textContent = money(vat);
   els.grandTotal.textContent = money(grand);
-  const terms = state.selectedCustomer?.paymentTerms || "";
   receipt.push("--------------------------", `Subtotal: ${money(subtotal)}`, `Shipping est.: ${money(shipping)}`, `VAT 15%: ${money(vat)}`, `EST. TOTAL: ${money(grand)}`);
-  if (terms) receipt.push(`Terms: ${terms}`);
-  els.receipt.textContent = lines.length ? receipt.join("\n") : "Receipt preview appears as quantities are entered.";
+  els.receipt.textContent = lines.length ? receipt.join("\n") : "No items selected.";
+  renderOrderWeightSummary(lines);
 }
 
 function billingAddressPayload() {
@@ -402,6 +476,10 @@ function applyAddressFields(customer) {
   els.billProvince.value = first.province || "";
   els.billZip.value = first.zip || "";
   els.billPhone.value = customer?.phone || first.phone || "";
+  if (els.customerFirstName) els.customerFirstName.value = first.first_name || "";
+  if (els.customerLastName) els.customerLastName.value = first.last_name || "";
+  if (els.customerEmail) els.customerEmail.value = customer?.email || "";
+  if (els.customerPhone) els.customerPhone.value = customer?.phone || first.phone || "";
 
   els.shipCompany.value = first.company || "";
   els.shipName.value = `${first.first_name || ""} ${first.last_name || ""}`.trim();
@@ -412,14 +490,133 @@ function applyAddressFields(customer) {
   els.shipProvince.value = first.province || "";
   els.shipZip.value = first.zip || "";
   els.shipPhone.value = customer?.phone || first.phone || "";
-  if (els.paymentTerms) {
-    els.paymentTerms.value = customer?.paymentTerms || "";
-  }
+  updatePaymentTermsOptions(state.paymentTermOptions, customer?.paymentTerms || "");
   const preferredDelivery = String(customer?.delivery_type || customer?.delivery_method || "").trim().toLowerCase();
   if (els.deliveryTypeSelect) {
     const normalized = ["shipping", "pickup", "delivery", "local"].includes(preferredDelivery) ? preferredDelivery : "";
     if (!state.deliveryTypeOverride) els.deliveryTypeSelect.value = normalized;
   }
+  if (els.customerTier) {
+    els.customerTier.value = customerTier(customer) || "public";
+  }
+}
+
+function resetForm({ keepCustomerSearch = true } = {}) {
+  state.selectedCustomer = null;
+  state.qtyBySku.clear();
+  state.shippingQuote = null;
+  state.deliveryTypeOverride = "";
+  if (els.customerTier) els.customerTier.value = "public";
+  if (els.deliveryTypeSelect) els.deliveryTypeSelect.value = "";
+  if (els.poNumber) els.poNumber.value = "";
+  updatePaymentTermsOptions(state.paymentTermOptions, "");
+  if (els.billCompany) els.billCompany.value = "";
+  if (els.billName) els.billName.value = "";
+  if (els.billAddress1) els.billAddress1.value = "";
+  if (els.billAddress2) els.billAddress2.value = "";
+  if (els.billSuburb) els.billSuburb.value = "";
+  if (els.billCity) els.billCity.value = "";
+  if (els.billProvince) els.billProvince.value = "";
+  if (els.billZip) els.billZip.value = "";
+  if (els.billPhone) els.billPhone.value = "";
+  if (els.billVat) els.billVat.value = "";
+  if (els.shipCompany) els.shipCompany.value = "";
+  if (els.shipName) els.shipName.value = "";
+  if (els.shipAddress1) els.shipAddress1.value = "";
+  if (els.shipAddress2) els.shipAddress2.value = "";
+  if (els.shipSuburb) els.shipSuburb.value = "";
+  if (els.shipCity) els.shipCity.value = "";
+  if (els.shipProvince) els.shipProvince.value = "";
+  if (els.shipZip) els.shipZip.value = "";
+  if (els.shipPhone) els.shipPhone.value = "";
+  if (els.shipNotes) els.shipNotes.value = "";
+  if (els.customerFirstName) els.customerFirstName.value = "";
+  if (els.customerLastName) els.customerLastName.value = "";
+  if (els.customerEmail) els.customerEmail.value = "";
+  if (els.customerPhone) els.customerPhone.value = "";
+  if (!keepCustomerSearch && els.customerSearch) els.customerSearch.value = "";
+  renderSummary();
+  buildProductTable();
+  setStatus(els.orderStatus, "Form cleared.", "ok");
+  if (els.customerFirstName) els.customerFirstName.focus();
+}
+
+async function loadPaymentTermsOptions() {
+  try {
+    const response = await fetch(`${API_BASE}/payment-terms/options`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Unable to load payment terms options");
+    const options = Array.isArray(data?.options) ? data.options : [];
+    updatePaymentTermsOptions(options, els.paymentTerms?.value || "");
+  } catch {
+    updatePaymentTermsOptions(DEFAULT_PAYMENT_TERMS, els.paymentTerms?.value || "");
+  }
+}
+
+function enforceModeUI() {
+  if (PAGE_MODE === "standalone") {
+    if (els.customerAccessRow) els.customerAccessRow.hidden = false;
+    if (els.quickPickerBtn) els.quickPickerBtn.hidden = true;
+    if (els.customerResults) els.customerResults.hidden = true;
+    if (els.customerSearch) els.customerSearch.hidden = true;
+    setStatus(els.customerStatus, "Enter your access code to load your account.");
+    return;
+  }
+  if (els.customerAccessRow) els.customerAccessRow.hidden = true;
+  if (els.customerResults) els.customerResults.hidden = false;
+}
+
+async function loadCustomerByAccessCode() {
+  const code = String(els.customerAccessCode?.value || "").trim();
+  if (!code) {
+    setStatus(els.customerStatus, "Enter your access code first.", "warn");
+    return;
+  }
+  setStatus(els.customerStatus, "Loading customer profile...");
+  try {
+    const params = new URLSearchParams({ code });
+    const response = await fetch(`${API_BASE}/customers/by-access-code?${params.toString()}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || "Access code lookup failed");
+    const customer = data?.customer || null;
+    if (!customer?.id) throw new Error("No customer linked to this access code.");
+    state.accessLockedCustomerId = String(customer.id);
+    state.customers = mergeCustomers(state.customers, [customer]);
+    applySelectedCustomer(customer);
+    if (els.customerTier) els.customerTier.disabled = true;
+    if (els.customerFirstName) els.customerFirstName.disabled = true;
+    if (els.customerLastName) els.customerLastName.disabled = true;
+    if (els.customerEmail) els.customerEmail.disabled = true;
+    if (els.customerPhone) els.customerPhone.disabled = true;
+    setStatus(els.customerStatus, `Loaded ${customer.name || customer.email || "customer"}.`, "ok");
+  } catch (error) {
+    console.error(error);
+    setStatus(els.customerStatus, error.message || "Unable to load access code.", "err");
+  }
+}
+
+function maybeHandleDoubleSpaceClear(event) {
+  if (event.key !== " " || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return false;
+  const target = event.target;
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return false;
+  const now = Date.now();
+  state.spaceTapTimes = state.spaceTapTimes.filter((time) => now - time < 450);
+  state.spaceTapTimes.push(now);
+  if (state.spaceTapTimes.length >= 2) {
+    state.spaceTapTimes = [];
+    event.preventDefault();
+    resetForm({ keepCustomerSearch: true });
+    return true;
+  }
+  return false;
+}
+
+async function createCustomerForOrderIfNeeded() {
+  if (state.selectedCustomer?.id) return state.selectedCustomer;
+  if (PAGE_MODE === "standalone") {
+    throw new Error("Load your customer profile with your access code first.");
+  }
+  throw new Error("Select a customer first.");
 }
 
 function renderCustomerOptions(customers) {
@@ -427,7 +624,6 @@ function renderCustomerOptions(customers) {
   if (!customers.length) {
     els.customerResults.innerHTML = "";
     state.selectedCustomer = null;
-    if (els.customerLoadMore) els.customerLoadMore.hidden = !state.nextPageInfo;
     return;
   }
   els.customerResults.innerHTML = customers
@@ -436,11 +632,16 @@ function renderCustomerOptions(customers) {
       return `<option value="${index}">${label}</option>`;
     })
     .join("");
-  els.customerResults.value = "0";
-  state.selectedCustomer = customers[0];
-  applyAddressFields(state.selectedCustomer);
+  const selectedId = String(state.selectedCustomer?.id || "");
+  const selectedIndex = customers.findIndex((customer) => String(customer?.id || "") === selectedId);
+  const resolvedIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  els.customerResults.value = String(resolvedIndex);
+  const resolvedCustomer = customers[resolvedIndex];
+  if (!state.selectedCustomer || String(state.selectedCustomer.id || "") !== String(resolvedCustomer?.id || "")) {
+    state.selectedCustomer = resolvedCustomer;
+    applyAddressFields(state.selectedCustomer);
+  }
   renderSummary();
-  if (els.customerLoadMore) els.customerLoadMore.hidden = !state.nextPageInfo;
 }
 
 function customerProvince(customer) {
@@ -484,8 +685,7 @@ function renderSegmentControls() {
     const active = segment === state.activeSegment ? "active" : "";
     return `<button type="button" class="${active}" data-segment="${segment}">${label}</button>`;
   }).join("");
-  els.segmentFilters.innerHTML = html;
-  els.quickPickerSegments.innerHTML = html;
+  if (els.quickPickerSegments) els.quickPickerSegments.innerHTML = html;
 }
 
 function renderQuickPicker() {
@@ -558,49 +758,11 @@ function mergeCustomers(existing = [], incoming = []) {
   return Array.from(map.values());
 }
 
-async function loadMoreCustomers() {
-  if (!state.nextPageInfo) {
-    setStatus(els.customerStatus, "No more customers to load.", "warn");
+async function preloadCustomers() {
+  if (PAGE_MODE === "standalone") {
+    setStatus(els.customerStatus, "Enter your access code to load your profile.");
     return;
   }
-  if (els.customerLoadMore) els.customerLoadMore.disabled = true;
-  try {
-    const params = new URLSearchParams({
-      limit: "100",
-      pageInfo: state.nextPageInfo
-    });
-    if (state.customerLoadMode === "search" && state.lastSearchQuery) {
-      params.set("q", state.lastSearchQuery);
-      const response = await fetch(`${API_BASE}/customers/search?${params.toString()}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.message || "Load more search failed");
-      const more = Array.isArray(data.customers) ? data.customers : [];
-      state.customers = mergeCustomers(state.customers, more);
-      state.nextPageInfo = data.nextPageInfo || null;
-    } else {
-      const response = await fetch(`${API_BASE}/customers/recent?${params.toString()}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.message || "Load more failed");
-      const more = Array.isArray(data.customers) ? data.customers : [];
-      state.customers = mergeCustomers(state.customers, more);
-      state.nextPageInfo = data.nextPageInfo || null;
-    }
-    renderProvinceFilterOptions();
-    renderCustomerOptions(filteredCustomers());
-    renderQuickPicker();
-    setStatus(els.customerStatus, `Loaded ${state.customers.length} customer(s).`, "ok");
-  } catch (error) {
-    console.error(error);
-    setStatus(els.customerStatus, error.message || "Unable to load more customers.", "err");
-  } finally {
-    if (els.customerLoadMore) els.customerLoadMore.disabled = false;
-    if (els.customerLoadMore) {
-      els.customerLoadMore.hidden = !state.nextPageInfo;
-    }
-  }
-}
-
-async function preloadCustomers() {
   setStatus(els.customerStatus, "Loading recent customers...");
   try {
     const response = await fetch(`${API_BASE}/customers/recent?limit=100`);
@@ -608,9 +770,6 @@ async function preloadCustomers() {
     if (!response.ok) throw new Error(data?.message || "Unable to preload customers");
     state.customerLoadMode = "recent";
     state.lastSearchQuery = "";
-    state.nextPageInfo = data.nextPageInfo || null;
-    state.customerLoadMode = "search";
-    state.lastSearchQuery = q;
     state.nextPageInfo = data.nextPageInfo || null;
     state.customers = Array.isArray(data.customers) ? data.customers : [];
     renderSegmentControls();
@@ -673,53 +832,58 @@ function resolveShippingMethodForCustomer(customer) {
 
 async function submitOrder() {
   const lineItems = selectedLineItems();
-  if (!state.selectedCustomer?.id) {
-    setStatus(els.orderStatus, "Select a customer first.", "err");
-    return;
-  }
   if (!lineItems.length) {
     setStatus(els.orderStatus, "Enter quantities for at least one product.", "err");
     return;
   }
 
-  const payload = {
-    customerId: state.selectedCustomer.id,
+  els.submitOrder.disabled = true;
+  if (els.submitLoader) els.submitLoader.hidden = false;
+  setStatus(els.orderStatus, "Creating draft order...");
+  try {
+    const customer = await createCustomerForOrderIfNeeded();
+
+    const shippingRounded = quotedShippingRounded();
+    const shippingService = state.shippingQuote?.service || "Courier";
+    const estimatedParcels = computeEstimatedParcels(lineItems);
+
+    const payload = {
+    customerId: customer.id,
+    priceTier: els.customerTier?.value || undefined,
     poNumber: els.poNumber.value.trim() || undefined,
     deliveryDate: els.orderDate.value || undefined,
     shippingMethod: currentDeliveryType(),
+    shippingPrice: shippingRounded,
+    shippingBaseTotal: shippingRounded,
+    shippingService,
+    estimatedParcels,
     billingAddress: billingAddressPayload(),
     shippingAddress: shippingAddressPayload(),
     lineItems,
     companyName: els.billCompany.value.trim() || undefined,
     vatNumber: els.billVat.value.trim() || undefined,
-    customerTags: state.selectedCustomer.tags || ""
-  };
+    customerTags: customer.tags || ""
+    };
 
   const shipNotes = els.shipNotes.value.trim();
   if (shipNotes) payload.poNumber = payload.poNumber ? `${payload.poNumber} | ${shipNotes}` : shipNotes;
 
-  els.submitOrder.disabled = true;
-  setStatus(els.orderStatus, "Creating normal order...");
-  try {
-    const response = await fetch(`${API_BASE}/orders`, {
+    const response = await fetch(`${API_BASE}/draft-orders`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data?.message || data?.error || "Failed to create order");
+      throw new Error(data?.message || data?.error || "Failed to create draft order");
     }
-    setStatus(
-      els.orderStatus,
-      `Order created (${data.order?.name || data.order?.orderNumber || "OK"}).`,
-      "ok"
-    );
+    setStatus(els.orderStatus, `Draft order created (${data.draftOrder?.name || data.draftOrder?.id || "OK"}).`, "ok");
   } catch (error) {
     console.error(error);
-    setStatus(els.orderStatus, error.message || "Unable to create order.", "err");
+    setStatus(els.orderStatus, error.message || "Unable to submit order.", "err");
   } finally {
     els.submitOrder.disabled = false;
+    if (els.submitLoader) els.submitLoader.hidden = true;
   }
 }
 
@@ -743,7 +907,6 @@ function wireEvents() {
     renderSummary();
     scheduleShippingQuote();
   });
-  els.customerLoadMore?.addEventListener("click", loadMoreCustomers);
   els.customerSearch.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -759,6 +922,7 @@ function wireEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
+    if (maybeHandleDoubleSpaceClear(event)) return;
     const active = document.activeElement;
     if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
     if (event.ctrlKey || event.altKey || event.metaKey || event.key.length !== 1) return;
@@ -775,18 +939,7 @@ function wireEvents() {
     if (customer) applySelectedCustomer(customer);
   });
 
-  els.segmentFilters.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLButtonElement)) return;
-    const segment = target.dataset.segment;
-    if (!segment) return;
-    state.activeSegment = segment;
-    renderSegmentControls();
-    renderCustomerOptions(filteredCustomers());
-    renderQuickPicker();
-  });
-
-  els.quickPickerSegments.addEventListener("click", (event) => {
+  els.quickPickerSegments?.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLButtonElement)) return;
     const segment = target.dataset.segment;
@@ -832,6 +985,18 @@ function wireEvents() {
   });
 
   els.submitOrder.addEventListener("click", submitOrder);
+  els.customerAccessLoad?.addEventListener("click", loadCustomerByAccessCode);
+  els.customerAccessCode?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      loadCustomerByAccessCode();
+    }
+  });
+  els.clearForm?.addEventListener("click", () => resetForm({ keepCustomerSearch: false }));
+  els.customerTier?.addEventListener("change", () => {
+    buildProductTable();
+    renderSummary();
+  });
   els.printForm.addEventListener("click", () => window.print());
 }
 
@@ -843,6 +1008,8 @@ function boot() {
   buildProductTable();
   renderSummary();
   renderSegmentControls();
+  enforceModeUI();
+  loadPaymentTermsOptions();
   wireEvents();
   preloadCustomers();
   hydratePriceTiers();

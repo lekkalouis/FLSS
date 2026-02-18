@@ -22,6 +22,9 @@
     body{margin:0;background:var(--bg);font-family:var(--sans);color:var(--ink);padding:1rem}
     .shell{max-width:1160px;margin:0 auto;display:grid;gap:.8rem}
     .actions{display:flex;gap:.45rem;flex-wrap:wrap}
+    .loader{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;color:#374151}
+    .loaderDot{width:12px;height:12px;border:2px solid #d1d5db;border-top-color:#0f766e;border-radius:999px;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
     button,input,select,textarea{font:inherit}
     button{border:1px solid #d1d5db;border-radius:6px;padding:.45rem .72rem;cursor:pointer;background:#fff}
     button.primary{background:#0f766e;color:#fff;border-color:#0f766e}
@@ -111,18 +114,29 @@
         <table class="metaTable">
           <tr><th>Date</th><td><input id="order-date" type="date" /></td></tr>
           <tr><th>Reference</th><td><input id="po-number" type="text" placeholder="PO / Ref" /></td></tr>
-          <tr><th>Payment terms</th><td><input id="payment-terms" type="text" placeholder="Will populate from customer" readonly /></td></tr>
+          <tr><th>Payment terms</th><td><select id="payment-terms"></select></td></tr>
+          <tr><th>Total weight</th><td id="order-weight">0.00 kg</td></tr>
+          <tr><th>Estimated parcels</th><td id="estimated-parcels">0</td></tr>
         </table>
       </header>
+
+      <div id="customer-access-row" class="searchRow" hidden>
+        <input id="customer-access-code" type="text" placeholder="Enter your access code" autocomplete="off" />
+        <button id="customer-access-load" type="button">Load account</button>
+        <span class="searchHint">Enter your code to load your account details and tier pricing.</span>
+      </div>
 
       <div class="searchRow">
         <input id="customer-search" type="text" placeholder="Search customer by name, company, email, or phone" autocomplete="off" hidden />
         <span class="searchHint">Start typing anywhere to search customers and open quick picker.</span>
-        <button id="quick-picker-btn" type="button">Quick picker</button>
+        <div class="actions" style="justify-content:flex-end">
+          <button id="quick-picker-btn" type="button">Quick picker</button>
+          <button id="clear-form" class="danger" type="button">Clear form</button>
+        </div>
       </div>
-      <div id="customer-status" class="searchHint">Select a Shopify customer to create a normal order.</div>
+      <div id="customer-status" class="searchHint">Select a Shopify customer to capture an order.</div>
       <div class="actions" style="margin:.35rem 0">
-        <label style="display:flex;align-items:center;gap:.45rem">
+        <label style="display:flex;align-items:center;gap:.45rem;margin-left:auto">
           <span class="searchHint" style="font-size:.78rem">Delivery type</span>
           <select id="delivery-type-select">
             <option value="">Use customer preference</option>
@@ -133,16 +147,16 @@
           </select>
         </label>
       </div>
-      <div id="segment-filters" class="quickSegments"></div>
       <select id="customer-results"></select>
-      <div class="actions" style="margin-top:.4rem">
-        <button id="customer-load-more" type="button">Load more customers</button>
-      </div>
 
       <div class="addrWrap">
         <section class="panel">
           <h3>Invoice To (Billing Address)</h3>
           <div class="fields">
+            <label class="span-2">First name<input id="customer-first-name" type="text" autocomplete="given-name" /></label>
+            <label class="span-2">Last name<input id="customer-last-name" type="text" autocomplete="family-name" /></label>
+            <label class="span-2">Email<input id="customer-email" type="email" autocomplete="email" /></label>
+            <label class="span-2">Phone<input id="customer-phone" type="text" autocomplete="tel" /></label>
             <label class="span-3">Company / Consignee<input id="bill-company" type="text" /></label>
             <label class="span-3">Contact name<input id="bill-name" type="text" /></label>
             <label class="span-3">Street address<input id="bill-address1" type="text" /></label>
@@ -153,6 +167,16 @@
             <label class="span-2">Postcode<input id="bill-zip" type="text" /></label>
             <label class="span-2">Tel<input id="bill-phone" type="text" /></label>
             <label class="span-2">VAT Nr<input id="bill-vat" type="text" /></label>
+            <label class="span-2">Customer tier
+              <select id="customer-tier">
+                <option value="public">Public</option>
+                <option value="agent">Agent</option>
+                <option value="retailer">Retailer</option>
+                <option value="export">Export</option>
+                <option value="fkb">FKB</option>
+                <option value="private">Private</option>
+              </select>
+            </label>
           </div>
         </section>
 
@@ -195,7 +219,10 @@
       <div id="receipt" class="receipt">Receipt preview appears as quantities are entered.</div>
 
       <div class="bottomBar">
-        <div id="order-status" class="status"></div>
+        <div class="actions" style="align-items:center">
+          <div id="order-status" class="status"></div>
+          <div id="submit-loader" class="loader" hidden><span class="loaderDot"></span><span>Submitting…</span></div>
+        </div>
         <div class="actions">
           <button id="submit-order" class="primary" type="button">Create order</button>
           <button id="print-form" type="button">Print</button>

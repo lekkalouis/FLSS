@@ -682,6 +682,48 @@ router.get("/shopify/customers/:id/metafields", async (req, res) => {
   }
 });
 
+router.get("/shopify/payment-terms/options", async (_req, res) => {
+  const defaults = ["Due on delivery", "7 days", "30 days", "60 days", "90 days"];
+  return res.json({ options: defaults });
+});
+
+router.get("/shopify/customers/by-access-code", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+    const rawCode = String(req.query.code || "").trim();
+    if (!rawCode) return badRequest(res, "Missing customer access code (?code=...)");
+    const safeCode = rawCode.toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    if (!safeCode) return badRequest(res, "Invalid access code format");
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const searchQuery = `tag:access_code_${safeCode}`;
+    const url = `${base}/customers/search.json?limit=5&query=${encodeURIComponent(searchQuery)}` +
+      `&fields=id,first_name,last_name,email,phone,addresses,default_address,tags,orders_count`;
+    const resp = await shopifyFetch(url, { method: "GET" });
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body
+      });
+    }
+
+    const data = await resp.json();
+    const customers = Array.isArray(data.customers) ? data.customers : [];
+    const customer = customers.map((entry) => normalizeCustomer(entry, {}, { customFieldsLoaded: false })).find(Boolean);
+    if (!customer) {
+      return res.status(404).json({ error: "NOT_FOUND", message: "Access code not found." });
+    }
+
+    return res.json({ ok: true, customer });
+  } catch (err) {
+    console.error("Shopify customer access code lookup error:", err);
+    return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 router.post("/shopify/customers", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
@@ -1353,6 +1395,10 @@ router.post("/shopify/draft-orders", async (req, res) => {
       priceTier,
       poNumber,
       shippingMethod,
+      shippingPrice,
+      shippingBaseTotal,
+      shippingService,
+      estimatedParcels,
       deliveryDate,
       customerTags
     } = req.body || {};
@@ -1499,6 +1545,24 @@ router.post("/shopify/draft-orders", async (req, res) => {
         value: String(customerMetafields.payment_terms)
       });
     }
+    const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
+    if (Number.isFinite(shippingAmount)) {
+      draftMetafields.push({
+        namespace: "custom",
+        key: "shipping_amount",
+        type: "number_decimal",
+        value: String(shippingAmount)
+      });
+    }
+    const estimatedParcelsValue = Number(estimatedParcels);
+    if (Number.isFinite(estimatedParcelsValue)) {
+      draftMetafields.push({
+        namespace: "custom",
+        key: "estimated_parcels",
+        type: "number_integer",
+        value: String(Math.round(estimatedParcelsValue))
+      });
+    }
 
     const payload = {
       draft_order: {
@@ -1515,6 +1579,13 @@ router.post("/shopify/draft-orders", async (req, res) => {
         metafields: draftMetafields.length ? draftMetafields : undefined
       }
     };
+
+    if (Number.isFinite(shippingAmount) && shippingMethod === "shipping") {
+      payload.draft_order.shipping_line = {
+        title: shippingService || "Courier",
+        price: String(shippingAmount)
+      };
+    }
 
     const resp = await shopifyFetch(`${base}/draft_orders.json`, {
       method: "POST",
