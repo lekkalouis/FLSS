@@ -128,25 +128,13 @@
 
       <div class="searchRow">
         <input id="customer-search" type="text" placeholder="Search customer by name, company, email, or phone" autocomplete="off" hidden />
-        <span class="searchHint">Start typing anywhere to search customers and open quick picker.</span>
+        <span class="searchHint">Start typing anywhere to search customers and open quick picker. Double-tap spacebar to clear form.</span>
         <div class="actions" style="justify-content:flex-end">
           <button id="quick-picker-btn" type="button">Quick picker</button>
           <button id="clear-form" class="danger" type="button">Clear form</button>
         </div>
       </div>
       <div id="customer-status" class="searchHint">Select a Shopify customer to capture an order.</div>
-      <div class="actions" style="margin:.35rem 0">
-        <label style="display:flex;align-items:center;gap:.45rem;margin-left:auto">
-          <span class="searchHint" style="font-size:.78rem">Delivery type</span>
-          <select id="delivery-type-select">
-            <option value="">Use customer preference</option>
-            <option value="shipping">Shipping</option>
-            <option value="pickup">Pickup</option>
-            <option value="delivery">Delivery</option>
-            <option value="local">Local</option>
-          </select>
-        </label>
-      </div>
       <select id="customer-results"></select>
 
       <div class="addrWrap">
@@ -175,6 +163,15 @@
                 <option value="export">Export</option>
                 <option value="fkb">FKB</option>
                 <option value="private">Private</option>
+              </select>
+            </label>
+            <label class="span-2">Delivery type
+              <select id="delivery-type-select">
+                <option value="">Use customer preference</option>
+                <option value="shipping">Shipping</option>
+                <option value="pickup">Pickup</option>
+                <option value="delivery">Delivery</option>
+                <option value="local">Local</option>
               </select>
             </label>
           </div>

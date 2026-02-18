@@ -3299,7 +3299,9 @@ async function startOrder(orderNo) {
           ? o.parcel_count_from_tag
           : null;
       const parcelCountFromMeta =
-        typeof o.parcel_count === "number" && o.parcel_count >= 0
+        typeof o.parcel_count_from_meta === "number" && o.parcel_count_from_meta >= 0
+          ? o.parcel_count_from_meta
+          : typeof o.parcel_count === "number" && o.parcel_count >= 0
           ? o.parcel_count
           : null;
       const parcelCountValue =
