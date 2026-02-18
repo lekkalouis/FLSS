@@ -17,9 +17,8 @@ import { badRequest } from "../utils/http.js";
 import {
   buildPricingHash,
   normalizeCustomerTier,
-  resolveDraftLinePricing,
   resolvePricingForLines,
-  resolveCustomerTier
+  resolveCustomerTier as resolvePricingTier
 } from "../services/pricingResolver.js";
 
 const router = Router();
@@ -36,6 +35,97 @@ function normalizeTagList(tags) {
       .filter(Boolean);
   }
   return [];
+}
+
+function normalizeTags(tagsString) {
+  const tags = normalizeTagList(tagsString)
+    .map((tag) => String(tag || "").trim().toLowerCase())
+    .filter(Boolean);
+  return Array.from(new Set(tags));
+}
+
+function resolveCustomerTier(tags) {
+  const normalized = normalizeTags(tags);
+  const tierPriority = ["agent", "retailer", "export", "private", "fkb"];
+  for (const tier of tierPriority) {
+    if (normalized.includes(tier)) return tier;
+  }
+  return null;
+}
+
+async function fetchCustomerTags(base, customerId) {
+  if (!customerId) return [];
+  const customerResp = await shopifyFetch(
+    `${base}/customers/${customerId}.json?fields=id,tags`,
+    { method: "GET" }
+  );
+  if (!customerResp.ok) {
+    const body = await customerResp.text();
+    throw new Error(`Failed to fetch customer tags (${customerResp.status}): ${body}`);
+  }
+  const customerData = await customerResp.json();
+  return normalizeTags(customerData?.customer?.tags || "");
+}
+
+async function getTierPriceForVariant(variantId, tier, variantTierCache) {
+  const key = String(variantId || "").trim();
+  if (!key) return null;
+
+  let tiers = variantTierCache.get(key);
+  if (tiers === undefined) {
+    const tierMeta = await fetchVariantPriceTiers(key);
+    tiers = tierMeta?.value && typeof tierMeta.value === "object" ? tierMeta.value : null;
+    variantTierCache.set(key, tiers);
+  }
+
+  if (!tiers) return null;
+
+  const normalizedTier = String(tier || "").trim().toLowerCase();
+  const candidate =
+    (normalizedTier ? tiers[normalizedTier] : null) ?? tiers.default ?? tiers.standard ?? null;
+  const numeric = Number(candidate);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+async function resolveServerPricedLineItems({ lineItems, tier, allowOverrides = false }) {
+  const variantTierCache = new Map();
+  const resolvedLines = [];
+  let usedManualOverride = false;
+
+  for (const li of Array.isArray(lineItems) ? lineItems : []) {
+    const quantity = Math.max(1, Math.floor(Number(li?.quantity || 1)));
+    const variantId = li?.variantId || li?.variant_id || null;
+
+    if (!variantId) {
+      const customLine = {
+        title: li?.title || li?.sku || "Custom item",
+        quantity
+      };
+      if (li?.sku) customLine.sku = li.sku;
+      if (li?.price != null) customLine.price = String(li.price);
+      resolvedLines.push(customLine);
+      continue;
+    }
+
+    const overridePrice = Number(li?.price);
+    const canUseOverride = allowOverrides && Number.isFinite(overridePrice);
+    const tierPrice = canUseOverride ? overridePrice : await getTierPriceForVariant(variantId, tier, variantTierCache);
+
+    const line = {
+      variant_id: variantId,
+      quantity,
+      unitPrice: tierPrice
+    };
+    if (li?.sku) line.sku = li.sku;
+
+    if (canUseOverride) usedManualOverride = true;
+    resolvedLines.push(line);
+  }
+
+  return {
+    lineItems: resolvedLines,
+    pricingSource: usedManualOverride ? "manual_override" : "server_tier"
+  };
 }
 
 function requireShopifyConfigured(res) {
@@ -1190,7 +1280,7 @@ async function reconcileDraftOrderPricing({ base, draftOrderId, tierDiscounts = 
   const customerId = draftOrder?.customer?.id;
   const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
   const customerTags = normalizeTagList(draftOrder?.customer?.tags || "");
-  const tierResolution = resolveCustomerTier({
+  const tierResolution = resolvePricingTier({
     customerTier: customerMetafields?.tier,
     customerTags,
     defaultTier: "public"
@@ -1305,28 +1395,45 @@ router.post("/shopify/draft-orders", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
-    const tierResolution = resolveCustomerTier({
-      customerTier: customerMetafields?.tier || priceTier,
-      customerTags: normalizeTagList(customerTags),
-      defaultTier: "public"
-    });
-    const tier = tierResolution.tier;
+    const requestCustomerTags = normalizeTags(customerTags);
+    const shopifyCustomerTags = await fetchCustomerTags(base, customerId);
+    const resolvedTier =
+      resolveCustomerTier(shopifyCustomerTags) ||
+      normalizeCustomerTier(customerMetafields?.tier || priceTier) ||
+      resolveCustomerTier(requestCustomerTags) ||
+      "default";
 
     await ensureCustomerDeliveryType(base, customerId, shippingMethod, customerMetafields);
 
-    const resolvedPricing = resolveDraftLinePricing({
-      cartItems: lineItems,
-      state: { priceTier: tier }
+    const allowOverrides = req.body?.allowOverrides === true;
+    const resolvedPricing = await resolveServerPricedLineItems({
+      lineItems,
+      tier: resolvedTier,
+      allowOverrides
     });
-    const pricingHash = buildPricingHash({
-      tier,
-      currency: "ZAR",
-      signatures: resolvedPricing.lineItems.map((line) => ({
+    const draftLineItems = resolvedPricing.lineItems.map((line) => {
+      if (!line?.variant_id) return line;
+      const payloadLine = {
         variant_id: line.variant_id,
-        quantity: line.quantity,
-        resolved_unit_price: Number(line.price || 0),
-        source: line.applied_discount ? "discount_fallback" : "fixed_tier"
-      }))
+        quantity: line.quantity
+      };
+      if (line.unitPrice != null) {
+        payloadLine.original_unit_price = String(line.unitPrice);
+      }
+      return payloadLine;
+    });
+
+    const pricingHash = buildPricingHash({
+      tier: resolvedTier === "default" ? "public" : resolvedTier,
+      currency: "ZAR",
+      signatures: resolvedPricing.lineItems
+        .filter((line) => line?.variant_id)
+        .map((line) => ({
+          variant_id: line.variant_id,
+          quantity: line.quantity,
+          resolved_unit_price: Number(line.unitPrice || 0),
+          source: resolvedPricing.pricingSource === "manual_override" ? "override" : "fixed_tier"
+        }))
     });
 
     const orderTags = buildOrderTags({
@@ -1363,12 +1470,14 @@ router.post("/shopify/draft-orders", async (req, res) => {
     const payload = {
       draft_order: {
         customer: customerId ? { id: customerId } : undefined,
-        line_items: resolvedPricing.lineItems,
+        line_items: draftLineItems,
         tags: orderTags.join(", "),
         note: poNumber ? `PO: ${poNumber}` : undefined,
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
-          { name: "flss_pricing_hash", value: pricingHash }
+          { name: "flss_pricing_hash", value: pricingHash },
+          { name: "pricing_tier", value: String(resolvedTier || "default") },
+          { name: "pricing_source", value: resolvedPricing.pricingSource }
         ],
         metafields: draftMetafields.length ? draftMetafields : undefined
       }
@@ -1410,10 +1519,10 @@ router.post("/shopify/draft-orders", async (req, res) => {
         adminUrl
       },
       pricing: {
-        tier,
-        fallbackUsed: resolvedPricing.fallbackUsed,
+        tier: resolvedTier,
         hash: pricingHash,
-        tierConflict: tierResolution.conflict
+        source: resolvedPricing.pricingSource,
+        allowOverrides
       }
     });
   } catch (err) {
@@ -1428,7 +1537,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
 router.post("/pricing/resolve", async (req, res) => {
   try {
     const { customerTier, customerTags, variantLines, tierDiscounts, currency } = req.body || {};
-    const tierResolution = resolveCustomerTier({
+    const tierResolution = resolvePricingTier({
       customerTier,
       customerTags: normalizeTagList(customerTags),
       defaultTier: "public"
@@ -1535,7 +1644,9 @@ router.post("/shopify/orders", async (req, res) => {
       billingAddress,
       shippingAddress,
       lineItems,
-      customerTags
+      customerTags,
+      priceTier,
+      allowOverrides
     } = req.body || {};
 
     if (!customerId) {
@@ -1547,6 +1658,18 @@ router.post("/shopify/orders", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
+    const requestCustomerTags = normalizeTags(customerTags);
+    const shopifyCustomerTags = await fetchCustomerTags(base, customerId);
+    const resolvedTier =
+      resolveCustomerTier(shopifyCustomerTags) ||
+      normalizeCustomerTier(customerMetafields?.tier || priceTier) ||
+      resolveCustomerTier(requestCustomerTags) ||
+      "default";
+    const resolvedPricing = await resolveServerPricedLineItems({
+      lineItems,
+      tier: resolvedTier,
+      allowOverrides: allowOverrides === true
+    });
     await ensureCustomerDeliveryType(base, customerId, shippingMethod, customerMetafields);
 
     const noteParts = [];
@@ -1617,18 +1740,20 @@ router.post("/shopify/orders", async (req, res) => {
       order: {
         customer: { id: customerId },
         note: noteParts.join(" | "),
-        line_items: lineItems.map((li) => {
+        line_items: resolvedPricing.lineItems.map((li) => {
           const entry = {
             quantity: li.quantity || 1
           };
-          if (li.variantId) {
-            entry.variant_id = li.variantId;
+          if (li.variant_id) {
+            entry.variant_id = li.variant_id;
+            if (li.unitPrice != null) {
+              entry.price = String(li.unitPrice);
+            }
           } else {
             entry.title = li.title || li.sku || "Custom item";
             if (li.price != null) entry.price = String(li.price);
           }
           if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
           return entry;
         }),
         billing_address: billingAddress || undefined,
@@ -1637,7 +1762,9 @@ router.post("/shopify/orders", async (req, res) => {
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
           ...(shippingQuoteNo
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
-            : [])
+            : []),
+          { name: "pricing_tier", value: String(resolvedTier || "default") },
+          { name: "pricing_source", value: resolvedPricing.pricingSource }
         ],
         metafields: metafields.length ? metafields : undefined,
         financial_status: "pending"
@@ -1661,6 +1788,7 @@ router.post("/shopify/orders", async (req, res) => {
       ];
     }
 
+    // TODO: If Shopify ever reverts direct order variant prices in Admin, route these through Draft Order -> complete.
     const resp = await shopifyFetch(`${base}/orders.json`, {
       method: "POST",
       body: JSON.stringify(orderPayload)
@@ -1713,18 +1841,20 @@ router.post("/shopify/orders/cash", async (req, res) => {
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const orderPayload = {
       order: {
-        line_items: lineItems.map((li) => {
+        line_items: resolvedPricing.lineItems.map((li) => {
           const entry = {
             quantity: li.quantity || 1
           };
-          if (li.variantId) {
-            entry.variant_id = li.variantId;
+          if (li.variant_id) {
+            entry.variant_id = li.variant_id;
+            if (li.unitPrice != null) {
+              entry.price = String(li.unitPrice);
+            }
           } else {
             entry.title = li.title || li.sku || "Custom item";
             if (li.price != null) entry.price = String(li.price);
           }
           if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
           return entry;
         }),
         financial_status: "paid",
@@ -1736,6 +1866,7 @@ router.post("/shopify/orders/cash", async (req, res) => {
       }
     };
 
+    // TODO: If Shopify ever reverts direct order variant prices in Admin, route these through Draft Order -> complete.
     const resp = await shopifyFetch(`${base}/orders.json`, {
       method: "POST",
       body: JSON.stringify(orderPayload)
