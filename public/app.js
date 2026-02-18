@@ -99,6 +99,9 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
+  const docsTopics = $("docsTopics");
+  const docsContent = $("docsContent");
+  const docsSubnav = $("docsSubnav");
   const viewFlowcharts = $("viewFlowcharts");
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
@@ -4061,9 +4064,196 @@ async function startOrder(orderNo) {
     logs: "/logs"
   };
 
+  const docsState = {
+    initialized: false,
+    loadingTopic: false,
+    topics: [],
+    activeSlug: null,
+    markdownCache: new Map()
+  };
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function renderInlineMarkdown(line) {
+    return escapeHtml(line).replace(/`([^`]+)`/g, "<code>$1</code>");
+  }
+
+  function markdownToHtml(markdown) {
+    const lines = String(markdown || "").split(/\r?\n/);
+    const html = [];
+    let inCode = false;
+    let inList = false;
+
+    const closeList = () => {
+      if (inList) {
+        html.push("</ul>");
+        inList = false;
+      }
+    };
+
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd();
+
+      if (line.startsWith("```")) {
+        closeList();
+        if (!inCode) {
+          inCode = true;
+          html.push("<pre><code>");
+        } else {
+          inCode = false;
+          html.push("</code></pre>");
+        }
+        continue;
+      }
+
+      if (inCode) {
+        html.push(`${escapeHtml(rawLine)}\n`);
+        continue;
+      }
+
+      if (!line) {
+        closeList();
+        continue;
+      }
+
+      const heading = line.match(/^(#{1,6})\s+(.+)$/);
+      if (heading) {
+        closeList();
+        const level = Math.min(heading[1].length, 3);
+        html.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
+        continue;
+      }
+
+      if (/^[-*]\s+/.test(line)) {
+        if (!inList) {
+          inList = true;
+          html.push("<ul>");
+        }
+        html.push(`<li>${renderInlineMarkdown(line.replace(/^[-*]\s+/, ""))}</li>`);
+        continue;
+      }
+
+      closeList();
+      html.push(`<p>${renderInlineMarkdown(line)}</p>`);
+    }
+
+    closeList();
+    if (inCode) html.push("</code></pre>");
+    return html.join("\n");
+  }
+
+  function slugFromTitle(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  function buildDocsSubnav() {
+    if (!docsSubnav || !docsContent) return;
+    const headings = Array.from(docsContent.querySelectorAll("h1, h2, h3"));
+    if (!headings.length) {
+      docsSubnav.innerHTML = '<p class="docsEmpty">No section headings for this document.</p>';
+      return;
+    }
+
+    docsSubnav.innerHTML = '<h4 class="docsSubnavTitle">On this page</h4>';
+    headings.forEach((heading, idx) => {
+      const id = `${slugFromTitle(heading.textContent)}-${idx}`;
+      heading.id = id;
+      const link = document.createElement("a");
+      link.href = `#${id}`;
+      link.textContent = heading.textContent || `Section ${idx + 1}`;
+      docsSubnav.appendChild(link);
+    });
+  }
+
+  function renderDocsTopics() {
+    if (!docsTopics) return;
+    docsTopics.innerHTML = "";
+    docsState.topics.forEach((topic) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "docsTopicBtn";
+      if (topic.slug === docsState.activeSlug) btn.classList.add("docsTopicBtn--active");
+      btn.dataset.slug = topic.slug;
+      btn.innerHTML = `${escapeHtml(topic.title)}<small>${escapeHtml(topic.description || "")}</small>`;
+      btn.addEventListener("click", () => loadDocsTopic(topic.slug));
+      docsTopics.appendChild(btn);
+    });
+  }
+
+  async function loadDocsTopic(slug) {
+    if (!slug || docsState.loadingTopic || !docsContent) return;
+    docsState.loadingTopic = true;
+    docsState.activeSlug = slug;
+    renderDocsTopics();
+    docsContent.innerHTML = '<p class="docsEmpty">Loading document…</p>';
+
+    try {
+      let markdown = docsState.markdownCache.get(slug);
+      if (!markdown) {
+        const res = await fetch(`${API_BASE}/docs/${encodeURIComponent(slug)}`, {
+          headers: { Accept: "application/json" }
+        });
+        if (!res.ok) throw new Error(`Document fetch failed: ${res.status}`);
+        const payload = await res.json();
+        markdown = String(payload.markdown || "");
+        docsState.markdownCache.set(slug, markdown);
+      }
+
+      docsContent.innerHTML = markdownToHtml(markdown);
+      buildDocsSubnav();
+    } catch (error) {
+      docsContent.innerHTML = `<p class="docsEmpty">${escapeHtml(error.message || "Unable to load document")}</p>`;
+      if (docsSubnav) docsSubnav.innerHTML = '<p class="docsEmpty">Unable to build sub-navigation.</p>';
+    } finally {
+      docsState.loadingTopic = false;
+      renderDocsTopics();
+    }
+  }
+
+  async function initDocsView() {
+    if (docsState.initialized) return;
+    docsState.initialized = true;
+
+    if (docsTopics) {
+      docsTopics.innerHTML = '<p class="docsEmpty">Loading docs topics…</p>';
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/docs`, { headers: { Accept: "application/json" } });
+      if (!res.ok) throw new Error(`Docs index fetch failed: ${res.status}`);
+      const payload = await res.json();
+      docsState.topics = Array.isArray(payload.topics) ? payload.topics : [];
+
+      if (!docsState.topics.length) {
+        if (docsTopics) docsTopics.innerHTML = '<p class="docsEmpty">No docs were found.</p>';
+        if (docsContent) docsContent.innerHTML = '<p class="docsEmpty">No docs content available.</p>';
+        if (docsSubnav) docsSubnav.innerHTML = '<p class="docsEmpty">No section headings available.</p>';
+        return;
+      }
+
+      const defaultSlug = docsState.topics[0].slug;
+      await loadDocsTopic(defaultSlug);
+    } catch (error) {
+      if (docsTopics) docsTopics.innerHTML = `<p class="docsEmpty">${escapeHtml(error.message || "Failed to load docs")}</p>`;
+      if (docsContent) docsContent.innerHTML = '<p class="docsEmpty">Documentation is currently unavailable.</p>';
+      if (docsSubnav) docsSubnav.innerHTML = '<p class="docsEmpty">Sub-navigation unavailable.</p>';
+    }
+  }
+
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
+    docs: initDocsView,
     "price-manager": initPriceManagerView
   };
 
