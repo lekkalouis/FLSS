@@ -202,16 +202,21 @@ function buildOrderTags({ shippingMethod, customerTags }) {
   return Array.from(new Set(orderTags));
 }
 
+function selectOrderParcelMetafield(metafields = []) {
+  if (!Array.isArray(metafields) || !metafields.length) return null;
+  const matching = metafields.filter((mf) => mf?.key === ORDER_PARCEL_KEY);
+  if (!matching.length) return null;
+  return matching.find((mf) => mf?.namespace === ORDER_PARCEL_NAMESPACE) || matching[0] || null;
+}
+
 async function fetchOrderParcelMetafield(base, orderId) {
   if (!orderId) return null;
-  const metaUrl = `${base}/orders/${orderId}/metafields.json?namespace=${ORDER_PARCEL_NAMESPACE}&key=${ORDER_PARCEL_KEY}`;
+  const metaUrl = `${base}/orders/${orderId}/metafields.json`;
   const metaResp = await shopifyFetch(metaUrl, { method: "GET" });
   if (!metaResp.ok) return null;
   const metaData = await metaResp.json();
   const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
-  return metafields.find(
-    (mf) => mf.namespace === ORDER_PARCEL_NAMESPACE && mf.key === ORDER_PARCEL_KEY
-  ) || null;
+  return selectOrderParcelMetafield(metafields);
 }
 
 async function fetchOrderParcelCount(base, orderId) {
@@ -413,11 +418,11 @@ async function batchFetchOrderParcelCounts(base, orderIds = []) {
     nodes.forEach((node) => {
       const orderId = String(node?.id || "").split("/").pop();
       const raw = node?.metafield?.value;
-      if (!orderId) return;
+      if (!orderId || raw == null) return;
       const parsed = Number(raw);
-      const normalized = Number.isFinite(parsed) ? parsed : null;
-      parcelCountMap.set(orderId, normalized);
-      cacheOrderParcelCount(orderId, normalized);
+      if (!Number.isFinite(parsed)) return;
+      parcelCountMap.set(orderId, parsed);
+      cacheOrderParcelCount(orderId, parsed);
     });
   }
 
@@ -1939,10 +1944,8 @@ router.get("/shopify/orders/open", async (req, res) => {
     }
 
     const filteredOrders = ordersRaw.filter((o) => !o.cancelled_at);
-    const orderIdsMissingTagCount = filteredOrders
-      .filter((o) => parseParcelCountFromTags(o.tags) == null)
-      .map((o) => o.id);
-    const parcelCountMap = await batchFetchOrderParcelCounts(base, orderIdsMissingTagCount);
+    const orderIds = filteredOrders.map((o) => o.id);
+    const parcelCountMap = await batchFetchOrderParcelCounts(base, orderIds);
 
     const orders = filteredOrders.map((o) => {
         const shipping = o.shipping_address || {};
