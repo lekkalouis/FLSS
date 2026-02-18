@@ -139,14 +139,12 @@ function resolveTierValue(tiers, tier) {
   return null;
 }
 
-function customerTier(customer) {
+function inferCustomerTier(customer) {
   const aliases = { retail: "retailer", public: "fkb" };
   const normalizeTier = (value) => {
     const raw = String(value || "").trim().toLowerCase();
     return aliases[raw] || raw;
   };
-  const selectedTier = normalizeTier(els.customerTier?.value || "");
-  if (selectedTier) return selectedTier;
   const explicit = normalizeTier(customer?.tier || "");
   if (explicit) return explicit;
   const tags = parseTags(customer?.tags);
@@ -154,9 +152,20 @@ function customerTier(customer) {
   return tiers.find((tag) => tags.includes(tag)) || null;
 }
 
+function selectedOrInferredCustomerTier(customer) {
+  const aliases = { retail: "retailer", public: "fkb" };
+  const normalizeTier = (value) => {
+    const raw = String(value || "").trim().toLowerCase();
+    return aliases[raw] || raw;
+  };
+  const selectedTier = normalizeTier(els.customerTier?.value || "");
+  if (selectedTier) return selectedTier;
+  return inferCustomerTier(customer);
+}
+
 function unitPriceForProduct(product) {
   const tiers = normalizePriceTiers(product);
-  const tier = customerTier(state.selectedCustomer);
+  const tier = selectedOrInferredCustomerTier(state.selectedCustomer);
   if (tiers && tier) {
     const tierValue = resolveTierValue(tiers, tier);
     if (tierValue != null) return tierValue;
@@ -490,7 +499,7 @@ function applyAddressFields(customer) {
     if (!state.deliveryTypeOverride) els.deliveryTypeSelect.value = normalized;
   }
   if (els.customerTier) {
-    els.customerTier.value = customerTier(customer) || "public";
+    els.customerTier.value = inferCustomerTier(customer) || "public";
   }
 }
 
