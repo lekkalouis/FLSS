@@ -1762,6 +1762,12 @@ router.post("/shopify/orders", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
+    const tierResolution = resolveCustomerTier({
+      customerTier: customerMetafields?.tier || null,
+      customerTags: normalizeTagList(customerTags),
+      defaultTier: "public"
+    });
+    const tier = tierResolution.tier;
     await ensureCustomerDeliveryType(base, customerId, shippingMethod, customerMetafields);
 
     const noteParts = [];
@@ -1852,7 +1858,9 @@ router.post("/shopify/orders", async (req, res) => {
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
           ...(shippingQuoteNo
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
-            : [])
+            : []),
+          { name: "price_tier", value: tier || "public" },
+          { name: "source", value: "FLSS" }
         ],
         metafields: metafields.length ? metafields : undefined,
         financial_status: "pending"
@@ -1863,6 +1871,7 @@ router.post("/shopify/orders", async (req, res) => {
       shippingMethod,
       customerTags
     });
+    if (tier) orderTags.push(tier);
     if (orderTags.length) {
       orderPayload.order.tags = orderTags.join(", ");
     }
