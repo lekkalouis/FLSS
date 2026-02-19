@@ -192,6 +192,15 @@ import { initPriceManagerView } from "./views/price-manager.js";
       tag: "Module"
     },
     {
+      id: "shipping-matrix",
+      title: "Shipping Matrix",
+      description: "Simulate South African shipping costs by centre and weight.",
+      type: "link",
+      target: "/shipping-matrix.html",
+      meta: "ParcelPerfect quote matrix",
+      tag: "Module"
+    },
+    {
       id: "custom-order-capture",
       title: "Custom Order Capture",
       description: "Password-protected local custom normal order entry.",

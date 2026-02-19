@@ -97,6 +97,7 @@ The server uses Shopify OAuth client credentials (Admin API) with token caching 
 
 - `/api/v1/pp` sends booking/quote requests as form-encoded payloads.
 - `/api/v1/pp/place` performs place lookups by name or postcode.
+- `/api/v1/pp/matrix` builds a shipping cost matrix for provided weights and destination major/regional centres (or defaults to built-in South African major/regional centres).
 
 ### PrintNode proxy
 
@@ -158,6 +159,7 @@ All endpoints are available under `http://localhost:3000/api/v1` by default.
 
 - `POST /pp` — booking/quote proxy.
 - `GET /pp/place?q=...` — place lookup.
+- `POST /pp/matrix` — simulate quote matrix by weight and destination place (`centreType`: `all|major|regional`, defaults to `all`).
 
 ### PrintNode
 
@@ -234,7 +236,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` for the Scan Station/Dispatch/Docs SPA, `http://localhost:3000/flocs` for order capture, `http://localhost:3000/order-capture-custom.html` for password-protected custom normal order capture, `http://localhost:3000/stock` for stock take, and `http://localhost:3000/price-manager` for price tier management.
+Open `http://localhost:3000` for the Scan Station/Dispatch/Docs SPA, `http://localhost:3000/flocs` for order capture, `http://localhost:3000/shipping-matrix.html` for shipping matrix simulation, `http://localhost:3000/order-capture-custom.html` for password-protected custom normal order capture, `http://localhost:3000/stock` for stock take, and `http://localhost:3000/price-manager` for price tier management.
 
 ---
 
