@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shipping Matrix | FLSS</title>
+    <style>
+      :root { font-family: Inter, system-ui, -apple-system, sans-serif; }
+      body { margin: 0; background: #f4f6f8; color: #0f172a; }
+      .wrap { max-width: 1200px; margin: 0 auto; padding: 1rem; }
+      .card { background: #fff; border-radius: 12px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 1rem; }
+      h1 { margin: 0 0 .5rem; font-size: 1.4rem; }
+      .muted { color: #64748b; margin: 0; }
+      .controls { display: grid; grid-template-columns: 1fr 220px auto; gap: .75rem; align-items: end; }
+      label { display: grid; gap: .25rem; font-size: .85rem; }
+      input, select, button { padding: .6rem .7rem; border-radius: 8px; border: 1px solid #cbd5e1; font-size: .95rem; }
+      button { border: 0; background: #0f766e; color: #fff; font-weight: 600; cursor: pointer; }
+      button:disabled { opacity: .6; cursor: not-allowed; }
+      table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+      th, td { border: 1px solid #e2e8f0; padding: .45rem; text-align: left; vertical-align: top; }
+      th { background: #f8fafc; position: sticky; top: 0; }
+      .ok { color: #166534; }
+      .err { color: #b91c1c; }
+      .meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .85rem; color: #334155; }
+      @media (max-width: 900px) { .controls { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>South Africa Shipping Matrix</h1>
+        <p class="muted">Run ParcelPerfect quote simulations by weight across major/regional centres.</p>
+      </div>
+
+      <div class="card">
+        <div class="controls">
+          <label>
+            Weights (kg, comma separated)
+            <input id="weights" value="1,2,5,10,15,20,25" />
+          </label>
+          <label>
+            Centre type
+            <select id="centreType">
+              <option value="all">All centres</option>
+              <option value="major">Major only</option>
+              <option value="regional">Regional only</option>
+            </select>
+          </label>
+          <button id="runBtn">Generate matrix</button>
+        </div>
+        <p id="status" class="muted" style="margin-top:.7rem">Ready.</p>
+      </div>
+
+      <div class="card">
+        <div id="meta" class="meta"></div>
+        <div style="overflow:auto; max-height: 65vh; margin-top:.75rem">
+          <table id="matrixTable"></table>
+        </div>
+      </div>
+    </div>
+
+    <script src="/shipping-matrix.js" type="module"></script>
+  </body>
+</html>
