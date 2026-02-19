@@ -1157,10 +1157,9 @@ function cancelAutoBookTimer() {
     if (!isAutoMode) return;
     if (linkedOrders.size > 0 && getTotalExpectedCount()) return;
 
-  // Only for untagged orders
+  // Only when no parcel-count metafield/manual count exists
     if (!activeOrderNo || !orderDetails) return;
     if (isBooked(activeOrderNo)) return;
-    if (hasParcelCountTag(orderDetails)) return;
     if (getExpectedParcelCount(orderDetails)) return;
 
   // Need at least 1 scan
@@ -1181,7 +1180,7 @@ function cancelAutoBookTimer() {
     if (!activeOrderNo || !orderDetails) return;
     if (isBooked(activeOrderNo)) return;
     if (armedForBooking) return;
-    if (hasParcelCountTag(orderDetails)) return;
+    if (getExpectedParcelCount(orderDetails)) return;
     if (getTotalScannedCount() <= 0) return;
 
     // Use scanned count as the parcel count (avoid prompt)
@@ -1190,7 +1189,7 @@ function cancelAutoBookTimer() {
     renderSessionUI();
     updateBookNowButton();
 
-    statusExplain(`No tag. Auto-booking ${getTotalScannedCount()} parcels...`, "ok");
+    statusExplain(`No metafield count. Auto-booking ${getTotalScannedCount()} parcels...`, "ok");
     await doBookingNow(); // will pass scanned==expected because expected becomes manualParcelCount
   }, CONFIG.BOOKING_IDLE_MS);
 }
@@ -1288,15 +1287,10 @@ function cancelAutoBookTimer() {
     });
   }
 
-  function hasParcelCountTag(details) {
-    return !!(details && typeof details.parcelCountFromTag === "number" && details.parcelCountFromTag > 0);
-  }
-
   function shouldShowBookNow(details) {
     if (!activeOrderNo || !details) return false;
     if (getBundleOrderNos().some((orderNo) => isBooked(orderNo))) return false;
-    if (!isAutoMode) return true;
-    return !hasParcelCountTag(details);
+    return true;
   }
 
   function updateBookNowButton() {
@@ -1311,20 +1305,21 @@ function cancelAutoBookTimer() {
   }
 
   function getExpectedParcelCount(details) {
-    const fromTag =
-      details && typeof details.parcelCountFromTag === "number" && details.parcelCountFromTag > 0
-        ? details.parcelCountFromTag
-        : null;
+    const normalizePositiveCount = (value) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return null;
+      if (!Number.isInteger(parsed) || parsed <= 0) return null;
+      return parsed;
+    };
     const fromMeta =
-      details && typeof details.parcelCountFromMeta === "number" && details.parcelCountFromMeta > 0
-        ? details.parcelCountFromMeta
+      details
+        ? normalizePositiveCount(details.parcelCountFromMeta)
         : null;
     const manual =
-      details && typeof details.manualParcelCount === "number" && details.manualParcelCount > 0
-        ? details.manualParcelCount
+      details
+        ? normalizePositiveCount(details.manualParcelCount)
         : null;
-    if (!isAutoMode) return fromMeta || manual || null;
-    return fromTag || fromMeta || manual || null;
+    return fromMeta || manual || null;
   }
 
   function getParcelIndexesForCurrentOrder(details) {
@@ -1372,15 +1367,14 @@ function cancelAutoBookTimer() {
           ? "Scanned"
           : "--";
     } else {
-      parcelSource = hasParcelCountTag(orderDetails)
-        ? `Tag parcel_count_${orderDetails.parcelCountFromTag}`
-        : orderDetails && typeof orderDetails.parcelCountFromMeta === "number" && orderDetails.parcelCountFromMeta > 0
-        ? `Order meta ${orderDetails.parcelCountFromMeta}`
-        : orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
-        ? `Manual ${orderDetails.manualParcelCount}`
-        : idxs.length
-        ? "Scanned"
-        : "--";
+      parcelSource =
+        orderDetails && typeof orderDetails.parcelCountFromMeta === "number" && orderDetails.parcelCountFromMeta > 0
+          ? `Order meta ${orderDetails.parcelCountFromMeta}`
+          : orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
+          ? `Manual ${orderDetails.manualParcelCount}`
+          : idxs.length
+          ? "Scanned"
+          : "--";
     }
     if (linkedOrders.size) parcelSource = "Bundled orders";
     if (uiParcelSource) uiParcelSource.textContent = parcelSource;
@@ -1390,16 +1384,11 @@ function cancelAutoBookTimer() {
       : linkedOrders.size
       ? "Bundled multi-order shipment"
       : isAutoMode
-      ? hasParcelCountTag(orderDetails)
-        ? "Tag auto-book"
-        : "Manual / idle auto-book"
+      ? "Manual / idle auto-book"
       : "Manual booking";
     if (uiSessionMode) uiSessionMode.textContent = sessionMode;
 
-    const tagInfo =
-      orderDetails && typeof orderDetails.parcelCountFromTag === "number" && orderDetails.parcelCountFromTag > 0
-        ? ` (tag: parcel_count_${orderDetails.parcelCountFromTag})`
-        : "";
+    const tagInfo = "";
 
     const manualInfo =
       orderDetails && typeof orderDetails.manualParcelCount === "number" && orderDetails.manualParcelCount > 0
@@ -1480,8 +1469,7 @@ ${orderDetails.province} ${orderDetails.postal}`.trim();
         totalScanned === totalExpected ? "ok" : "info"
       );
     } else if (activeOrderNo) {
-      const tagDriven = isAutoMode && hasParcelCountTag(orderDetails);
-      statusExplain(tagDriven ? "Scan parcels until complete." : "Scan parcels, then BOOK NOW.", "info");
+      statusExplain("Scan parcels, then BOOK NOW.", "info");
     }
 
     if (uiAutoBook) {
@@ -1491,8 +1479,6 @@ ${orderDetails.province} ${orderDetails.postal}`.trim();
         uiAutoBook.textContent = "Manual mode";
       } else if (linkedOrders.size) {
         uiAutoBook.textContent = getTotalExpectedCount() ? "Combined: immediate once scanned" : "Combined: set parcel counts";
-      } else if (hasParcelCountTag(orderDetails)) {
-        uiAutoBook.textContent = "Immediate on first scan";
       } else if (autoBookEndsAt) {
         const remainingMs = Math.max(0, autoBookEndsAt - Date.now());
         uiAutoBook.textContent = `Auto-book in ${(remainingMs / 1000).toFixed(1)}s`;
@@ -2187,19 +2173,6 @@ async function startOrder(orderNo) {
 
     const expected = getExpectedParcelCount(orderDetails);
 
-    // TAGGED: auto-book immediately on first scan (single order only)
-    if (isAutoMode && hasParcelCountTag(orderDetails) && expected && !linkedOrders.size) {
-      cancelAutoBookTimer();
-
-      parcelsByOrder.set(activeOrderNo, new Set(Array.from({ length: expected }, (_, i) => i + 1)));
-      renderSessionUI();
-      updateBookNowButton();
-
-      statusExplain(`Tag detected (parcel_count_${expected}). Auto-booking...`, "ok");
-      await doBookingNow();
-      return;
-    }
-
     const totalScanned = getTotalScannedCount();
     const groupedExpected = getTotalExpectedCount();
     if (isAutoMode && linkedOrders.size > 0 && groupedExpected) {
@@ -2249,15 +2222,6 @@ async function startOrder(orderNo) {
       const customer = o.customer || {};
       const lineItems = o.line_items || [];
 
-      let parcelCountFromTag = null;
-      if (typeof o.tags === "string" && o.tags.trim()) {
-        const parts = o.tags.split(",").map((t) => t.trim().toLowerCase());
-        for (const t of parts) {
-          const m = t.match(/^parcel_count_(\d+)$/);
-          if (m) { parcelCountFromTag = parseInt(m[1], 10); break; }
-        }
-      }
-
       let totalGrams = 0;
       for (const li of lineItems) {
         const gramsPerUnit = Number(li.grams || 0);
@@ -2272,7 +2236,6 @@ async function startOrder(orderNo) {
         o.name ||
         String(orderNo);
 
-      const autoParcelCount = getAutoParcelCountForOrder(lineItems);
       const normalized = {
         raw: o,
         name,
@@ -2288,10 +2251,8 @@ async function startOrder(orderNo) {
         totalWeightKg,
         placeCode: placeCodeFromMeta,
         placeLabel: null,
-        parcelCountFromTag,
         parcelCountFromMeta,
-        manualParcelCount:
-          parcelCountFromMeta == null && autoParcelCount != null ? autoParcelCount : null
+        manualParcelCount: null
       };
 
       if (!placeCodeFromMeta) {
@@ -2320,7 +2281,6 @@ async function startOrder(orderNo) {
         totalWeightKg: CONFIG.BOX_DIM.massKg,
         placeCode: null,
         placeLabel: null,
-        parcelCountFromTag: null,
         parcelCountFromMeta: null,
         manualParcelCount: null
       };
@@ -3281,6 +3241,13 @@ async function startOrder(orderNo) {
     });
     const [shippingA, shippingB, shippingC] = shippingChunks;
 
+    const normalizeNonNegativeCount = (value) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return null;
+      if (!Number.isInteger(parsed) || parsed < 0) return null;
+      return parsed;
+    };
+
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
       const city = o.shipping_city || "";
@@ -3293,21 +3260,10 @@ async function startOrder(orderNo) {
       const addr1 = o.shipping_address1 || "";
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
-      const fallbackParcelCount = getAutoParcelCountForOrder(o.line_items);
-      const tagParcelCount =
-        typeof o.parcel_count_from_tag === "number" && o.parcel_count_from_tag >= 0
-          ? o.parcel_count_from_tag
-          : null;
       const parcelCountFromMeta =
-        typeof o.parcel_count_from_meta === "number" && o.parcel_count_from_meta >= 0
-          ? o.parcel_count_from_meta
-          : typeof o.parcel_count === "number" && o.parcel_count >= 0
-          ? o.parcel_count
-          : null;
-      const parcelCountValue =
-        parcelCountFromMeta != null
-          ? parcelCountFromMeta
-          : tagParcelCount ?? fallbackParcelCount ?? "";
+        normalizeNonNegativeCount(o.parcel_count_from_meta) ??
+        normalizeNonNegativeCount(o.parcel_count);
+      const parcelCountValue = parcelCountFromMeta != null ? parcelCountFromMeta : "";
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
@@ -4412,11 +4368,6 @@ async function startOrder(orderNo) {
       return;
     }
 
-    if (hasParcelCountTag(orderDetails)) {
-      statusExplain("This order has a parcel_count tag — it auto-books on first scan.", "warn");
-      return;
-    }
-
     // Use scanned count as default to avoid prompt if you want:
     if (!getExpectedParcelCount(orderDetails) && getActiveParcelSet().size > 0) {
       orderDetails.manualParcelCount = getActiveParcelSet().size;
@@ -4658,9 +4609,11 @@ async function startOrder(orderNo) {
       }
       const order = dispatchOrderCache.get(orderNo);
       const presetCount =
-        typeof order?.parcel_count === "number" && order.parcel_count > 0
-          ? order.parcel_count
-          : getAutoParcelCountForOrder(order?.line_items);
+        (() => {
+          const parsed = Number(order?.parcel_count);
+          if (Number.isInteger(parsed) && parsed > 0) return parsed;
+          return null;
+        })();
       await startOrder(orderNo);
       let parcelCount = getExpectedParcelCount(orderDetails);
       if (!parcelCount && presetCount) {
