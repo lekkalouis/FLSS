@@ -253,13 +253,10 @@ The test suite includes utility unit tests and API smoke tests for core health/c
 ## Project layout
 
 - `server.js` — entrypoint that boots the Express app.
-- `src/app.js` — top-level app composition that wires middleware + bootstrap modules.
-- `src/bootstrap/` — app bootstrapping units for CORS policy, API mounting, and static SPA hosting.
-- `src/constants/http.js` — shared HTTP constants (API base path, CORS, and rate-limit defaults).
+- `src/app.js` — middleware orchestration + static hosting bootstrap (uses route manifest).
 - `src/config.js` — environment configuration.
 - `src/routes/index.js` — centralized API router manifest (single place to add/remove backend route modules).
 - `src/routes/` — ParcelPerfect, Shopify, PrintNode, alerts, config, status route modules.
 - `src/services/` — Shopify token handling + SMTP helpers.
 - `public/` — SPA UI (HTML/CSS/JS), route entrypoints, and assets.
-- `public/app/` — SPA app support modules (shared constants and DOM reference mapping).
 ```

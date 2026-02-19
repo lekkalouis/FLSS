@@ -1,13 +1,68 @@
+import path from "path";
+import { fileURLToPath } from "url";
+
+import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 
-import { config } from "./config.js";
-import { buildCorsConfig } from "./bootstrap/cors.js";
-import { mountApiRouters } from "./bootstrap/api.js";
-import { mountStaticApp } from "./bootstrap/static.js";
-import { RATE_LIMIT } from "./constants/http.js";
+import { config, getFrontendOrigin } from "./config.js";
+import { apiRouters } from "./routes/index.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function isPrivateHostname(hostname) {
+  if (!hostname) return false;
+  if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+  const parts = hostname.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((num) => Number.isNaN(num))) return false;
+  if (parts[0] === 10) return true;
+  if (parts[0] === 192 && parts[1] === 168) return true;
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  return false;
+}
+
+function buildCorsConfig() {
+  const allowedOrigins = new Set(
+    String(getFrontendOrigin() || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+  );
+  const allowAllOrigins = allowedOrigins.has("*");
+
+  return {
+    allowAllOrigins,
+    allowedOrigins,
+    middleware: cors({
+      origin: (origin, cb) => {
+        if (!origin || allowAllOrigins || allowedOrigins.has(origin)) return cb(null, true);
+        if (config.NODE_ENV !== "production") {
+          try {
+            const { hostname } = new URL(origin);
+            if (isPrivateHostname(hostname)) return cb(null, true);
+          } catch {
+            // ignore parsing errors
+          }
+        }
+        return cb(new Error("CORS: origin not allowed"));
+      },
+      methods: ["GET", "POST", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+      credentials: false,
+      maxAge: 86400
+    })
+  };
+}
+
+function mountApiRouters(app, basePath = "/api/v1") {
+  const apiRouter = express.Router();
+  apiRouters.forEach(({ router }) => apiRouter.use(router));
+  app.use(basePath, apiRouter);
+  app.use(basePath, (_req, res) => res.status(404).json({ error: "Not found" }));
+}
 
 export function createApp() {
   const app = express();
@@ -22,8 +77,8 @@ export function createApp() {
 
   app.use(
     rateLimit({
-      windowMs: RATE_LIMIT.WINDOW_MS,
-      max: RATE_LIMIT.MAX_REQUESTS_PER_WINDOW,
+      windowMs: 60 * 1000,
+      max: 120,
       standardHeaders: true,
       legacyHeaders: false
     })
@@ -32,7 +87,10 @@ export function createApp() {
   app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
 
   mountApiRouters(app);
-  mountStaticApp(app);
+
+  const publicDir = path.join(__dirname, "..", "public");
+  app.use(express.static(publicDir));
+  app.get("*", (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
 
   return {
     app,
