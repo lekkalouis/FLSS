@@ -2175,8 +2175,6 @@ router.get("/shopify/orders/open", async (req, res) => {
         const shipping = o.shipping_address || {};
         const customer = o.customer || {};
 
-        const parcelCountFromTag = parseParcelCountFromTags(o.tags);
-
         const totalGrams = (o.line_items || []).reduce((sum, li) => {
           const grams = Number(li.grams || 0);
           const qty = Number(li.quantity || 1);
@@ -2218,9 +2216,8 @@ router.get("/shopify/orders/open", async (req, res) => {
           shipping_country: shipping.country || "",
           shipping_phone: shipping.phone || "",
           shipping_name: shipping.name || customer_name,
-          parcel_count: parcelCountFromMeta ?? parcelCountFromTag,
+          parcel_count: parcelCountFromMeta,
           parcel_count_from_meta: parcelCountFromMeta,
-          parcel_count_from_tag: parcelCountFromTag,
           line_items: (o.line_items || []).map((li) => ({
             title: li.title,
             variant_title: li.variant_title,
