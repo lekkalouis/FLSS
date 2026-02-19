@@ -1,16 +1,21 @@
 import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
+import {
+  API_BASE,
+  DEFAULT_CONFIG,
+  DISPATCH_STEPS,
+  LINE_ITEM_ABBREVIATIONS,
+  MAX_ORDER_AGE_HOURS,
+  MODULES,
+  OPP_DOCUMENTS
+} from "./app/constants.js";
+import { getDomRefs } from "./app/dom.js";
 
 (() => {
   "use strict";
 
-  const CONFIG = {
-    PROGRESS_STEP_DELAY_MS: 450,
-    DISPATCH_POLL_INTERVAL_MS: 60000,
-    SERVER_STATUS_POLL_INTERVAL_MS: 45000
-  };
-  const API_BASE = "/api/v1";
+  const CONFIG = { ...DEFAULT_CONFIG };
 
   const loadConfig = async () => {
     const res = await fetch(`${API_BASE}/config`, { headers: { Accept: "application/json" } });
@@ -19,198 +24,109 @@ import { initPriceManagerView } from "./views/price-manager.js";
     Object.assign(CONFIG, data);
   };
 
-  const $ = (id) => document.getElementById(id);
-  const scanInput = $("scanInput");
-  const uiOrderNo = $("uiOrderNo");
-  const uiParcelCount = $("uiParcelCount");
-  const uiExpectedCount = $("uiExpectedCount");
-  const uiSessionMode = $("uiSessionMode");
-  const uiParcelSource = $("uiParcelSource");
-  const uiAutoBook = $("uiAutoBook");
-  const uiCountdown = $("uiCountdown");
-  const shipToCard = $("shipToCard");
-  const uiCustomerName = $("uiCustomerName");
-  const uiOrderWeight = $("uiOrderWeight");
-  const parcelList = $("parcelList");
-  const parcelNumbers = $("parcelNumbers");
-  const bookingSummary = $("bookingSummary");
-  const statusChip = $("statusChip");
-  const stickerPreview = $("stickerPreview");
-  const debugLog = $("debugLog");
-  const quoteBox = $("quoteBox");
-  const printMount = $("printMount");
-  const serverStatusBar = $("serverStatusBar");
-  const addrSearch = $("addrSearch");
-  const addrResults = $("addrResults");
-  const placeCodeInput = $("placeCode");
-  const serviceSelect = $("serviceOverride");
-  const truckBookBtn = $("truckBookBtn");
-  const truckStatus = $("truckStatus");
-  const truckParcelCount = $("truckParcelCount");
-  const dispatchCreateCombined = $("dispatchCreateCombined");
-  const dispatchExpandToggle = $("dispatchExpandToggle");
-  const uiBundleOrders = $("uiBundleOrders");
-  const uiMultiShip = $("uiMultiShip");
-
-  const dispatchBoard = $("dispatchBoardGrid");
-  const dispatchStamp = $("dispatchStamp");
-  const dispatchProgressBar = $("dispatchProgressBar");
-  const dispatchProgressFill = $("dispatchProgressFill");
-  const dispatchProgressSteps = $("dispatchProgressSteps");
-  const dispatchProgressLabel = $("dispatchProgressLabel");
-  const dispatchLog = $("dispatchLog");
-  const dispatchSelectionPanel = $("dispatchSelectionPanel");
-  const dispatchSelectionCount = $("dispatchSelectionCount");
-  const dispatchSelectionUnits = $("dispatchSelectionUnits");
-  const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
-  const dispatchSelectionWeight = $("dispatchSelectionWeight");
-  const dispatchSelectionTime = $("dispatchSelectionTime");
-  const dispatchSelectionClear = $("dispatchSelectionClear");
-  const dispatchPrintDocs = $("dispatchPrintDocs");
-  const dispatchDeliverSelected = $("dispatchDeliverSelected");
-  const dispatchMarkDelivered = $("dispatchMarkDelivered");
-  const dispatchShipmentsSidebar = $("dispatchShipmentsSidebar");
-  const dispatchOrderModal = $("dispatchOrderModal");
-  const dispatchOrderModalBody = $("dispatchOrderModalBody");
-  const dispatchOrderModalTitle = $("dispatchOrderModalTitle");
-  const dispatchOrderModalMeta = $("dispatchOrderModalMeta");
-  const dispatchShipmentModal = $("dispatchShipmentModal");
-  const dispatchShipmentModalBody = $("dispatchShipmentModalBody");
-  const dispatchShipmentModalTitle = $("dispatchShipmentModalTitle");
-  const dispatchShipmentModalMeta = $("dispatchShipmentModalMeta");
-  const scanProgressBar = $("scanProgressBar");
-  const scanProgressFill = $("scanProgressFill");
-  const scanProgressSteps = $("scanProgressSteps");
-  const scanProgressLabel = $("scanProgressLabel");
-  const scanDispatchLog = $("scanDispatchLog");
-
-  const navDashboard = $("navDashboard");
-  const navScan = $("navScan");
-  const navOps = $("navOps");
-  const navDocs = $("navDocs");
-  const navFlowcharts = $("navFlowcharts");
-  const navFlocs = $("navFlocs");
-  const navStock = $("navStock");
-  const navPriceManager = $("navPriceManager");
-  const navDispatchSettings = $("navDispatchSettings");
-  const navLogs = $("navLogs");
-  const navToggle = $("navToggle");
-  const viewDashboard = $("viewDashboard");
-  const viewScan = $("viewScan");
-  const viewOps = $("viewOps");
-  const viewDocs = $("viewDocs");
-  const docsTopics = $("docsTopics");
-  const docsContent = $("docsContent");
-  const docsSubnav = $("docsSubnav");
-  const viewFlowcharts = $("viewFlowcharts");
-  const viewFlocs = $("viewFlocs");
-  const viewStock = $("viewStock");
-  const viewPriceManager = $("viewPriceManager");
-  const viewDispatchSettings = $("viewDispatchSettings");
-  const viewLogs = $("viewLogs");
-  const dispatchNotesBar = $("dispatchNotesBar");
-  const dispatchNotesInput = $("dispatchNotesInput");
-  const dispatchNotesClose = $("dispatchNotesClose");
-  const adminLogsPreview = $("adminLogsPreview");
-  const screenFlash = $("screenFlash");
-  const emergencyStopBtn = $("emergencyStop");
-
-  const btnBookNow = $("btnBookNow");
-  const modeToggle = $("modeToggle");
-  const moduleGrid = $("moduleGrid");
-  const kpiParcels = $("kpiParcels");
-  const kpiOpenOrders = $("kpiOpenOrders");
-  const kpiRecentShipments = $("kpiRecentShipments");
-  const kpiMode = $("kpiMode");
-  const kpiTruckStatus = $("kpiTruckStatus");
-  const kpiLastScan = $("kpiLastScan");
-
-  const MAX_ORDER_AGE_HOURS = 180;
-
-  const MODULES = [
-    {
-      id: "scan",
-      title: "Dispatch",
-      description: "Scan parcels and auto-book shipments with live booking progress.",
-      type: "route",
-      target: "/scan",
-      meta: "Internal module",
-      tag: "Core"
-    },
-    {
-      id: "dispatch",
-      title: "Dispatch Board",
-      description: "Review open orders, track packing, and prioritize dispatch.",
-      type: "route",
-      target: "/ops",
-      meta: "Internal module",
-      tag: "Core"
-    },
-    {
-      id: "docs",
-      title: "Documentation",
-      description: "Operator guide, quick start, and endpoint reference.",
-      type: "route",
-      target: "/docs",
-      meta: "Internal module",
-      tag: "Guide"
-    },
-    {
-      id: "flowcharts",
-      title: "Flowcharts",
-      description: "Decision maps for packing and dispatch logic, including hard and soft rules.",
-      type: "route",
-      target: "/flowcharts",
-      meta: "Logic reference",
-      tag: "Guide"
-    },
-    {
-      id: "flocs",
-      title: "Order Capture",
-      description: "Create and manage incoming orders for Shopify.",
-      type: "route",
-      target: "/flocs",
-      meta: "Capture module",
-      tag: "Module"
-    },
-    {
-      id: "stock",
-      title: "Stock Take",
-      description: "Run inventory counts and stock adjustments.",
-      type: "route",
-      target: "/stock",
-      meta: "Inventory module",
-      tag: "Module"
-    },
-    {
-      id: "price-manager",
-      title: "Price Manager",
-      description: "Update tier pricing and sync to Shopify metafields.",
-      type: "route",
-      target: "/price-manager",
-      meta: "Pricing module",
-      tag: "Module"
-    },
-    {
-      id: "shipping-matrix",
-      title: "Shipping Matrix",
-      description: "Simulate South African shipping costs by centre and weight.",
-      type: "link",
-      target: "/shipping-matrix.html",
-      meta: "ParcelPerfect quote matrix",
-      tag: "Module"
-    },
-    {
-      id: "custom-order-capture",
-      title: "Custom Order Capture",
-      description: "Password-protected local custom normal order entry.",
-      type: "link",
-      target: "/order-capture-custom.html",
-      meta: "Secure custom entry",
-      tag: "Module"
-    }
-  ];
-
+  const {
+    scanInput,
+    uiOrderNo,
+    uiParcelCount,
+    uiExpectedCount,
+    uiSessionMode,
+    uiParcelSource,
+    uiAutoBook,
+    uiCountdown,
+    shipToCard,
+    uiCustomerName,
+    uiOrderWeight,
+    parcelList,
+    parcelNumbers,
+    bookingSummary,
+    statusChip,
+    stickerPreview,
+    debugLog,
+    quoteBox,
+    printMount,
+    serverStatusBar,
+    addrSearch,
+    addrResults,
+    placeCodeInput,
+    serviceSelect,
+    truckBookBtn,
+    truckStatus,
+    truckParcelCount,
+    dispatchCreateCombined,
+    dispatchExpandToggle,
+    uiBundleOrders,
+    uiMultiShip,
+    dispatchBoard,
+    dispatchStamp,
+    dispatchProgressBar,
+    dispatchProgressFill,
+    dispatchProgressSteps,
+    dispatchProgressLabel,
+    dispatchLog,
+    dispatchSelectionPanel,
+    dispatchSelectionCount,
+    dispatchSelectionUnits,
+    dispatchSelectionBoxes,
+    dispatchSelectionWeight,
+    dispatchSelectionTime,
+    dispatchSelectionClear,
+    dispatchPrintDocs,
+    dispatchDeliverSelected,
+    dispatchMarkDelivered,
+    dispatchShipmentsSidebar,
+    dispatchOrderModal,
+    dispatchOrderModalBody,
+    dispatchOrderModalTitle,
+    dispatchOrderModalMeta,
+    dispatchShipmentModal,
+    dispatchShipmentModalBody,
+    dispatchShipmentModalTitle,
+    dispatchShipmentModalMeta,
+    scanProgressBar,
+    scanProgressFill,
+    scanProgressSteps,
+    scanProgressLabel,
+    scanDispatchLog,
+    navDashboard,
+    navScan,
+    navOps,
+    navDocs,
+    navFlowcharts,
+    navFlocs,
+    navStock,
+    navPriceManager,
+    navDispatchSettings,
+    navLogs,
+    navToggle,
+    viewDashboard,
+    viewScan,
+    viewOps,
+    viewDocs,
+    docsTopics,
+    docsContent,
+    docsSubnav,
+    viewFlowcharts,
+    viewFlocs,
+    viewStock,
+    viewPriceManager,
+    viewDispatchSettings,
+    viewLogs,
+    dispatchNotesBar,
+    dispatchNotesInput,
+    dispatchNotesClose,
+    adminLogsPreview,
+    screenFlash,
+    emergencyStopBtn,
+    btnBookNow,
+    modeToggle,
+    moduleGrid,
+    kpiParcels,
+    kpiOpenOrders,
+    kpiRecentShipments,
+    kpiMode,
+    kpiTruckStatus,
+    kpiLastScan
+  } = getDomRefs();
   let activeOrderNo = null;
   let orderDetails = null;
   let parcelsByOrder = new Map();
@@ -244,42 +160,11 @@ import { initPriceManagerView } from "./views/price-manager.js";
   let truckBookedAt = null;
   let truckBookedBy = null;
   let truckBookingInFlight = false;
-  const DISPATCH_STEPS = [
-    "Start",
-    "Quote",
-    "Service",
-    "Book",
-    "Print",
-    "Booked",
-    "Notify"
-  ];
-  const lineItemAbbreviations = {
-    "original multi-purpose spice": "",
-    "original multi-purpose spice - tub": "",
-    "hot & spicy multi-purpose spice": "H",
-    "worcester sauce spice": "WS",
-    "worcester sauce spice - tub": "WS",
-    "red wine & garlic sprinkle": "RG",
-    "chutney sprinkle": "CS",
-    "savoury herb mix": "SH",
-    "salt & vinegar seasoning": "SV",
-    "butter popcorn sprinkle": "BUT",
-    "sour cream & chives popcorn sprinkle": "SCC",
-    "chutney popcorn sprinkle": "CHUT",
-    "parmesan popcorn sprinkle": "PAR",
-    "cheese & onion popcorn sprinkle": "CHO",
-    "salt & vinegar popcorn sprinkle": "SV",
-    "flippen lekka curry mix": "Curry",
-    "original multi purpose basting sauce": "Basting"
-  };
+  const lineItemAbbreviations = LINE_ITEM_ABBREVIATIONS;
   const lineItemOrder = Object.keys(lineItemAbbreviations);
   const lineItemOrderIndex = new Map(
     lineItemOrder.map((key, index) => [key, index])
   );
-  const OPP_DOCUMENTS = [
-    { type: "picklist", label: "OPP pick list" },
-    { type: "packing-slip", label: "OPP packing slip" }
-  ];
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
