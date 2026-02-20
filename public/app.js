@@ -11,6 +11,19 @@ import { initPriceManagerView } from "./views/price-manager.js";
     SERVER_STATUS_POLL_INTERVAL_MS: 45000
   };
   const API_BASE = "/api/v1";
+  const FLAVOUR_COLORS = {
+    salted: "#fbbf24",
+    caramel: "#fb7185",
+    sweet: "#f59e0b",
+    cheese: "#f97316",
+    bbq: "#ef4444",
+    "sour cream": "#60a5fa",
+    chilli: "#dc2626",
+    original: "#a3e635"
+  };
+
+  const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
+  const flavourColor = (flavour) => FLAVOUR_COLORS[flavourKey(flavour)] || "#22d3ee";
 
   const loadConfig = async () => {
     const res = await fetch(`${API_BASE}/config`, { headers: { Accept: "application/json" } });
@@ -581,6 +594,20 @@ import { initPriceManagerView } from "./views/price-manager.js";
     triggerScreenFlash(type);
   }
 
+  function announceBookingSuccess() {
+    try {
+      if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") return;
+      const utterance = new SpeechSynthesisUtterance("That order was successfully booked.");
+      utterance.rate = 1;
+      utterance.pitch = 1.02;
+      utterance.volume = 0.9;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      appendDebug("Booking voice blocked: " + String(e));
+    }
+  }
+
   const dispatchProgressTargets = [
     {
       label: dispatchProgressLabel,
@@ -944,6 +971,18 @@ import { initPriceManagerView } from "./views/price-manager.js";
   function markBooked(orderNo) {
     bookedOrders.add(String(orderNo));
     saveBookedOrders();
+  }
+
+  function removeBookedOrdersFromBoard(orderNos) {
+    const target = new Set((orderNos || []).map((orderNo) => String(orderNo)));
+    if (!target.size) return;
+    dispatchOrdersLatest = dispatchOrdersLatest.filter((order) => {
+      const orderNo = String(order.name || "").replace("#", "").trim();
+      return !target.has(orderNo);
+    });
+    target.forEach((orderNo) => dispatchSelectedOrders.delete(orderNo));
+    renderDispatchBoard(dispatchOrdersLatest);
+    updateDashboardKpis();
   }
 
   function isBooked(orderNo) {
@@ -2038,6 +2077,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     logDispatchEvent(`Booking complete. Waybill ${waybillNo}.`);
     triggerBookedFlash();
     confirmBookingFeedback("success");
+    announceBookingSuccess();
     if (statusChip) statusChip.textContent = "Booked";
     if (bookingSummary) {
       bookingSummary.textContent = `WAYBILL: ${waybillNo}
@@ -2058,6 +2098,7 @@ ${JSON.stringify(cr, null, 2)}`;
       if (!fulfillOk) fulfillFailures += 1;
       markBooked(orderNo);
     }
+    removeBookedOrdersFromBoard(bundledOrderNos);
     if (!fulfillFailures) {
       await stepDispatchProgress(6, `Notified • ${waybillNo}`);
       logDispatchEvent(`Customer notified with tracking ${waybillNo}.`);
@@ -2897,6 +2938,8 @@ async function startOrder(orderNo) {
 
   function aggregateDispatchSelection() {
     const units = new Map();
+    const sizes = new Set();
+    const flavours = new Set();
     let totalWeightKg = 0;
     let totalBoxes = 0;
     let totalUnits = 0;
@@ -2915,6 +2958,8 @@ async function startOrder(orderNo) {
         totalUnits += qty;
         const size = getLineItemSize(item) || "Unspecified";
         const flavour = getLineItemFlavour(item) || "Unspecified";
+        sizes.add(size);
+        flavours.add(flavour);
         const key = `${size}||${flavour}`;
         const existing = units.get(key) || { size, flavour, quantity: 0 };
         existing.quantity += qty;
@@ -2927,7 +2972,7 @@ async function startOrder(orderNo) {
       boxCount: totalBoxes
     });
 
-    return { units, totalWeightKg, totalBoxes, totalUnits, orderCount, totalTimeMin };
+    return { units, sizes, flavours, totalWeightKg, totalBoxes, totalUnits, orderCount, totalTimeMin };
   }
 
   function updateDispatchSelectionSummary() {
@@ -2953,17 +2998,40 @@ async function startOrder(orderNo) {
         dispatchSelectionUnits.innerHTML = `<div class="dispatchSelectionRow">Select orders to see totals.</div>`;
         return;
       }
-      const rows = Array.from(totals.units.values())
-        .sort((a, b) => {
-          if (a.size === b.size) return a.flavour.localeCompare(b.flavour);
-          return a.size.localeCompare(b.size);
+
+      const sizeList = Array.from(totals.sizes).sort((a, b) => a.localeCompare(b));
+      const flavourList = Array.from(totals.flavours).sort((a, b) => a.localeCompare(b));
+      const head = [
+        `<tr><th>Size × Flavour</th>`,
+        ...flavourList.map(
+          (flavour) => `<th class="dispatchSelectionFlavourHead" style="background:color-mix(in srgb, ${flavourColor(flavour)} 28%, #ffffff)">${flavour}</th>`
+        ),
+        `<th class="dispatchSelectionCellTotal">Total</th></tr>`
+      ].join("");
+
+      const body = sizeList
+        .map((size) => {
+          let rowTotal = 0;
+          const cells = flavourList
+            .map((flavour) => {
+              const qty = totals.units.get(`${size}||${flavour}`)?.quantity || 0;
+              rowTotal += qty;
+              return `<td>${qty || "—"}</td>`;
+            })
+            .join("");
+          return `<tr><td>${size}</td>${cells}<td class="dispatchSelectionCellTotal">${rowTotal || "—"}</td></tr>`;
         })
-        .map(
-          (entry) =>
-            `<div class="dispatchSelectionRow"><span>${entry.size} · ${entry.flavour}</span><span>${entry.quantity}</span></div>`
-        )
         .join("");
-      dispatchSelectionUnits.innerHTML = rows;
+
+      const flavourTotals = flavourList
+        .map((flavour) =>
+          sizeList.reduce((sum, size) => sum + (totals.units.get(`${size}||${flavour}`)?.quantity || 0), 0)
+        );
+      const totalRow = `<tr><td>Total</td>${flavourTotals
+        .map((qty) => `<td class="dispatchSelectionCellTotal">${qty || "—"}</td>`)
+        .join("")}<td class="dispatchSelectionCellTotal">${totals.totalUnits || "—"}</td></tr>`;
+
+      dispatchSelectionUnits.innerHTML = `<table class="dispatchSelectionMatrix"><thead>${head}</thead><tbody>${body}${totalRow}</tbody></table>`;
     }
   }
 
