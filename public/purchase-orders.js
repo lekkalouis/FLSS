@@ -6,30 +6,39 @@ const PURCHASE_ORDER_ENDPOINTS = [
 
 const GROUPS = [
   {
-    title: "Spices & Herbs",
+    title: "FL raw spice blends (recipes)",
     items: [
-      { sku: "RM-BASE-ORIG", title: "Original base blend", icon: "🌶️" },
-      { sku: "RM-BASE-HOT", title: "Hot & spicy base blend", icon: "🔥" },
-      { sku: "RM-CURRY", title: "Curry blend", icon: "🍛" },
-      { sku: "RM-RED-PEPPER", title: "Red pepper mix", icon: "🫑" }
+      { sku: "FL-BLEND-MP", title: "Blended Spice / Original Multi Purpose", icon: "🌿" },
+      { sku: "FL-BLEND-HOT", title: "Blended Spice / Hot & Spicy", icon: "🔥" },
+      { sku: "FL-BLEND-CM", title: "Blended Spice / Curry Mix", icon: "🍛" },
+      { sku: "FL-WS-GR", title: "FL Spice / Worcester Sauce", icon: "🟣" },
+      { sku: "FL-RG-GR", title: "FL Spice / Red Wine & Garlic", icon: "🍷" },
+      { sku: "FL-CS-GR", title: "FL Spice / Chutney", icon: "🥭" }
     ]
   },
   {
-    title: "Bottles & Tubs",
+    title: "FL containers & finished material",
     items: [
-      { sku: "RM-PACK-200", title: "200ml shaker packs", icon: "🧴" },
-      { sku: "RM-PACK-500", title: "500g pouches", icon: "🥣" },
-      { sku: "RM-TUB-750", title: "750g tubs", icon: "🪣" },
-      { sku: "RM-BAG-1KG", title: "1kg bags", icon: "🛍️" }
+      { sku: "LB-MP-100", title: "Labelled Bottle / Original / 100ml", icon: "🧴" },
+      { sku: "LB-MP-200", title: "Labelled Bottle / Original / 200ml", icon: "🧴" },
+      { sku: "LT-CM", title: "Labelled Tub / Curry Mix / 250ml", icon: "🪣" },
+      { sku: "LT-MP-750", title: "Labelled Tub / Original / 750g", icon: "🪣" },
+      { sku: "LT-WS-750", title: "Labelled Tub / Worcester / 750g", icon: "🪣" },
+      { sku: "FL-LVB-MP-500", title: "Labelled Vacuum Bag / Original / 500g", icon: "🥣" },
+      { sku: "FL-LVB-MP-1K", title: "Labelled Vacuum Bag / Original / 1kg", icon: "🛍️" }
     ]
   },
   {
-    title: "Labels & Packaging",
+    title: "Packaging & support",
     items: [
-      { sku: "RM-LABEL", title: "Product labels", icon: "🏷️" },
-      { sku: "RM-CAPS", title: "Caps / closures", icon: "⭕" },
-      { sku: "RM-BOX-12", title: "12 x 200ml box", icon: "📦" },
-      { sku: "RM-WRAP", title: "Packaging paper", icon: "🧻" }
+      { sku: "FL-PCAP-O", title: "Printed Flip Lid Caps / Orange", icon: "🟠" },
+      { sku: "FL-PCAP-R", title: "Printed Flip Lid Caps / Red", icon: "🔴" },
+      { sku: "FL-PCAP-BRN", title: "Printed Flip Lid Caps / Brown", icon: "🟤" },
+      { sku: "FL-PCAP-M", title: "Printed Flip Lid Caps / Maroon", icon: "🟥" },
+      { sku: "FL-PCAP-P", title: "Printed Flip Lid Caps / Purple", icon: "🟣" },
+      { sku: "FL-PCAP-GRN", title: "Printed Flip Lid Caps / Green", icon: "🟢" },
+      { sku: "BX-12-200", title: "12 x 200ml BOX", icon: "📦" },
+      { sku: "THE-LAB-ST", title: "Thermal Labels / Standard", icon: "🏷️" }
     ]
   }
 ];

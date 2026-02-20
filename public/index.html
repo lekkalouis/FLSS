@@ -141,6 +141,11 @@
   @media (max-width:800px){
     .flMain{ padding:1rem; }
     .flMainHeader{ flex-direction:column; align-items:stretch; }
+    .dispatchSelectionFloat{
+      position:static;
+      width:100%;
+      margin-top:.5rem;
+    }
     .dispatchSelectionPanel{ width:100%; }
   }
   @media (max-width:900px){
@@ -801,6 +806,15 @@
   min-height:calc(100dvh - 160px);
 }
 
+.dispatchSelectionFloat{
+  position:fixed;
+  right:1rem;
+  top:5.2rem;
+  width:min(620px, calc(100vw - 2rem));
+  z-index:35;
+  pointer-events:none;
+}
+
 .dispatchSelectionPanel{
   width:100%;
   border-radius:var(--radius-lg);
@@ -812,6 +826,7 @@
   flex-direction:column;
   gap:.45rem;
   flex-shrink:0;
+  pointer-events:auto;
 }
 .dispatchSelectionHeader{
   display:flex;
@@ -894,12 +909,18 @@
 }
 
 .dispatchSelectionFlavourDot{
-  display:inline-block;
-  width:.72rem;
-  height:.72rem;
+  display:inline-grid;
+  place-items:center;
+  width:1.35rem;
+  height:1.35rem;
   border-radius:999px;
   border:1px solid rgba(15,23,42,.22);
   background:var(--flavour-color, #22d3ee);
+  color:#0f172a;
+  font-size:.5rem;
+  font-weight:800;
+  line-height:1;
+  text-transform:uppercase;
 }
 .srOnly{
   position:absolute;
@@ -2171,35 +2192,7 @@
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
-            <div class="flNavSummary">
-              <div class="dispatchSelectionPanel" id="dispatchSelectionPanel" aria-live="polite">
-                <div class="dispatchSelectionHeader">
-                  <span>Selected orders</span>
-                  <div class="dispatchSelectionActions">
-                    <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
-                    <button class="dispatchSelectionClear" id="dispatchSelectionClear" type="button">Clear</button>
-                  </div>
-                </div>
-                <div class="dispatchSelectionBody">
-                  <div>
-                    <div class="dispatchSelectionLabel">Units matrix (flavour × size)</div>
-                    <div class="dispatchSelectionList" id="dispatchSelectionUnits">
-                      <div class="dispatchSelectionRow">Select orders to see totals.</div>
-                    </div>
-                  </div>
-                  <div class="dispatchSelectionMeta">
-                    <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
-                    <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
-                    <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
-                  </div>
-                  <div class="dispatchSelectionBulkActions">
-                    <button id="dispatchPrintDocs" class="dispatchSelectionBtn" type="button">Print Delivery Docs</button>
-                    <button id="dispatchDeliverSelected" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Deliver</button>
-                    <button id="dispatchMarkDelivered" class="dispatchSelectionBtn" type="button">Mark as delivered</button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <div class="flNavSummary"></div>
           </div>
         </nav>
       </aside>
@@ -2210,6 +2203,35 @@
             <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
           </div>
 
+        </div>
+        <div class="dispatchSelectionFloat" aria-live="polite">
+          <div class="dispatchSelectionPanel" id="dispatchSelectionPanel">
+            <div class="dispatchSelectionHeader">
+              <span>Selected orders</span>
+              <div class="dispatchSelectionActions">
+                <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
+                <button class="dispatchSelectionClear" id="dispatchSelectionClear" type="button">Clear</button>
+              </div>
+            </div>
+            <div class="dispatchSelectionBody">
+              <div>
+                <div class="dispatchSelectionLabel">Units matrix (flavour × size)</div>
+                <div class="dispatchSelectionList" id="dispatchSelectionUnits">
+                  <div class="dispatchSelectionRow">Select orders to see totals.</div>
+                </div>
+              </div>
+              <div class="dispatchSelectionMeta">
+                <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
+                <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
+                <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
+              </div>
+              <div class="dispatchSelectionBulkActions">
+                <button id="dispatchPrintDocs" class="dispatchSelectionBtn" type="button">Print Delivery Docs</button>
+                <button id="dispatchDeliverSelected" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Deliver</button>
+                <button id="dispatchMarkDelivered" class="dispatchSelectionBtn" type="button">Mark as delivered</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="flView flView--active" id="viewDashboard">
