@@ -1,4 +1,8 @@
-const API = "/api/v1/shopify/draft-orders/purchase-order";
+const PURCHASE_ORDER_ENDPOINTS = [
+  "/api/v1/shopify/draft-orders/purchase-order",
+  "/api/v1/draft-orders/purchase-order",
+  "/api/v1/shopify/purchase-orders"
+];
 
 const GROUPS = [
   {
@@ -86,6 +90,31 @@ function selectedLines() {
     .map((line) => ({ sku: line.sku, title: line.title, quantity: line.quantity }));
 }
 
+async function postPurchaseOrder(payload) {
+  let lastError = null;
+  for (const endpoint of PURCHASE_ORDER_ENDPOINTS) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 404) {
+          lastError = new Error(`Endpoint not found: ${endpoint}`);
+          continue;
+        }
+        throw new Error(body?.message || body?.error || `Request failed (${response.status})`);
+      }
+      return body;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("No purchase-order endpoint is available");
+}
+
 async function submitPurchaseOrder() {
   const lines = selectedLines();
   if (!lines.length) {
@@ -96,20 +125,11 @@ async function submitPurchaseOrder() {
   els.submit.disabled = true;
   setStatus("Creating draft purchase order...");
   try {
-    const response = await fetch(API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        supplierName: String(els.supplier?.value || "").trim(),
-        note: String(els.note?.value || "").trim(),
-        lines
-      })
+    const payload = await postPurchaseOrder({
+      supplierName: String(els.supplier?.value || "").trim(),
+      note: String(els.note?.value || "").trim(),
+      lines
     });
-    const payload = await response.json();
-    if (!response.ok) {
-      setStatus(payload?.message || payload?.error || "Failed to create draft order", "err");
-      return;
-    }
     setStatus(`Draft order created: ${payload?.draftOrder?.name || payload?.draftOrder?.id || "OK"}`, "ok");
     if (payload?.draftOrder?.adminUrl) {
       window.open(payload.draftOrder.adminUrl, "_blank", "noopener,noreferrer");

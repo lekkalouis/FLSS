@@ -1639,7 +1639,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
   }
 });
 
-router.post("/shopify/draft-orders/purchase-order", async (req, res) => {
+const createPurchaseOrderDraft = async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
@@ -1666,8 +1666,7 @@ router.post("/shopify/draft-orders/purchase-order", async (req, res) => {
           title,
           sku,
           quantity,
-          price: "0.00",
-          custom: true
+          price: "0.00"
         };
       })
       .filter(Boolean);
@@ -1734,7 +1733,12 @@ router.post("/shopify/draft-orders/purchase-order", async (req, res) => {
     console.error("Shopify purchase-order draft create error:", err);
     return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
   }
-});
+};
+
+router.post("/shopify/draft-orders/purchase-order", createPurchaseOrderDraft);
+router.post("/draft-orders/purchase-order", createPurchaseOrderDraft);
+router.post("/shopify/purchase-orders", createPurchaseOrderDraft);
+
 
 
 router.post("/pricing/resolve", async (req, res) => {
