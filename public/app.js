@@ -4542,34 +4542,69 @@ async function startOrder(orderNo) {
     await createCombinedShipmentFromSelection();
   });
 
+  function getSelectedDeliveryOrderNos() {
+    return Array.from(dispatchSelectedOrders).filter((orderNo) => {
+      const order = dispatchOrderCache.get(orderNo);
+      return laneFromOrder(order) === "delivery";
+    });
+  }
+
   dispatchPrintDocs?.addEventListener("click", async () => {
-    const orders = Array.from(dispatchSelectedOrders)
+    const orders = getSelectedDeliveryOrderNos()
       .map((orderNo) => dispatchOrderCache.get(orderNo))
       .filter(Boolean);
+    if (!orders.length) {
+      statusExplain("Select at least 1 delivery order to print delivery docs.", "warn");
+      return;
+    }
+    let printed = 0;
+    let blocked = 0;
     for (const order of orders) {
       const orderNo = orderNoFromName(order.name);
       const ok = await printDeliveryNote(order);
-      if (ok) printedDeliveryNotes.add(orderNo);
+      if (ok) {
+        printed += 1;
+        printedDeliveryNotes.add(orderNo);
+      } else {
+        blocked += 1;
+      }
     }
     refreshDispatchViews();
-    statusExplain(`Printed delivery docs for ${orders.length} orders.`, "ok");
+    if (!printed) {
+      statusExplain("Delivery docs were blocked (check popup settings).", "warn");
+      return;
+    }
+    const suffix = blocked ? ` (${blocked} blocked by popups)` : "";
+    statusExplain(`Printed delivery docs for ${printed} delivery orders.${suffix}`, "ok");
   });
 
   dispatchDeliverSelected?.addEventListener("click", async () => {
-    const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
-      const order = dispatchOrderCache.get(orderNo);
-      return laneFromOrder(order) === "delivery";
-    });
-    for (const orderNo of selected) {
+    const selected = getSelectedDeliveryOrderNos();
+    if (!selected.length) {
+      statusExplain("Select at least 1 delivery order to mark ready for delivery.", "warn");
+      return;
+    }
+    const printable = selected.filter((orderNo) => printedDeliveryNotes.has(orderNo));
+    const missingDocs = selected.length - printable.length;
+    for (const orderNo of printable) {
       await markDeliveryReady(orderNo);
     }
+    if (missingDocs) {
+      statusExplain(
+        `Delivered ${printable.length} orders. ${missingDocs} skipped (print delivery note first).`,
+        "warn"
+      );
+      return;
+    }
+    statusExplain(`Delivered ${printable.length} selected delivery orders.`, "ok");
   });
 
   dispatchMarkDelivered?.addEventListener("click", async () => {
-    const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
-      const order = dispatchOrderCache.get(orderNo);
-      return laneFromOrder(order) === "delivery";
-    });
+    const selected = getSelectedDeliveryOrderNos();
+    if (!selected.length) {
+      statusExplain("Select at least 1 delivery order to mark as delivered.", "warn");
+      return;
+    }
     for (const orderNo of selected) {
       await markDeliveryReady(orderNo);
     }
