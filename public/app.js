@@ -3003,9 +3003,10 @@ async function startOrder(orderNo) {
       const flavourList = Array.from(totals.flavours).sort((a, b) => a.localeCompare(b));
       const head = [
         `<tr><th>Size × Flavour</th>`,
-        ...flavourList.map(
-          (flavour) => `<th class="dispatchSelectionFlavourHead" style="background:color-mix(in srgb, ${flavourColor(flavour)} 28%, #ffffff)">${flavour}</th>`
-        ),
+        ...flavourList.map((flavour) => {
+          const safeFlavour = escapeHtml(flavour);
+          return `<th class="dispatchSelectionFlavourHead" title="${safeFlavour}" aria-label="${safeFlavour}" style="background:color-mix(in srgb, ${flavourColor(flavour)} 28%, #ffffff)"><span class="dispatchSelectionFlavourDot" style="--flavour-color:${flavourColor(flavour)}"></span><span class="srOnly">${safeFlavour}</span></th>`;
+        }),
         `<th class="dispatchSelectionCellTotal">Total</th></tr>`
       ].join("");
 
