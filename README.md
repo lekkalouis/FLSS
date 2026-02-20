@@ -211,6 +211,9 @@ SHOPIFY_FLOW_TAG=dispatch_flow
 # PrintNode
 PRINTNODE_API_KEY=your-printnode-api-key
 PRINTNODE_PRINTER_ID=123456
+# Optional delivery note override(s):
+PRINTNODE_DELIVERY_NOTE_PRINTER_ID=223344
+PRINTNODE_DELIVERY_NOTE_PRINTER_IDS=223344,223345,223346,223347
 
 # SMTP (alerts + customer notifications)
 SMTP_HOST=smtp.example.com

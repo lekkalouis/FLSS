@@ -10,16 +10,53 @@ import {
 
 const router = Router();
 
-function requirePrintNodeConfigured(res) {
-  if (!config.PRINTNODE_API_KEY || !config.PRINTNODE_PRINTER_ID) {
+function parsePrinterIdList(rawValue) {
+  return String(rawValue || "")
+    .split(",")
+    .map((value) => Number(String(value || "").trim()))
+    .filter((value) => Number.isInteger(value) && value > 0);
+}
+
+function resolveDefaultPrinterId() {
+  const value = Number(config.PRINTNODE_PRINTER_ID);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function resolveDeliveryNotePrinterIds() {
+  const list = parsePrinterIdList(config.PRINTNODE_DELIVERY_NOTE_PRINTER_IDS);
+  const single = Number(config.PRINTNODE_DELIVERY_NOTE_PRINTER_ID);
+  if (Number.isInteger(single) && single > 0) {
+    list.push(single);
+  }
+  return Array.from(new Set(list));
+}
+
+function selectDeliveryNotePrinterId(orderNo = "") {
+  const deliveryPrinters = resolveDeliveryNotePrinterIds();
+  if (deliveryPrinters.length) {
+    const chars = String(orderNo || "").split("");
+    const hash = chars.reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+    return deliveryPrinters[hash % deliveryPrinters.length];
+  }
+  return resolveDefaultPrinterId();
+}
+
+function requirePrintNodeConfigured(res, options = {}) {
+  const { allowDeliveryPrinterFallback = false } = options;
+  const hasDefaultPrinter = Boolean(resolveDefaultPrinterId());
+  const hasDeliveryPrinters = resolveDeliveryNotePrinterIds().length > 0;
+
+  if (!config.PRINTNODE_API_KEY || (!hasDefaultPrinter && !(allowDeliveryPrinterFallback && hasDeliveryPrinters))) {
     res.status(500).json({
       error: "PRINTNODE_NOT_CONFIGURED",
-      message: "Set PRINTNODE_API_KEY and PRINTNODE_PRINTER_ID in your .env file"
+      message:
+        "Set PRINTNODE_API_KEY and PRINTNODE_PRINTER_ID (or PRINTNODE_DELIVERY_NOTE_PRINTER_IDS for delivery notes) in your .env file"
     });
     return false;
   }
   return true;
 }
+
 
 
 function formatAddressLines(section = {}) {
@@ -143,15 +180,24 @@ async function buildDeliveryNotePdfBase64(deliveryNote = {}) {
   });
 }
 
-async function sendPrintNodeJob({ pdfBase64, title, route = "POST /printnode/print" }) {
+async function sendPrintNodeJob({ pdfBase64, title, printerId, route = "POST /printnode/print" }) {
   const auth = Buffer.from(config.PRINTNODE_API_KEY + ":").toString("base64");
   const payload = {
-    printerId: Number(config.PRINTNODE_PRINTER_ID),
+    printerId: Number(printerId || resolveDefaultPrinterId()),
     title: title || "Parcel Label",
     contentType: "pdf_base64",
     content: pdfBase64.replace(/\s/g, ""),
     source: "Flippen Lekka Scan Station"
   };
+
+  if (!Number.isInteger(payload.printerId) || payload.printerId <= 0) {
+    return {
+      ok: false,
+      status: 500,
+      statusText: "PRINTNODE_NOT_CONFIGURED",
+      body: { error: "Missing valid printerId" }
+    };
+  }
 
   const upstream = await fetchWithTimeout(
     "https://api.printnode.com/printjobs",
@@ -227,18 +273,25 @@ router.post("/printnode/print", async (req, res) => {
 
 router.post("/printnode/print-delivery-note", async (req, res) => {
   try {
-    const { deliveryNote, title } = req.body || {};
+    const { deliveryNote, title, printerId } = req.body || {};
 
     if (!deliveryNote || typeof deliveryNote !== "object") {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Missing deliveryNote" });
     }
 
-    if (!requirePrintNodeConfigured(res)) return;
+    if (!requirePrintNodeConfigured(res, { allowDeliveryPrinterFallback: true })) return;
+
+    const explicitPrinterId = Number(printerId);
+    const selectedPrinterId =
+      Number.isInteger(explicitPrinterId) && explicitPrinterId > 0
+        ? explicitPrinterId
+        : selectDeliveryNotePrinterId(deliveryNote.orderNo);
 
     const pdfBase64 = await buildDeliveryNotePdfBase64(deliveryNote);
     const result = await sendPrintNodeJob({
       pdfBase64,
       title: title || `Delivery Note ${deliveryNote.orderNo || ""}`,
+      printerId: selectedPrinterId,
       route: "POST /printnode/print-delivery-note"
     });
 
