@@ -1,4 +1,5 @@
 import { Router } from "express";
+import PDFDocument from "pdfkit";
 
 import { config } from "../config.js";
 import {
@@ -18,6 +19,128 @@ function requirePrintNodeConfigured(res) {
     return false;
   }
   return true;
+}
+
+
+function formatAddressLines(section = {}) {
+  const lines = [];
+  if (section.name) lines.push(String(section.name));
+  if (section.address1) lines.push(String(section.address1));
+  if (section.address2) lines.push(String(section.address2));
+
+  const cityLine = [section.city, section.province].filter(Boolean).join(", ");
+  if (cityLine) lines.push(cityLine);
+  if (section.zip) lines.push(String(section.zip));
+  if (section.country) lines.push(String(section.country));
+  if (section.phone) lines.push(`Phone: ${section.phone}`);
+  if (section.email) lines.push(`Email: ${section.email}`);
+  if (section.vatNumber) lines.push(`VAT Nr: ${section.vatNumber}`);
+
+  return lines;
+}
+
+async function buildDeliveryNotePdfBase64(deliveryNote = {}) {
+  const doc = new PDFDocument({ margin: 40, size: "A4" });
+  const chunks = [];
+
+  doc.on("data", (chunk) => chunks.push(chunk));
+
+  const orderNo = String(deliveryNote.orderNo || "").trim();
+  const title = "DELIVERY NOTE";
+  doc.font("Helvetica-Bold").fontSize(18).text(title, { align: "right" });
+  doc.moveDown(0.2);
+
+  doc.font("Helvetica-Bold").fontSize(14).text("Flippen Lekka Holdings (Pty) Ltd");
+  doc.font("Helvetica").fontSize(9).text("7 Papawer Street, Blomtuin, Bellville");
+  doc.text("Cape Town, Western Cape, 7530");
+  doc.text("Co. Reg No: 2015/091655/07");
+  doc.text("VAT Reg No: 4150279885");
+  doc.text("Phone: 071 371 0499 | 078 355 6277");
+  doc.text("Email: admin@flippenlekkaspices.co.za");
+
+  doc.moveDown(0.5);
+  doc.font("Helvetica").fontSize(10).text(`Date: ${deliveryNote.invoiceDate || ""}`, { align: "right" });
+  doc.text(`Delivery No: ${orderNo || ""}`, { align: "right" });
+  if (deliveryNote.poNumber) {
+    doc.text(`PO Number: ${deliveryNote.poNumber}`, { align: "right" });
+  }
+
+  const topY = doc.y + 12;
+  const colGap = 20;
+  const colWidth = (doc.page.width - doc.page.margins.left - doc.page.margins.right - colGap) / 2;
+  const leftX = doc.page.margins.left;
+  const rightX = leftX + colWidth + colGap;
+
+  doc.font("Helvetica-Bold").fontSize(11).text("Invoice to", leftX, topY, { width: colWidth });
+  doc.font("Helvetica-Bold").text("Deliver to", rightX, topY, { width: colWidth });
+
+  const leftLines = formatAddressLines(deliveryNote.billing || {});
+  const rightLines = formatAddressLines(deliveryNote.shipping || {});
+
+  let leftY = topY + 18;
+  let rightY = topY + 18;
+  doc.font("Helvetica").fontSize(9);
+  for (const line of leftLines) {
+    doc.text(line, leftX, leftY, { width: colWidth });
+    leftY = doc.y + 2;
+  }
+  for (const line of rightLines) {
+    doc.text(line, rightX, rightY, { width: colWidth });
+    rightY = doc.y + 2;
+  }
+
+  doc.y = Math.max(leftY, rightY) + 16;
+
+  const rows = Array.isArray(deliveryNote.lineItems) ? deliveryNote.lineItems : [];
+  const tableX = doc.page.margins.left;
+  const tableW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const col1 = Math.floor(tableW * 0.22);
+  const col3 = 50;
+  const col2 = tableW - col1 - col3;
+  const rowH = 20;
+
+  const drawRow = (y, a, b, c, bold = false) => {
+    doc.rect(tableX, y, tableW, rowH).stroke();
+    doc.moveTo(tableX + col1, y).lineTo(tableX + col1, y + rowH).stroke();
+    doc.moveTo(tableX + col1 + col2, y).lineTo(tableX + col1 + col2, y + rowH).stroke();
+    doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(9);
+    doc.text(a || "", tableX + 6, y + 6, { width: col1 - 12, ellipsis: true });
+    doc.text(b || "", tableX + col1 + 6, y + 6, { width: col2 - 12, ellipsis: true });
+    doc.text(String(c || ""), tableX + col1 + col2 + 6, y + 6, { width: col3 - 12, align: "center" });
+  };
+
+  drawRow(doc.y, "Code", "Description", "Qty", true);
+  doc.y += rowH;
+
+  if (!rows.length) {
+    drawRow(doc.y, "", "No line items.", "", false);
+    doc.y += rowH;
+  } else {
+    for (const item of rows) {
+      if (doc.y > doc.page.height - 100) {
+        doc.addPage();
+      }
+      drawRow(doc.y, item.sku || "", item.title || "", Number(item.quantity || 0), false);
+      doc.y += rowH;
+    }
+  }
+
+  doc.moveDown(1.4);
+  doc.font("Helvetica").fontSize(9);
+  doc.text("Received by: ___________________", { continued: true });
+  doc.text("     Receiver signature: ___________________", { continued: true });
+  doc.text("     Date: ___________________");
+  doc.moveDown(0.8);
+  doc.fontSize(8).text(
+    "Please check your goods before signing. Goods remain vested in Flippen Lekka Holdings (Pty) Ltd until paid in full.",
+    { align: "center" }
+  );
+
+  return await new Promise((resolve, reject) => {
+    doc.on("end", () => resolve(Buffer.concat(chunks).toString("base64")));
+    doc.on("error", reject);
+    doc.end();
+  });
 }
 
 async function sendPrintNodeJob({ pdfBase64, title, route = "POST /printnode/print" }) {
@@ -94,6 +217,46 @@ router.post("/printnode/print", async (req, res) => {
       return sendTimeoutResponse(res, err);
     }
     console.error("PrintNode proxy error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+
+router.post("/printnode/print-delivery-note", async (req, res) => {
+  try {
+    const { deliveryNote, title } = req.body || {};
+
+    if (!deliveryNote || typeof deliveryNote !== "object") {
+      return res.status(400).json({ error: "BAD_REQUEST", message: "Missing deliveryNote" });
+    }
+
+    if (!requirePrintNodeConfigured(res)) return;
+
+    const pdfBase64 = await buildDeliveryNotePdfBase64(deliveryNote);
+    const result = await sendPrintNodeJob({
+      pdfBase64,
+      title: title || `Delivery Note ${deliveryNote.orderNo || ""}`,
+      route: "POST /printnode/print-delivery-note"
+    });
+
+    if (!result.ok) {
+      return res.status(result.status).json({
+        error: "PRINTNODE_UPSTREAM",
+        status: result.status,
+        statusText: result.statusText,
+        body: result.body
+      });
+    }
+
+    return res.json({ ok: true, printJob: result.data });
+  } catch (err) {
+    if (isUpstreamTimeoutError(err)) {
+      return sendTimeoutResponse(res, err);
+    }
+    console.error("PrintNode delivery-note print error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)

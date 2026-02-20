@@ -3753,176 +3753,64 @@ async function startOrder(orderNo) {
     const lineItems = Array.isArray(orderData.line_items) ? [...orderData.line_items] : [];
     lineItems.sort((a, b) => String(a.sku || "").localeCompare(String(b.sku || "")));
 
-    const shopName = CONFIG?.SHOP_NAME || "Flippen Lekka Holdings (Pty) Ltd";
-    const shopDomain = CONFIG?.SHOP_DOMAIN || "flippenlekkaspices.co.za";
+    const customerNote = String(customer?.note || "");
+    const vatValue = customerNote.includes("VAT ID:")
+      ? customerNote.split("VAT ID:").pop().trim()
+      : "";
 
-    const lineRows = lineItems
-      .map((line) => {
-        return `
-          <tr>
-            <td>${line.sku || ""}</td>
-            <td>${line.title || ""}</td>
-            <td style="text-align:center;">${line.quantity || ""}</td>
-          </tr>
-        `;
-      })
-      .join("");
+    const payload = {
+      title: `Delivery Note ${orderNo}`,
+      deliveryNote: {
+        orderNo,
+        invoiceDate: invoiceDateFinal,
+        poNumber: poValue,
+        billing: {
+          name: billingName,
+          address1: billing.address1 || "",
+          address2: billing.address2 || "",
+          city: billing.city || "",
+          province: billing.province || "",
+          zip: billing.zip || "",
+          country: billing.country || "",
+          phone: billingPhone,
+          email: orderData.email || "",
+          vatNumber: vatValue
+        },
+        shipping: {
+          name: shippingName,
+          address1: shipping.address1 || "",
+          address2: shipping.address2 || "",
+          city: shipping.city || "",
+          province: shipping.province || "",
+          zip: shipping.zip || "",
+          country: shipping.country || "",
+          phone: shippingPhone,
+          email: shippingEmail
+        },
+        lineItems: lineItems.map((line) => ({
+          sku: line.sku || "",
+          title: line.title || "",
+          quantity: Number(line.quantity || 0)
+        }))
+      }
+    };
 
-    const doc = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>Delivery Note ${orderNo}</title>
-        <style>
-          body{ font-family: Arial, sans-serif; font-size: 9pt; color:#000; }
-          .card{ border:1px solid #ddd; border-radius:6px; padding:10px; }
-          .card h3{ margin:0 0 6px 0; font-size:11pt; letter-spacing:.2px; }
-          .kv{ margin:2px 0; font-size:9pt; }
-          .kv .k{ color:#555; min-width:80px; display:inline-block; }
-          .namebig{ font-size:11pt; font-weight:700; margin-bottom:4px; }
-          .muted{ color:#666; }
-          h2{ margin:2px 0 0 0; font-size:13pt; font-weight:700; }
-          .small{ font-size:8pt !important; }
-          .tight td{ padding:2px 4px; }
-          .headerTbl{ width:100%; }
-          .hdrL{ width:70%; vertical-align:top; text-align:left; }
-          .hdrR{ width:30%; vertical-align:top; text-align:right; }
-          .addrTbl{ width:100%; margin-top:12px; }
-          .addrTbl td{ vertical-align:top; width:50%; }
-          .section{ font-size:14px; font-weight:700; text-transform:uppercase; }
-          .items{ font-size:11px; width:100%; border-collapse:collapse; margin-top:14px; }
-          .items th, .items td{ border:1px solid #000; padding:3px; }
-          .items th{ background:#f2f2f2; }
-          .sigTbl{ width:100%; margin-top:24px; }
-          .sigTbl td{ padding:12px 0; }
-          .note{ font-size:8pt; margin-top:8px; }
-        </style>
-      </head>
-      <body>
-        <table class="headerTbl">
-          <tr>
-            <td class="hdrL">
-              <h2>${shopName}</h2>
-              <div class="logo-wrapper" style="float:left;">
-                <a href="https://${shopDomain}" target="_blank">
-                  <img class="logo" alt="Logo"
-                       src="/img/logo.png"
-                       style="max-width:40%;height:auto;margin-right:10px;">
-                </a>
-              </div>
-              <div class="small" style="width:100%">
-                7 Papawer Street, Blomtuin, Bellville<br>
-                Cape Town, Western Cape, 7530<br>
-                Co. Reg No: 2015/091655/07<br>
-                VAT Reg No: 4150279885<br>
-                Phone: 071 371 0499 | 078 355 6277<br>
-                Email: admin@flippenlekkaspices.co.za
-              </div>
-            </td>
-            <td class="hdrR">
-              <h2 style="font-size:18px">DELIVERY NOTE</h2>
-              <table class="tight small" style="margin-left:auto;">
-                <tr>
-                  <td class="section">Date:</td>
-                  <td>${invoiceDateFinal || ""}</td>
-                </tr>
-                <tr>
-                  <td class="section">Delivery&nbsp;No:</td>
-                  <td>${orderData.name || ""}</td>
-                </tr>
-                ${poValue ? `<tr><td class="section">PO&nbsp;Number:</td><td>${poValue}</td></tr>` : ""}
-              </table>
-            </td>
-          </tr>
-        </table>
-
-        <table class="addrTbl small">
-          <tr>
-            <td>
-              <div class="card">
-                <h3>Invoice to</h3>
-                <div class="namebig">${billingName || ""}</div>
-                ${billing.address1 ? `<div class="kv"><span class="k">Address:</span> ${billing.address1}</div>` : ""}
-                ${billing.address2 ? `<div class="kv"><span class="k"></span>${billing.address2}</div>` : ""}
-                ${
-                  billing.city || billing.province
-                    ? `<div class="kv"><span class="k"></span>${billing.city || ""}${
-                        billing.province ? `, ${billing.province}` : ""
-                      }</div>`
-                    : ""
-                }
-                ${billing.zip ? `<div class="kv"><span class="k"></span>${billing.zip}</div>` : ""}
-                ${billing.country ? `<div class="kv"><span class="k"></span>${billing.country}</div>` : ""}
-                ${billingPhone ? `<div class="kv"><span class="k">Phone:</span> ${billingPhone}</div>` : ""}
-                ${orderData.email ? `<div class="kv"><span class="k">Email:</span> ${orderData.email}</div>` : ""}
-                ${
-                  customer?.note && customer.note.includes("VAT ID:")
-                    ? `<div class="kv"><span class="k">VAT Nr:</span> ${
-                        customer.note.split("VAT ID:").pop().trim()
-                      }</div>`
-                    : ""
-                }
-              </div>
-            </td>
-            <td>
-              <div class="card">
-                <h3>Deliver to</h3>
-                <div class="namebig">${shippingName || ""}</div>
-                ${shipping.address1 ? `<div class="kv"><span class="k">Address:</span> ${shipping.address1}</div>` : ""}
-                ${shipping.address2 ? `<div class="kv"><span class="k"></span>${shipping.address2}</div>` : ""}
-                ${
-                  shipping.city || shipping.province
-                    ? `<div class="kv"><span class="k"></span>${shipping.city || ""}${
-                        shipping.province ? `, ${shipping.province}` : ""
-                      }</div>`
-                    : ""
-                }
-                ${shipping.zip ? `<div class="kv"><span class="k"></span>${shipping.zip}</div>` : ""}
-                ${shipping.country ? `<div class="kv"><span class="k"></span>${shipping.country}</div>` : ""}
-                ${shippingPhone ? `<div class="kv"><span class="k">Phone:</span> ${shippingPhone}</div>` : ""}
-                ${shippingEmail ? `<div class="kv"><span class="k">Email:</span> ${shippingEmail}</div>` : ""}
-              </div>
-            </td>
-          </tr>
-        </table>
-
-        <table class="items">
-          <thead>
-            <tr>
-              <th style="width:14%;">Code</th>
-              <th>Description</th>
-              <th style="width:8%; text-align:center;">Qty</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${lineRows || "<tr><td colspan='3'>No line items.</td></tr>"}
-          </tbody>
-        </table>
-
-        <table class="sigTbl small">
-          <tr>
-            <td>Received by: ___________________</td>
-            <td>Receiver signature: ___________________</td>
-            <td>Date: ___________________</td>
-          </tr>
-        </table>
-
-        <div class="note" style="text-align:center; margin-top:8px;">
-          Please check your goods before signing. Goods remain vested in Flippen Lekka Holdings (Pty) Ltd until paid in full.
-        </div>
-      </body>
-      </html>
-    `;
-
-    const win = window.open("", "_blank", "width=820,height=900");
-    if (!win) return false;
-    win.document.open();
-    win.document.write(doc);
-    win.document.close();
-    win.focus();
-    win.print();
-    return true;
+    try {
+      const res = await fetch(`${API_BASE}/printnode/print-delivery-note`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        appendDebug(`PrintNode delivery note failed for ${orderNo}: ${text}`);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      appendDebug(`PrintNode delivery note error for ${orderNo}: ${String(err)}`);
+      return false;
+    }
   }
 
   async function refreshDispatchData() {
@@ -4542,34 +4430,69 @@ async function startOrder(orderNo) {
     await createCombinedShipmentFromSelection();
   });
 
+  function getSelectedDeliveryOrderNos() {
+    return Array.from(dispatchSelectedOrders).filter((orderNo) => {
+      const order = dispatchOrderCache.get(orderNo);
+      return laneFromOrder(order) === "delivery";
+    });
+  }
+
   dispatchPrintDocs?.addEventListener("click", async () => {
-    const orders = Array.from(dispatchSelectedOrders)
+    const orders = getSelectedDeliveryOrderNos()
       .map((orderNo) => dispatchOrderCache.get(orderNo))
       .filter(Boolean);
+    if (!orders.length) {
+      statusExplain("Select at least 1 delivery order to print delivery docs.", "warn");
+      return;
+    }
+    let printed = 0;
+    let blocked = 0;
     for (const order of orders) {
       const orderNo = orderNoFromName(order.name);
       const ok = await printDeliveryNote(order);
-      if (ok) printedDeliveryNotes.add(orderNo);
+      if (ok) {
+        printed += 1;
+        printedDeliveryNotes.add(orderNo);
+      } else {
+        blocked += 1;
+      }
     }
     refreshDispatchViews();
-    statusExplain(`Printed delivery docs for ${orders.length} orders.`, "ok");
+    if (!printed) {
+      statusExplain("No delivery docs were printed (PrintNode request failed).", "warn");
+      return;
+    }
+    const suffix = blocked ? ` (${blocked} failed to send to PrintNode)` : "";
+    statusExplain(`Printed delivery docs for ${printed} delivery orders.${suffix}`, "ok");
   });
 
   dispatchDeliverSelected?.addEventListener("click", async () => {
-    const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
-      const order = dispatchOrderCache.get(orderNo);
-      return laneFromOrder(order) === "delivery";
-    });
-    for (const orderNo of selected) {
+    const selected = getSelectedDeliveryOrderNos();
+    if (!selected.length) {
+      statusExplain("Select at least 1 delivery order to mark ready for delivery.", "warn");
+      return;
+    }
+    const printable = selected.filter((orderNo) => printedDeliveryNotes.has(orderNo));
+    const missingDocs = selected.length - printable.length;
+    for (const orderNo of printable) {
       await markDeliveryReady(orderNo);
     }
+    if (missingDocs) {
+      statusExplain(
+        `Delivered ${printable.length} orders. ${missingDocs} skipped (print delivery note first).`,
+        "warn"
+      );
+      return;
+    }
+    statusExplain(`Delivered ${printable.length} selected delivery orders.`, "ok");
   });
 
   dispatchMarkDelivered?.addEventListener("click", async () => {
-    const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
-      const order = dispatchOrderCache.get(orderNo);
-      return laneFromOrder(order) === "delivery";
-    });
+    const selected = getSelectedDeliveryOrderNos();
+    if (!selected.length) {
+      statusExplain("Select at least 1 delivery order to mark as delivered.", "warn");
+      return;
+    }
     for (const orderNo of selected) {
       await markDeliveryReady(orderNo);
     }
@@ -4811,8 +4734,8 @@ async function startOrder(orderNo) {
       logDispatchEvent(`Printing delivery note for order ${orderNo}.`);
       const ok = await printDeliveryNote(order);
       if (!ok) {
-        statusExplain("Pop-up blocked for delivery note.", "warn");
-        logDispatchEvent("Delivery note blocked by popup settings.");
+        statusExplain("Delivery note print failed.", "warn");
+        logDispatchEvent("Delivery note failed to send to PrintNode.");
         return true;
       }
       statusExplain(`Delivery note printed for ${orderNo}.`, "ok");
