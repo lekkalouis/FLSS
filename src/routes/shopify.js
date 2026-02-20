@@ -1639,6 +1639,107 @@ router.post("/shopify/draft-orders", async (req, res) => {
   }
 });
 
+const createPurchaseOrderDraft = async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { supplierName, note, lines } = req.body || {};
+    const requestedLines = Array.isArray(lines) ? lines : [];
+    const normalizedLines = requestedLines
+      .map((line) => {
+        const quantity = Math.max(0, Math.floor(Number(line?.quantity || 0)));
+        const variantId = Number(line?.variantId || line?.variant_id);
+        const title = String(line?.title || line?.name || line?.sku || "").trim();
+        const sku = String(line?.sku || "").trim();
+        if (!quantity || !title) return null;
+
+        if (Number.isFinite(variantId)) {
+          return {
+            variant_id: variantId,
+            quantity,
+            sku,
+            title
+          };
+        }
+
+        return {
+          title,
+          sku,
+          quantity,
+          price: "0.00"
+        };
+      })
+      .filter(Boolean);
+
+    if (!normalizedLines.length) {
+      return badRequest(res, "At least one line with quantity is required");
+    }
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const tags = ["purchase-order", "FLSS"].join(", ");
+    const supplierLabel = String(supplierName || "").trim();
+
+    const payload = {
+      draft_order: {
+        line_items: normalizedLines.map((line) => {
+          if (line.variant_id) return { variant_id: line.variant_id, quantity: line.quantity };
+          return {
+            title: line.title,
+            quantity: line.quantity,
+            price: String(line.price || "0.00")
+          };
+        }),
+        tags,
+        note: [supplierLabel ? `Supplier: ${supplierLabel}` : "", String(note || "").trim()]
+          .filter(Boolean)
+          .join("\n"),
+        note_attributes: [
+          { name: "source", value: "FLSS purchase-order" },
+          ...(supplierLabel ? [{ name: "supplier", value: supplierLabel }] : [])
+        ]
+      }
+    };
+
+    const resp = await shopifyFetch(`${base}/draft_orders.json`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    const text = await resp.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body: data
+      });
+    }
+
+    const draftOrder = data?.draft_order || {};
+    return res.json({
+      ok: true,
+      draftOrder: {
+        id: draftOrder.id,
+        name: draftOrder.name,
+        invoiceUrl: draftOrder.invoice_url || null,
+        adminUrl: draftOrder.id
+          ? `https://${config.SHOPIFY_STORE}.myshopify.com/admin/draft_orders/${draftOrder.id}`
+          : null
+      },
+      lineCount: normalizedLines.length
+    });
+  } catch (err) {
+    console.error("Shopify purchase-order draft create error:", err);
+    return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+};
+
+router.post("/shopify/draft-orders/purchase-order", createPurchaseOrderDraft);
+router.post("/draft-orders/purchase-order", createPurchaseOrderDraft);
+router.post("/shopify/purchase-orders", createPurchaseOrderDraft);
+
+
 
 router.post("/pricing/resolve", async (req, res) => {
   try {
