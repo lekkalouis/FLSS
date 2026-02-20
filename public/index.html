@@ -870,83 +870,6 @@
   font-size:.68rem;
   color:var(--text);
 }
-.dispatchSelectionLabel{
-  font-weight:700;
-  color:#0f172a;
-  margin-bottom:.2rem;
-}
-.dispatchSelectionList{
-  display:grid;
-  gap:.2rem;
-  overflow:auto;
-  max-height:180px;
-}
-.dispatchSelectionMatrix{
-  width:100%;
-  border-collapse:collapse;
-  table-layout:fixed;
-  font-variant-numeric:tabular-nums;
-}
-.dispatchSelectionMatrix th,
-.dispatchSelectionMatrix td{
-  border:1px solid rgba(148,163,184,.4);
-  padding:.15rem .22rem;
-  text-align:right;
-  font-size:.62rem;
-}
-.dispatchSelectionMatrix th:first-child,
-.dispatchSelectionMatrix td:first-child{
-  text-align:left;
-  font-weight:700;
-  position:sticky;
-  left:0;
-  background:#f8fafc;
-}
-.dispatchSelectionMatrix th.dispatchSelectionFlavourHead{
-  text-align:center;
-  color:#0f172a;
-  box-shadow:inset 0 -2px 0 rgba(15,23,42,.08);
-}
-
-.dispatchSelectionFlavourDot{
-  display:inline-grid;
-  place-items:center;
-  width:1.35rem;
-  height:1.35rem;
-  border-radius:999px;
-  border:1px solid rgba(15,23,42,.22);
-  background:var(--flavour-color, #22d3ee);
-  color:#0f172a;
-  font-size:.5rem;
-  font-weight:800;
-  line-height:1;
-  text-transform:uppercase;
-}
-.srOnly{
-  position:absolute;
-  width:1px;
-  height:1px;
-  padding:0;
-  margin:-1px;
-  overflow:hidden;
-  clip:rect(0, 0, 0, 0);
-  white-space:nowrap;
-  border:0;
-}
-.dispatchSelectionMatrix td.dispatchSelectionCellTotal,
-.dispatchSelectionMatrix th.dispatchSelectionCellTotal{
-  background:rgba(148,163,184,.15);
-  font-weight:700;
-}
-.dispatchSelectionRow{
-  display:flex;
-  justify-content:space-between;
-  gap:.5rem;
-  padding:.22rem .3rem;
-  border-radius:.4rem;
-  background:rgba(148,163,184,.1);
-  font-variant-numeric:tabular-nums;
-}
 .dispatchSelectionMeta{
   display:grid;
   gap:.25rem;
@@ -2214,12 +2137,6 @@
               </div>
             </div>
             <div class="dispatchSelectionBody">
-              <div>
-                <div class="dispatchSelectionLabel">Units matrix (flavour × size)</div>
-                <div class="dispatchSelectionList" id="dispatchSelectionUnits">
-                  <div class="dispatchSelectionRow">Select orders to see totals.</div>
-                </div>
-              </div>
               <div class="dispatchSelectionMeta">
                 <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
                 <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
