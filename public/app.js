@@ -221,6 +221,15 @@ import { initPriceManagerView } from "./views/price-manager.js";
       target: "/order-capture-custom.html",
       meta: "Secure custom entry",
       tag: "Module"
+    },
+    {
+      id: "purchase-orders",
+      title: "Purchase Orders",
+      description: "Quick material order page that creates Shopify draft orders tagged purchase-order.",
+      type: "link",
+      target: "/purchase-orders.html",
+      meta: "Materials ordering",
+      tag: "Module"
     }
   ];
 

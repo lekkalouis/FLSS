@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Purchase Orders</title>
+  <style>
+    :root{--bg:#f1f5f9;--card:#fff;--line:#dbe3ee;--text:#0f172a;--muted:#64748b;--accent:#0284c7;--accent-soft:#e0f2fe;--ok:#166534;--bad:#b91c1c}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+    .shell{max-width:1240px;margin:0 auto;padding:1rem;display:grid;gap:.8rem}
+    .top{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.8rem 1rem;display:flex;justify-content:space-between;gap:.8rem;flex-wrap:wrap;align-items:center}
+    .top h1{margin:0;font-size:1.05rem;text-transform:uppercase;letter-spacing:.06em}.hint{margin:.2rem 0 0;color:var(--muted);font-size:.82rem}
+    .btn{border:1px solid var(--line);background:#fff;padding:.5rem .75rem;border-radius:10px;cursor:pointer;font-weight:600}
+    .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn:disabled{opacity:.6;cursor:not-allowed}
+    .form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem}.form input,.form textarea{width:100%;padding:.5rem .6rem;border-radius:10px;border:1px solid var(--line)}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem}@media(max-width:1000px){.grid{grid-template-columns:1fr}}
+    .group{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.7rem}
+    .group h2{margin:.1rem 0 .55rem;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em}
+    .items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem}
+    .item{border:1px solid var(--line);border-radius:10px;background:#fff;padding:.45rem;display:grid;grid-template-columns:auto 1fr auto;gap:.4rem;align-items:center}
+    .icon{width:34px;height:34px;border-radius:9px;background:var(--accent-soft);display:grid;place-items:center;font-size:1.1rem}
+    .name{font-size:.78rem;font-weight:600}.meta{font-size:.67rem;color:var(--muted)}
+    .qty{width:72px;padding:.35rem .4rem;border:1px solid var(--line);border-radius:7px;text-align:right}
+    .status{min-height:1rem;font-size:.82rem;color:var(--muted)}.status.ok{color:var(--ok)}.status.err{color:var(--bad)}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="top">
+      <div>
+        <h1>Fill qty & click order 🙂</h1>
+        <p class="hint">Creates a Shopify draft order tagged <strong>purchase-order</strong>.</p>
+      </div>
+      <a class="btn" href="/">Back to dashboard</a>
+    </section>
+
+    <section class="group">
+      <div class="form">
+        <input id="supplier" placeholder="Supplier name (optional)" />
+        <input id="search" placeholder="Search materials" />
+        <textarea id="note" rows="2" placeholder="PO note (optional)"></textarea>
+      </div>
+    </section>
+
+    <section class="grid" id="materialGrid"></section>
+
+    <section class="top">
+      <div class="status" id="status">Ready.</div>
+      <button class="btn primary" id="submitBtn">Create draft purchase order</button>
+    </section>
+  </main>
+  <script type="module" src="/purchase-orders.js"></script>
+</body>
+</html>
