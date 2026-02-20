@@ -3682,7 +3682,7 @@ async function startOrder(orderNo) {
       "https://flippenlekka.shop/apps/download-pdf/orders/492a0907560253c5e190/" +
       `${legacyResourceId * 2191}/${encodeURIComponent(slug)}.pdf`;
     const payload = {
-      printerId: 74901099,
+      printerId: 74467271,
       title: `Invoice ${orderName || `#${orderNo}`}`,
       invoiceUrl,
       usePdfUri: true,
