@@ -2194,7 +2194,7 @@ router.get("/shopify/orders/open", async (req, res) => {
           `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
           (o.name ? o.name.replace(/^#/, "") : "");
 
-        const parcelCountFromMeta = parcelCountMap.get(o.id) ?? null;
+        const parcelCountFromMeta = parcelCountMap.get(String(o.id)) ?? null;
 
         return {
           id: o.id,
