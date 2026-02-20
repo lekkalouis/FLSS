@@ -18,12 +18,59 @@ import { initPriceManagerView } from "./views/price-manager.js";
     cheese: "#f97316",
     bbq: "#ef4444",
     "sour cream": "#60a5fa",
+    "sour cream & chives": "#60a5fa",
     chilli: "#dc2626",
-    original: "#a3e635"
+    original: "#a3e635",
+    "hot & spicy": "#ef4444",
+    "worcester sauce": "#8b5cf6",
+    "red wine & garlic": "#f43f5e",
+    chutney: "#f59e0b",
+    "savoury herb": "#22c55e",
+    "salt & vinegar": "#0ea5e9",
+    curry: "#eab308",
+    butter: "#facc15",
+    parmesan: "#f97316",
+    "parmesan cheese": "#f97316",
+    "cheese & onion": "#fb7185"
+  };
+
+  const FLAVOUR_ABBREVIATIONS = {
+    original: "ORG",
+    "hot & spicy": "HOT",
+    "worcester sauce": "WOR",
+    "red wine & garlic": "RWG",
+    chutney: "CHU",
+    "savoury herb": "SH",
+    "salt & vinegar": "SV",
+    curry: "CUR",
+    butter: "BUT",
+    "sour cream & chives": "SCC",
+    parmesan: "PAR",
+    "parmesan cheese": "PAR",
+    cheese: "CHE",
+    "cheese & onion": "CHO",
+    salted: "SLT",
+    caramel: "CAR",
+    sweet: "SWT",
+    bbq: "BBQ",
+    chilli: "CHI"
   };
 
   const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
   const flavourColor = (flavour) => FLAVOUR_COLORS[flavourKey(flavour)] || "#22d3ee";
+  const flavourAbbrev = (flavour) => {
+    const key = flavourKey(flavour);
+    if (!key) return "?";
+    if (FLAVOUR_ABBREVIATIONS[key]) return FLAVOUR_ABBREVIATIONS[key];
+    const fallback = key
+      .split(/[^a-z0-9]+/i)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 3)
+      .toUpperCase();
+    return fallback || key.slice(0, 3).toUpperCase();
+  };
 
   const loadConfig = async () => {
     const res = await fetch(`${API_BASE}/config`, { headers: { Accept: "application/json" } });
@@ -3014,7 +3061,7 @@ async function startOrder(orderNo) {
         `<tr><th>Size × Flavour</th>`,
         ...flavourList.map((flavour) => {
           const safeFlavour = escapeHtml(flavour);
-          return `<th class="dispatchSelectionFlavourHead" title="${safeFlavour}" aria-label="${safeFlavour}" style="background:color-mix(in srgb, ${flavourColor(flavour)} 28%, #ffffff)"><span class="dispatchSelectionFlavourDot" style="--flavour-color:${flavourColor(flavour)}"></span><span class="srOnly">${safeFlavour}</span></th>`;
+          return `<th class="dispatchSelectionFlavourHead" title="${safeFlavour}" aria-label="${safeFlavour}" style="background:color-mix(in srgb, ${flavourColor(flavour)} 28%, #ffffff)"><span class="dispatchSelectionFlavourDot" style="--flavour-color:${flavourColor(flavour)}">${escapeHtml(flavourAbbrev(flavour))}</span><span class="srOnly">${safeFlavour}</span></th>`;
         }),
         `<th class="dispatchSelectionCellTotal">Total</th></tr>`
       ].join("");
