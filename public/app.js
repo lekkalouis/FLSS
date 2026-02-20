@@ -121,7 +121,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dispatchLog = $("dispatchLog");
   const dispatchSelectionPanel = $("dispatchSelectionPanel");
   const dispatchSelectionCount = $("dispatchSelectionCount");
-  const dispatchSelectionUnits = $("dispatchSelectionUnits");
   const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
   const dispatchSelectionWeight = $("dispatchSelectionWeight");
   const dispatchSelectionTime = $("dispatchSelectionTime");
@@ -2993,9 +2992,6 @@ async function startOrder(orderNo) {
   }
 
   function aggregateDispatchSelection() {
-    const units = new Map();
-    const sizes = new Set();
-    const flavours = new Set();
     let totalWeightKg = 0;
     let totalBoxes = 0;
     let totalUnits = 0;
@@ -3009,17 +3005,7 @@ async function startOrder(orderNo) {
       totalBoxes += packingPlan?.estimatedBoxes || 0;
       totalWeightKg += packingPlan?.totalWeightKg || 0;
       (order.line_items || []).forEach((item) => {
-        const qty = Number(item.quantity) || 0;
-        if (!qty) return;
-        totalUnits += qty;
-        const size = getLineItemSize(item) || "Unspecified";
-        const flavour = getLineItemFlavour(item) || "Unspecified";
-        sizes.add(size);
-        flavours.add(flavour);
-        const key = `${size}||${flavour}`;
-        const existing = units.get(key) || { size, flavour, quantity: 0 };
-        existing.quantity += qty;
-        units.set(key, existing);
+        totalUnits += Number(item.quantity) || 0;
       });
     });
 
@@ -3028,7 +3014,7 @@ async function startOrder(orderNo) {
       boxCount: totalBoxes
     });
 
-    return { units, sizes, flavours, totalWeightKg, totalBoxes, totalUnits, orderCount, totalTimeMin };
+    return { totalWeightKg, totalBoxes, totalUnits, orderCount, totalTimeMin };
   }
 
   function updateDispatchSelectionSummary() {
@@ -3049,47 +3035,6 @@ async function startOrder(orderNo) {
       dispatchSelectionTime.textContent = formatDispatchDuration(totals.totalTimeMin);
     }
 
-    if (dispatchSelectionUnits) {
-      if (!totals.orderCount || totals.units.size === 0) {
-        dispatchSelectionUnits.innerHTML = `<div class="dispatchSelectionRow">Select orders to see totals.</div>`;
-        return;
-      }
-
-      const sizeList = Array.from(totals.sizes).sort((a, b) => a.localeCompare(b));
-      const flavourList = Array.from(totals.flavours).sort((a, b) => a.localeCompare(b));
-      const head = [
-        `<tr><th>Size × Flavour</th>`,
-        ...flavourList.map((flavour) => {
-          const safeFlavour = escapeHtml(flavour);
-          return `<th class="dispatchSelectionFlavourHead" title="${safeFlavour}" aria-label="${safeFlavour}" style="background:color-mix(in srgb, ${flavourColor(flavour)} 28%, #ffffff)"><span class="dispatchSelectionFlavourDot" style="--flavour-color:${flavourColor(flavour)}">${escapeHtml(flavourAbbrev(flavour))}</span><span class="srOnly">${safeFlavour}</span></th>`;
-        }),
-        `<th class="dispatchSelectionCellTotal">Total</th></tr>`
-      ].join("");
-
-      const body = sizeList
-        .map((size) => {
-          let rowTotal = 0;
-          const cells = flavourList
-            .map((flavour) => {
-              const qty = totals.units.get(`${size}||${flavour}`)?.quantity || 0;
-              rowTotal += qty;
-              return `<td>${qty || "—"}</td>`;
-            })
-            .join("");
-          return `<tr><td>${size}</td>${cells}<td class="dispatchSelectionCellTotal">${rowTotal || "—"}</td></tr>`;
-        })
-        .join("");
-
-      const flavourTotals = flavourList
-        .map((flavour) =>
-          sizeList.reduce((sum, size) => sum + (totals.units.get(`${size}||${flavour}`)?.quantity || 0), 0)
-        );
-      const totalRow = `<tr><td>Total</td>${flavourTotals
-        .map((qty) => `<td class="dispatchSelectionCellTotal">${qty || "—"}</td>`)
-        .join("")}<td class="dispatchSelectionCellTotal">${totals.totalUnits || "—"}</td></tr>`;
-
-      dispatchSelectionUnits.innerHTML = `<table class="dispatchSelectionMatrix"><thead>${head}</thead><tbody>${body}${totalRow}</tbody></table>`;
-    }
   }
 
   function clearDispatchSelection() {
