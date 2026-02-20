@@ -3715,145 +3715,37 @@ async function startOrder(orderNo) {
       appendDebug(`Delivery note fetch failed for ${orderNo}: ${String(err)}`);
     }
 
-    const billing = orderData.billing_address || {};
-    const shipping = orderData.shipping_address || {};
-    const customer = orderData.customer || {};
-    const noteRaw = String(orderData.note || "");
-    const noteLines = noteRaw.split("\n");
-
-    let poValue = "";
-    let invoiceDateFromNote = "";
-    noteLines.forEach((line) => {
-      const clean = line.trim();
-      if (clean.includes("PO:")) {
-        poValue = clean.split("PO:").pop().trim();
-      }
-      if (clean.includes("Invoice Date:")) {
-        const rawAfter = clean.split("Invoice Date:").pop().trim();
-        invoiceDateFromNote = rawAfter.slice(0, 10);
-      }
-    });
-
-    const invoiceDateMf =
-      orderData?.metafields?.custom?.invoice_date?.value ||
-      orderData?.metafields?.custom?.invoice_date ||
-      orderData?.metafields?.finance?.invoice_date?.value ||
-      orderData?.metafields?.finance?.invoice_date ||
+    const orderName = String(orderData?.name || order?.name || "").trim();
+    const rawLegacyId =
+      orderData?.legacyResourceId ||
+      orderData?.legacy_resource_id ||
+      orderData?.legacy_resourceId ||
+      orderData?.id ||
       "";
+    const legacyResourceId = Number(String(rawLegacyId).replace(/\D/g, ""));
+    if (!Number.isInteger(legacyResourceId) || legacyResourceId <= 0) {
+      appendDebug(`Delivery note print failed for ${orderNo}: missing legacyResourceId`);
+      return false;
+    }
 
-    const invoiceDateRaw = invoiceDateMf || invoiceDateFromNote || orderData.created_at || "";
-
-    const normalizeDateParts = (value) => {
-      if (!value) return null;
-      if (value instanceof Date && !Number.isNaN(value.getTime())) {
-        return { y: value.getFullYear(), m: value.getMonth() + 1, d: value.getDate() };
-      }
-      const str = String(value).trim();
-      if (!str) return null;
-
-      const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (match) {
-        return { y: Number(match[1]), m: Number(match[2]), d: Number(match[3]) };
-      }
-
-      if (str.includes("/")) {
-        const parts = str.split("/").map((part) => part.trim());
-        if (parts.length === 3) {
-          const [p0, p1, p2] = parts;
-          if (p0.length === 4) {
-            return { y: Number(p0), m: Number(p1), d: Number(p2) };
-          }
-          if (p2.length === 4) {
-            return { y: Number(p2), m: Number(p1), d: Number(p0) };
-          }
-        }
-      }
-
-      const parsed = new Date(str);
-      if (!Number.isNaN(parsed.getTime())) {
-        return { y: parsed.getFullYear(), m: parsed.getMonth() + 1, d: parsed.getDate() };
-      }
-      return null;
-    };
-
-    const formatDate = (value) => {
-      const parts = normalizeDateParts(value);
-      if (!parts) return "";
-      const day = String(parts.d).padStart(2, "0");
-      const month = String(parts.m).padStart(2, "0");
-      return `${day}/${month}/${parts.y}`;
-    };
-
-    const invoiceDateFinal = formatDate(invoiceDateRaw);
-
-    const billingName =
-      (billing.company && billing.company.trim()) || billing.name || orderData.customer_name || "";
-    const shippingName =
-      (shipping.company && shipping.company.trim()) || shipping.name || orderData.customer_name || "";
-
-    const billingPhone =
-      billing.phone ||
-      customer?.default_address?.phone ||
-      customer.phone ||
-      orderData.phone ||
-      "";
-    const shippingPhone = shipping.phone || orderData.shipping_phone || "";
-
-    const noteAttributes = Array.isArray(orderData.note_attributes)
-      ? orderData.note_attributes
-      : [];
-    const shippingEmail =
-      noteAttributes.find((attr) => attr?.name === "Shipping Email")?.value ||
-      orderData.email ||
-      "";
-
-    const lineItems = Array.isArray(orderData.line_items) ? [...orderData.line_items] : [];
-    lineItems.sort((a, b) => String(a.sku || "").localeCompare(String(b.sku || "")));
-
-    const customerNote = String(customer?.note || "");
-    const vatValue = customerNote.includes("VAT ID:")
-      ? customerNote.split("VAT ID:").pop().trim()
-      : "";
-
+    const slug = String(orderName || orderNo)
+      .replace(/#/g, "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+    const invoiceUrl =
+      "https://flippenlekka.shop/apps/download-pdf/orders/492a0907560253c5e190/" +
+      `${legacyResourceId * 2191}/${encodeURIComponent(slug)}.pdf`;
     const payload = {
-      title: `Delivery Note ${orderNo}`,
-      deliveryNote: {
-        orderNo,
-        invoiceDate: invoiceDateFinal,
-        poNumber: poValue,
-        billing: {
-          name: billingName,
-          address1: billing.address1 || "",
-          address2: billing.address2 || "",
-          city: billing.city || "",
-          province: billing.province || "",
-          zip: billing.zip || "",
-          country: billing.country || "",
-          phone: billingPhone,
-          email: orderData.email || "",
-          vatNumber: vatValue
-        },
-        shipping: {
-          name: shippingName,
-          address1: shipping.address1 || "",
-          address2: shipping.address2 || "",
-          city: shipping.city || "",
-          province: shipping.province || "",
-          zip: shipping.zip || "",
-          country: shipping.country || "",
-          phone: shippingPhone,
-          email: shippingEmail
-        },
-        lineItems: lineItems.map((line) => ({
-          sku: line.sku || "",
-          title: line.title || "",
-          quantity: Number(line.quantity || 0)
-        }))
-      }
+      printerId: 74901099,
+      title: `Invoice ${orderName || `#${orderNo}`}`,
+      invoiceUrl,
+      usePdfUri: true,
+      source: "Shopify Flow"
     };
 
     try {
-      const res = await fetch(`${API_BASE}/printnode/print-delivery-note`, {
+      const res = await fetch(`${API_BASE}/printnode/print-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

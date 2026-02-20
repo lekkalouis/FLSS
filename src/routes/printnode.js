@@ -180,15 +180,35 @@ async function buildDeliveryNotePdfBase64(deliveryNote = {}) {
   });
 }
 
-async function sendPrintNodeJob({ pdfBase64, title, printerId, route = "POST /printnode/print" }) {
+async function sendPrintNodeJob({
+  pdfBase64,
+  pdfUri,
+  title,
+  printerId,
+  route = "POST /printnode/print",
+  source = "Flippen Lekka Scan Station"
+}) {
   const auth = Buffer.from(config.PRINTNODE_API_KEY + ":").toString("base64");
+  const hasPdfBase64 = typeof pdfBase64 === "string" && pdfBase64.trim().length > 0;
+  const hasPdfUri = typeof pdfUri === "string" && pdfUri.trim().length > 0;
+  const contentType = hasPdfUri ? "pdf_uri" : "pdf_base64";
+  const content = hasPdfUri ? pdfUri.trim() : String(pdfBase64 || "").replace(/\s/g, "");
   const payload = {
     printerId: Number(printerId || resolveDefaultPrinterId()),
     title: title || "Parcel Label",
-    contentType: "pdf_base64",
-    content: pdfBase64.replace(/\s/g, ""),
-    source: "Flippen Lekka Scan Station"
+    contentType,
+    content,
+    source
   };
+
+  if (!hasPdfBase64 && !hasPdfUri) {
+    return {
+      ok: false,
+      status: 400,
+      statusText: "BAD_REQUEST",
+      body: { error: "Missing print content (pdfBase64 or pdfUri)" }
+    };
+  }
 
   if (!Number.isInteger(payload.printerId) || payload.printerId <= 0) {
     return {
@@ -319,7 +339,7 @@ router.post("/printnode/print-delivery-note", async (req, res) => {
 
 router.post("/printnode/print-url", async (req, res) => {
   try {
-    const { invoiceUrl, title } = req.body || {};
+    const { invoiceUrl, title, printerId, usePdfUri, source } = req.body || {};
 
     if (!invoiceUrl) {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Missing invoiceUrl" });
@@ -336,6 +356,27 @@ router.post("/printnode/print-url", async (req, res) => {
 
     if (!["http:", "https:"].includes(url.protocol)) {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Invalid invoiceUrl" });
+    }
+
+    if (usePdfUri) {
+      const result = await sendPrintNodeJob({
+        pdfUri: String(url),
+        title,
+        printerId,
+        source: source || "Flippen Lekka Scan Station",
+        route: "POST /printnode/print-url"
+      });
+
+      if (!result.ok) {
+        return res.status(result.status).json({
+          error: "PRINTNODE_UPSTREAM",
+          status: result.status,
+          statusText: result.statusText,
+          body: result.body
+        });
+      }
+
+      return res.json({ ok: true, printJob: result.data });
     }
 
     const invoiceResp = await fetchWithTimeout(
@@ -368,6 +409,8 @@ router.post("/printnode/print-url", async (req, res) => {
     const result = await sendPrintNodeJob({
       pdfBase64: buffer.toString("base64"),
       title,
+      printerId,
+      source: source || "Flippen Lekka Scan Station",
       route: "POST /printnode/print-url"
     });
 
