@@ -2322,11 +2322,22 @@ router.get("/shopify/orders/open", async (req, res) => {
           parcel_count: parcelCountFromMeta ?? parcelCountFromTag,
           parcel_count_from_meta: parcelCountFromMeta,
           parcel_count_from_tag: parcelCountFromTag,
-          line_items: (o.line_items || []).map((li) => ({
-            title: li.title,
-            variant_title: li.variant_title,
-            quantity: li.quantity
-          }))
+          line_items: (o.line_items || [])
+            .map((li) => {
+              const quantityRemainingRaw = Number(li.current_quantity ?? li.quantity ?? 0) - Number(li.fulfilled_quantity ?? 0);
+              const quantityRemaining = Number.isFinite(quantityRemainingRaw)
+                ? Math.max(0, quantityRemainingRaw)
+                : Math.max(0, Number(li.fulfillable_quantity ?? li.quantity ?? 0));
+              return {
+                id: li.id,
+                title: li.title,
+                variant_title: li.variant_title,
+                quantity: li.quantity,
+                fulfillable_quantity: li.fulfillable_quantity,
+                quantity_remaining: quantityRemaining
+              };
+            })
+            .filter((li) => (Number(li.quantity_remaining) || 0) > 0)
         };
       });
 
@@ -2617,7 +2628,7 @@ router.post("/shopify/fulfill", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
 
-    const { orderId, trackingNumber, trackingUrl, trackingCompany, message } = req.body || {};
+    const { orderId, lineItems, trackingNumber, trackingUrl, trackingCompany, message } = req.body || {};
     if (!orderId) {
       return res.status(400).json({ error: "MISSING_ORDER_ID", body: req.body });
     }
@@ -2663,10 +2674,42 @@ router.post("/shopify/fulfill", async (req, res) => {
       fulfillmentOrders[0];
 
     const fulfillment_order_id = fo.id;
+    const requestLineItems = Array.isArray(lineItems)
+      ? lineItems
+          .map((item) => ({
+            id: Number(item?.id),
+            quantity: Math.floor(Number(item?.quantity || 0))
+          }))
+          .filter((item) => Number.isFinite(item.id) && item.quantity > 0)
+      : [];
+    const fulfillmentOrderLineItems = Array.isArray(fo.line_items) ? fo.line_items : [];
+    const quantityByLineItemId = new Map(requestLineItems.map((item) => [item.id, item.quantity]));
+    const fulfillment_order_line_items = fulfillmentOrderLineItems
+      .map((item) => {
+        const lineItemId = Number(item?.line_item_id);
+        if (!Number.isFinite(lineItemId) || !quantityByLineItemId.has(lineItemId)) return null;
+        const remaining = Number(item?.fulfillable_quantity ?? 0);
+        const requested = quantityByLineItemId.get(lineItemId) || 0;
+        const quantity = Math.max(0, Math.min(requested, Number.isFinite(remaining) ? remaining : requested));
+        if (!quantity) return null;
+        return { id: item.id, quantity };
+      })
+      .filter(Boolean);
+
+    if (requestLineItems.length && !fulfillment_order_line_items.length) {
+      return res.status(409).json({
+        error: "NO_FULFILLABLE_LINE_ITEMS",
+        message: "Requested line items are already fulfilled or not available on this fulfillment order."
+      });
+    }
 
     const fulfillUrl = `${base}/fulfillments.json`;
     const trackingNote = trackingNumber ? ` Tracking: ${trackingNumber}` : "";
     const fulfillmentMessage = message || `Shipped via Scan Station.${trackingNote}`;
+    const fulfillmentLineItemPayload = { fulfillment_order_id };
+    if (fulfillment_order_line_items.length) {
+      fulfillmentLineItemPayload.fulfillment_order_line_items = fulfillment_order_line_items;
+    }
     const fulfillmentPayload = {
       fulfillment: {
         message: fulfillmentMessage,
@@ -2676,7 +2719,7 @@ router.post("/shopify/fulfill", async (req, res) => {
           url: trackingUrl || undefined,
           company: trackingCompanyFinal
         },
-        line_items_by_fulfillment_order: [{ fulfillment_order_id }]
+        line_items_by_fulfillment_order: [fulfillmentLineItemPayload]
       }
     };
 

@@ -1864,7 +1864,9 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       if (!details?.raw?.id) return false;
 
       const orderId = details.raw.id;
-      const lineItems = (details.raw.line_items || []).map((li) => ({ id: li.id, quantity: li.quantity }));
+      const lineItems = (details.raw.line_items || [])
+        .map((li) => ({ id: li.id, quantity: getRemainingLineItemQty(li) }))
+        .filter((li) => Number(li.quantity) > 0);
 
       const resp = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
         method: "POST",
@@ -2452,6 +2454,14 @@ async function startOrder(orderNo) {
     return /(^|[\s,])agent([\s,]|$)/.test(tags);
   }
 
+  function getRemainingLineItemQty(item) {
+    const remaining = Number(item?.quantity_remaining);
+    if (Number.isFinite(remaining)) return Math.max(0, remaining);
+    const fulfillable = Number(item?.fulfillable_quantity);
+    if (Number.isFinite(fulfillable)) return Math.max(0, fulfillable);
+    return Math.max(0, Number(item?.quantity) || 0);
+  }
+
   function renderDispatchLineItems(order, packingState) {
     return (order.line_items || [])
       .map((item, index) => ({ ...item, __index: index }))
@@ -2467,6 +2477,8 @@ async function startOrder(orderNo) {
         });
       })
       .map((li) => {
+        const requestedQty = getRemainingLineItemQty(li);
+        if (requestedQty <= 0) return "";
         const baseTitle = li.title || "";
         const variantTitle = (li.variant_title || "").trim();
         const hasVariant = variantTitle && variantTitle.toLowerCase() !== "default title";
@@ -2480,15 +2492,16 @@ async function startOrder(orderNo) {
         const itemKey = makePackingKey(li, li.__index);
         const packedItem = getPackingItem(packingState, itemKey);
         const packedCount = packedItem ? Number(packedItem.packed) || 0 : 0;
-        const totalCount = packedItem ? Number(packedItem.quantity) || 0 : Number(li.quantity) || 0;
+        const totalCount = packedItem ? Number(packedItem.quantity) || 0 : requestedQty;
         const remaining = Math.max(0, totalCount - packedCount);
         const isComplete = packedCount > 0 && remaining === 0;
         const isPartial = packedCount > 0 && remaining > 0;
         const remainderTag = isPartial
           ? ` <span class="dispatchLineRemainder">(${remaining})</span>`
           : "";
-        return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}">• ${li.quantity} × ${shortLabel}${remainderTag}</span>`;
+        return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}">• ${requestedQty} × ${shortLabel}${remainderTag}</span>`;
       })
+      .filter(Boolean)
       .join("<br>");
   }
 
@@ -2735,7 +2748,7 @@ async function startOrder(orderNo) {
     let hasExcludedSize = false;
 
     items.forEach((item) => {
-      const qty = Number(item?.quantity) || 0;
+      const qty = getRemainingLineItemQty(item);
       totalUnits += qty;
       const sizeLabel = normalizeSizeToken(getLineItemSize(item));
       if (SMALL_ORDER_EXCLUDED_SIZES.has(sizeLabel)) {
@@ -2761,7 +2774,7 @@ async function startOrder(orderNo) {
           title: item.title || "",
           size,
           curryMix,
-          quantity: Number(item.quantity) || 0,
+          quantity: getRemainingLineItemQty(item),
           spaces: metrics.spaces,
           weight: metrics.weight
         };
