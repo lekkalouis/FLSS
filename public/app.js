@@ -3682,12 +3682,15 @@ async function startOrder(orderNo) {
       "https://flippenlekka.shop/apps/download-pdf/orders/492a0907560253c5e190/" +
       `${legacyResourceId * 2191}/${encodeURIComponent(slug)}.pdf`;
     const payload = {
-      printerId: 74467271,
       title: `Invoice ${orderName || `#${orderNo}`}`,
       invoiceUrl,
       usePdfUri: true,
       source: "Shopify Flow"
     };
+    const configuredDeliveryPrinterId = Number(CONFIG.DELIVERY_NOTE_PRINTER_ID);
+    if (Number.isInteger(configuredDeliveryPrinterId) && configuredDeliveryPrinterId > 0) {
+      payload.printerId = configuredDeliveryPrinterId;
+    }
 
     try {
       const res = await fetch(`${API_BASE}/printnode/print-url`, {

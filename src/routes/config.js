@@ -6,6 +6,14 @@ import { numberOrDefault } from "../utils/number.js";
 const router = Router();
 const API_BASE = "/api/v1";
 
+function resolveUiDeliveryNotePrinterId() {
+  const deliveryPrinter = numberOrDefault(config.PRINTNODE_DELIVERY_NOTE_PRINTER_ID, 0, { min: 0 });
+  if (deliveryPrinter > 0) return deliveryPrinter;
+
+  const defaultPrinter = numberOrDefault(config.PRINTNODE_PRINTER_ID, 0, { min: 0 });
+  return defaultPrinter > 0 ? defaultPrinter : null;
+}
+
 router.get("/config", (_req, res) => {
   const uiConfig = {
     COST_ALERT_THRESHOLD: numberOrDefault(config.UI_COST_ALERT_THRESHOLD, 250),
@@ -36,6 +44,7 @@ router.get("/config", (_req, res) => {
     PP_ENDPOINT: `${API_BASE}/pp`,
     SHOPIFY: { PROXY_BASE: `${API_BASE}/shopify` },
     FLOW_TRIGGER_TAG: config.SHOPIFY_FLOW_TAG || "dispatch_flow",
+    DELIVERY_NOTE_PRINTER_ID: resolveUiDeliveryNotePrinterId(),
     FEATURE_FLAGS: {
       MULTI_SHIP: config.UI_FEATURE_MULTI_SHIP
         ? String(config.UI_FEATURE_MULTI_SHIP).toLowerCase() !== "false"
