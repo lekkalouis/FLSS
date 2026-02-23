@@ -2528,10 +2528,12 @@ async function startOrder(orderNo) {
         const remaining = Math.max(0, totalCount - packedCount);
         const isComplete = packedCount > 0 && remaining === 0;
         const isPartial = packedCount > 0 && remaining > 0;
-        const remainderTag = isPartial
-          ? ` <span class="dispatchLineRemainder">(${remaining})</span>`
+        const missingTag = isPartial
+          ? `<span class="dispatchLineMissing" aria-label="${remaining} item${
+              remaining === 1 ? "" : "s"
+            } short">* ${remaining}</span>`
           : "";
-        return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}">• ${requestedQty} × ${shortLabel}${remainderTag}</span>`;
+        return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}"><span class="dispatchLineText">• ${requestedQty} × ${shortLabel}</span>${missingTag}</span>`;
       })
       .filter(Boolean)
       .join("<br>");
@@ -2557,9 +2559,13 @@ async function startOrder(orderNo) {
   function renderDispatchActions(order, laneId, orderNo) {
     const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
     const disabled = orderNo ? "" : "disabled";
+    const printBoxButton = `<button class="dispatchBoxBtn" type="button" data-action="print-box" data-order-no="${
+      orderNo || ""
+    }" ${disabled}>Print box</button>`;
     if (normalizedLane === "delivery") {
       const printed = orderNo && printedDeliveryNotes.has(orderNo);
       return `
+        ${printBoxButton}
         <button class="dispatchFulfillBtn" type="button" data-action="print-note" data-order-no="${orderNo || ""}" ${disabled}>Print delivery note</button>
         <button class="dispatchFulfillBtn" type="button" data-action="deliver-delivery" data-order-no="${orderNo || ""}" ${!printed ? "disabled" : ""}>Deliver</button>
       `;
@@ -2568,11 +2574,12 @@ async function startOrder(orderNo) {
     const actionType = normalizedLane === "pickup" ? "ready-collection" : "fulfill-shipping";
     if (normalizedLane === "shipping") {
       return `
+        ${printBoxButton}
         <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>
         <button class="dispatchFulfillBtn" type="button" data-action="partial-fulfill" data-order-no="${orderNo || ""}" ${disabled}>Fulfil some</button>
       `;
     }
-    return `<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
+    return `${printBoxButton}<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
   }
 
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
@@ -4673,6 +4680,25 @@ async function startOrder(orderNo) {
       statusExplain(`Packing plan printed for ${orderNo}.`, "ok");
       return true;
     }
+    if (actionType === "print-box") {
+      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+      if (!orderNo || !order) {
+        statusExplain("Box print unavailable.", "warn");
+        logDispatchEvent("Box print failed: order not found.");
+        return true;
+      }
+      setDispatchProgress(4, `Printing box ${orderNo}`);
+      logDispatchEvent(`Printing box for order ${orderNo}.`);
+      const ok = await printDeliveryNote(order);
+      if (!ok) {
+        statusExplain("Box print failed.", "warn");
+        logDispatchEvent("Box print failed to send to PrintNode.");
+        return true;
+      }
+      statusExplain(`Box printed for ${orderNo}.`, "ok");
+      return true;
+    }
+
     if (actionType === "print-note") {
       const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
       if (!orderNo || !order) {
