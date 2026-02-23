@@ -5,7 +5,9 @@ import {
   extractQuoteFromV28,
   normalizeMatrixDestinations,
   normalizeWeights,
+  parseParcelPerfectPayload,
   pickQuoteRate,
+  resolvePlaceId,
   selectMatrixDestinations,
   SOUTH_AFRICA_MATRIX_CENTRES
 } from '../src/services/parcelperfect.js';
@@ -73,4 +75,18 @@ test('selectMatrixDestinations filters by major or regional centre type', () => 
   assert.ok(regionalOnly.length > 0);
   assert.ok(majorOnly.every((item) => item.type === 'major'));
   assert.ok(regionalOnly.every((item) => item.type === 'regional'));
+});
+
+
+test('parseParcelPerfectPayload supports concatenated JSON responses by using the final object', () => {
+  const raw = '{"errorcode":1,"errormessage":"First"}{"errorcode":2,"errormessage":"Second","results":[{"histid":"H1"}]}' ;
+  const parsed = parseParcelPerfectPayload(raw);
+  assert.equal(parsed.error, null);
+  assert.equal(parsed.parsed?.errorcode, 2);
+  assert.equal(parsed.parsed?.results?.[0]?.histid, 'H1');
+});
+
+test('resolvePlaceId returns first valid positive numeric candidate', () => {
+  assert.equal(resolvePlaceId('', 'abc', 0, ' 4663 '), 4663);
+  assert.equal(resolvePlaceId(null, undefined, '0'), null);
 });
