@@ -5,7 +5,9 @@ import {
   extractQuoteFromV28,
   normalizeParcelPerfectClass,
   normalizeWeights,
+  parseParcelPerfectPayload,
   pickQuoteRate,
+  resolvePlaceId,
   selectMatrixDestinations
 } from "../services/parcelperfect.js";
 import {
@@ -28,7 +30,7 @@ function getDefaultMatrixDetails({ place, town, type }) {
     origperadd4: config.UI_ORIGIN_ADDR4 || "ZA",
     origperpcode: config.UI_ORIGIN_POSTCODE || "7530",
     origtown: config.UI_ORIGIN_TOWN || "Cape Town",
-    origplace: Number(config.UI_ORIGIN_PLACE_ID || config.PP_PLACE_ID || 4663),
+    origplace: resolvePlaceId(config.UI_ORIGIN_PLACE_ID, config.PP_PLACE_ID, 4663),
     origpercontact: config.UI_ORIGIN_CONTACT || "Operations",
     origperphone: config.UI_ORIGIN_PHONE || "",
     origpercell: config.UI_ORIGIN_CELL || "",
@@ -90,17 +92,15 @@ async function requestQuote({ details, weightKg, signal }) {
   );
 
   const text = await upstream.text();
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
+  const { parsed: data, error: parseError } = parseParcelPerfectPayload(text);
+  if (!data) {
     return {
       ok: false,
       status: upstream.status,
       quoteno: null,
       service: null,
       amount: null,
-      error: "Invalid JSON returned by ParcelPerfect",
+      error: parseError,
       raw: text
     };
   }
@@ -307,7 +307,7 @@ router.post("/pp/matrix", async (req, res) => {
 
     return res.json({
       generatedAt: new Date().toISOString(),
-      originPlace: Number(config.UI_ORIGIN_PLACE_ID || config.PP_PLACE_ID || 4663),
+      originPlace: resolvePlaceId(config.UI_ORIGIN_PLACE_ID, config.PP_PLACE_ID, 4663),
       centreType,
       destinationCount: destinations.length,
       quoteAttempts: destinations.length * weights.length,

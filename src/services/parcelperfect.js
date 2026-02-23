@@ -9,6 +9,39 @@ export function normalizeParcelPerfectClass(value) {
   return raw;
 }
 
+export function parseParcelPerfectPayload(rawText) {
+  const text = String(rawText || "").trim();
+  if (!text) {
+    return { parsed: null, error: "Empty response returned by ParcelPerfect" };
+  }
+
+  try {
+    return { parsed: JSON.parse(text), error: null };
+  } catch {
+    // ParcelPerfect occasionally returns concatenated JSON documents.
+    const objects = text.match(/\{[^]*?\}(?=\{|$)/g) || [];
+    for (let index = objects.length - 1; index >= 0; index -= 1) {
+      try {
+        return { parsed: JSON.parse(objects[index]), error: null };
+      } catch {
+        // keep scanning until we find a parseable object
+      }
+    }
+    return { parsed: null, error: "Invalid JSON returned by ParcelPerfect" };
+  }
+}
+
+export function resolvePlaceId(...candidates) {
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null) continue;
+    const normalized = String(candidate).trim();
+    if (!normalized) continue;
+    const value = Number(normalized);
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  return null;
+}
+
 export const SOUTH_AFRICA_MATRIX_CENTRES = [
   { place: 1404, town: "Johannesburg", type: "major", province: "Gauteng" },
   { place: 1573, town: "Pretoria", type: "major", province: "Gauteng" },
