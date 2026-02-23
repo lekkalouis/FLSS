@@ -2708,10 +2708,13 @@ async function startOrder(orderNo) {
         const remaining = Math.max(0, totalCount - packedCount);
         const isComplete = packedCount > 0 && remaining === 0;
         const isPartial = packedCount > 0 && remaining > 0;
-        const missingTag = remaining > 0
-          ? `<span class="dispatchLineMissing" aria-label="${remaining} item${
-              remaining === 1 ? "" : "s"
-            } missing"><span class="dispatchLineMissingMark">*</span> ${remaining}</span>`
+        const fulfillableQty = Number(li?.fulfillable_quantity);
+        const inventoryAvailableQty = Number(li?.inventory_available);
+        const isShortOrUnavailable =
+          (Number.isFinite(fulfillableQty) && fulfillableQty < requestedQty) ||
+          (Number.isFinite(inventoryAvailableQty) && inventoryAvailableQty < requestedQty);
+        const missingTag = isShortOrUnavailable
+          ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
           : "";
         const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
         return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${qtyLabel}</span>${missingTag}</div>`;
