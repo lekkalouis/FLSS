@@ -2651,98 +2651,74 @@
         
     </div>
 
-    <div class="flView" id="viewStock" hidden>
+        <div class="flView" id="viewStock" hidden>
       <div class="stock-shell">
         <section class="stock-card stock-overviewCard">
           <div class="stock-inventoryHeader">
             <div>
-              <h2>Inventory</h2>
-              <p class="stock-muted">Shopify-style compact inventory list with stock take and draft buying.</p>
+              <h2>Stock</h2>
+              <p class="stock-muted">Read, count, make and purchase-order workflows.</p>
             </div>
-            <div class="stock-tabToggle" role="tablist" aria-label="Inventory tabs">
-              <button id="stock-tabCount" class="stock-tabBtn is-active" type="button" data-tab="count">Count</button>
-              <button id="stock-tabBuy" class="stock-tabBtn" type="button" data-tab="buy">Buy</button>
+            <div class="stock-tabToggle" role="tablist" aria-label="Stock areas">
+              <button id="stock-tabStock" class="stock-tabBtn is-active" type="button" data-tab="stock">Stock</button>
+              <button id="stock-tabPurchase" class="stock-tabBtn" type="button" data-tab="purchase">Purchase Orders</button>
             </div>
           </div>
 
-          <div class="stock-toolbar">
-            <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU, product or flavour..." />
-            <div class="stock-toolbarGroup">
-              <span class="stock-toolbarLabel">Location</span>
-              <select id="stock-location" class="stock-select"></select>
+          <div id="stock-stockArea">
+            <div class="stock-toolbar">
+              <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU, product or flavour..." />
+              <div class="stock-toolbarGroup">
+                <span class="stock-toolbarLabel">Location</span>
+                <select id="stock-location" class="stock-select"></select>
+              </div>
+              <div class="stock-modeToggle">
+                <button class="stock-modeBtn is-active" type="button" data-mode="read">Read</button>
+                <button class="stock-modeBtn" type="button" data-mode="count">Count</button>
+                <button class="stock-modeBtn" type="button" data-mode="make">Make</button>
+              </div>
+              <span class="stock-pill" id="stock-modeLabel">Mode: Read</span>
             </div>
-            <div class="stock-toolbarGroup">
-              <span class="stock-toolbarLabel">Transfer</span>
-              <select id="stock-transferLocation" class="stock-select"></select>
-            </div>
-            <div class="stock-modeToggle">
-              <button class="stock-modeBtn" type="button" data-mode="read">Read</button>
-              <button class="stock-modeBtn is-active" type="button" data-mode="take">Count</button>
-              <button class="stock-modeBtn" type="button" data-mode="receive">Receive</button>
-            </div>
-            <span class="stock-pill" id="stock-modeLabel">Mode: Stock take</span>
+            <div id="stock-missingSummary" class="stock-missingSummary" hidden></div>
+            <table class="stock-table" id="stock-table" data-mode="read">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Item</th>
+                  <th>Flavour</th>
+                  <th>Current</th>
+                  <th class="stock-countCol">Count</th>
+                  <th class="stock-countCol">Crates</th>
+                  <th class="stock-countCol">New total</th>
+                  <th class="stock-countCol">Diff</th>
+                  <th class="stock-countCol">Action</th>
+                  <th class="stock-makeCol">Missing for open orders</th>
+                </tr>
+              </thead>
+              <tbody id="stock-tableBody"></tbody>
+            </table>
           </div>
 
-          <div id="stock-flavourFilters" class="stock-chipRow"></div>
-
-          <table class="stock-table" id="stock-table">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Item</th>
-                <th>Flavour</th>
-                <th>Current</th>
-                <th>Count 1</th>
-                <th>Count 2</th>
-                <th>Count 3</th>
-                <th>Total</th>
-                <th>Quick</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="stock-tableBody"></tbody>
-          </table>
-
-          <div id="stock-buyPanel" class="stock-buyPanel" hidden>
-            <div class="stock-subsection">
-              <h3>Purchase orders (raw materials)</h3>
-              <form id="po-batchForm" class="stock-form">
-                <div class="stock-formRow">
-                  <label class="stock-field">
-                    <span>PO name</span>
-                    <input id="po-batchName" class="stock-input" type="text" placeholder="e.g. Monthly raw-material restock" />
-                  </label>
-                </div>
-                <div class="stock-formRow stock-formRow--compact">
-                  <label class="stock-field">
-                    <span>Raw material SKU</span>
-                    <select id="po-skuSelect" class="stock-select"></select>
-                  </label>
-                  <label class="stock-field">
-                    <span>Order qty</span>
-                    <input id="po-skuQty" class="stock-input" type="number" min="1" step="1" placeholder="0" />
-                  </label>
-                  <button id="po-addLine" class="stock-actionBtn stock-actionBtn--inline" type="button">Add line</button>
-                </div>
-                <div class="stock-lines">
-                  <table class="stock-table stock-table--compact">
-                    <thead>
-                      <tr>
-                        <th>SKU</th>
-                        <th>Material</th>
-                        <th>Qty</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody id="po-linesTable"></tbody>
-                  </table>
-                </div>
-                <div class="stock-formActions">
-                  <button id="po-createBatch" class="stock-primaryBtn" type="button">Create draft PO</button>
-                  <button id="po-clearLines" class="stock-ghostBtn" type="button">Clear lines</button>
-                </div>
-              </form>
-              <div id="po-batchList" class="stock-batchList"></div>
+          <div id="stock-purchaseArea" hidden>
+            <div class="stock-toolbar" style="margin-bottom:.8rem">
+              <div class="stock-tabToggle" role="tablist" aria-label="PO tabs">
+                <button class="stock-tabBtn is-active" type="button" data-po-tab="create" id="po-tabCreate">Create</button>
+                <button class="stock-tabBtn" type="button" data-po-tab="receive" id="po-tabReceive">Receive</button>
+              </div>
+              <input id="po-supplier" class="stock-input" type="text" placeholder="Supplier name (optional)" />
+              <input id="po-note" class="stock-input" type="text" placeholder="PO note (optional)" />
+              <button id="po-submit" class="stock-primaryBtn" type="button">Create draft purchase order</button>
+            </div>
+            <div id="po-toast" class="stock-poToast" hidden></div>
+            <div id="po-createPanel">
+              <div id="po-grid" class="stock-poGrid"></div>
+            </div>
+            <div id="po-receivePanel" hidden>
+              <h3 class="stock-logTitle">Recently created PO's</h3>
+              <table class="stock-table stock-table--compact">
+                <thead><tr><th>PO</th><th>Created</th><th>Lines</th><th>Actions</th></tr></thead>
+                <tbody id="po-openTable"></tbody>
+              </table>
             </div>
           </div>
 

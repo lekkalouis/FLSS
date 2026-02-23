@@ -1859,12 +1859,16 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     return `Order ${orders.join(" + ")}`;
   }
 
-  async function fulfillOnShopify(details, waybillNo) {
+  async function fulfillOnShopify(details, waybillNo, selectedLineItems = null) {
     try {
       if (!details?.raw?.id) return false;
 
       const orderId = details.raw.id;
-      const lineItems = (details.raw.line_items || []).map((li) => ({ id: li.id, quantity: li.quantity }));
+      const lineItems = Array.isArray(selectedLineItems)
+        ? selectedLineItems
+        : (details.raw.line_items || [])
+            .map((li) => ({ id: li.id, quantity: getRemainingLineItemQty(li) }))
+            .filter((li) => Number(li.quantity) > 0);
 
       const resp = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
         method: "POST",
@@ -1885,6 +1889,36 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       appendDebug("Shopify fulfill exception: " + String(e));
     }
     return false;
+  }
+
+
+  async function promptAndRunPartialFulfillment(orderNo) {
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order?.id) return false;
+    const lineItems = Array.isArray(order.line_items) ? order.line_items : [];
+    const selected = [];
+    for (const li of lineItems) {
+      const maxQty = getRemainingLineItemQty(li);
+      if (maxQty <= 0 || !li.id) continue;
+      const label = `${li.title || "Item"}${li.variant_title ? ` (${li.variant_title})` : ""}`;
+      const raw = window.prompt(`Fulfill qty for ${label} (0-${maxQty})`, "0");
+      if (raw == null) continue;
+      const qty = Math.max(0, Math.min(maxQty, Math.floor(Number(raw) || 0)));
+      if (qty > 0) selected.push({ id: li.id, quantity: qty });
+    }
+    if (!selected.length) {
+      statusExplain("No item quantities selected for partial fulfillment.", "warn");
+      return false;
+    }
+    const details = { raw: { id: order.id, line_items: lineItems } };
+    const ok = await fulfillOnShopify(details, "", selected);
+    if (ok) {
+      statusExplain(`Partial fulfillment completed for ${orderNo}.`, "ok");
+      await loadDispatchBoard();
+    } else {
+      statusExplain(`Partial fulfillment failed for ${orderNo}.`, "warn");
+    }
+    return ok;
   }
 
   function promptManualParcelCount(orderNo) {
@@ -2452,6 +2486,14 @@ async function startOrder(orderNo) {
     return /(^|[\s,])agent([\s,]|$)/.test(tags);
   }
 
+  function getRemainingLineItemQty(item) {
+    const remaining = Number(item?.quantity_remaining);
+    if (Number.isFinite(remaining)) return Math.max(0, remaining);
+    const fulfillable = Number(item?.fulfillable_quantity);
+    if (Number.isFinite(fulfillable)) return Math.max(0, fulfillable);
+    return Math.max(0, Number(item?.quantity) || 0);
+  }
+
   function renderDispatchLineItems(order, packingState) {
     return (order.line_items || [])
       .map((item, index) => ({ ...item, __index: index }))
@@ -2467,6 +2509,8 @@ async function startOrder(orderNo) {
         });
       })
       .map((li) => {
+        const requestedQty = getRemainingLineItemQty(li);
+        if (requestedQty <= 0) return "";
         const baseTitle = li.title || "";
         const variantTitle = (li.variant_title || "").trim();
         const hasVariant = variantTitle && variantTitle.toLowerCase() !== "default title";
@@ -2480,15 +2524,16 @@ async function startOrder(orderNo) {
         const itemKey = makePackingKey(li, li.__index);
         const packedItem = getPackingItem(packingState, itemKey);
         const packedCount = packedItem ? Number(packedItem.packed) || 0 : 0;
-        const totalCount = packedItem ? Number(packedItem.quantity) || 0 : Number(li.quantity) || 0;
+        const totalCount = packedItem ? Number(packedItem.quantity) || 0 : requestedQty;
         const remaining = Math.max(0, totalCount - packedCount);
         const isComplete = packedCount > 0 && remaining === 0;
         const isPartial = packedCount > 0 && remaining > 0;
         const remainderTag = isPartial
           ? ` <span class="dispatchLineRemainder">(${remaining})</span>`
           : "";
-        return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}">• ${li.quantity} × ${shortLabel}${remainderTag}</span>`;
+        return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}">• ${requestedQty} × ${shortLabel}${remainderTag}</span>`;
       })
+      .filter(Boolean)
       .join("<br>");
   }
 
@@ -2521,6 +2566,12 @@ async function startOrder(orderNo) {
     }
     const label = normalizedLane === "pickup" ? "Ready for collection" : "Fulfil";
     const actionType = normalizedLane === "pickup" ? "ready-collection" : "fulfill-shipping";
+    if (normalizedLane === "shipping") {
+      return `
+        <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>
+        <button class="dispatchFulfillBtn" type="button" data-action="partial-fulfill" data-order-no="${orderNo || ""}" ${disabled}>Fulfil some</button>
+      `;
+    }
     return `<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
   }
 
@@ -2735,7 +2786,7 @@ async function startOrder(orderNo) {
     let hasExcludedSize = false;
 
     items.forEach((item) => {
-      const qty = Number(item?.quantity) || 0;
+      const qty = getRemainingLineItemQty(item);
       totalUnits += qty;
       const sizeLabel = normalizeSizeToken(getLineItemSize(item));
       if (SMALL_ORDER_EXCLUDED_SIZES.has(sizeLabel)) {
@@ -2761,7 +2812,7 @@ async function startOrder(orderNo) {
           title: item.title || "",
           size,
           curryMix,
-          quantity: Number(item.quantity) || 0,
+          quantity: getRemainingLineItemQty(item),
           spaces: metrics.spaces,
           weight: metrics.weight
         };
@@ -4573,6 +4624,11 @@ async function startOrder(orderNo) {
       navigateTo("/scan", { replace: true });
       statusExplain(`Booking order ${orderNo} (${parcelCount} parcels).`, "info");
       await doBookingNow({ manual: true, parcelCount });
+      return true;
+    }
+    if (actionType === "partial-fulfill") {
+      if (!orderNo) return true;
+      await promptAndRunPartialFulfillment(orderNo);
       return true;
     }
     if (actionType === "deliver-delivery") {
