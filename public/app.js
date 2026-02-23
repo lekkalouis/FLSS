@@ -351,9 +351,9 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const SHOPIFY_PRINT_TEMPLATE_CONFIG = {
     // Paste template settings for all printable docs here.
     // To add more templates, create another key like:
-    // customDoc: { multiplier: 1234, slugPrefix: "custom-doc" }
-    deliveryNote: { multiplier: 2191, slugPrefix: "delivery-note" },
-    printDocs: { multiplier: 2192, slugPrefix: "print-docs" }
+    // customDoc: { multiplier: 1234, slugPrefix: "custom-doc", printerId: 12345678 }
+    deliveryNote: { multiplier: 2191, slugPrefix: "delivery-note", printerId: 74467271 },
+    printDocs: { multiplier: 2192, slugPrefix: "print-docs", printerId: 74467271 }
   };
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
@@ -3731,6 +3731,12 @@ async function startOrder(orderNo) {
 
   async function printShopifyTemplate(order, templateKey = "deliveryNote") {
     if (!order) return false;
+    const template = SHOPIFY_PRINT_TEMPLATE_CONFIG[templateKey];
+    const configuredPrinterId = Number(template?.printerId);
+    if (!Number.isInteger(configuredPrinterId) || configuredPrinterId <= 0) {
+      appendDebug(`Print template failed for ${String(templateKey)}: missing valid printerId in config`);
+      return false;
+    }
     const orderNo = String(order.name || "").replace("#", "").trim();
     let orderData = order;
 
@@ -3778,7 +3784,7 @@ async function startOrder(orderNo) {
         ? "Print docs"
         : "Template";
     const payload = {
-      printerId: 74467271,
+      printerId: configuredPrinterId,
       title: `${templateLabel} ${orderName || `#${orderNo}`}`,
       invoiceUrl,
       usePdfUri: true,
