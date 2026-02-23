@@ -517,9 +517,10 @@
     border-top:1px solid var(--panel-strong);
     padding-top:1rem;
     gap:1rem;
+    justify-content:flex-end;
   }
   .dispatchTopBar.dispatchExpanded .dispatchTopDetails{
-    display:grid;
+    display:flex;
   }
   .dispatchDetailGrid{
     display:grid;
@@ -556,8 +557,9 @@
   }
   .dispatchTopPanels{
     display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
     gap:.85rem;
+    width:min(980px, 100%);
   }
   .dispatchTruckIndicator{
     margin-left:auto;
@@ -2320,9 +2322,28 @@
               <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
             </div>
           </div>
+          <div class="dispatchTopDetails" aria-live="polite">
+            <div class="dispatchTopPanels">
+              <div class="dispatchStatusPanel dispatchStatusPanel--compact">
+                <div class="dispatchStatusHeader">
+                  <h3>Booking progress</h3>
+                  <span class="dispatchStatusLabel" id="dispatchProgressLabel">Ready</span>
+                </div>
+                <div class="dispatchProgressBar" id="dispatchProgressBar">
+                  <div class="dispatchProgressFill" id="dispatchProgressFill"></div>
+                  <span class="dispatchProgressSun" aria-hidden="true"></span>
+                </div>
+                <div class="dispatchProgressSteps" id="dispatchProgressSteps"></div>
+              </div>
+              <div class="dispatchLogPanel dispatchLogPanel--compact">
+                <div class="dispatchLogHeader">
+                  <strong>Dispatch log</strong>
+                </div>
+                <div class="dispatchLog" id="dispatchLog" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
         </div>
-        <textarea id="dispatchNotesInput" hidden></textarea>
-        <button id="dispatchNotesClose" type="button" hidden>Close</button>
       </div>
     </div>
 
