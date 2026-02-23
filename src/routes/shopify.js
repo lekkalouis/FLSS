@@ -2434,6 +2434,41 @@ router.get("/shopify/orders/open", async (req, res) => {
     }
 
     const filteredOrders = ordersRaw.filter((o) => !o.cancelled_at);
+    const getQuantityRemaining = (lineItem = {}) => {
+      const quantityRemainingRaw = Number(lineItem.current_quantity ?? lineItem.quantity ?? 0) - Number(lineItem.fulfilled_quantity ?? 0);
+      if (Number.isFinite(quantityRemainingRaw)) {
+        return Math.max(0, quantityRemainingRaw);
+      }
+      return Math.max(0, Number(lineItem.fulfillable_quantity ?? lineItem.quantity ?? 0));
+    };
+
+    const openVariantIds = Array.from(
+      new Set(
+        filteredOrders
+          .flatMap((order) => (Array.isArray(order?.line_items) ? order.line_items : []))
+          .filter((lineItem) => getQuantityRemaining(lineItem) > 0)
+          .map((lineItem) => Number(lineItem?.variant_id))
+          .filter((variantId) => Number.isFinite(variantId))
+      )
+    );
+
+    const variantInventoryAvailable = new Map();
+    if (openVariantIds.length) {
+      try {
+        const locationId = await fetchPrimaryLocationId();
+        const variantToInventoryItem = await fetchInventoryItemIdsForVariants(openVariantIds);
+        const inventoryItemIds = Array.from(new Set(Array.from(variantToInventoryItem.values())));
+        const inventoryLevels = await fetchInventoryLevelsForItems(inventoryItemIds, locationId);
+
+        variantToInventoryItem.forEach((inventoryItemId, variantId) => {
+          if (!inventoryLevels.has(inventoryItemId)) return;
+          variantInventoryAvailable.set(variantId, Number(inventoryLevels.get(inventoryItemId) || 0));
+        });
+      } catch (inventoryErr) {
+        console.warn("Shopify open-orders inventory enrichment skipped:", inventoryErr?.message || inventoryErr);
+      }
+    }
+
     const orderIds = filteredOrders.map((o) => o.id);
     const parcelCountMap = await batchFetchOrderParcelCounts(base, orderIds);
 
@@ -2489,17 +2524,20 @@ router.get("/shopify/orders/open", async (req, res) => {
           parcel_count_from_tag: parcelCountFromTag,
           line_items: (o.line_items || [])
             .map((li) => {
-              const quantityRemainingRaw = Number(li.current_quantity ?? li.quantity ?? 0) - Number(li.fulfilled_quantity ?? 0);
-              const quantityRemaining = Number.isFinite(quantityRemainingRaw)
-                ? Math.max(0, quantityRemainingRaw)
-                : Math.max(0, Number(li.fulfillable_quantity ?? li.quantity ?? 0));
+              const quantityRemaining = getQuantityRemaining(li);
+              const variantId = Number(li.variant_id);
+              const inventoryAvailable = Number.isFinite(variantId) && variantInventoryAvailable.has(variantId)
+                ? Number(variantInventoryAvailable.get(variantId))
+                : null;
               return {
                 id: li.id,
+                variant_id: Number.isFinite(variantId) ? variantId : null,
                 title: li.title,
                 variant_title: li.variant_title,
                 quantity: li.quantity,
                 fulfillable_quantity: li.fulfillable_quantity,
-                quantity_remaining: quantityRemaining
+                quantity_remaining: quantityRemaining,
+                inventory_available: inventoryAvailable
               };
             })
             .filter((li) => (Number(li.quantity_remaining) || 0) > 0)
