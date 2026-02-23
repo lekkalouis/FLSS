@@ -2621,9 +2621,9 @@ async function startOrder(orderNo) {
         const isComplete = packedCount > 0 && remaining === 0;
         const isPartial = packedCount > 0 && remaining > 0;
         const missingTag = isPartial
-          ? `<span class="dispatchLineMissing" aria-label="${remaining} item${
-              remaining === 1 ? "" : "s"
-            } short">* ${remaining}</span>`
+          ? `<span class="dispatchLineMissing" aria-label="${packedCount} item${
+              packedCount === 1 ? "" : "s"
+            } packed">* ${packedCount}</span>`
           : "";
         return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" style="--dispatch-flavour-color:${flavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${requestedQty} × ${shortLabel}</span>${missingTag}</div>`;
       })
@@ -2688,12 +2688,26 @@ async function startOrder(orderNo) {
 
     return `
       ${docsDropdown}
-      <button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping" data-order-no="${orderNo || ""}" ${disabled}>Fulfil</button>
-      <button class="dispatchFulfillBtn" type="button" data-action="partial-fulfill" data-order-no="${orderNo || ""}" ${disabled}>Fulfil some</button>
+      <button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping" data-order-no="${orderNo || ""}" ${disabled}>Fulfill</button>
+      <button class="dispatchFulfillBtn" type="button" data-action="partial-fulfill" data-order-no="${orderNo || ""}" ${disabled}>Fulfill some</button>
     `;
   }
 
   function getMissingSeverity(order, packingState) {
+    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const stockShortItems = lineItems.filter((item) => {
+      const ordered = Number(item?.quantity) || 0;
+      const fulfillable = Number(item?.fulfillable_quantity);
+      return Number.isFinite(fulfillable) && fulfillable < ordered;
+    });
+    if (stockShortItems.length) {
+      const bulkOnly = stockShortItems.every((item) => {
+        const label = `${item?.title || ""} ${item?.variant_title || ""}`.toLowerCase();
+        return /(500g|750g|1kg|bulk\s*pack|bulk)/.test(label);
+      });
+      return bulkOnly ? "yellow" : "red";
+    }
+
     const stateItems = Array.isArray(packingState?.items) ? packingState.items : [];
     const hasStartedPacking =
       stateItems.some((item) => Number(item?.packed) > 0) || Boolean(packingState?.endTime);

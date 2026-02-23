@@ -592,10 +592,11 @@ export function initFlocsView() {
 
   function normalizeDeliveryMethod(value) {
     const normalized = String(value || "").toLowerCase().trim();
+    if (normalized === "free_shipping" || normalized === "free shipping") return "free_shipping";
     if (normalized === "ship" || normalized === "shipping") return "shipping";
     if (normalized === "deliver" || normalized === "delivery") return "delivery";
     if (normalized === "pickup") return "pickup";
-        return "";
+    return "";
   }
 
   function syncDeliveryGroup() {
@@ -976,6 +977,8 @@ export function initFlocsView() {
     const deliveryLabel =
       delivery === ""
         ? "Not selected"
+        : delivery === "free_shipping"
+        ? "Free Shipping"
         : delivery === "pickup"
         ? "Pickup at Flippen Lekka"
         : delivery === "delivery"
@@ -997,16 +1000,18 @@ ${state.customer.email || ""}${
         }`
       : "No customer selected";
 
-    const shipToLabel = delivery === "shipping" ? "Ship to" : "Shipping address";
+    const shipToLabel = delivery === "shipping" || delivery === "free_shipping" ? "Ship to" : "Shipping address";
     const shipToText =
       shipAddr
         ? formatAddress(shipAddr)
-        : delivery === "shipping"
+        : delivery === "shipping" || delivery === "free_shipping"
         ? "Ship selected but no address chosen"
         : "Not selected";
 
     const shippingLine =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? "Free Shipping: R0"
+        : delivery === "shipping" && state.shippingQuote
         ? `Shipping (${state.shippingQuote.service || "Courier"} @ ${money(
             state.shippingQuote.ratePerKg || 0
           )}/kg, quoteno ${state.shippingQuote.quoteno}): ${money(
@@ -1248,7 +1253,9 @@ ${state.customer.email || ""}${
     if (currentDelivery() !== "shipping") {
       state.shippingQuote = null;
       shippingSummary.textContent =
-        "Delivery type is pickup/delivery – no courier shipping.";
+        currentDelivery() === "free_shipping"
+          ? "Free Shipping selected — shipping cost will be R0."
+          : "Delivery type is pickup/delivery – no courier shipping.";
       validate();
       renderInvoice();
       return;
@@ -1727,15 +1734,21 @@ ${state.customer.email || ""}${
     const delivery = currentDelivery();
     const addr = currentShippingAddress();
     const shippingPrice =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? 0
+        : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.subtotal ?? state.shippingQuote.total
         : null;
     const shippingBaseTotal =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? 0
+        : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.baseTotal
         : null;
     const shippingService =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? "Free Shipping"
+        : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.service
         : null;
     const shippingQuoteNo =
@@ -1859,15 +1872,21 @@ ${state.customer.email || ""}${
     const delivery = currentDelivery();
     const addr = currentShippingAddress();
     const shippingPrice =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? 0
+        : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.subtotal ?? state.shippingQuote.total
         : null;
     const shippingBaseTotal =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? 0
+        : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.baseTotal
         : null;
     const shippingService =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? "Free Shipping"
+        : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.service
         : null;
     const shippingQuoteNo =
@@ -2188,7 +2207,9 @@ ${state.customer.email || ""}${
         if (state.delivery !== "shipping") {
           state.shippingQuote = null;
           shippingSummary.textContent =
-            "No courier shipping for pickup/delivery.";
+            state.delivery === "free_shipping"
+              ? "Free Shipping selected — shipping cost will be R0."
+              : "No courier shipping for pickup/delivery.";
         }
         renderCustomerChips();
         renderInvoice();

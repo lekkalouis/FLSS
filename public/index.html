@@ -53,7 +53,7 @@
     border:1px solid var(--panel-strong);
     box-shadow:var(--shadow-soft);
     border-radius:0;
-    padding:.8rem 1.2rem;
+    padding:.5rem .9rem;
     display:flex;
     flex-direction:column;
     gap:.6rem;
@@ -69,7 +69,7 @@
   .flNav{
     display:flex;
     flex-direction:row;
-    gap:.75rem;
+    gap:.45rem;
     align-items:center;
     justify-content:space-between;
   }
@@ -90,8 +90,8 @@
     background:var(--panel);
     color:var(--text);
     font-weight:600;
-    font-size:.85rem;
-    padding:.55rem .9rem;
+    font-size:.78rem;
+    padding:.42rem .65rem;
     border-radius:.75rem;
     cursor:pointer;
     transition:all .2s ease;
@@ -135,8 +135,8 @@
     flex:1;
     display:flex;
     flex-direction:column;
-    gap:1rem;
-    padding:1.25rem 1.75rem 1.75rem;
+    gap:.7rem;
+    padding:.7rem 1rem 1rem;
   }
   @media (max-width:800px){
     .flMain{ padding:1rem; }
@@ -812,17 +812,18 @@
 
 .dispatchSelectionFloat{
   position:fixed;
-  left:1.25rem;
-  right:1.25rem;
-  bottom:1rem;
+  right:1rem;
+  bottom:.85rem;
   z-index:35;
   display:flex;
-  justify-content:center;
+  justify-content:flex-end;
   pointer-events:none;
+  left:auto;
+  width:min(46vw,680px);
 }
 
 .dispatchSelectionPanel{
-  width:min(1240px, calc(100vw - 2.5rem));
+  width:100%;
   border-radius:var(--radius-lg);
   border:1px solid var(--panel-strong);
   padding:.55rem .7rem;
@@ -1113,12 +1114,12 @@
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(260px, 1fr));
-  gap: 1rem;
-  padding: .35rem;
+  grid-template-columns: repeat(6, minmax(220px, 1fr));
+  gap: .75rem;
+  padding: .2rem;
   min-height: 65vh;
   background:var(--panel-muted);
-  overflow-x:auto;
+  overflow:hidden;
 }
 
 /* column headers */
@@ -1332,7 +1333,8 @@
   }
   .dispatchDocsMenu{
     position:absolute;
-    top:calc(100% + .25rem);
+    bottom:calc(100% + .25rem);
+    top:auto;
     right:0;
     min-width:9.5rem;
     border:1px solid var(--panel-strong);
@@ -1845,10 +1847,13 @@
     background:rgba(148,163,184,.35);
   }
 
+
+.dispatchBottomBar{position:fixed;left:1rem;bottom:.85rem;z-index:36;width:min(52vw,760px);pointer-events:none;}
+.dispatchBottomBar .dispatchTopBar{pointer-events:auto;border-radius:.8rem;padding:.45rem .65rem;box-shadow:0 12px 24px rgba(15,23,42,.2);}
 .dispatchColBody {
-  overflow-y: auto;
-  max-height: 62vh;
-  padding-right: 6px;
+  overflow: visible;
+  max-height: none;
+  padding-right: 0;
 }
 
 /* lane separation */
@@ -2173,64 +2178,15 @@
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
+            <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite">
+              <span class="statusBarLabel">Connections</span>
+              <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
+            </div>
             <div class="flNavSummary"></div>
           </div>
         </nav>
       </aside>
       <main class="flMain">
-        <div class="flMainHeader">
-          <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite">
-            <span class="statusBarLabel">Connections</span>
-            <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
-          </div>
-          <div class="dispatchTopBar" id="dispatchTopBar" aria-label="Dispatch controls" hidden>
-            <div class="dispatchTopRow">
-              <div class="dispatchHeading">Dispatch</div>
-              <div class="dispatchScanField">
-                <label for="scanInput">Scan barcode</label>
-                <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." autofocus />
-              </div>
-              <div class="dispatchTopActions">
-                <button id="dispatchExpandToggle" class="btn dispatchExpandToggle" type="button" aria-expanded="false" title="Dispatch settings">⚙️</button>
-                <button id="dispatchCreateCombined" class="btn btnToggle btn--compact" type="button">Create Combined Shipment</button>
-                <button id="modeToggle" class="btn btn--compact" type="button">MODE: AUTO</button>
-                <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
-              </div>
-              <div class="dispatchTruckIndicator">
-                <button id="truckBookBtn" class="dispatchTruckButton is-unbooked" type="button" aria-pressed="false">
-                  <span class="dispatchTruckIcon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h9.5A1.75 1.75 0 0 1 16 6.75V14h1.25c.41 0 .8.18 1.06.49l2.5 3a1.75 1.75 0 0 1 .44 1.13v1.13A1.25 1.25 0 0 1 20 21h-1.1a2.5 2.5 0 0 1-4.9 0H9a2.5 2.5 0 0 1-4.9 0H3.75A.75.75 0 0 1 3 20.25zM16 14V6.75a.25.25 0 0 0-.25-.25h-9.5a.25.25 0 0 0-.25.25V14zm1.8 0h2.25l-2-2.4zm-11.4 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2m10.4-1a1 1 0 1 0-2 0 1 1 0 0 0 2 0"/>
-                    </svg>
-                  </span>
-                  <span id="truckStatus">Not booked</span>
-                </button>
-                <div class="dispatchTruckMeta">
-                  <span class="dispatchTruckBox"><span aria-hidden="true">📦</span>Truck:<span id="truckParcelCount">0</span></span>
-                </div>
-              </div>
-            </div>
-            <div class="dispatchTopDetails">
-              <div class="dispatchDetailGrid">
-                <div class="dispatchDetailCard"><span class="dispatchDetailLabel">Customer</span><span id="uiCustomerName" class="dispatchDetailValue">--</span></div>
-                <div class="dispatchDetailCard"><span class="dispatchDetailLabel">Order</span><span id="uiOrderNo" class="dispatchDetailValue">--</span></div>
-                <div class="dispatchDetailCard"><span class="dispatchDetailLabel">Order weight</span><span id="uiOrderWeight" class="dispatchDetailValue">--</span></div>
-                <div class="dispatchDetailCard dispatchDetailAddress"><span class="dispatchDetailLabel">Shipping address</span><span id="shipToCard" class="dispatchDetailValue">None yet.</span></div>
-              </div>
-              <div class="dispatchTopPanels">
-                <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
-                  <div class="dispatchStatusHeader"><h3>Booking progress</h3><span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span></div>
-                  <div class="dispatchProgressBar" id="scanProgressBar"><div id="scanProgressFill" class="dispatchProgressFill"></div><div class="dispatchProgressSun" aria-hidden="true"></div></div>
-                  <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
-                </div>
-                <div class="dispatchLogPanel dispatchLogPanel--compact">
-                  <div class="dispatchLogHeader"><span>Dispatch log</span><span class="dispatchStamp">Latest activity</span></div>
-                  <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
         <div class="dispatchSelectionFloat" aria-live="polite">
           <div class="dispatchSelectionPanel" id="dispatchSelectionPanel">
             <div class="dispatchSelectionHeader">
@@ -2349,10 +2305,24 @@
           <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
         </div>
       </div>
-      <div id="dispatchNotesBar" style="position:sticky;bottom:0;z-index:30;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:.75rem;padding:.55rem;margin-top:.5rem;display:flex;gap:.5rem;align-items:center">
-        <strong style="font-size:.78rem">Dispatch notes</strong>
-        <textarea id="dispatchNotesInput" placeholder="Type notes for dispatch team…" style="flex:1;min-height:48px;max-height:120px;background:#111827;color:#e5e7eb;border:1px solid #475569;border-radius:.5rem;padding:.4rem"></textarea>
-        <button id="dispatchNotesClose" type="button" class="btn btn--compact">Close</button>
+      <div id="dispatchNotesBar" class="dispatchBottomBar">
+        <div class="dispatchTopBar" id="dispatchTopBar" aria-label="Dispatch controls" hidden>
+          <div class="dispatchTopRow">
+            <div class="dispatchHeading">Dispatch</div>
+            <div class="dispatchScanField">
+              <label for="scanInput">Scan barcode</label>
+              <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." autofocus />
+            </div>
+            <div class="dispatchTopActions">
+              <button id="dispatchExpandToggle" class="btn dispatchExpandToggle" type="button" aria-expanded="false" title="Dispatch settings">⚙️</button>
+              <button id="dispatchCreateCombined" class="btn btnToggle btn--compact" type="button">Create Combined Shipment</button>
+              <button id="modeToggle" class="btn btn--compact" type="button">MODE: AUTO</button>
+              <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
+            </div>
+          </div>
+        </div>
+        <textarea id="dispatchNotesInput" hidden></textarea>
+        <button id="dispatchNotesClose" type="button" hidden>Close</button>
       </div>
     </div>
 
@@ -2558,6 +2528,7 @@
                     <select id="flocs-customerDelivery" class="flocs-select">
                       <option value="">Default delivery (optional)</option>
                       <option value="shipping">Shipping</option>
+                      <option value="free_shipping">Free Shipping</option>
                       <option value="pickup">Pickup</option>
                       <option value="delivery">Delivery</option>
                     </select>
@@ -2651,6 +2622,7 @@
                   <div class="flocs-labelRow"><span>Delivery type</span><span class="flocs-hint" id="flocs-deliveryHint">Uses customer metafield custom.delivery_method if set</span></div>
                   <div class="flocs-radioGroup" id="flocs-deliveryGroup">
                     <label class="flocs-radioPill"><input type="radio" name="delivery" value="shipping" checked /><span>Shipping</span></label>
+                    <label class="flocs-radioPill"><input type="radio" name="delivery" value="free_shipping" /><span>Free Shipping</span></label>
                     <label class="flocs-radioPill"><input type="radio" name="delivery" value="pickup" /><span>Pickup</span></label>
                     <label class="flocs-radioPill"><input type="radio" name="delivery" value="delivery" /><span>Delivery</span></label>
                   </div>
