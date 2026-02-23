@@ -2695,6 +2695,19 @@ async function startOrder(orderNo) {
 
   function getMissingSeverity(order, packingState) {
     const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const inventoryShortItems = lineItems.filter((item) => {
+      const remaining = Number(item?.quantity_remaining ?? item?.fulfillable_quantity ?? item?.quantity);
+      const inventoryAvailable = Number(item?.inventory_available);
+      return Number.isFinite(remaining) && remaining > 0 && Number.isFinite(inventoryAvailable) && inventoryAvailable < remaining;
+    });
+    if (inventoryShortItems.length) {
+      const bulkOnly = inventoryShortItems.every((item) => {
+        const label = `${item?.title || ""} ${item?.variant_title || ""}`.toLowerCase();
+        return /(500g|750g|1kg|bulk\s*pack|bulk)/.test(label);
+      });
+      return bulkOnly ? "yellow" : "red";
+    }
+
     const stockShortItems = lineItems.filter((item) => {
       const ordered = Number(item?.quantity) || 0;
       const fulfillable = Number(item?.fulfillable_quantity);
