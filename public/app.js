@@ -362,7 +362,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
       templateId: "492a0907560253c5e190",
       multiplier: 2192,
       slugPrefix: "print-docs",
-      printerId: 74467271
+      printerId: 74901099
     }
   };
 
