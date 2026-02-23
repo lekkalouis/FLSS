@@ -187,6 +187,11 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const scanProgressLabel = $("scanProgressLabel");
   const scanDispatchLog = $("scanDispatchLog");
   const dispatchTopBar = $("dispatchTopBar");
+  const dispatchBookingOverlay = $("dispatchBookingOverlay");
+  const dispatchOverlayProgressBar = $("dispatchOverlayProgressBar");
+  const dispatchOverlayProgressFill = $("dispatchOverlayProgressFill");
+  const dispatchOverlayProgressSteps = $("dispatchOverlayProgressSteps");
+  const dispatchOverlayProgressLabel = $("dispatchOverlayProgressLabel");
 
   const navDashboard = $("navDashboard");
   const navScan = $("navScan");
@@ -761,6 +766,12 @@ import { initPriceManagerView } from "./views/price-manager.js";
       fill: scanProgressFill,
       steps: scanProgressSteps,
       bar: scanProgressBar
+    },
+    {
+      label: dispatchOverlayProgressLabel,
+      fill: dispatchOverlayProgressFill,
+      steps: dispatchOverlayProgressSteps,
+      bar: dispatchOverlayProgressBar
     }
   ];
 
@@ -776,6 +787,11 @@ import { initPriceManagerView } from "./views/price-manager.js";
         `
       ).join("");
     });
+  }
+
+  function setBookingOverlayVisible(isVisible) {
+    if (!dispatchBookingOverlay) return;
+    dispatchBookingOverlay.hidden = !isVisible;
   }
 
   function setDispatchProgress(stepIndex, label = "In progress", options = {}) {
@@ -2090,6 +2106,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     const parcelIndexes = Array.from({ length: totalExpected }, (_, i) => i + 1);
 
     armedForBooking = true;
+    setBookingOverlayVisible(true);
     appendDebug("Booking orders " + bundledOrderNos.join(", ") + " parcels=" + parcelIndexes.join(", "));
     await stepDispatchProgress(0, `Booking ${bundledOrderNos.join(", ")}`);
     logDispatchEvent(`Booking started for orders ${bundledOrderNos.join(", ")}.`);
@@ -2110,6 +2127,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
         bookingSummary.textContent = `Cannot request quote — missing: ${missing.join(", ")}\n\nShip To:\n${JSON.stringify(orderDetails, null, 2)}`;
       }
       armedForBooking = false;
+      setBookingOverlayVisible(false);
       confirmBookingFeedback("failure");
       return;
     }
@@ -2126,6 +2144,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       }
       if (quoteBox) quoteBox.textContent = "No quote — check place code / proxy / token.";
       armedForBooking = false;
+      setBookingOverlayVisible(false);
       confirmBookingFeedback("failure");
       return;
     }
@@ -2137,6 +2156,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       logDispatchEvent("Quote failed: no quote number returned.");
       if (bookingSummary) bookingSummary.textContent = `No quote number.\n${JSON.stringify(quoteRes.data, null, 2)}`;
       armedForBooking = false;
+      setBookingOverlayVisible(false);
       confirmBookingFeedback("failure");
       return;
     }
@@ -2176,6 +2196,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       logDispatchEvent(`Booking failed (HTTP ${collRes?.status || "?"}).`);
       if (bookingSummary) bookingSummary.textContent = `Booking error: HTTP ${collRes?.status} ${collRes?.statusText}\n${JSON.stringify(collRes?.data, null, 2)}`;
       armedForBooking = false;
+      setBookingOverlayVisible(false);
       confirmBookingFeedback("failure");
       return;
     }
@@ -2283,11 +2304,13 @@ ${JSON.stringify(cr, null, 2)}`;
     }
 
     updateDailyParcelCount(totalExpected);
+    setBookingOverlayVisible(false);
     resetSession();
   }
 
 function resetSession() {
   cancelAutoBookTimer();
+  setBookingOverlayVisible(false);
 
   activeOrderNo = null;
   orderDetails = null;
@@ -2685,13 +2708,13 @@ async function startOrder(orderNo) {
         const remaining = Math.max(0, totalCount - packedCount);
         const isComplete = packedCount > 0 && remaining === 0;
         const isPartial = packedCount > 0 && remaining > 0;
-        const missingTag = isPartial
-          ? `<span class="dispatchLineMissing" aria-label="${packedCount} item${
-              packedCount === 1 ? "" : "s"
-            } packed">* ${packedCount}</span>`
+        const missingTag = remaining > 0
+          ? `<span class="dispatchLineMissing" aria-label="${remaining} item${
+              remaining === 1 ? "" : "s"
+            } missing"><span class="dispatchLineMissingMark">*</span> ${remaining}</span>`
           : "";
         const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
-        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" style="--dispatch-flavour-color:${flavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${qtyLabel}</span>${missingTag}</div>`;
+        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${qtyLabel}</span>${missingTag}</div>`;
       })
       .filter(Boolean)
       .join("");
@@ -3365,24 +3388,43 @@ async function startOrder(orderNo) {
       dispatchSelectionTime.textContent = formatDispatchDuration(totals.totalTimeMin);
     }
     if (dispatchSelectionMixes) {
-      const dots = [];
-      [...totals.flavourSizeTotals.values()]
-        .sort((a, b) => {
-          const aKey = flavourKey(a.flavour);
-          const bKey = flavourKey(b.flavour);
-          const aOrder = FLAVOUR_SORT_ORDER.has(aKey) ? FLAVOUR_SORT_ORDER.get(aKey) : Number.POSITIVE_INFINITY;
-          const bOrder = FLAVOUR_SORT_ORDER.has(bKey) ? FLAVOUR_SORT_ORDER.get(bKey) : Number.POSITIVE_INFINITY;
+      const entries = [...totals.flavourSizeTotals.values()].sort((a, b) => {
+        const aKey = flavourKey(a.flavour);
+        const bKey = flavourKey(b.flavour);
+        const aOrder = FLAVOUR_SORT_ORDER.has(aKey) ? FLAVOUR_SORT_ORDER.get(aKey) : Number.POSITIVE_INFINITY;
+        const bOrder = FLAVOUR_SORT_ORDER.has(bKey) ? FLAVOUR_SORT_ORDER.get(bKey) : Number.POSITIVE_INFINITY;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        const flavourCmp = String(a.flavour).localeCompare(String(b.flavour));
+        if (flavourCmp !== 0) return flavourCmp;
+        return String(a.size).localeCompare(String(b.size));
+      });
+      if (!entries.length) {
+        dispatchSelectionMixes.innerHTML = `<div class="dispatchMixMatrixEmpty">No mix yet</div>`;
+      } else {
+        const sizeList = [...new Set(entries.map((entry) => String(entry.size || "Unspecified")))].sort((a, b) =>
+          a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+        );
+        const flavourList = [...new Set(entries.map((entry) => String(entry.flavour || "Unknown")))].sort((a, b) => {
+          const aOrder = FLAVOUR_SORT_ORDER.has(flavourKey(a)) ? FLAVOUR_SORT_ORDER.get(flavourKey(a)) : Number.POSITIVE_INFINITY;
+          const bOrder = FLAVOUR_SORT_ORDER.has(flavourKey(b)) ? FLAVOUR_SORT_ORDER.get(flavourKey(b)) : Number.POSITIVE_INFINITY;
           if (aOrder !== bOrder) return aOrder - bOrder;
-          const flavourCmp = String(a.flavour).localeCompare(String(b.flavour));
-          if (flavourCmp !== 0) return flavourCmp;
-          return String(a.size).localeCompare(String(b.size));
-        })
-        .forEach((entry) => {
-          dots.push(
-            `<span class="dispatchMixDot"><span class="dispatchMixDotColor" style="background:${flavourColor(entry.flavour)}"></span>${entry.flavour} · ${entry.size}: ${entry.qty}</span>`
-          );
+          return a.localeCompare(b);
         });
-      dispatchSelectionMixes.innerHTML = dots.join("") || `<span class="dispatchMixDot">No mix yet</span>`;
+        const mixMap = new Map(entries.map((entry) => [`${entry.flavour}::${entry.size}`, entry.qty]));
+        const header = sizeList.map((size) => `<th scope="col">${size}</th>`).join("");
+        const rows = flavourList
+          .map((flavour) => {
+            const cells = sizeList
+              .map((size) => {
+                const qty = Number(mixMap.get(`${flavour}::${size}`) || 0);
+                return `<td class="${qty === 0 ? "dispatchMixCell--missing" : ""}">${qty === 0 ? "*" : qty}</td>`;
+              })
+              .join("");
+            return `<tr><th scope="row" class="dispatchMixMatrixFlavour">${flavour}</th>${cells}</tr>`;
+          })
+          .join("");
+        dispatchSelectionMixes.innerHTML = `<table class="dispatchMixMatrix"><thead><tr><th scope="col">Flavour</th>${header}</tr></thead><tbody>${rows}</tbody></table>`;
+      }
     }
 
   }
@@ -4712,6 +4754,7 @@ async function startOrder(orderNo) {
 
   emergencyStopBtn?.addEventListener("click", () => {
     statusExplain("EMERGENCY STOP – session cleared", "err");
+    setBookingOverlayVisible(false);
     resetSession();
     if (stickerPreview) stickerPreview.innerHTML = "";
     if (printMount) printMount.innerHTML = "";
