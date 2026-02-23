@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Accounts</title>
+  <style>
+    :root { --ink:#142033; --muted:#4b5563; --bg:#eef2ff; --card:#fff; --line:#d4ddf5; --accent:#4f46e5; --ok:#166534; --err:#b91c1c; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; color: var(--ink); background: linear-gradient(180deg,#f6f8ff,var(--bg)); }
+    .wrap { width: min(1200px, 100vw - 1.5rem); margin: .8rem auto; display: grid; gap: .75rem; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .85rem 1rem; box-shadow: 0 8px 20px rgba(16,24,40,.05); }
+    h1,h2,h3 { margin: 0 0 .6rem; }
+    p { margin: 0; color: var(--muted); }
+    a { color: var(--accent); }
+    .layout { display: grid; grid-template-columns: 1fr; gap: .75rem; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: .55rem; }
+    label { display: grid; gap: .2rem; font-size: .86rem; color: #1f2937; }
+    input, textarea { width: 100%; border: 1px solid #bdc8e8; border-radius: 8px; padding: .52rem .58rem; font: inherit; }
+    .actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .65rem; }
+    button { border: none; background: var(--accent); color: white; padding: .52rem .72rem; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    button.secondary { background: #6b7280; }
+    button.ghost { background: #e5e7eb; color: #111827; }
+    .msg { min-height: 1rem; font-size: .85rem; margin-top: .4rem; }
+    .msg.ok { color: var(--ok); }
+    .msg.error { color: var(--err); }
+    .pill { display: inline-flex; border-radius: 999px; padding: .2rem .5rem; background: #e0e7ff; color: #312e81; font-size: .8rem; font-weight: 700; }
+    .order-shell { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr); gap: .75rem; align-items: start; }
+    .products { display: grid; gap: .45rem; max-height: 54dvh; overflow: auto; padding-right: .2rem; }
+    .product { border: 1px solid #dbe4fb; border-radius: 10px; padding: .55rem; display: grid; grid-template-columns: minmax(0,1fr) 92px 84px; gap: .5rem; align-items: center; }
+    .product h4 { margin: 0; font-size: .92rem; }
+    .sku { color: var(--muted); font-size: .78rem; }
+    .price { font-weight: 700; text-align: right; }
+    .qty { width: 100%; text-align: center; }
+    .summary { position: sticky; top: .5rem; }
+    .summary dt { color: var(--muted); }
+    .summary dd { margin: 0; font-weight: 700; }
+    .history { max-height: 28dvh; overflow: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    th, td { padding: .38rem .44rem; border-bottom: 1px solid #eef2ff; text-align: left; vertical-align: top; }
+    #profileCard, #workspace { display: none; }
+
+    @media (max-width: 1024px) {
+      .wrap { width: min(100vw - 1rem, 980px); margin: .5rem auto; }
+      .order-shell { grid-template-columns: 1fr; }
+      .summary { position: static; }
+      .products { max-height: 42dvh; }
+    }
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+      .product { grid-template-columns: 1fr 78px 74px; }
+      .wrap { width: calc(100vw - .7rem); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Customer Accounts</h1>
+      <p>Log in, edit your profile, and place orders at your tier price.</p>
+      <p><a href="/">← Back to dashboard</a></p>
+    </div>
+
+    <div id="authCard" class="card">
+      <h2>Login or Register</h2>
+      <div class="grid">
+        <label>Email<input id="authEmail" type="email" autocomplete="email" /></label>
+        <label>Password<input id="authPassword" type="password" autocomplete="current-password" /></label>
+        <label>First name (register)<input id="authFirstName" type="text" autocomplete="given-name" /></label>
+        <label>Last name (register)<input id="authLastName" type="text" autocomplete="family-name" /></label>
+        <label>Phone (register)<input id="authPhone" type="text" autocomplete="tel" /></label>
+      </div>
+      <div class="actions">
+        <button id="loginBtn" type="button">Login</button>
+        <button id="registerBtn" type="button" class="secondary">Register</button>
+      </div>
+      <p id="authMessage" class="msg"></p>
+    </div>
+
+    <div id="workspace" class="layout">
+      <div id="profileCard" class="card">
+        <h2>Edit Profile <span id="tierBadge" class="pill"></span></h2>
+        <div class="grid">
+          <label>First name<input id="firstName" type="text" /></label>
+          <label>Last name<input id="lastName" type="text" /></label>
+          <label>Phone<input id="phone" type="text" /></label>
+          <label>Address line 1<input id="addressLine1" type="text" /></label>
+          <label>Address line 2<input id="addressLine2" type="text" /></label>
+          <label>City<input id="city" type="text" /></label>
+          <label>Province<input id="province" type="text" /></label>
+          <label>Postal code<input id="postalCode" type="text" /></label>
+        </div>
+        <div class="actions">
+          <button id="saveProfileBtn" type="button">Save profile</button>
+          <button id="logoutBtn" type="button" class="secondary">Logout</button>
+        </div>
+        <p id="profileMessage" class="msg"></p>
+      </div>
+
+      <div class="card">
+        <h2>Order Form</h2>
+        <div class="order-shell">
+          <div>
+            <div id="products" class="products"></div>
+            <label style="margin-top:.6rem;">Order notes
+              <textarea id="orderNotes" rows="3" placeholder="Optional instructions"></textarea>
+            </label>
+          </div>
+          <div class="summary card">
+            <h3>Summary</h3>
+            <dl>
+              <dt>Lines selected</dt><dd id="lineCount">0</dd>
+              <dt>Order total</dt><dd id="orderTotal">R 0.00</dd>
+            </dl>
+            <div class="actions">
+              <button id="placeOrderBtn" type="button">Place order</button>
+              <button id="refreshOrdersBtn" type="button" class="ghost">Refresh history</button>
+            </div>
+            <p id="orderMessage" class="msg"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>My Recent Orders</h3>
+        <div class="history">
+          <table>
+            <thead>
+              <tr><th>When</th><th>Order ID</th><th>Lines</th><th>Total</th><th>Status</th></tr>
+            </thead>
+            <tbody id="ordersBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api/v1/customer-accounts';
+    const TOKEN_KEY = 'fl_customer_account_token';
+
+    const byId = (id) => document.getElementById(id);
+    const authCard = byId('authCard');
+    const workspace = byId('workspace');
+    const profileCard = byId('profileCard');
+    const authMessage = byId('authMessage');
+    const profileMessage = byId('profileMessage');
+    const orderMessage = byId('orderMessage');
+    const productsRoot = byId('products');
+    const ordersBody = byId('ordersBody');
+    const lineCountEl = byId('lineCount');
+    const orderTotalEl = byId('orderTotal');
+    const tierBadge = byId('tierBadge');
+
+    let catalog = [];
+
+    function setMessage(el, text, type = '') {
+      el.textContent = text;
+      el.className = `msg ${type}`.trim();
+    }
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+    function setToken(token) {
+      if (token) localStorage.setItem(TOKEN_KEY, token);
+      else localStorage.removeItem(TOKEN_KEY);
+    }
+
+    function money(v) {
+      const n = Number(v || 0);
+      return `R ${n.toFixed(2)}`;
+    }
+
+    function showProfile(user) {
+      authCard.style.display = 'none';
+      workspace.style.display = 'grid';
+      profileCard.style.display = 'block';
+      ['firstName','lastName','phone','addressLine1','addressLine2','city','province','postalCode'].forEach((key) => {
+        byId(key).value = user[key] || '';
+      });
+      tierBadge.textContent = `Tier: ${(user.tier || 'public').toUpperCase()}`;
+      setMessage(profileMessage, `Logged in as ${user.email}`, 'ok');
+    }
+
+    function showAuth(message = '') {
+      authCard.style.display = 'block';
+      workspace.style.display = 'none';
+      profileCard.style.display = 'none';
+      if (message) setMessage(authMessage, message, 'ok');
+    }
+
+    async function authedFetch(path, options = {}) {
+      const token = getToken();
+      const headers = { ...(options.headers || {}) };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      return fetch(`${API_BASE}${path}`, { ...options, headers });
+    }
+
+    function renderCatalog() {
+      productsRoot.innerHTML = '';
+      if (!catalog.length) {
+        productsRoot.innerHTML = '<p>No products available.</p>';
+        return;
+      }
+      for (const item of catalog) {
+        const el = document.createElement('div');
+        el.className = 'product';
+        el.innerHTML = `
+          <div>
+            <h4>${item.title}</h4>
+            <div class="sku">${item.sku} · ${item.tierUsed.toUpperCase()} price</div>
+          </div>
+          <div class="price">${money(item.unitPrice)}</div>
+          <div><input class="qty" type="number" min="0" step="1" value="0" data-product-id="${item.id}" /></div>
+        `;
+        productsRoot.appendChild(el);
+      }
+      productsRoot.querySelectorAll('.qty').forEach((input) => {
+        input.addEventListener('input', recalcSummary);
+      });
+      recalcSummary();
+    }
+
+    function selectedItems() {
+      return Array.from(productsRoot.querySelectorAll('.qty'))
+        .map((input) => ({ productId: input.dataset.productId, quantity: Number(input.value || 0) }))
+        .filter((line) => line.quantity > 0);
+    }
+
+    function recalcSummary() {
+      const map = new Map(catalog.map((item) => [item.id, item]));
+      const items = selectedItems();
+      const total = items.reduce((sum, line) => {
+        const product = map.get(line.productId);
+        if (!product) return sum;
+        return sum + Number(product.unitPrice || 0) * Number(line.quantity || 0);
+      }, 0);
+      lineCountEl.textContent = String(items.length);
+      orderTotalEl.textContent = money(total);
+    }
+
+    function renderOrders(orders) {
+      ordersBody.innerHTML = '';
+      if (!orders.length) {
+        ordersBody.innerHTML = '<tr><td colspan="5">No orders yet.</td></tr>';
+        return;
+      }
+      for (const order of orders) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${new Date(order.createdAt).toLocaleString()}</td>
+          <td>${order.id.slice(0, 8)}</td>
+          <td>${order.lines.length}</td>
+          <td>${money(order.subtotal)}</td>
+          <td>${order.status}</td>
+        `;
+        ordersBody.appendChild(tr);
+      }
+    }
+
+    async function loadCatalog() {
+      const res = await authedFetch('/catalog');
+      if (!res.ok) return;
+      const data = await res.json();
+      catalog = Array.isArray(data.products) ? data.products : [];
+      renderCatalog();
+    }
+
+    async function loadOrders() {
+      const res = await authedFetch('/orders');
+      if (!res.ok) return;
+      const data = await res.json();
+      renderOrders(Array.isArray(data.orders) ? data.orders : []);
+    }
+
+    async function loadProfile() {
+      const token = getToken();
+      if (!token) return;
+      const res = await authedFetch('/me');
+      if (!res.ok) {
+        setToken('');
+        return;
+      }
+      const data = await res.json();
+      showProfile(data.user);
+      await loadCatalog();
+      await loadOrders();
+    }
+
+    byId('registerBtn').addEventListener('click', async () => {
+      setMessage(authMessage, '');
+      const payload = {
+        email: byId('authEmail').value,
+        password: byId('authPassword').value,
+        firstName: byId('authFirstName').value,
+        lastName: byId('authLastName').value,
+        phone: byId('authPhone').value
+      };
+      const res = await fetch(`${API_BASE}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(authMessage, data.error || 'Unable to register account.', 'error');
+        return;
+      }
+      setMessage(authMessage, 'Account created. Please log in.', 'ok');
+    });
+
+    byId('loginBtn').addEventListener('click', async () => {
+      setMessage(authMessage, '');
+      const payload = { email: byId('authEmail').value, password: byId('authPassword').value };
+      const res = await fetch(`${API_BASE}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(authMessage, data.error || 'Login failed.', 'error');
+        return;
+      }
+      setToken(data.token);
+      showProfile(data.user);
+      await loadCatalog();
+      await loadOrders();
+    });
+
+    byId('saveProfileBtn').addEventListener('click', async () => {
+      setMessage(profileMessage, '');
+      const payload = {
+        firstName: byId('firstName').value,
+        lastName: byId('lastName').value,
+        phone: byId('phone').value,
+        addressLine1: byId('addressLine1').value,
+        addressLine2: byId('addressLine2').value,
+        city: byId('city').value,
+        province: byId('province').value,
+        postalCode: byId('postalCode').value
+      };
+      const res = await authedFetch('/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(profileMessage, data.error || 'Could not save profile.', 'error');
+        return;
+      }
+      showProfile(data.user);
+      setMessage(profileMessage, 'Profile saved.', 'ok');
+    });
+
+    byId('placeOrderBtn').addEventListener('click', async () => {
+      setMessage(orderMessage, '');
+      const items = selectedItems();
+      const res = await authedFetch('/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items, notes: byId('orderNotes').value })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(orderMessage, data.error || 'Unable to place order.', 'error');
+        return;
+      }
+      setMessage(orderMessage, `Order ${data.order.id.slice(0, 8)} placed successfully.`, 'ok');
+      productsRoot.querySelectorAll('.qty').forEach((input) => { input.value = 0; });
+      byId('orderNotes').value = '';
+      recalcSummary();
+      await loadOrders();
+    });
+
+    byId('refreshOrdersBtn').addEventListener('click', async () => {
+      await loadOrders();
+      setMessage(orderMessage, 'Order history refreshed.', 'ok');
+    });
+
+    byId('logoutBtn').addEventListener('click', async () => {
+      await authedFetch('/logout', { method: 'POST' });
+      setToken('');
+      showAuth('Logged out.');
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>
