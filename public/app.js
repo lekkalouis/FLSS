@@ -2592,6 +2592,24 @@ async function startOrder(orderNo) {
     return /(^|[\s,])agent([\s,]|$)/.test(tags);
   }
 
+  function isExportOrder(order) {
+    const tags = String(order?.tags || "").toLowerCase();
+    return /(^|[\s,])export([\s,]|$)/.test(tags);
+  }
+
+  function formatDispatchQtyLabel(quantity, shortLabel, order) {
+    const qty = Number(quantity) || 0;
+    if (!isExportOrder(order) || qty <= 0) {
+      return `${qty} × ${shortLabel}`;
+    }
+    const EXPORT_CARTON_UNITS = 12;
+    const cartons = qty / EXPORT_CARTON_UNITS;
+    if (!Number.isInteger(cartons) || cartons <= 0) {
+      return `${qty} × ${shortLabel}`;
+    }
+    return `${cartons} × ${EXPORT_CARTON_UNITS} × ${shortLabel}`;
+  }
+
   function getRemainingLineItemQty(item) {
     const remaining = Number(item?.quantity_remaining);
     if (Number.isFinite(remaining)) return Math.max(0, remaining);
@@ -2662,7 +2680,8 @@ async function startOrder(orderNo) {
               packedCount === 1 ? "" : "s"
             } packed">* ${packedCount}</span>`
           : "";
-        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" style="--dispatch-flavour-color:${flavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${requestedQty} × ${shortLabel}</span>${missingTag}</div>`;
+        const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
+        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" style="--dispatch-flavour-color:${flavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${qtyLabel}</span>${missingTag}</div>`;
       })
       .filter(Boolean)
       .join("");
