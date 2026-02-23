@@ -56,6 +56,43 @@ import { initPriceManagerView } from "./views/price-manager.js";
     "chilli": "CHI"
   };
 
+  const FLAVOUR_DISPLAY_NAMES = {
+    "original": "Original",
+    "hot & spicy": "Hot & Spicy",
+    "worcester sauce": "Worcester Sauce",
+    "red wine & garlic": "Red Wine & Garlic",
+    "chutney": "Chutney",
+    "savoury herb": "Savoury Herb",
+    "salt & vinegar": "Salt & Vinegar",
+    "curry": "Curry",
+    "butter": "Butter",
+    "sour cream & chives": "Sour Cream & Chives",
+    "parmesan cheese": "Parmesan Cheese",
+    "cheese & onion": "Cheese & Onion"
+  };
+
+  const FLAVOUR_ALIASES = {
+    "salt and vinegar": "salt & vinegar",
+    "salt vinegar": "salt & vinegar",
+    "savoury herbs": "savoury herb",
+    "parmesan": "parmesan cheese"
+  };
+
+  const FLAVOUR_SORT_ORDER = new Map([
+    "original",
+    "hot & spicy",
+    "worcester sauce",
+    "red wine & garlic",
+    "chutney",
+    "savoury herb",
+    "salt & vinegar",
+    "curry",
+    "butter",
+    "sour cream & chives",
+    "parmesan cheese",
+    "cheese & onion"
+  ].map((name, index) => [name, index]));
+
   const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
   const flavourColor = (flavour) => FLAVOUR_COLORS[flavourKey(flavour)] || "#22d3ee";
   const flavourAbbrev = (flavour) => {
@@ -2864,32 +2901,46 @@ async function startOrder(orderNo) {
       .trim();
   }
 
+  function normalizeFlavourLabel(label) {
+    const cleaned = normalizeLineLabel(label).toLowerCase();
+    if (!cleaned) return "";
+    const canonical = FLAVOUR_ALIASES[cleaned] || cleaned;
+    if (FLAVOUR_DISPLAY_NAMES[canonical]) return FLAVOUR_DISPLAY_NAMES[canonical];
+    for (const key of Object.keys(FLAVOUR_DISPLAY_NAMES)) {
+      const andVariant = key.replace(/\s*&\s*/g, " and ");
+      if (cleaned.includes(key) || cleaned.includes(andVariant)) {
+        return FLAVOUR_DISPLAY_NAMES[key];
+      }
+    }
+    return normalizeLineLabel(label);
+  }
+
   function getLineItemFlavour(lineItem) {
     if (!lineItem) return "";
     if (Array.isArray(lineItem.properties)) {
       const prop = lineItem.properties.find((item) =>
         /flavour|flavor/.test(String(item?.name || "").toLowerCase())
       );
-      if (prop?.value) return normalizeLineLabel(prop.value);
+      if (prop?.value) return normalizeFlavourLabel(prop.value);
     }
     if (Array.isArray(lineItem.options_with_values)) {
       const option = lineItem.options_with_values.find((item) =>
         /flavour|flavor/.test(String(item?.name || "").toLowerCase())
       );
-      if (option?.value) return normalizeLineLabel(option.value);
+      if (option?.value) return normalizeFlavourLabel(option.value);
     }
     if (Array.isArray(lineItem.variant_options)) {
       const option = lineItem.variant_options.find((opt) =>
         /flavour|flavor/i.test(String(opt || ""))
       );
-      if (option) return normalizeLineLabel(option);
+      if (option) return normalizeFlavourLabel(option);
     }
     const title = lineItem.title || "";
     const sizeLabel = getLineItemSize(lineItem);
     const cleaned = sizeLabel
       ? normalizeLineLabel(title.replace(new RegExp(sizeLabel, "i"), ""))
       : normalizeLineLabel(title);
-    return cleaned;
+    return normalizeFlavourLabel(cleaned);
   }
 
   function isCurryMixItem(lineItem) {
@@ -3208,6 +3259,7 @@ async function startOrder(orderNo) {
     let orderCount = 0;
     const sizeTotals = new Map();
     const flavourTotals = new Map();
+    const flavourSizeTotals = new Map();
 
     dispatchSelectedOrders.forEach((orderNo) => {
       const order = dispatchOrderCache.get(orderNo);
@@ -3223,6 +3275,16 @@ async function startOrder(orderNo) {
         if (size) sizeTotals.set(size, (sizeTotals.get(size) || 0) + qty);
         const flavour = getLineItemFlavour(item);
         if (flavour) flavourTotals.set(flavour, (flavourTotals.get(flavour) || 0) + qty);
+        if (flavour || size) {
+          const mixKey = `${flavour || "Unknown"}::${size || "Unspecified"}`;
+          const current = flavourSizeTotals.get(mixKey) || {
+            flavour: flavour || "Unknown",
+            size: size || "Unspecified",
+            qty: 0
+          };
+          current.qty += qty;
+          flavourSizeTotals.set(mixKey, current);
+        }
       });
     });
 
@@ -3231,7 +3293,16 @@ async function startOrder(orderNo) {
       boxCount: totalBoxes
     });
 
-    return { totalWeightKg, totalBoxes, totalUnits, orderCount, totalTimeMin, sizeTotals, flavourTotals };
+    return {
+      totalWeightKg,
+      totalBoxes,
+      totalUnits,
+      orderCount,
+      totalTimeMin,
+      sizeTotals,
+      flavourTotals,
+      flavourSizeTotals
+    };
   }
 
   function updateDispatchSelectionSummary() {
@@ -3253,12 +3324,22 @@ async function startOrder(orderNo) {
     }
     if (dispatchSelectionMixes) {
       const dots = [];
-      [...totals.sizeTotals.entries()].forEach(([size, qty]) => {
-        dots.push(`<span class="dispatchMixDot"><span class="dispatchMixDotColor" style="background:${flavourColor(size)}"></span>${qty}</span>`);
-      });
-      [...totals.flavourTotals.entries()].forEach(([flavour, qty]) => {
-        dots.push(`<span class="dispatchMixDot"><span class="dispatchMixDotColor" style="background:${flavourColor(flavour)}"></span>${qty}</span>`);
-      });
+      [...totals.flavourSizeTotals.values()]
+        .sort((a, b) => {
+          const aKey = flavourKey(a.flavour);
+          const bKey = flavourKey(b.flavour);
+          const aOrder = FLAVOUR_SORT_ORDER.has(aKey) ? FLAVOUR_SORT_ORDER.get(aKey) : Number.POSITIVE_INFINITY;
+          const bOrder = FLAVOUR_SORT_ORDER.has(bKey) ? FLAVOUR_SORT_ORDER.get(bKey) : Number.POSITIVE_INFINITY;
+          if (aOrder !== bOrder) return aOrder - bOrder;
+          const flavourCmp = String(a.flavour).localeCompare(String(b.flavour));
+          if (flavourCmp !== 0) return flavourCmp;
+          return String(a.size).localeCompare(String(b.size));
+        })
+        .forEach((entry) => {
+          dots.push(
+            `<span class="dispatchMixDot"><span class="dispatchMixDotColor" style="background:${flavourColor(entry.flavour)}"></span>${entry.flavour} · ${entry.size}: ${entry.qty}</span>`
+          );
+        });
       dispatchSelectionMixes.innerHTML = dots.join("") || `<span class="dispatchMixDot">No mix yet</span>`;
     }
 

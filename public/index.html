@@ -100,14 +100,7 @@
     align-items:center;
     width:auto;
     justify-content:flex-start;
-    gap:.5rem;
-  }
-  .flNavBtnIcon{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:1.2rem;
-    font-size:1rem;
+    gap:.2rem;
   }
   .flNavBtn:hover{
     border-color:rgba(99,102,241,.45);
@@ -2166,15 +2159,15 @@
         </div>
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
-            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
-            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Dispatch</span></button>
-            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
-            <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnIcon" aria-hidden="true">🧭</span><span class="flNavBtnText">Flowcharts</span></button>
-            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
-            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
-            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
-            <button id="navDispatchSettings" class="flNavBtn" type="button" role="tab" aria-controls="viewDispatchSettings" aria-selected="false" data-route="/dispatch-settings" hidden><span class="flNavBtnIcon" aria-hidden="true">⚙️</span><span class="flNavBtnText">Dispatch settings</span></button>
-            <button id="navLogs" class="flNavBtn" type="button" role="tab" aria-controls="viewLogs" aria-selected="false" data-route="/logs" hidden><span class="flNavBtnIcon" aria-hidden="true">🪵</span><span class="flNavBtnText">Logs</span></button>
+            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnText">Dashboard</span></button>
+            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnText">Dispatch</span></button>
+            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Documentation</span></button>
+            <button id="navFlowcharts" class="flNavBtn" type="button" role="tab" aria-controls="viewFlowcharts" aria-selected="false" data-route="/flowcharts"><span class="flNavBtnText">Flowcharts</span></button>
+            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnText">Order capture</span></button>
+            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnText">Stock take</span></button>
+            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
+            <button id="navDispatchSettings" class="flNavBtn" type="button" role="tab" aria-controls="viewDispatchSettings" aria-selected="false" data-route="/dispatch-settings" hidden><span class="flNavBtnText">Dispatch settings</span></button>
+            <button id="navLogs" class="flNavBtn" type="button" role="tab" aria-controls="viewLogs" aria-selected="false" data-route="/logs" hidden><span class="flNavBtnText">Logs</span></button>
           </div>
           <div class="flNavStatus">
             <span id="statusChip" class="statusChip">Ready to scan orders…</span>
