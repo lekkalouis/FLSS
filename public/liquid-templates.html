@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Printer Pro Liquid Templates</title>
+  <link rel="stylesheet" href="/liquid-templates.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="pageHeader">
+      <div>
+        <h1>Liquid Template Studio</h1>
+        <p>Save reusable Shopify Order Printer Pro templates and insert variables quickly.</p>
+      </div>
+      <a href="/" class="backLink">← Back to Scan Station</a>
+    </header>
+
+    <section class="editorLayout">
+      <aside class="templateListPanel">
+        <div class="panelHeader">
+          <h2>Saved templates</h2>
+          <button id="newTemplateBtn" type="button">+ New</button>
+        </div>
+        <ul id="templateList" class="templateList"></ul>
+      </aside>
+
+      <section class="editorPanel">
+        <label class="fieldLabel" for="templateName">Template name</label>
+        <input id="templateName" type="text" placeholder="e.g. Picking Slip - A5" maxlength="120" />
+
+        <div class="variableTray">
+          <strong>Quick variables:</strong>
+          <div id="variableButtons" class="variableButtons"></div>
+        </div>
+
+        <label class="fieldLabel" for="templateContent">Liquid content</label>
+        <textarea id="templateContent" spellcheck="false" placeholder="Write your Liquid template here..."></textarea>
+
+        <div class="actions">
+          <button id="saveTemplateBtn" type="button" class="primary">Save template</button>
+          <button id="deleteTemplateBtn" type="button" class="danger" disabled>Delete template</button>
+          <span id="status" class="status" aria-live="polite"></span>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="/liquid-templates.js"></script>
+</body>
+</html>
