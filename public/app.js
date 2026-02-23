@@ -2623,7 +2623,7 @@ async function startOrder(orderNo) {
   function renderDispatchActions(order, laneId, orderNo) {
     const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
     const disabled = orderNo ? "" : "disabled";
-    const shippingDocsDropdown = `
+    const docsDropdown = `
       <div class="dispatchDocsDropdown">
         <button class="dispatchBoxBtn" type="button" data-action="toggle-docs" data-order-no="${
           orderNo || ""
@@ -2637,25 +2637,29 @@ async function startOrder(orderNo) {
           ).join("")}
         </div>
       </div>`;
-    const printDocsButton = `<button class="dispatchBoxBtn" type="button" data-action="print-box" data-order-no="${
-      orderNo || ""
-    }" ${disabled}>Print docs</button>`;
+
     if (normalizedLane === "delivery") {
+      const isPrepared = orderNo ? printedDeliveryNotes.has(orderNo) : false;
+      const actionType = isPrepared ? "deliver-delivery" : "prepare-delivery";
+      const actionLabel = isPrepared ? "Deliver" : "Prepare delivery";
       return `
-        <button class="dispatchFulfillBtn" type="button" data-action="prepare-delivery" data-order-no="${orderNo || ""}" ${disabled}>Prepare delivery</button>
-        <button class="dispatchFulfillBtn" type="button" data-action="deliver-delivery" data-order-no="${orderNo || ""}" ${disabled}>Deliver</button>
+        ${docsDropdown}
+        <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${actionLabel}</button>
       `;
     }
-    const label = normalizedLane === "pickup" ? "Ready for collection" : "Fulfil";
-    const actionType = normalizedLane === "pickup" ? "ready-collection" : "fulfill-shipping";
-    if (normalizedLane === "shipping") {
+
+    if (normalizedLane === "pickup") {
       return `
-        ${shippingDocsDropdown}
-        <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>
-        <button class="dispatchFulfillBtn" type="button" data-action="partial-fulfill" data-order-no="${orderNo || ""}" ${disabled}>Fulfil some</button>
+        ${docsDropdown}
+        <button class="dispatchFulfillBtn" type="button" data-action="notify-ready" data-order-no="${orderNo || ""}" ${disabled}>Notify customer</button>
       `;
     }
-    return `${printDocsButton}<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
+
+    return `
+      ${docsDropdown}
+      <button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping" data-order-no="${orderNo || ""}" ${disabled}>Fulfil</button>
+      <button class="dispatchFulfillBtn" type="button" data-action="partial-fulfill" data-order-no="${orderNo || ""}" ${disabled}>Fulfil some</button>
+    `;
   }
 
   function getMissingSeverity(order, packingState) {
