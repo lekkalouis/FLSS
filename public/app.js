@@ -351,9 +351,19 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const SHOPIFY_PRINT_TEMPLATE_CONFIG = {
     // Paste template settings for all printable docs here.
     // To add more templates, create another key like:
-    // customDoc: { multiplier: 1234, slugPrefix: "custom-doc", printerId: 12345678 }
-    deliveryNote: { multiplier: 2191, slugPrefix: "delivery-note", printerId: 74467271 },
-    printDocs: { multiplier: 2192, slugPrefix: "print-docs", printerId: 74467271 }
+    // customDoc: { templateId: "order-printer-template-id", multiplier: 1234, slugPrefix: "custom-doc", printerId: 12345678 }
+    deliveryNote: {
+      templateId: "492a0907560253c5e190",
+      multiplier: 2191,
+      slugPrefix: "delivery-note",
+      printerId: 74467271
+    },
+    printDocs: {
+      templateId: "492a0907560253c5e190",
+      multiplier: 2192,
+      slugPrefix: "print-docs",
+      printerId: 74467271
+    }
   };
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
@@ -3734,6 +3744,8 @@ async function startOrder(orderNo) {
   function buildShopifyTemplateInvoiceUrl({ orderName, orderNo, legacyResourceId, templateKey }) {
     const template = SHOPIFY_PRINT_TEMPLATE_CONFIG[templateKey];
     if (!template || !Number.isInteger(Number(template.multiplier))) return "";
+    const templateId = String(template.templateId || "492a0907560253c5e190").trim();
+    if (!templateId) return "";
     const slug = String(orderName || orderNo)
       .replace(/#/g, "")
       .trim()
@@ -3741,7 +3753,7 @@ async function startOrder(orderNo) {
       .replace(/\s+/g, "-");
     const slugPrefix = String(template.slugPrefix || templateKey || "template").trim() || "template";
     return (
-      "https://flippenlekka.shop/apps/download-pdf/orders/492a0907560253c5e190/" +
+      `https://flippenlekka.shop/apps/download-pdf/orders/${encodeURIComponent(templateId)}/` +
       `${legacyResourceId * Number(template.multiplier)}/${encodeURIComponent(`${slugPrefix}-${slug}`)}.pdf`
     );
   }
@@ -4331,8 +4343,20 @@ async function startOrder(orderNo) {
 
   const ADMIN_UNLOCKED_KEY = "fl_admin_unlocked";
   const applyAdminMenuVisibility = (visible) => {
+    if (navDashboard) navDashboard.hidden = !visible;
+    if (navDocs) navDocs.hidden = !visible;
+    if (navFlowcharts) navFlowcharts.hidden = !visible;
+    if (navPriceManager) navPriceManager.hidden = !visible;
     if (navDispatchSettings) navDispatchSettings.hidden = !visible;
     if (navLogs) navLogs.hidden = !visible;
+
+    if (!visible) {
+      const activeView = document.querySelector(".flView.flView--active")?.id;
+      const nonCoreViews = new Set(["viewDashboard", "viewDocs", "viewFlowcharts", "viewPriceManager", "viewDispatchSettings", "viewLogs"]);
+      if (activeView && nonCoreViews.has(activeView)) {
+        switchMainView("scan");
+      }
+    }
   };
   applyAdminMenuVisibility(localStorage.getItem(ADMIN_UNLOCKED_KEY) === "true");
 
@@ -4463,14 +4487,14 @@ async function startOrder(orderNo) {
       .map((orderNo) => dispatchOrderCache.get(orderNo))
       .filter(Boolean);
     if (!orders.length) {
-      statusExplain("Select at least 1 delivery order to print delivery docs.", "warn");
+      statusExplain("Select at least 1 delivery order to print docs.", "warn");
       return;
     }
     let printed = 0;
     let blocked = 0;
     for (const order of orders) {
       const orderNo = orderNoFromName(order.name);
-      const ok = await printDeliveryNote(order);
+      const ok = await printDocs(order);
       if (ok) {
         printed += 1;
         printedDeliveryNotes.add(orderNo);
@@ -4480,7 +4504,7 @@ async function startOrder(orderNo) {
     }
     refreshDispatchViews();
     if (!printed) {
-      statusExplain("No delivery docs were printed (PrintNode request failed).", "warn");
+      statusExplain("No docs were printed (PrintNode request failed).", "warn");
       return;
     }
     const suffix = blocked ? ` (${blocked} failed to send to PrintNode)` : "";

@@ -28,7 +28,6 @@ export function initStockView() {
     root: document.getElementById("viewStock"),
     search: document.getElementById("stock-search"),
     location: document.getElementById("stock-location"),
-    modeLabel: document.getElementById("stock-modeLabel"),
     modeBtns: document.querySelectorAll(".stock-modeBtn[data-mode]"),
     areaTabs: document.querySelectorAll(".stock-tabBtn[data-tab]"),
     stockArea: document.getElementById("stock-stockArea"),
@@ -36,7 +35,6 @@ export function initStockView() {
     table: document.getElementById("stock-table"),
     tbody: document.getElementById("stock-tableBody"),
     log: document.getElementById("stock-log"),
-    missingSummary: document.getElementById("stock-missingSummary"),
     poGrid: document.getElementById("po-grid"),
     poSupplier: document.getElementById("po-supplier"),
     poNote: document.getElementById("po-note"),
@@ -49,6 +47,28 @@ export function initStockView() {
   };
 
   const finishedGoods = PRODUCT_LIST.filter((p) => !p.isRawMaterial);
+
+  const FLAVOUR_COLORS = {
+    "hot & spicy": "#DA291C",
+    "original": "#8BAF84",
+    "worcester sauce": "#FF8200",
+    "red wine & garlic": "#904066",
+    "savoury herb": "#A1C935",
+    "savoury herbs": "#A1C935",
+    "salt & vinegar": "#40B2FF",
+    "curry": "#FFC72C",
+    "butter": "#FFE66D",
+    "sour cream & chives": "#7BC96F",
+    "parmesan cheese": "#7E22CE",
+    "cheese & onion": "#C4E36A"
+  };
+  const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
+  const flavourColor = (flavour) => {
+    const key = flavourKey(flavour);
+    if (key === "chutney") return "#7E22CE";
+    return FLAVOUR_COLORS[key] || "#22d3ee";
+  };
+
   const state = {
     tab: "stock",
     mode: "read",
@@ -137,25 +157,7 @@ export function initStockView() {
   }
 
   function renderMissingSummary() {
-    if (!els.missingSummary) return;
-    if (state.mode !== "make") {
-      els.missingSummary.hidden = true;
-      return;
-    }
-    const rows = filteredItems()
-      .map((i) => {
-        const demand = num(state.missingBySku.get(i.sku));
-        const onHand = num(state.stock.get(i.sku));
-        const missing = Math.max(0, demand - onHand);
-        return { i, missing };
-      })
-      .filter((r) => r.missing > 0)
-      .sort((a, b) => b.missing - a.missing)
-      .slice(0, 12)
-      .map((r) => `<span class="stock-pill">${r.i.sku}: ${r.missing}</span>`)
-      .join(" ");
-    els.missingSummary.hidden = false;
-    els.missingSummary.innerHTML = rows || `<span class="stock-muted">No shortages against currently open orders.</span>`;
+    // Missing summary chips removed by design; shortages remain visible in table column.
   }
 
   function rowMarkup(item) {
@@ -166,7 +168,7 @@ export function initStockView() {
       <tr data-sku="${item.sku}" data-crates="0">
         <td><strong>${item.sku}</strong></td>
         <td>${item.title}</td>
-        <td><span class="stock-flavourBadge">${item.flavour || "-"}</span></td>
+        <td><span class="stock-flavourBadge" style="--flavour-color:${flavourColor(item.flavour)}">${item.flavour || "-"}</span></td>
         <td class="${current < 0 ? "stock-neg" : ""}" data-current>${current}</td>
         <td class="stock-countCol"><input class="stock-qtyInput" type="number" min="0" step="1" data-manual /></td>
         <td class="stock-countCol"><button class="stock-iconBtn" type="button" data-action="crate">🧺 +${CRATE_UNITS}</button> <span data-crate-count>0</span></td>
@@ -209,7 +211,6 @@ export function initStockView() {
 
   function updateModeUI() {
     els.table.dataset.mode = state.mode;
-    if (els.modeLabel) els.modeLabel.textContent = `Mode: ${state.mode[0].toUpperCase()}${state.mode.slice(1)}`;
     const isRead = state.mode === "read";
     const isMake = state.mode === "make";
     els.root.dataset.mode = state.mode;
