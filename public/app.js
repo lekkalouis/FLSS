@@ -12,26 +12,27 @@ import { initPriceManagerView } from "./views/price-manager.js";
   };
   const API_BASE = "/api/v1";
   const FLAVOUR_COLORS = {
+    "hot & spicy": "#DA291C",
+    "original": "#8BAF84",
+    "worcester sauce": "#FF8200",
+    "red wine & garlic": "#904066",
+    "savoury herb": "#A1C935",
+    "savoury herbs": "#A1C935",
+    "salt & vinegar": "#40B2FF",
+    "curry": "#FFC72C",
+    "butter": "#FFE66D",
+    "sour cream & chives": "#7BC96F",
+    "parmesan": "#7E22CE",
+    "parmesan cheese": "#7E22CE",
+    "chutney": "#7E22CE",
+    "cheese": "#C4E36A",
+    "cheese & onion": "#C4E36A",
     "salted": "#fbbf24",
     "caramel": "#fb7185",
     "sweet": "#f59e0b",
-    "cheese": "#f97316",
     "bbq": "#ef4444",
-    "sour cream": "#60a5fa",
-    "sour cream & chives": "#60a5fa",
     "chilli": "#dc2626",
-    "original": "#a3e635",
-    "hot & spicy": "#ef4444",
-    "worcester sauce": "#8b5cf6",
-    "red wine & garlic": "#f43f5e",
-    "chutney": "#f59e0b",
-    "savoury herb": "#22c55e",
-    "salt & vinegar": "#0ea5e9",
-    "curry": "#eab308",
-    "butter": "#facc15",
-    "parmesan": "#f97316",
-    "parmesan cheese": "#f97316",
-    "cheese & onion": "#fb7185"
+    "sour cream": "#7BC96F"
   };
 
   const FLAVOUR_ABBREVIATIONS = {
@@ -94,7 +95,12 @@ import { initPriceManagerView } from "./views/price-manager.js";
   ].map((name, index) => [name, index]));
 
   const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
-  const flavourColor = (flavour) => FLAVOUR_COLORS[flavourKey(flavour)] || "#22d3ee";
+  const flavourColor = (flavour) => {
+    const raw = flavourKey(flavour);
+    const key = FLAVOUR_ALIASES[raw] || raw;
+    if (key === "chutney") return "#7E22CE";
+    return FLAVOUR_COLORS[key] || "#22d3ee";
+  };
   const flavourAbbrev = (flavour) => {
     const key = flavourKey(flavour);
     if (!key) return "?";
@@ -2600,25 +2606,10 @@ async function startOrder(orderNo) {
     return Math.max(0, Number(item?.quantity) || 0);
   }
 
-  const dispatchFlavourPalette = [
-    "#0f766e",
-    "#0369a1",
-    "#7c3aed",
-    "#b45309",
-    "#be123c",
-    "#166534",
-    "#1d4ed8",
-    "#9333ea"
-  ];
-
   function getDispatchFlavourColor(flavourGroup) {
-    const key = String(flavourGroup || "").trim().toLowerCase();
-    if (!key) return "#334155";
-    let hash = 0;
-    for (let i = 0; i < key.length; i += 1) {
-      hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
-    }
-    return dispatchFlavourPalette[hash % dispatchFlavourPalette.length];
+    const key = String(flavourGroup || "").trim();
+    if (!key || key === "Unknown") return "#334155";
+    return flavourColor(key);
   }
 
   function renderDispatchLineItems(order, packingState) {
@@ -2648,8 +2639,8 @@ async function startOrder(orderNo) {
           abbreviation === ""
             ? sizeLabel || baseTitle
             : [sizeLabel, abbreviation || baseTitle].filter(Boolean).join(" ");
-        const flavourGroup = (abbreviation || baseTitle || "").trim().toLowerCase();
-        const flavourColor = getDispatchFlavourColor(flavourGroup);
+        const flavourGroup = getLineItemFlavour(li) || baseTitle;
+        const lineItemFlavourColor = getDispatchFlavourColor(flavourGroup);
         const itemKey = makePackingKey(li, li.__index);
         const packedItem = getPackingItem(packingState, itemKey);
         const packedCount = packedItem ? Number(packedItem.packed) || 0 : 0;
@@ -2662,7 +2653,7 @@ async function startOrder(orderNo) {
               packedCount === 1 ? "" : "s"
             } packed">* ${packedCount}</span>`
           : "";
-        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" style="--dispatch-flavour-color:${flavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${requestedQty} × ${shortLabel}</span>${missingTag}</div>`;
+        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${requestedQty} × ${shortLabel}</span>${missingTag}</div>`;
       })
       .filter(Boolean)
       .join("");
