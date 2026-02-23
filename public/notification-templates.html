@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notification Template Registry</title>
+  <link rel="stylesheet" href="/notification-templates.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="pageHeader">
+      <div>
+        <h1>Notification Template Registry</h1>
+        <p>Track Shopify automated notifications and internal FLSS alerts in one module.</p>
+      </div>
+      <div class="topLinks">
+        <a href="/liquid-templates.html" class="backLink">Liquid module →</a>
+        <a href="/" class="backLink">← Back to Scan Station</a>
+      </div>
+    </header>
+
+    <section class="editorLayout">
+      <aside class="templateListPanel">
+        <div class="panelHeader">
+          <h2>Templates</h2>
+          <button id="newTemplateBtn" type="button">+ New</button>
+        </div>
+        <ul id="templateList" class="templateList"></ul>
+      </aside>
+
+      <section class="editorPanel">
+        <div class="row twoCol">
+          <label>
+            <span class="fieldLabel">Name</span>
+            <input id="templateName" type="text" maxlength="120" />
+          </label>
+          <label>
+            <span class="fieldLabel">Event key</span>
+            <input id="eventKey" type="text" placeholder="e.g. order.created" />
+          </label>
+        </div>
+
+        <div class="row threeCol">
+          <label>
+            <span class="fieldLabel">Source</span>
+            <select id="source">
+              <option value="shopify">Shopify</option>
+              <option value="flss">FLSS</option>
+            </select>
+          </label>
+          <label>
+            <span class="fieldLabel">Channel</span>
+            <select id="channel">
+              <option value="email">Email</option>
+              <option value="sms">SMS</option>
+              <option value="internal">Internal</option>
+            </select>
+          </label>
+          <label class="switchLabel">
+            <span class="fieldLabel">Enabled</span>
+            <input id="enabled" type="checkbox" checked />
+          </label>
+        </div>
+
+        <label class="fieldLabel" for="subject">Subject</label>
+        <input id="subject" type="text" placeholder="Subject line" />
+
+        <label class="fieldLabel" for="body">Body</label>
+        <textarea id="body" spellcheck="false" placeholder="Notification body"></textarea>
+
+        <div class="variableTray">
+          <strong>Quick variables:</strong>
+          <div id="variableButtons" class="variableButtons"></div>
+        </div>
+
+        <div class="previewHeader">
+          <strong>Preview</strong>
+          <button id="refreshPreviewBtn" type="button">Refresh preview</button>
+        </div>
+        <pre id="preview" class="templatePreview"></pre>
+
+        <div class="actions">
+          <button id="saveTemplateBtn" type="button" class="primary">Save template</button>
+          <button id="deleteTemplateBtn" type="button" class="danger" disabled>Delete template</button>
+          <span id="status" class="status" aria-live="polite"></span>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="/notification-templates.js"></script>
+</body>
+</html>
