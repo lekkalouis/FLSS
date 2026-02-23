@@ -319,6 +319,15 @@ import { initPriceManagerView } from "./views/price-manager.js";
       tag: "Module"
     },
     {
+      id: "customer-accounts",
+      title: "Customer Accounts",
+      description: "Customer login and self-service profile updates.",
+      type: "link",
+      target: "/customer-accounts.html",
+      meta: "Customer self-service",
+      tag: "Module"
+    },
+    {
       id: "purchase-orders",
       title: "Purchase Orders",
       description: "Quick material order page that creates Shopify draft orders tagged purchase-order.",
