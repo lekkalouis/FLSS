@@ -363,8 +363,32 @@ import { initPriceManagerView } from "./views/price-manager.js";
       multiplier: 2254,
       slugPrefix: "print-docs",
       printerId: 74901099
+    },
+    taxInvoice: {
+      templateId: "a731ae235f8ce951ce08",
+      multiplier: 2254,
+      slugPrefix: "tax-invoice",
+      printerId: 74901099
+    },
+    parcelStickers: {
+      templateId: "a731ae235f8ce951ce08",
+      multiplier: 2254,
+      slugPrefix: "parcel-stickers",
+      printerId: 74901099
+    },
+    lineItemStickers: {
+      templateId: "a731ae235f8ce951ce08",
+      multiplier: 2254,
+      slugPrefix: "line-item-stickers",
+      printerId: 74901099
     }
   };
+
+  const SHIPPING_DOC_OPTIONS = [
+    { key: "taxInvoice", label: "Tax invoice" },
+    { key: "parcelStickers", label: "Parcel stickers" },
+    { key: "lineItemStickers", label: "Line item stickers" }
+  ];
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
@@ -2599,27 +2623,66 @@ async function startOrder(orderNo) {
   function renderDispatchActions(order, laneId, orderNo) {
     const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
     const disabled = orderNo ? "" : "disabled";
-    const printBoxButton = `<button class="dispatchBoxBtn" type="button" data-action="print-box" data-order-no="${
+    const shippingDocsDropdown = `
+      <div class="dispatchDocsDropdown">
+        <button class="dispatchBoxBtn" type="button" data-action="toggle-docs" data-order-no="${
+          orderNo || ""
+        }" ${disabled}>Print docs ▾</button>
+        <div class="dispatchDocsMenu">
+          ${SHIPPING_DOC_OPTIONS.map(
+            (doc) =>
+              `<button class="dispatchDocsMenuBtn" type="button" data-action="print-shipping-doc" data-doc-key="${doc.key}" data-order-no="${
+                orderNo || ""
+              }" ${disabled}>${doc.label}</button>`
+          ).join("")}
+        </div>
+      </div>`;
+    const printDocsButton = `<button class="dispatchBoxBtn" type="button" data-action="print-box" data-order-no="${
       orderNo || ""
     }" ${disabled}>Print docs</button>`;
     if (normalizedLane === "delivery") {
-      const printed = orderNo && printedDeliveryNotes.has(orderNo);
       return `
-        ${printBoxButton}
-        <button class="dispatchFulfillBtn" type="button" data-action="print-note" data-order-no="${orderNo || ""}" ${disabled}>Print delivery note</button>
-        <button class="dispatchFulfillBtn" type="button" data-action="deliver-delivery" data-order-no="${orderNo || ""}" ${!printed ? "disabled" : ""}>Deliver</button>
+        <button class="dispatchFulfillBtn" type="button" data-action="prepare-delivery" data-order-no="${orderNo || ""}" ${disabled}>Prepare delivery</button>
+        <button class="dispatchFulfillBtn" type="button" data-action="deliver-delivery" data-order-no="${orderNo || ""}" ${disabled}>Deliver</button>
       `;
     }
     const label = normalizedLane === "pickup" ? "Ready for collection" : "Fulfil";
     const actionType = normalizedLane === "pickup" ? "ready-collection" : "fulfill-shipping";
     if (normalizedLane === "shipping") {
       return `
-        ${printBoxButton}
+        ${shippingDocsDropdown}
         <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>
         <button class="dispatchFulfillBtn" type="button" data-action="partial-fulfill" data-order-no="${orderNo || ""}" ${disabled}>Fulfil some</button>
       `;
     }
-    return `${printBoxButton}<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
+    return `${printDocsButton}<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
+  }
+
+  function getMissingSeverity(order, packingState) {
+    const stateItems = Array.isArray(packingState?.items) ? packingState.items : [];
+    const hasStartedPacking =
+      stateItems.some((item) => Number(item?.packed) > 0) || Boolean(packingState?.endTime);
+    if (!hasStartedPacking) return "green";
+    const missingItems = stateItems
+      .map((item) => {
+        const quantity = Number(item?.quantity) || 0;
+        const packed = Number(item?.packed) || 0;
+        const remaining = Math.max(0, quantity - packed);
+        return { item, remaining };
+      })
+      .filter((entry) => entry.remaining > 0);
+    if (!missingItems.length) return "green";
+    const sizeSet = new Set(
+      missingItems
+        .map(({ item }) => String(item?.variant_title || item?.title || "").trim().toLowerCase())
+        .filter(Boolean)
+    );
+    if (sizeSet.size > 1) return "red";
+    const onlyBulkMissing = missingItems.every(({ item }) => {
+      const label = `${item?.title || ""} ${item?.variant_title || ""}`.toLowerCase();
+      return /(500g|750g|1kg|bulk\s*pack|bulk)/.test(label);
+    });
+    return onlyBulkMissing ? "yellow" : "red";
   }
 
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
@@ -3488,29 +3551,17 @@ async function startOrder(orderNo) {
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
-      const priorityStatus = orderNo ? dispatchPriorityState.get(orderNo) || "" : "";
+      const missingSeverity = getMissingSeverity(o, packingState);
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
       }
 
       return `
-        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} ${
-          priorityStatus ? `dispatchCard--${priorityStatus}` : ""
-        }" data-order-no="${orderNo}" ${combinedStyle}>
+        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} dispatchCard--${missingSeverity}" data-order-no="${orderNo}" ${combinedStyle}>
           <div class="dispatchCardTitle">
             <span class="dispatchCardTitleText">${title}</span>
-            <div class="dispatchCardStatusDots" role="group" aria-label="Set status for order ${orderNo}">
-              <button class="dispatchCardStatusDot dispatchCardStatusDot--priority ${
-                priorityStatus === "priority" ? "is-active" : ""
-              }" type="button" data-action="set-priority" data-priority="priority" data-order-no="${orderNo}" aria-label="Set priority status"></button>
-              <button class="dispatchCardStatusDot dispatchCardStatusDot--medium ${
-                priorityStatus === "medium" ? "is-active" : ""
-              }" type="button" data-action="set-priority" data-priority="medium" data-order-no="${orderNo}" aria-label="Set medium status"></button>
-              <button class="dispatchCardStatusDot dispatchCardStatusDot--hold ${
-                priorityStatus === "hold" ? "is-active" : ""
-              }" type="button" data-action="set-priority" data-priority="hold" data-order-no="${orderNo}" aria-label="Set hold status"></button>
-            </div>
+            <span class="dispatchCardMissingDot dispatchCardMissingDot--${missingSeverity}" aria-label="${missingSeverity} shortage status"></span>
             ${
               orderNo
                 ? `<label class="dispatchCardSelect"><input class="dispatchCardSelectInput" type="checkbox" data-order-no="${orderNo}" ${
@@ -4567,15 +4618,7 @@ async function startOrder(orderNo) {
       closeDispatchOrderModal();
       return true;
     }
-    if (actionType === "set-priority") {
-      if (!orderNo) return true;
-      const status = action.dataset.priority || "";
-      const current = dispatchPriorityState.get(orderNo) || "";
-      const next = current === status ? "" : status;
-      setDispatchOrderPriority(orderNo, next);
-      refreshDispatchViews(orderNo);
-      return true;
-    }
+    if (actionType === "toggle-docs") return true;
     if (actionType === "start-packing") {
       if (!orderNo) return true;
       const order = dispatchOrderCache.get(orderNo);
@@ -4731,6 +4774,28 @@ async function startOrder(orderNo) {
       await promptAndRunPartialFulfillment(orderNo);
       return true;
     }
+    if (actionType === "prepare-delivery") {
+      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+      if (!orderNo || !order) {
+        statusExplain("Prepare delivery unavailable.", "warn");
+        return true;
+      }
+      setDispatchProgress(4, `Preparing delivery ${orderNo}`);
+      logDispatchEvent(`Preparing delivery docs for order ${orderNo}.`);
+      const docsPrinted = await printDocs(order);
+      const notePrinted = await printDeliveryNote(order);
+      if (!docsPrinted || !notePrinted) {
+        statusExplain("Prepare delivery failed. Some docs did not print.", "warn");
+        logDispatchEvent(`Prepare delivery failed for order ${orderNo}.`);
+        return true;
+      }
+      printedDeliveryNotes.add(orderNo);
+      statusExplain(`Delivery prepared for ${orderNo}.`, "ok");
+      logDispatchEvent(`Delivery prepared for order ${orderNo}.`);
+      refreshDispatchViews(orderNo);
+      return true;
+    }
+
     if (actionType === "deliver-delivery") {
       if (!orderNo) return true;
       await markDeliveryReady(orderNo);
@@ -4791,6 +4856,26 @@ async function startOrder(orderNo) {
       statusExplain(`Docs printed for ${orderNo}.`, "ok");
       return true;
     }
+
+    if (actionType === "print-shipping-doc") {
+      const docKey = action.dataset.docKey;
+      const selectedDoc = SHIPPING_DOC_OPTIONS.find((doc) => doc.key === docKey);
+      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+      if (!orderNo || !order || !selectedDoc) {
+        statusExplain("Shipping doc print unavailable.", "warn");
+        return true;
+      }
+      setDispatchProgress(4, `Printing ${selectedDoc.label} ${orderNo}`);
+      logDispatchEvent(`Printing ${selectedDoc.label} for order ${orderNo}.`);
+      const ok = await printShopifyTemplate(order, docKey);
+      if (!ok) {
+        statusExplain(`${selectedDoc.label} print failed.`, "warn");
+        return true;
+      }
+      statusExplain(`${selectedDoc.label} printed for ${orderNo}.`, "ok");
+      return true;
+    }
+
 
     if (actionType === "print-note") {
       const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
