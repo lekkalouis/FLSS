@@ -25,6 +25,28 @@ function setStatus(text, bad = false) {
   statusEl.className = bad ? 'err' : 'muted';
 }
 
+function pickRateFromRawQuote(raw) {
+  const rates = raw?.results?.[0]?.rates;
+  if (!Array.isArray(rates) || !rates.length) return null;
+  return rates.find((r) => String(r?.service || '').toUpperCase() === 'RFX') || rates[0] || null;
+}
+
+function quoteDisplayDetails(quote) {
+  const fallbackRate = pickRateFromRawQuote(quote?.raw);
+  const service = quote?.service || fallbackRate?.service || null;
+  const amount = quote?.amount ?? fallbackRate?.subtotal ?? null;
+  const quoteno = quote?.quoteno || quote?.raw?.results?.[0]?.quoteno || null;
+  const hasAmount = Number.isFinite(Number(amount));
+  return {
+    hasAmount,
+    amount: hasAmount ? Number(amount) : null,
+    service,
+    quoteno,
+    error: quote?.error || quote?.raw?.errormessage || null,
+    status: quote?.status || null
+  };
+}
+
 function renderMeta(payload) {
   metaEl.innerHTML = '';
   const entries = [
@@ -56,10 +78,11 @@ function renderTable(payload) {
   const body = rows
     .map((row) => {
       const cells = (row.quotes || []).map((q) => {
-        if (!q.ok) {
-          return `<td><span class="err">Fail</span><br><small>${q.error || `HTTP ${q.status || '?'}`}</small></td>`;
+        const details = quoteDisplayDetails(q);
+        if (!details.hasAmount) {
+          return `<td><span class="err">Fail</span><br><small>${details.error || `HTTP ${details.status || '?'}`}</small></td>`;
         }
-        return `<td><span class="ok">${money(q.amount)}</span><br><small>${q.service || 'Service'} · ${q.quoteno || ''}</small></td>`;
+        return `<td><span class="ok">${money(details.amount)}</span><br><small>${details.service || 'Service'} · ${details.quoteno || ''}</small></td>`;
       });
       return `<tr><td>${row.destination?.town || row.destination?.name || 'Unknown'}</td><td>${row.destination?.type || '—'}</td>${cells.join('')}</tr>`;
     })
