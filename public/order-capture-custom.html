@@ -73,6 +73,15 @@
     .bottomBar{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;margin-top:.65rem;padding-top:.5rem;border-top:1px solid var(--line)}
     .quickSegments{display:flex;gap:.35rem;flex-wrap:wrap;margin:.4rem 0 .2rem}
     .quickSegments button.active{background:#0f766e;color:#fff;border-color:#0f766e}
+    .promptCard{margin:.75rem 0;padding:.65rem;border:1px solid var(--line);border-radius:10px;background:linear-gradient(180deg,#f9fafb,#fff);display:grid;gap:.45rem}
+    .promptCard h3{margin:0;font-size:.95rem}
+    .promptCard p{margin:0;font-size:.78rem;color:#4b5563}
+    .promptComposer{display:grid;grid-template-columns:1fr auto;gap:.45rem;align-items:start}
+    .promptComposer textarea{width:100%;min-height:74px;padding:.5rem .6rem;border:1px solid var(--line-strong);border-radius:8px;resize:vertical}
+    .promptActions{display:grid;gap:.35rem}
+    .chipRow{display:flex;flex-wrap:wrap;gap:.35rem}
+    .chip{border:1px solid #cbd5e1;background:#fff;padding:.28rem .5rem;border-radius:999px;font-size:.74rem;cursor:pointer}
+    .promptFeedback{font-size:.8rem;color:#475569;min-height:1rem}
     .modal{position:fixed;inset:0;background:rgba(17,24,39,.78);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:90}
     .modalCard{width:min(980px,100%);max-height:78vh;overflow:auto;background:#fff;border-radius:10px;padding:.8rem;display:grid;gap:.5rem}
     .customerGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.45rem}
@@ -89,6 +98,8 @@
       .addrWrap{grid-template-columns:1fr}
       .fields{grid-template-columns:repeat(2,minmax(0,1fr))}
       .span-3{grid-column:span 2}
+      .promptComposer{grid-template-columns:1fr}
+      .promptActions{grid-template-columns:repeat(2,minmax(0,1fr))}
     }
     @media print{
       body{background:#fff;padding:0}
@@ -195,6 +206,23 @@
       </div>
 
       <div class="prodHead">PRODUCT LIST</div>
+      <section class="promptCard" aria-label="Prompt based order entry">
+        <h3>⚡ Prompt order capture (mobile quick add)</h3>
+        <p>Type what the customer wants in plain text, then apply it. Example: <em>"add 2 x FLS001, 1 FLS025 and 3 flamin rub"</em>.</p>
+        <div class="promptComposer">
+          <textarea id="order-prompt-input" placeholder="Type items, quantities, SKU, or product names..."></textarea>
+          <div class="promptActions">
+            <button id="apply-order-prompt" class="primary" type="button">Apply prompt</button>
+            <button id="clear-order-prompt" type="button">Clear prompt</button>
+          </div>
+        </div>
+        <div class="chipRow">
+          <button class="chip" type="button" data-prompt-example="2 x BBQ, 1 x Chilli Salt">Quick example</button>
+          <button class="chip" type="button" data-prompt-example="set FLS001 to 6 and FLS010 to 2">Set exact qty</button>
+          <button class="chip" type="button" data-prompt-example="add 1 each of lemon pepper and peri peri">Add by name</button>
+        </div>
+        <div id="order-prompt-feedback" class="promptFeedback"></div>
+      </section>
       <table class="prodTable">
         <thead>
           <tr><th>Code</th><th>Description</th><th>Unit Price</th><th>Line</th><th>Qty</th></tr>
