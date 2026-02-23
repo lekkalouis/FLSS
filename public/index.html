@@ -1257,10 +1257,9 @@
 
 
   .dispatchCardLines {
-    font-size: 0.72rem;
+    font-size: calc(0.72rem + 1pt);
     color: #334155;
-    line-height: 1.25;
-    white-space: pre-line;
+    line-height: 1.3;
     word-break:break-word;
   }
   .dispatchLineItem{
@@ -1270,7 +1269,13 @@
     gap:.45rem;
   }
   .dispatchLineText{
-    display:inline;
+    display:inline-flex;
+    align-items:baseline;
+    gap:.28rem;
+  }
+  .dispatchLineBullet{
+    color: var(--dispatch-flavour-color, #334155);
+    font-weight: 900;
   }
   .dispatchLineItem.is-complete .dispatchLineText{
     text-decoration:line-through;
