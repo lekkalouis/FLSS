@@ -359,8 +359,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
       printerId: 74467271
     },
     printDocs: {
-      templateId: "492a0907560253c5e190",
-      multiplier: 2192,
+      templateId: "a731ae235f8ce951ce08",
+      multiplier: 2254,
       slugPrefix: "print-docs",
       printerId: 74901099
     }
