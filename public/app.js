@@ -2501,8 +2501,28 @@ async function startOrder(orderNo) {
     return Math.max(0, Number(item?.quantity) || 0);
   }
 
+  const dispatchFlavourPalette = [
+    "#0f766e",
+    "#0369a1",
+    "#7c3aed",
+    "#b45309",
+    "#be123c",
+    "#166534",
+    "#1d4ed8",
+    "#9333ea"
+  ];
+
+  function getDispatchFlavourColor(flavourGroup) {
+    const key = String(flavourGroup || "").trim().toLowerCase();
+    if (!key) return "#334155";
+    let hash = 0;
+    for (let i = 0; i < key.length; i += 1) {
+      hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+    }
+    return dispatchFlavourPalette[hash % dispatchFlavourPalette.length];
+  }
+
   function renderDispatchLineItems(order, packingState) {
-    let previousFlavourGroup = null;
     return (order.line_items || [])
       .map((item, index) => ({ ...item, __index: index }))
       .sort((a, b) => {
@@ -2530,8 +2550,7 @@ async function startOrder(orderNo) {
             ? sizeLabel || baseTitle
             : [sizeLabel, abbreviation || baseTitle].filter(Boolean).join(" ");
         const flavourGroup = (abbreviation || baseTitle || "").trim().toLowerCase();
-        const shouldAddBreak = previousFlavourGroup !== null && flavourGroup !== previousFlavourGroup;
-        previousFlavourGroup = flavourGroup;
+        const flavourColor = getDispatchFlavourColor(flavourGroup);
         const itemKey = makePackingKey(li, li.__index);
         const packedItem = getPackingItem(packingState, itemKey);
         const packedCount = packedItem ? Number(packedItem.packed) || 0 : 0;
@@ -2544,9 +2563,7 @@ async function startOrder(orderNo) {
               remaining === 1 ? "" : "s"
             } short">* ${remaining}</span>`
           : "";
-        return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}"><span class="dispatchLineText">• ${requestedQty} × ${shortLabel}</span>${missingTag}</span>${
-          shouldAddBreak ? "<br>" : ""
-        }`;
+        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" style="--dispatch-flavour-color:${flavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${requestedQty} × ${shortLabel}</span>${missingTag}</div>`;
       })
       .filter(Boolean)
       .join("");
