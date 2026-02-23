@@ -94,3 +94,50 @@ test('liquid template endpoints support create/list/delete flow', async () => {
     await removeTemplateFixture();
   }
 });
+
+
+test('notification template endpoints provide defaults and CRUD updates', async () => {
+  const notificationTemplatesFile = path.join(__dirname, '..', 'data', 'notification-templates.json');
+  await fs.rm(notificationTemplatesFile, { force: true });
+
+  const { server, baseUrl } = await startServer();
+  try {
+    const defaultsResponse = await fetch(`${baseUrl}/api/v1/notification-templates`);
+    assert.equal(defaultsResponse.status, 200);
+    const defaultsBody = await defaultsResponse.json();
+    assert.equal(Array.isArray(defaultsBody.templates), true);
+    assert.ok(defaultsBody.templates.length >= 2);
+
+    const createResponse = await fetch(`${baseUrl}/api/v1/notification-templates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Internal Delay Alert',
+        eventKey: 'dispatch.delay',
+        source: 'flss',
+        channel: 'internal',
+        enabled: true,
+        subject: 'Dispatch delay on {{ order.name }}',
+        body: 'Order {{ order.name }} is delayed by {{ metrics.minutes_waiting }} minutes.'
+      })
+    });
+    assert.equal(createResponse.status, 200);
+    const createBody = await createResponse.json();
+    assert.equal(createBody.ok, true);
+
+    const listResponse = await fetch(`${baseUrl}/api/v1/notification-templates`);
+    assert.equal(listResponse.status, 200);
+    const listBody = await listResponse.json();
+    assert.ok(listBody.templates.some((template) => template.id === createBody.template.id));
+
+    const deleteResponse = await fetch(`${baseUrl}/api/v1/notification-templates/${createBody.template.id}`, {
+      method: 'DELETE'
+    });
+    assert.equal(deleteResponse.status, 200);
+    const deleteBody = await deleteResponse.json();
+    assert.equal(deleteBody.ok, true);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await fs.rm(notificationTemplatesFile, { force: true });
+  }
+});

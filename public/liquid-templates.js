@@ -13,6 +13,23 @@ const variableSnippets = [
   "{{ order.total_price | money }}"
 ];
 
+const sampleContext = {
+  shop: { name: "Flippen Lekka Spices" },
+  order: {
+    name: "#1042",
+    created_at: "2026-02-23",
+    customer: { first_name: "Louis", last_name: "van der Merwe" },
+    shipping_address: { address1: "7 Papawer Street", city: "Cape Town", zip: "7530" },
+    line_items: [
+      { title: "Chilli Spice", quantity: 2 },
+      { title: "Garlic Salt", quantity: 1 }
+    ],
+    subtotal_price: "R249.00",
+    total_tax: "R37.35",
+    total_price: "R286.35"
+  }
+};
+
 const refs = {
   templateList: document.querySelector("#templateList"),
   templateName: document.querySelector("#templateName"),
@@ -21,6 +38,8 @@ const refs = {
   saveTemplateBtn: document.querySelector("#saveTemplateBtn"),
   deleteTemplateBtn: document.querySelector("#deleteTemplateBtn"),
   newTemplateBtn: document.querySelector("#newTemplateBtn"),
+  refreshPreviewBtn: document.querySelector("#refreshPreviewBtn"),
+  templatePreview: document.querySelector("#templatePreview"),
   status: document.querySelector("#status")
 };
 
@@ -29,6 +48,46 @@ let selectedTemplateId = null;
 
 function setStatus(text) {
   refs.status.textContent = text;
+}
+
+function getPathValue(path, context) {
+  return path.split(".").reduce((acc, segment) => {
+    if (acc == null || !(segment in acc)) return "";
+    return acc[segment];
+  }, context);
+}
+
+function renderPreview() {
+  const source = refs.templateContent.value;
+  if (!source.trim()) {
+    refs.templatePreview.textContent = "Type Liquid content to preview with sample data.";
+    return;
+  }
+
+  let output = source;
+  output = output.replace(
+    /\{%\s*for\s+(\w+)\s+in\s+([\w.]+)\s*%\}([\s\S]*?)\{%\s*endfor\s*%\}/g,
+    (_match, itemName, arrayPath, block) => {
+      const values = getPathValue(arrayPath, sampleContext);
+      if (!Array.isArray(values)) return "";
+      return values
+        .map((item) => block.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_inner, tokenPath) => {
+          if (tokenPath.startsWith(`${itemName}.`)) {
+            return String(getPathValue(tokenPath.slice(itemName.length + 1), item) ?? "");
+          }
+          return String(getPathValue(tokenPath, sampleContext) ?? "");
+        }))
+        .join("");
+    }
+  );
+
+  output = output.replace(/\{\{\s*([^}]+)\s*\}\}/g, (_match, token) => {
+    const tokenBase = String(token).split("|")[0].trim();
+    const value = getPathValue(tokenBase, sampleContext);
+    return String(value ?? "");
+  });
+
+  refs.templatePreview.textContent = output;
 }
 
 function renderVariableButtons() {
@@ -51,6 +110,7 @@ function insertSnippet(snippet) {
   const cursor = start + snippet.length;
   field.focus();
   field.setSelectionRange(cursor, cursor);
+  renderPreview();
 }
 
 function clearEditor() {
@@ -59,6 +119,7 @@ function clearEditor() {
   refs.templateContent.value = "";
   refs.deleteTemplateBtn.disabled = true;
   renderTemplateList();
+  renderPreview();
 }
 
 function loadTemplate(templateId) {
@@ -69,6 +130,7 @@ function loadTemplate(templateId) {
   refs.templateContent.value = template.content;
   refs.deleteTemplateBtn.disabled = false;
   renderTemplateList();
+  renderPreview();
 }
 
 function renderTemplateList() {
@@ -163,5 +225,9 @@ refs.newTemplateBtn.addEventListener("click", () => {
   setStatus("New template draft.");
 });
 
+refs.templateContent.addEventListener("input", renderPreview);
+refs.refreshPreviewBtn.addEventListener("click", renderPreview);
+
 renderVariableButtons();
+renderPreview();
 fetchTemplates().catch((error) => setStatus(error.message));

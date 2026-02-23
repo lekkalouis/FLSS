@@ -11,9 +11,12 @@
     <header class="pageHeader">
       <div>
         <h1>Liquid Template Studio</h1>
-        <p>Save reusable Shopify Order Printer Pro templates and insert variables quickly.</p>
+        <p>Save reusable Shopify Order Printer Pro templates, insert variables, and preview with sample order data.</p>
       </div>
-      <a href="/" class="backLink">← Back to Scan Station</a>
+      <div class="topLinks">
+        <a href="/notification-templates.html" class="backLink">Notification module →</a>
+        <a href="/" class="backLink">← Back to Scan Station</a>
+      </div>
     </header>
 
     <section class="editorLayout">
@@ -36,6 +39,12 @@
 
         <label class="fieldLabel" for="templateContent">Liquid content</label>
         <textarea id="templateContent" spellcheck="false" placeholder="Write your Liquid template here..."></textarea>
+
+        <div class="previewHeader">
+          <strong>Preview</strong>
+          <button id="refreshPreviewBtn" type="button">Refresh preview</button>
+        </div>
+        <pre id="templatePreview" class="templatePreview"></pre>
 
         <div class="actions">
           <button id="saveTemplateBtn" type="button" class="primary">Save template</button>
