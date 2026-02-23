@@ -142,8 +142,9 @@
     .flMain{ padding:1rem; }
     .flMainHeader{ flex-direction:column; align-items:stretch; }
     .dispatchSelectionFloat{
-      position:static;
-      width:100%;
+      left:1rem;
+      right:1rem;
+      bottom:1rem;
       margin-top:.5rem;
     }
     .dispatchSelectionPanel{ width:100%; }
@@ -493,7 +494,7 @@
   }
   #scanInput{ width:100%; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:1rem; outline:none; padding:.55rem .7rem; }
   #scanInput:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(34,211,238,.2); }
-  .dispatchTopActions{
+   .dispatchTopActions{
     display:flex;
     align-items:center;
     gap:.6rem;
@@ -508,13 +509,16 @@
     background:rgba(99,102,241,.12);
     color:#312e81;
   }
-  .dispatchTopDetails{
+  
+.dispatchTopActions .btn{ min-height:40px; }
+.dispatchExpandToggle{ min-width:40px; padding:.45rem .55rem; }
+.dispatchTopDetails{
     display:none;
     border-top:1px solid var(--panel-strong);
     padding-top:1rem;
     gap:1rem;
   }
-  #viewScan.dispatchExpanded .dispatchTopDetails{
+  .dispatchTopBar.dispatchExpanded .dispatchTopDetails{
     display:grid;
   }
   .dispatchDetailGrid{
@@ -808,15 +812,17 @@
 
 .dispatchSelectionFloat{
   position:fixed;
-  right:1rem;
-  top:5.2rem;
-  width:min(620px, calc(100vw - 2rem));
+  left:1.25rem;
+  right:1.25rem;
+  bottom:1rem;
   z-index:35;
+  display:flex;
+  justify-content:center;
   pointer-events:none;
 }
 
 .dispatchSelectionPanel{
-  width:100%;
+  width:min(1240px, calc(100vw - 2.5rem));
   border-radius:var(--radius-lg);
   border:1px solid var(--panel-strong);
   padding:.55rem .7rem;
@@ -872,9 +878,13 @@
 }
 .dispatchSelectionMeta{
   display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:.25rem;
   font-variant-numeric:tabular-nums;
 }
+.dispatchSelectionMixes{ display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; }
+.dispatchMixDot{ display:inline-flex; align-items:center; gap:.28rem; font-size:.62rem; font-weight:700; }
+.dispatchMixDotColor{ width:.55rem; height:.55rem; border-radius:999px; display:inline-block; }
 .dispatchSelectionPanel.is-hidden{
   display:none;
 }
@@ -888,9 +898,9 @@
   border:1px solid rgba(148,163,184,.7);
   background:#fff;
   color:#334155;
-  font-size:.62rem;
+  font-size:.66rem;
   font-weight:700;
-  padding:.26rem .45rem;
+  padding:.36rem .58rem;
   border-radius:.5rem;
   cursor:pointer;
 }
@@ -2173,7 +2183,53 @@
             <span class="statusBarLabel">Connections</span>
             <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
           </div>
-
+          <div class="dispatchTopBar" id="dispatchTopBar" aria-label="Dispatch controls" hidden>
+            <div class="dispatchTopRow">
+              <div class="dispatchHeading">Dispatch</div>
+              <div class="dispatchScanField">
+                <label for="scanInput">Scan barcode</label>
+                <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." autofocus />
+              </div>
+              <div class="dispatchTopActions">
+                <button id="dispatchExpandToggle" class="btn dispatchExpandToggle" type="button" aria-expanded="false" title="Dispatch settings">⚙️</button>
+                <button id="dispatchCreateCombined" class="btn btnToggle btn--compact" type="button">Create Combined Shipment</button>
+                <button id="modeToggle" class="btn btn--compact" type="button">MODE: AUTO</button>
+                <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
+              </div>
+              <div class="dispatchTruckIndicator">
+                <button id="truckBookBtn" class="dispatchTruckButton is-unbooked" type="button" aria-pressed="false">
+                  <span class="dispatchTruckIcon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h9.5A1.75 1.75 0 0 1 16 6.75V14h1.25c.41 0 .8.18 1.06.49l2.5 3a1.75 1.75 0 0 1 .44 1.13v1.13A1.25 1.25 0 0 1 20 21h-1.1a2.5 2.5 0 0 1-4.9 0H9a2.5 2.5 0 0 1-4.9 0H3.75A.75.75 0 0 1 3 20.25zM16 14V6.75a.25.25 0 0 0-.25-.25h-9.5a.25.25 0 0 0-.25.25V14zm1.8 0h2.25l-2-2.4zm-11.4 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2m10.4-1a1 1 0 1 0-2 0 1 1 0 0 0 2 0"/>
+                    </svg>
+                  </span>
+                  <span id="truckStatus">Not booked</span>
+                </button>
+                <div class="dispatchTruckMeta">
+                  <span class="dispatchTruckBox"><span aria-hidden="true">📦</span>Truck:<span id="truckParcelCount">0</span></span>
+                </div>
+              </div>
+            </div>
+            <div class="dispatchTopDetails">
+              <div class="dispatchDetailGrid">
+                <div class="dispatchDetailCard"><span class="dispatchDetailLabel">Customer</span><span id="uiCustomerName" class="dispatchDetailValue">--</span></div>
+                <div class="dispatchDetailCard"><span class="dispatchDetailLabel">Order</span><span id="uiOrderNo" class="dispatchDetailValue">--</span></div>
+                <div class="dispatchDetailCard"><span class="dispatchDetailLabel">Order weight</span><span id="uiOrderWeight" class="dispatchDetailValue">--</span></div>
+                <div class="dispatchDetailCard dispatchDetailAddress"><span class="dispatchDetailLabel">Shipping address</span><span id="shipToCard" class="dispatchDetailValue">None yet.</span></div>
+              </div>
+              <div class="dispatchTopPanels">
+                <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
+                  <div class="dispatchStatusHeader"><h3>Booking progress</h3><span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span></div>
+                  <div class="dispatchProgressBar" id="scanProgressBar"><div id="scanProgressFill" class="dispatchProgressFill"></div><div class="dispatchProgressSun" aria-hidden="true"></div></div>
+                  <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
+                </div>
+                <div class="dispatchLogPanel dispatchLogPanel--compact">
+                  <div class="dispatchLogHeader"><span>Dispatch log</span><span class="dispatchStamp">Latest activity</span></div>
+                  <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="dispatchSelectionFloat" aria-live="polite">
           <div class="dispatchSelectionPanel" id="dispatchSelectionPanel">
@@ -2189,6 +2245,7 @@
                 <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
                 <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
                 <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
+                <div id="dispatchSelectionMixes" class="dispatchSelectionMixes"></div>
               </div>
               <div class="dispatchSelectionBulkActions">
                 <button id="dispatchPrintDocs" class="dispatchSelectionBtn" type="button">Print Delivery Docs</button>
@@ -2250,74 +2307,7 @@
 
         <div class="flView" id="viewScan" hidden>
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
-      <div class="dispatchTopBar" aria-label="Dispatch controls">
-        <div class="dispatchTopRow">
-          <div class="dispatchHeading">Dispatch</div>
-          <div class="dispatchScanField">
-            <label for="scanInput">Scan barcode</label>
-            <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Focus here. Scanner types then Enter." autofocus />
-          </div>
-          <div class="dispatchTopActions">
-            <button id="dispatchExpandToggle" class="btn dispatchExpandToggle btn--compact" type="button" aria-expanded="false">Expand</button>
-            <button id="dispatchCreateCombined" class="btn btnToggle btn--compact" type="button">Create Combined Shipment</button>
-            <button id="modeToggle" class="btn btn--compact" type="button">MODE: AUTO</button>
-            <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
-          </div>
-          <div class="dispatchTruckIndicator">
-            <button id="truckBookBtn" class="dispatchTruckButton is-unbooked" type="button" aria-pressed="false">
-              <span class="dispatchTruckIcon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h9.5A1.75 1.75 0 0 1 16 6.75V14h1.25c.41 0 .8.18 1.06.49l2.5 3a1.75 1.75 0 0 1 .44 1.13v1.13A1.25 1.25 0 0 1 20 21h-1.1a2.5 2.5 0 0 1-4.9 0H9a2.5 2.5 0 0 1-4.9 0H3.75A.75.75 0 0 1 3 20.25zM16 14V6.75a.25.25 0 0 0-.25-.25h-9.5a.25.25 0 0 0-.25.25V14zm1.8 0h2.25l-2-2.4zm-11.4 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2m10.4-1a1 1 0 1 0-2 0 1 1 0 0 0 2 0"/>
-                </svg>
-              </span>
-              <span id="truckStatus">Not booked</span>
-            </button>
-            <div class="dispatchTruckMeta">
-              <span class="dispatchTruckBox"><span aria-hidden="true">📦</span>Truck:<span id="truckParcelCount">0</span></span>
-            </div>
-          </div>
-        </div>
-        <div class="dispatchTopDetails">
-          <div class="dispatchDetailGrid">
-            <div class="dispatchDetailCard">
-              <span class="dispatchDetailLabel">Customer</span>
-              <span id="uiCustomerName" class="dispatchDetailValue">--</span>
-            </div>
-            <div class="dispatchDetailCard">
-              <span class="dispatchDetailLabel">Order</span>
-              <span id="uiOrderNo" class="dispatchDetailValue">--</span>
-            </div>
-            <div class="dispatchDetailCard">
-              <span class="dispatchDetailLabel">Order weight</span>
-              <span id="uiOrderWeight" class="dispatchDetailValue">--</span>
-            </div>
-            <div class="dispatchDetailCard dispatchDetailAddress">
-              <span class="dispatchDetailLabel">Shipping address</span>
-              <span id="shipToCard" class="dispatchDetailValue">None yet.</span>
-            </div>
-          </div>
-          <div class="dispatchTopPanels">
-            <div class="dispatchStatusPanel dispatchStatusPanel--compact" aria-live="polite">
-              <div class="dispatchStatusHeader">
-                <h3>Booking progress</h3>
-                <span id="scanProgressLabel" class="dispatchStatusLabel">Idle</span>
-              </div>
-              <div class="dispatchProgressBar" id="scanProgressBar">
-                <div id="scanProgressFill" class="dispatchProgressFill"></div>
-                <div class="dispatchProgressSun" aria-hidden="true"></div>
-              </div>
-              <div class="dispatchProgressSteps" id="scanProgressSteps"></div>
-            </div>
-            <div class="dispatchLogPanel dispatchLogPanel--compact">
-              <div class="dispatchLogHeader">
-                <span>Dispatch log</span>
-                <span class="dispatchStamp">Latest activity</span>
-              </div>
-              <div id="scanDispatchLog" class="dispatchLog" aria-live="polite"></div>
-            </div>
-          </div>
-        </div>
-      </div>
+      
       <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">

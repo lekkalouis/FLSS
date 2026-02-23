@@ -63,6 +63,111 @@ function requireCustomerEmailConfigured(res) {
   return true;
 }
 
+function normalizeOrderNo(orderNo) {
+  return String(orderNo || "")
+    .replace(/[^0-9A-Za-z]/g, "")
+    .toUpperCase();
+}
+
+function buildCollectionCredentials(orderNo) {
+  const normalizedOrderNo = normalizeOrderNo(orderNo);
+  let hash = 0;
+  for (let i = 0; i < normalizedOrderNo.length; i += 1) {
+    hash = (hash * 33 + normalizedOrderNo.charCodeAt(i)) % 1000;
+  }
+  const pin = String(hash).padStart(3, "0");
+  const barcodeValue = `FLSS-PICKUP-${normalizedOrderNo}-${pin}`;
+  return { normalizedOrderNo, pin, barcodeValue };
+}
+
+function parseCollectionCode(rawCode = "") {
+  const cleaned = String(rawCode || "").trim().toUpperCase();
+  const codeMatch = cleaned.match(/^FLSS-PICKUP-([0-9A-Z]+)-(\d{3})$/);
+  if (codeMatch) {
+    return { orderNo: codeMatch[1], pin: codeMatch[2] };
+  }
+  const compactMatch = cleaned.match(/^([0-9A-Z]+)[-: ]?(\d{3})$/);
+  if (compactMatch) {
+    return { orderNo: compactMatch[1], pin: compactMatch[2] };
+  }
+  return null;
+}
+
+async function appendOrderTag(base, orderId, tagToApply) {
+  const orderResp = await shopifyFetch(`${base}/orders/${orderId}.json?fields=id,tags`, {
+    method: "GET"
+  });
+  if (!orderResp.ok) {
+    const body = await orderResp.text();
+    return {
+      ok: false,
+      status: orderResp.status,
+      statusText: orderResp.statusText,
+      body
+    };
+  }
+  const orderData = await orderResp.json();
+  const existingTags = String(orderData?.order?.tags || "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  if (!existingTags.includes(tagToApply)) existingTags.push(tagToApply);
+  const updateResp = await shopifyFetch(`${base}/orders/${orderId}.json`, {
+    method: "PUT",
+    body: JSON.stringify({ order: { id: orderId, tags: existingTags.join(", ") } })
+  });
+  if (!updateResp.ok) {
+    const body = await updateResp.text();
+    return {
+      ok: false,
+      status: updateResp.status,
+      statusText: updateResp.statusText,
+      body
+    };
+  }
+  return { ok: true, tags: existingTags };
+}
+
+async function fulfillOrderByOrderId(base, orderId, message = "Collected at dispatch station.") {
+  const foUrl = `${base}/orders/${orderId}/fulfillment_orders.json`;
+  const foResp = await shopifyFetch(foUrl, { method: "GET" });
+  const foData = await foResp.json().catch(() => ({}));
+  if (!foResp.ok) {
+    return { ok: false, status: foResp.status, statusText: foResp.statusText, body: foData };
+  }
+
+  const fulfillmentOrders = Array.isArray(foData.fulfillment_orders) ? foData.fulfillment_orders : [];
+  const fo =
+    fulfillmentOrders.find((f) => f.status !== "closed" && f.status !== "cancelled") ||
+    fulfillmentOrders[0];
+  if (!fo?.id) {
+    return { ok: false, status: 409, statusText: "NO_FULFILLMENT_ORDERS", body: foData };
+  }
+
+  const fulfillUrl = `${base}/fulfillments.json`;
+  const payload = {
+    fulfillment: {
+      message,
+      notify_customer: true,
+      tracking_info: {
+        number: "",
+        company: "Collection"
+      },
+      line_items_by_fulfillment_order: [{ fulfillment_order_id: fo.id }]
+    }
+  };
+
+  const upstream = await shopifyFetch(fulfillUrl, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  const data = await upstream.json().catch(() => ({}));
+  if (!upstream.ok) {
+    return { ok: false, status: upstream.status, statusText: upstream.statusText, body: data };
+  }
+  return { ok: true, fulfillment: data };
+}
+
 const ORDER_PARCEL_NAMESPACE = "custom";
 const ORDER_PARCEL_KEY = "parcel_count";
 const CUSTOMER_META_NAMESPACE = "custom";
@@ -3147,37 +3252,110 @@ router.post("/shopify/inventory-levels/transfer", async (req, res) => {
 router.post("/shopify/notify-collection", async (req, res) => {
   try {
     if (!requireCustomerEmailConfigured(res)) return;
-    const { orderNo, email, customerName, parcelCount = 0, weightKg = 0 } = req.body || {};
+    if (!requireShopifyConfigured(res)) return;
+    const { orderNo, orderId, email, customerName, parcelCount = 0, weightKg = 0 } = req.body || {};
 
     if (!email) {
       return badRequest(res, "Missing customer email address");
     }
+
+    if (!orderId) {
+      return badRequest(res, "Missing orderId");
+    }
+
+    const { normalizedOrderNo, pin, barcodeValue } = buildCollectionCredentials(orderNo);
 
     const safeOrderNo = orderNo ? `#${String(orderNo).replace("#", "")}` : "your order";
     const safeName = customerName || "there";
     const weightLabel = Number(weightKg || 0).toFixed(2);
     const parcelsLabel = Number(parcelCount || 0);
     const subject = `Order ${safeOrderNo} ready for collection`;
+    const barcodeImageUrl = `https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(
+      barcodeValue
+    )}&code=Code128&dpi=120`;
     const text = `Hi ${safeName},
 
 Your order ${safeOrderNo} is ready for collection by your courier.
 
 Order weight: ${weightLabel} kg
 Parcels packed: ${parcelsLabel}
+Collection barcode: ${barcodeValue}
+Collection PIN (fallback): ${pin}
 
 Thank you.`;
+
+    const html = `
+      <p>Hi ${safeName},</p>
+      <p>Your order <strong>${safeOrderNo}</strong> is ready for collection by your courier.</p>
+      <p>
+        <strong>Order weight:</strong> ${weightLabel} kg<br/>
+        <strong>Parcels packed:</strong> ${parcelsLabel}
+      </p>
+      <p><strong>Present this barcode at collection:</strong></p>
+      <p><img src="${barcodeImageUrl}" alt="Collection barcode for order ${safeOrderNo}" /></p>
+      <p style="font-family:monospace;font-size:16px"><strong>${barcodeValue}</strong></p>
+      <p><strong>Fallback PIN:</strong> ${pin}</p>
+      <p>Thank you.</p>
+    `;
 
     const transport = getSmtpTransport();
     await transport.sendMail({
       from: config.SMTP_FROM,
       to: email,
       subject,
-      text
+      text,
+      html
     });
 
-    return res.json({ ok: true });
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    await appendOrderTag(base, orderId, "pickup_notified");
+
+    return res.json({ ok: true, barcodeValue, pin, orderNo: normalizedOrderNo });
   } catch (err) {
     console.error("Notify collection error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.post("/shopify/collection/fulfill-from-code", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { code, orderNo, pin } = req.body || {};
+    const parsed = parseCollectionCode(code) || parseCollectionCode(`${orderNo || ""}${pin || ""}`);
+    if (!parsed) return badRequest(res, "Invalid collection barcode or PIN payload.");
+
+    const expected = buildCollectionCredentials(parsed.orderNo);
+    if (parsed.pin !== expected.pin) {
+      return res.status(401).json({ error: "INVALID_PIN", message: "Collection PIN mismatch." });
+    }
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const orderLookup = await shopifyFetch(
+      `${base}/orders.json?status=open&name=${encodeURIComponent(`#${parsed.orderNo}`)}&limit=1&fields=id,name`,
+      { method: "GET" }
+    );
+    const lookupData = await orderLookup.json().catch(() => ({}));
+    const order = Array.isArray(lookupData.orders) ? lookupData.orders[0] : null;
+    if (!order?.id) {
+      return res.status(404).json({ error: "ORDER_NOT_FOUND", message: "No open order found for collection code." });
+    }
+
+    const fulfillResult = await fulfillOrderByOrderId(base, order.id, "Collected at dispatch station.");
+    if (!fulfillResult.ok) {
+      return res.status(fulfillResult.status || 502).json({
+        error: "FULFILL_FAILED",
+        statusText: fulfillResult.statusText,
+        body: fulfillResult.body
+      });
+    }
+
+    return res.json({ ok: true, orderId: order.id, orderNo: parsed.orderNo, fulfillment: fulfillResult.fulfillment });
+  } catch (err) {
+    console.error("Collection fulfill-from-code error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)
