@@ -363,8 +363,32 @@ import { initPriceManagerView } from "./views/price-manager.js";
       multiplier: 2254,
       slugPrefix: "print-docs",
       printerId: 74901099
+    },
+    taxInvoice: {
+      templateId: "a731ae235f8ce951ce08",
+      multiplier: 2254,
+      slugPrefix: "tax-invoice",
+      printerId: 74901099
+    },
+    parcelStickers: {
+      templateId: "a731ae235f8ce951ce08",
+      multiplier: 2254,
+      slugPrefix: "parcel-stickers",
+      printerId: 74901099
+    },
+    lineItemStickers: {
+      templateId: "a731ae235f8ce951ce08",
+      multiplier: 2254,
+      slugPrefix: "line-item-stickers",
+      printerId: 74901099
     }
   };
+
+  const SHIPPING_DOC_OPTIONS = [
+    { key: "taxInvoice", label: "Tax invoice" },
+    { key: "parcelStickers", label: "Parcel stickers" },
+    { key: "lineItemStickers", label: "Line item stickers" }
+  ];
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
@@ -2245,6 +2269,61 @@ function resetSession() {
     return { orderNo, parcelSeq: seq };
   }
 
+  function parsePickupCollectionScan(code) {
+    const raw = String(code || "").trim().toUpperCase();
+    const match = raw.match(/^PKP-?(\d+)-?(\d{3})$/);
+    if (!match) return null;
+    return {
+      orderNo: match[1],
+      pin: match[2],
+      raw
+    };
+  }
+
+  async function fulfillPickupCollectionFromScan(scan) {
+    if (!scan?.orderNo) return false;
+    const orderNo = String(scan.orderNo || "").replace(/\D/g, "");
+    if (!orderNo) return false;
+    const cached = dispatchOrderCache.get(orderNo);
+    const orderId = cached?.id || (await fetchShopifyOrder(orderNo))?.raw?.id;
+    if (!orderId) {
+      statusExplain(`Pickup scan failed: order ${orderNo} not found.`, "warn");
+      confirmScanFeedback("failure");
+      return true;
+    }
+
+    try {
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          trackingNumber: "",
+          trackingUrl: "",
+          trackingCompany: "Collection",
+          message: `Collected in person (pickup barcode scan). PIN fallback: ${scan.pin}.`
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        statusExplain(`Pickup collection failed for ${orderNo}.`, "warn");
+        appendDebug(`Pickup collection fulfill failed ${orderNo}: ${text}`);
+        confirmScanFeedback("failure");
+        return true;
+      }
+      statusExplain(`Order ${orderNo} collected and fulfilled.`, "ok");
+      appendDebug(`Pickup collection fulfilled from barcode scan: ${scan.raw}`);
+      confirmScanFeedback("success");
+      refreshDispatchData();
+      return true;
+    } catch (err) {
+      statusExplain(`Pickup collection failed for ${orderNo}.`, "warn");
+      appendDebug(`Pickup collection fulfill error ${orderNo}: ${String(err)}`);
+      confirmScanFeedback("failure");
+      return true;
+    }
+  }
+
 async function startOrder(orderNo) {
   cancelAutoBookTimer();
 
@@ -2273,6 +2352,12 @@ async function startOrder(orderNo) {
 }
 
   async function handleScan(code) {
+    const pickupScan = parsePickupCollectionScan(code);
+    if (pickupScan) {
+      const handled = await fulfillPickupCollectionFromScan(pickupScan);
+      if (handled) return;
+    }
+
     const parsed = parseScan(code);
     if (!parsed) {
       appendDebug("Bad scan: " + code);
@@ -2599,27 +2684,70 @@ async function startOrder(orderNo) {
   function renderDispatchActions(order, laneId, orderNo) {
     const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
     const disabled = orderNo ? "" : "disabled";
-    const printBoxButton = `<button class="dispatchBoxBtn" type="button" data-action="print-box" data-order-no="${
-      orderNo || ""
-    }" ${disabled}>Print docs</button>`;
+    const docsDropdown = `
+      <div class="dispatchDocsDropdown">
+        <button class="dispatchBoxBtn" type="button" data-action="toggle-docs" data-order-no="${
+          orderNo || ""
+        }" ${disabled}>Print docs ▾</button>
+        <div class="dispatchDocsMenu">
+          ${SHIPPING_DOC_OPTIONS.map(
+            (doc) =>
+              `<button class="dispatchDocsMenuBtn" type="button" data-action="print-shipping-doc" data-doc-key="${doc.key}" data-order-no="${
+                orderNo || ""
+              }" ${disabled}>${doc.label}</button>`
+          ).join("")}
+        </div>
+      </div>`;
+
     if (normalizedLane === "delivery") {
-      const printed = orderNo && printedDeliveryNotes.has(orderNo);
+      const isPrepared = orderNo ? printedDeliveryNotes.has(orderNo) : false;
+      const actionType = isPrepared ? "deliver-delivery" : "prepare-delivery";
+      const actionLabel = isPrepared ? "Deliver" : "Prepare delivery";
       return `
-        ${printBoxButton}
-        <button class="dispatchFulfillBtn" type="button" data-action="print-note" data-order-no="${orderNo || ""}" ${disabled}>Print delivery note</button>
-        <button class="dispatchFulfillBtn" type="button" data-action="deliver-delivery" data-order-no="${orderNo || ""}" ${!printed ? "disabled" : ""}>Deliver</button>
+        ${docsDropdown}
+        <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${actionLabel}</button>
       `;
     }
-    const label = normalizedLane === "pickup" ? "Ready for collection" : "Fulfil";
-    const actionType = normalizedLane === "pickup" ? "ready-collection" : "fulfill-shipping";
-    if (normalizedLane === "shipping") {
+
+    if (normalizedLane === "pickup") {
       return `
-        ${printBoxButton}
-        <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>
-        <button class="dispatchFulfillBtn" type="button" data-action="partial-fulfill" data-order-no="${orderNo || ""}" ${disabled}>Fulfil some</button>
+        ${docsDropdown}
+        <button class="dispatchFulfillBtn" type="button" data-action="notify-ready" data-order-no="${orderNo || ""}" ${disabled}>Notify customer</button>
       `;
     }
-    return `${printBoxButton}<button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${label}</button>`;
+
+    return `
+      ${docsDropdown}
+      <button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping" data-order-no="${orderNo || ""}" ${disabled}>Fulfil</button>
+      <button class="dispatchFulfillBtn" type="button" data-action="partial-fulfill" data-order-no="${orderNo || ""}" ${disabled}>Fulfil some</button>
+    `;
+  }
+
+  function getMissingSeverity(order, packingState) {
+    const stateItems = Array.isArray(packingState?.items) ? packingState.items : [];
+    const hasStartedPacking =
+      stateItems.some((item) => Number(item?.packed) > 0) || Boolean(packingState?.endTime);
+    if (!hasStartedPacking) return "green";
+    const missingItems = stateItems
+      .map((item) => {
+        const quantity = Number(item?.quantity) || 0;
+        const packed = Number(item?.packed) || 0;
+        const remaining = Math.max(0, quantity - packed);
+        return { item, remaining };
+      })
+      .filter((entry) => entry.remaining > 0);
+    if (!missingItems.length) return "green";
+    const sizeSet = new Set(
+      missingItems
+        .map(({ item }) => String(item?.variant_title || item?.title || "").trim().toLowerCase())
+        .filter(Boolean)
+    );
+    if (sizeSet.size > 1) return "red";
+    const onlyBulkMissing = missingItems.every(({ item }) => {
+      const label = `${item?.title || ""} ${item?.variant_title || ""}`.toLowerCase();
+      return /(500g|750g|1kg|bulk\s*pack|bulk)/.test(label);
+    });
+    return onlyBulkMissing ? "yellow" : "red";
   }
 
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
@@ -3278,9 +3406,11 @@ async function startOrder(orderNo) {
     if (!orderNo) return;
     const order = dispatchOrderCache.get(orderNo);
     if (!order) return;
+    const pickupPin = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+    const pickupCode = `PKP-${orderNo}-${pickupPin}`;
     try {
       setDispatchProgress(6, `Marking ${orderNo} ready for collection`);
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/ready-for-pickup`, {
+      const readyRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/ready-for-pickup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3288,14 +3418,36 @@ async function startOrder(orderNo) {
           orderId: order.id
         })
       });
-      if (!res.ok) {
-        const text = await res.text();
+      if (!readyRes.ok) {
+        const text = await readyRes.text();
         statusExplain("Ready-for-collection failed.", "warn");
         logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${text}`);
         return;
       }
-      statusExplain(`Order ${orderNo} marked ready for collection.`, "ok");
-      logDispatchEvent(`Order ${orderNo} marked ready for collection.`);
+
+      const notifyRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/notify-collection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderNo,
+          pickupCode,
+          pickupPin,
+          // email: order.email || "", // TODO: switch to customer email after testing.
+          email: "louis@flippenlekkaspices.co.za",
+          customerName: order.customer_name || order.shipping_name || "Customer",
+          parcelCount: Number(order.parcel_count || 0),
+          weightKg: Number(order.total_weight_kg || 0)
+        })
+      });
+      if (!notifyRes.ok) {
+        const text = await notifyRes.text();
+        statusExplain("Ready-for-collection set, but email failed.", "warn");
+        logDispatchEvent(`Collection email failed for order ${orderNo}: ${text}`);
+        return;
+      }
+
+      statusExplain(`Order ${orderNo} marked ready and test email sent.`, "ok");
+      logDispatchEvent(`Collection notice sent for ${orderNo} (code ${pickupCode}).`);
     } catch (err) {
       statusExplain("Ready-for-collection failed.", "warn");
       logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${String(err)}`);
@@ -3488,29 +3640,17 @@ async function startOrder(orderNo) {
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
-      const priorityStatus = orderNo ? dispatchPriorityState.get(orderNo) || "" : "";
+      const missingSeverity = getMissingSeverity(o, packingState);
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
       }
 
       return `
-        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} ${
-          priorityStatus ? `dispatchCard--${priorityStatus}` : ""
-        }" data-order-no="${orderNo}" ${combinedStyle}>
+        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} dispatchCard--${missingSeverity}" data-order-no="${orderNo}" ${combinedStyle}>
           <div class="dispatchCardTitle">
             <span class="dispatchCardTitleText">${title}</span>
-            <div class="dispatchCardStatusDots" role="group" aria-label="Set status for order ${orderNo}">
-              <button class="dispatchCardStatusDot dispatchCardStatusDot--priority ${
-                priorityStatus === "priority" ? "is-active" : ""
-              }" type="button" data-action="set-priority" data-priority="priority" data-order-no="${orderNo}" aria-label="Set priority status"></button>
-              <button class="dispatchCardStatusDot dispatchCardStatusDot--medium ${
-                priorityStatus === "medium" ? "is-active" : ""
-              }" type="button" data-action="set-priority" data-priority="medium" data-order-no="${orderNo}" aria-label="Set medium status"></button>
-              <button class="dispatchCardStatusDot dispatchCardStatusDot--hold ${
-                priorityStatus === "hold" ? "is-active" : ""
-              }" type="button" data-action="set-priority" data-priority="hold" data-order-no="${orderNo}" aria-label="Set hold status"></button>
-            </div>
+            <span class="dispatchCardMissingDot dispatchCardMissingDot--${missingSeverity}" aria-label="${missingSeverity} shortage status"></span>
             ${
               orderNo
                 ? `<label class="dispatchCardSelect"><input class="dispatchCardSelectInput" type="checkbox" data-order-no="${orderNo}" ${
@@ -4567,15 +4707,7 @@ async function startOrder(orderNo) {
       closeDispatchOrderModal();
       return true;
     }
-    if (actionType === "set-priority") {
-      if (!orderNo) return true;
-      const status = action.dataset.priority || "";
-      const current = dispatchPriorityState.get(orderNo) || "";
-      const next = current === status ? "" : status;
-      setDispatchOrderPriority(orderNo, next);
-      refreshDispatchViews(orderNo);
-      return true;
-    }
+    if (actionType === "toggle-docs") return true;
     if (actionType === "start-packing") {
       if (!orderNo) return true;
       const order = dispatchOrderCache.get(orderNo);
@@ -4731,6 +4863,28 @@ async function startOrder(orderNo) {
       await promptAndRunPartialFulfillment(orderNo);
       return true;
     }
+    if (actionType === "prepare-delivery") {
+      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+      if (!orderNo || !order) {
+        statusExplain("Prepare delivery unavailable.", "warn");
+        return true;
+      }
+      setDispatchProgress(4, `Preparing delivery ${orderNo}`);
+      logDispatchEvent(`Preparing delivery docs for order ${orderNo}.`);
+      const docsPrinted = await printDocs(order);
+      const notePrinted = await printDeliveryNote(order);
+      if (!docsPrinted || !notePrinted) {
+        statusExplain("Prepare delivery failed. Some docs did not print.", "warn");
+        logDispatchEvent(`Prepare delivery failed for order ${orderNo}.`);
+        return true;
+      }
+      printedDeliveryNotes.add(orderNo);
+      statusExplain(`Delivery prepared for ${orderNo}.`, "ok");
+      logDispatchEvent(`Delivery prepared for order ${orderNo}.`);
+      refreshDispatchViews(orderNo);
+      return true;
+    }
+
     if (actionType === "deliver-delivery") {
       if (!orderNo) return true;
       await markDeliveryReady(orderNo);
@@ -4791,6 +4945,26 @@ async function startOrder(orderNo) {
       statusExplain(`Docs printed for ${orderNo}.`, "ok");
       return true;
     }
+
+    if (actionType === "print-shipping-doc") {
+      const docKey = action.dataset.docKey;
+      const selectedDoc = SHIPPING_DOC_OPTIONS.find((doc) => doc.key === docKey);
+      const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
+      if (!orderNo || !order || !selectedDoc) {
+        statusExplain("Shipping doc print unavailable.", "warn");
+        return true;
+      }
+      setDispatchProgress(4, `Printing ${selectedDoc.label} ${orderNo}`);
+      logDispatchEvent(`Printing ${selectedDoc.label} for order ${orderNo}.`);
+      const ok = await printShopifyTemplate(order, docKey);
+      if (!ok) {
+        statusExplain(`${selectedDoc.label} print failed.`, "warn");
+        return true;
+      }
+      statusExplain(`${selectedDoc.label} printed for ${orderNo}.`, "ok");
+      return true;
+    }
+
 
     if (actionType === "print-note") {
       const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
