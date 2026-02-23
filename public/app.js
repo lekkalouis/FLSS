@@ -124,6 +124,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
   const dispatchSelectionWeight = $("dispatchSelectionWeight");
   const dispatchSelectionTime = $("dispatchSelectionTime");
+  const dispatchSelectionMixes = $("dispatchSelectionMixes");
   const dispatchSelectionClear = $("dispatchSelectionClear");
   const dispatchPrintDocs = $("dispatchPrintDocs");
   const dispatchDeliverSelected = $("dispatchDeliverSelected");
@@ -142,6 +143,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const scanProgressSteps = $("scanProgressSteps");
   const scanProgressLabel = $("scanProgressLabel");
   const scanDispatchLog = $("scanDispatchLog");
+  const dispatchTopBar = $("dispatchTopBar");
 
   const navDashboard = $("navDashboard");
   const navScan = $("navScan");
@@ -2507,6 +2509,32 @@ async function startOrder(orderNo) {
     }
   }
 
+  async function handleCollectionScan(code) {
+    try {
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/collection/fulfill-from-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        statusExplain("Collection scan failed.", "warn");
+        logDispatchEvent(`Collection scan failed: ${text}`);
+        confirmScanFeedback("warn");
+        return;
+      }
+      const payload = await res.json();
+      statusExplain(`Collection fulfilled for order ${payload.orderNo}.`, "ok");
+      logDispatchEvent(`Collection fulfilled from code for order ${payload.orderNo}.`);
+      confirmScanFeedback("success");
+      refreshDispatchData();
+    } catch (err) {
+      statusExplain("Collection scan failed.", "warn");
+      logDispatchEvent(`Collection scan failed: ${String(err)}`);
+      confirmScanFeedback("warn");
+    }
+  }
+
   function laneFromOrder(order) {
     const tags = String(order?.tags || "").toLowerCase();
     if (/(^|[\s,])delivery_pickup([\s,]|$)/.test(tags)) return "pickup";
@@ -2649,9 +2677,12 @@ async function startOrder(orderNo) {
     }
 
     if (normalizedLane === "pickup") {
+      const tags = String(order?.tags || "").toLowerCase();
+      const notified = /(^|[\s,])pickup_notified([\s,]|$)/.test(tags);
+      const notifyLabel = notified ? "✉️ ✅ Notified" : "Notify customer";
       return `
         ${docsDropdown}
-        <button class="dispatchFulfillBtn" type="button" data-action="notify-ready" data-order-no="${orderNo || ""}" ${disabled}>Notify customer</button>
+        <button class="dispatchFulfillBtn" type="button" data-action="notify-ready" data-order-no="${orderNo || ""}" ${disabled}>${notifyLabel}</button>
       `;
     }
 
@@ -3161,6 +3192,8 @@ async function startOrder(orderNo) {
     let totalBoxes = 0;
     let totalUnits = 0;
     let orderCount = 0;
+    const sizeTotals = new Map();
+    const flavourTotals = new Map();
 
     dispatchSelectedOrders.forEach((orderNo) => {
       const order = dispatchOrderCache.get(orderNo);
@@ -3170,7 +3203,12 @@ async function startOrder(orderNo) {
       totalBoxes += packingPlan?.estimatedBoxes || 0;
       totalWeightKg += packingPlan?.totalWeightKg || 0;
       (order.line_items || []).forEach((item) => {
-        totalUnits += Number(item.quantity) || 0;
+        const qty = Number(item.quantity) || 0;
+        totalUnits += qty;
+        const size = getLineItemSize(item);
+        if (size) sizeTotals.set(size, (sizeTotals.get(size) || 0) + qty);
+        const flavour = getLineItemFlavour(item);
+        if (flavour) flavourTotals.set(flavour, (flavourTotals.get(flavour) || 0) + qty);
       });
     });
 
@@ -3179,7 +3217,7 @@ async function startOrder(orderNo) {
       boxCount: totalBoxes
     });
 
-    return { totalWeightKg, totalBoxes, totalUnits, orderCount, totalTimeMin };
+    return { totalWeightKg, totalBoxes, totalUnits, orderCount, totalTimeMin, sizeTotals, flavourTotals };
   }
 
   function updateDispatchSelectionSummary() {
@@ -3198,6 +3236,16 @@ async function startOrder(orderNo) {
     }
     if (dispatchSelectionTime) {
       dispatchSelectionTime.textContent = formatDispatchDuration(totals.totalTimeMin);
+    }
+    if (dispatchSelectionMixes) {
+      const dots = [];
+      [...totals.sizeTotals.entries()].forEach(([size, qty]) => {
+        dots.push(`<span class="dispatchMixDot"><span class="dispatchMixDotColor" style="background:${flavourColor(size)}"></span>${qty}</span>`);
+      });
+      [...totals.flavourTotals.entries()].forEach(([flavour, qty]) => {
+        dots.push(`<span class="dispatchMixDot"><span class="dispatchMixDotColor" style="background:${flavourColor(flavour)}"></span>${qty}</span>`);
+      });
+      dispatchSelectionMixes.innerHTML = dots.join("") || `<span class="dispatchMixDot">No mix yet</span>`;
     }
 
   }
@@ -3361,8 +3409,30 @@ async function startOrder(orderNo) {
         logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${text}`);
         return;
       }
+      const notifyRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/notify-collection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderNo,
+          orderId: order.id,
+          email: "louis@flippenlekkaspices.co.za",
+          // email: order.email,
+          customerName: order.customer_name || "Customer",
+          parcelCount: Number(order.parcel_count || 0),
+          weightKg: Number(order.total_weight_kg || 0)
+        })
+      });
+      if (!notifyRes.ok) {
+        const text = await notifyRes.text();
+        statusExplain("Ready marked but notify email failed.", "warn");
+        logDispatchEvent(`Notify customer failed for order ${orderNo}: ${text}`);
+      } else {
+        const cached = dispatchOrderCache.get(orderNo);
+        if (cached) cached.tags = `${cached.tags || ""}, pickup_notified`;
+      }
       statusExplain(`Order ${orderNo} marked ready for collection.`, "ok");
       logDispatchEvent(`Order ${orderNo} marked ready for collection.`);
+      refreshDispatchViews(orderNo);
     } catch (err) {
       statusExplain("Ready-for-collection failed.", "warn");
       logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${String(err)}`);
@@ -4101,6 +4171,8 @@ async function startOrder(orderNo) {
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
+
+    if (dispatchTopBar) dispatchTopBar.hidden = !showScan;
   }
 
   const ROUTE_VIEW_MAP = new Map([
@@ -4382,10 +4454,10 @@ async function startOrder(orderNo) {
 
   function setDispatchExpanded(expanded) {
     dispatchExpanded = expanded;
-    viewScan?.classList.toggle("dispatchExpanded", dispatchExpanded);
+    dispatchTopBar?.classList.toggle("dispatchExpanded", dispatchExpanded);
     if (dispatchExpandToggle) {
       dispatchExpandToggle.setAttribute("aria-expanded", dispatchExpanded ? "true" : "false");
-      dispatchExpandToggle.textContent = dispatchExpanded ? "Collapse" : "Expand";
+      dispatchExpandToggle.textContent = "⚙️";
     }
   }
 
@@ -4452,6 +4524,10 @@ async function startOrder(orderNo) {
       const code = scanInput.value.trim();
       scanInput.value = "";
       if (!code) return;
+      if (/^FLSS-PICKUP-/i.test(code)) {
+        await handleCollectionScan(code);
+        return;
+      }
       await handleScan(code);
     }
   });
