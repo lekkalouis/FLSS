@@ -2616,6 +2616,25 @@ async function startOrder(orderNo) {
     return `${cartons} × ${EXPORT_CARTON_UNITS} × ${shortLabel}`;
   }
 
+  function getExportCartonSummary(order) {
+    if (!isExportOrder(order)) return null;
+    const EXPORT_CARTON_UNITS = 12;
+    const OUTER_CARTON_CAPACITY = 8;
+    const smallCartons = (order?.line_items || []).reduce((sum, item) => {
+      const remainingQty = getRemainingLineItemQty(item);
+      if (remainingQty <= 0) return sum;
+      return sum + remainingQty / EXPORT_CARTON_UNITS;
+    }, 0);
+    if (smallCartons <= 0) return null;
+    const displayCartons = Number.isInteger(smallCartons)
+      ? String(smallCartons)
+      : smallCartons.toFixed(2).replace(/\.00$/, "");
+    return {
+      displayCartons,
+      outerCartons: Math.ceil(smallCartons / OUTER_CARTON_CAPACITY)
+    };
+  }
+
   function getRemainingLineItemQty(item) {
     const remaining = Number(item?.quantity_remaining);
     if (Number.isFinite(remaining)) return Math.max(0, remaining);
@@ -2702,7 +2721,7 @@ async function startOrder(orderNo) {
       <div class="dispatchDocsDropdown">
         <button class="dispatchBoxBtn" type="button" data-action="toggle-docs" data-order-no="${
           orderNo || ""
-        }" ${disabled}>Print docs ▾</button>
+        }" ${disabled} aria-label="Print documents">🖨️</button>
         <div class="dispatchDocsMenu">
           ${SHIPPING_DOC_OPTIONS.map(
             (doc) =>
@@ -3722,6 +3741,7 @@ async function startOrder(orderNo) {
       const packingState = getPackingState(o);
       if (orderNo) activeOrders.add(orderNo);
       const lines = renderDispatchLineItems(o, packingState);
+      const exportCartonSummary = getExportCartonSummary(o);
       const addr1 = o.shipping_address1 || "";
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
@@ -3779,6 +3799,11 @@ async function startOrder(orderNo) {
               placeholder="--"
             />
           </div>
+          ${
+            exportCartonSummary
+              ? `<div class="dispatchCardMeta">Export cartons: ${exportCartonSummary.displayCartons} · Outer cartons required: ${exportCartonSummary.outerCartons}</div>`
+              : ""
+          }
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
             ${renderDispatchActions(o, laneId, orderNo, packingState)}
