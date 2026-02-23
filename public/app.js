@@ -348,6 +348,13 @@ import { initPriceManagerView } from "./views/price-manager.js";
     { type: "picklist", label: "OPP pick list" },
     { type: "packing-slip", label: "OPP packing slip" }
   ];
+  const SHOPIFY_PRINT_TEMPLATE_CONFIG = {
+    // Paste template settings for all printable docs here.
+    // To add more templates, create another key like:
+    // customDoc: { multiplier: 1234, slugPrefix: "custom-doc" }
+    deliveryNote: { multiplier: 2191, slugPrefix: "delivery-note" },
+    printDocs: { multiplier: 2192, slugPrefix: "print-docs" }
+  };
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
@@ -2495,6 +2502,7 @@ async function startOrder(orderNo) {
   }
 
   function renderDispatchLineItems(order, packingState) {
+    let previousFlavourGroup = null;
     return (order.line_items || [])
       .map((item, index) => ({ ...item, __index: index }))
       .sort((a, b) => {
@@ -2521,6 +2529,9 @@ async function startOrder(orderNo) {
           abbreviation === ""
             ? sizeLabel || baseTitle
             : [sizeLabel, abbreviation || baseTitle].filter(Boolean).join(" ");
+        const flavourGroup = (abbreviation || baseTitle || "").trim().toLowerCase();
+        const shouldAddBreak = previousFlavourGroup !== null && flavourGroup !== previousFlavourGroup;
+        previousFlavourGroup = flavourGroup;
         const itemKey = makePackingKey(li, li.__index);
         const packedItem = getPackingItem(packingState, itemKey);
         const packedCount = packedItem ? Number(packedItem.packed) || 0 : 0;
@@ -2533,10 +2544,12 @@ async function startOrder(orderNo) {
               remaining === 1 ? "" : "s"
             } short">* ${remaining}</span>`
           : "";
-        return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}"><span class="dispatchLineText">• ${requestedQty} × ${shortLabel}</span>${missingTag}</span>`;
+        return `<span class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}"><span class="dispatchLineText">• ${requestedQty} × ${shortLabel}</span>${missingTag}</span>${
+          shouldAddBreak ? "<br>" : ""
+        }`;
       })
       .filter(Boolean)
-      .join("<br>");
+      .join("");
   }
 
   function renderOppDocButtons(orderNo) {
@@ -2561,7 +2574,7 @@ async function startOrder(orderNo) {
     const disabled = orderNo ? "" : "disabled";
     const printBoxButton = `<button class="dispatchBoxBtn" type="button" data-action="print-box" data-order-no="${
       orderNo || ""
-    }" ${disabled}>Print box</button>`;
+    }" ${disabled}>Print docs</button>`;
     if (normalizedLane === "delivery") {
       const printed = orderNo && printedDeliveryNotes.has(orderNo);
       return `
@@ -3701,7 +3714,22 @@ async function startOrder(orderNo) {
     return true;
   }
 
-  async function printDeliveryNote(order) {
+  function buildShopifyTemplateInvoiceUrl({ orderName, orderNo, legacyResourceId, templateKey }) {
+    const template = SHOPIFY_PRINT_TEMPLATE_CONFIG[templateKey];
+    if (!template || !Number.isInteger(Number(template.multiplier))) return "";
+    const slug = String(orderName || orderNo)
+      .replace(/#/g, "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+    const slugPrefix = String(template.slugPrefix || templateKey || "template").trim() || "template";
+    return (
+      "https://flippenlekka.shop/apps/download-pdf/orders/492a0907560253c5e190/" +
+      `${legacyResourceId * Number(template.multiplier)}/${encodeURIComponent(`${slugPrefix}-${slug}`)}.pdf`
+    );
+  }
+
+  async function printShopifyTemplate(order, templateKey = "deliveryNote") {
     if (!order) return false;
     const orderNo = String(order.name || "").replace("#", "").trim();
     let orderData = order;
@@ -3731,17 +3759,27 @@ async function startOrder(orderNo) {
       return false;
     }
 
-    const slug = String(orderName || orderNo)
-      .replace(/#/g, "")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-");
-    const invoiceUrl =
-      "https://flippenlekka.shop/apps/download-pdf/orders/492a0907560253c5e190/" +
-      `${legacyResourceId * 2191}/${encodeURIComponent(slug)}.pdf`;
+    const invoiceUrl = buildShopifyTemplateInvoiceUrl({
+      orderName,
+      orderNo,
+      legacyResourceId,
+      templateKey
+    });
+    if (!invoiceUrl) {
+      appendDebug(
+        `Print template failed for ${orderNo}: missing template config for ${String(templateKey)}`
+      );
+      return false;
+    }
+    const templateLabel =
+      templateKey === "deliveryNote"
+        ? "Delivery note"
+        : templateKey === "printDocs"
+        ? "Print docs"
+        : "Template";
     const payload = {
       printerId: 74467271,
-      title: `Invoice ${orderName || `#${orderNo}`}`,
+      title: `${templateLabel} ${orderName || `#${orderNo}`}`,
       invoiceUrl,
       usePdfUri: true,
       source: "Shopify Flow"
@@ -3755,14 +3793,22 @@ async function startOrder(orderNo) {
       });
       if (!res.ok) {
         const text = await res.text();
-        appendDebug(`PrintNode delivery note failed for ${orderNo}: ${text}`);
+        appendDebug(`PrintNode ${templateLabel.toLowerCase()} failed for ${orderNo}: ${text}`);
         return false;
       }
       return true;
     } catch (err) {
-      appendDebug(`PrintNode delivery note error for ${orderNo}: ${String(err)}`);
+      appendDebug(`PrintNode ${templateLabel.toLowerCase()} error for ${orderNo}: ${String(err)}`);
       return false;
     }
+  }
+
+  async function printDeliveryNote(order) {
+    return printShopifyTemplate(order, "deliveryNote");
+  }
+
+  async function printDocs(order) {
+    return printShopifyTemplate(order, "printDocs");
   }
 
   async function refreshDispatchData() {
@@ -4683,19 +4729,19 @@ async function startOrder(orderNo) {
     if (actionType === "print-box") {
       const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
       if (!orderNo || !order) {
-        statusExplain("Box print unavailable.", "warn");
-        logDispatchEvent("Box print failed: order not found.");
+        statusExplain("Docs print unavailable.", "warn");
+        logDispatchEvent("Docs print failed: order not found.");
         return true;
       }
-      setDispatchProgress(4, `Printing box ${orderNo}`);
-      logDispatchEvent(`Printing box for order ${orderNo}.`);
-      const ok = await printDeliveryNote(order);
+      setDispatchProgress(4, `Printing docs ${orderNo}`);
+      logDispatchEvent(`Printing docs for order ${orderNo}.`);
+      const ok = await printDocs(order);
       if (!ok) {
-        statusExplain("Box print failed.", "warn");
-        logDispatchEvent("Box print failed to send to PrintNode.");
+        statusExplain("Docs print failed.", "warn");
+        logDispatchEvent("Docs print failed to send to PrintNode.");
         return true;
       }
-      statusExplain(`Box printed for ${orderNo}.`, "ok");
+      statusExplain(`Docs printed for ${orderNo}.`, "ok");
       return true;
     }
 
