@@ -1739,6 +1739,66 @@ router.post("/shopify/draft-orders/purchase-order", createPurchaseOrderDraft);
 router.post("/draft-orders/purchase-order", createPurchaseOrderDraft);
 router.post("/shopify/purchase-orders", createPurchaseOrderDraft);
 
+router.get("/shopify/purchase-orders/open", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const query = new URLSearchParams();
+    query.set("status", "open");
+    query.set("limit", "100");
+    query.set("fields", "id,name,created_at,tags,line_items,note_attributes,note,status");
+    query.set("since_id", String(req.query.since_id || ""));
+
+    const resp = await shopifyFetch(`${base}/draft_orders.json?${query.toString()}`, {
+      method: "GET"
+    });
+
+    const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+
+    if (!resp.ok) {
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body: data
+      });
+    }
+
+    const draftOrders = Array.isArray(data?.draft_orders) ? data.draft_orders : [];
+    const purchaseOrders = draftOrders
+      .filter((draft) => String(draft?.tags || "").toLowerCase().includes("purchase-order"))
+      .map((draft) => ({
+        id: draft.id,
+        name: draft.name,
+        created_at: draft.created_at,
+        note: draft.note || "",
+        tags: draft.tags || "",
+        line_items: Array.isArray(draft.line_items)
+          ? draft.line_items.map((line) => ({
+              title: line.title || "",
+              sku: line.sku || "",
+              quantity: Number(line.quantity || 0)
+            }))
+          : [],
+        adminUrl: draft.id
+          ? `https://${config.SHOPIFY_STORE}.myshopify.com/admin/draft_orders/${draft.id}`
+          : null
+      }));
+
+    return res.json({ ok: true, purchaseOrders });
+  } catch (err) {
+    console.error("Shopify purchase-order open list error:", err);
+    return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 
 
 router.post("/pricing/resolve", async (req, res) => {
