@@ -3147,7 +3147,15 @@ router.post("/shopify/inventory-levels/transfer", async (req, res) => {
 router.post("/shopify/notify-collection", async (req, res) => {
   try {
     if (!requireCustomerEmailConfigured(res)) return;
-    const { orderNo, email, customerName, parcelCount = 0, weightKg = 0 } = req.body || {};
+    const {
+      orderNo,
+      email,
+      customerName,
+      parcelCount = 0,
+      weightKg = 0,
+      pickupCode = "",
+      pickupPin = ""
+    } = req.body || {};
 
     if (!email) {
       return badRequest(res, "Missing customer email address");
@@ -3157,6 +3165,13 @@ router.post("/shopify/notify-collection", async (req, res) => {
     const safeName = customerName || "there";
     const weightLabel = Number(weightKg || 0).toFixed(2);
     const parcelsLabel = Number(parcelCount || 0);
+    const safePickupCode = String(pickupCode || "").trim().toUpperCase();
+    const safePickupPin = String(pickupPin || "").trim();
+    const barcodeUrl = safePickupCode
+      ? `https://bwipjs-api.metafloor.com/?bcid=code128&includetext&scale=3&height=12&text=${encodeURIComponent(
+          safePickupCode
+        )}`
+      : "";
     const subject = `Order ${safeOrderNo} ready for collection`;
     const text = `Hi ${safeName},
 
@@ -3164,15 +3179,40 @@ Your order ${safeOrderNo} is ready for collection by your courier.
 
 Order weight: ${weightLabel} kg
 Parcels packed: ${parcelsLabel}
+${safePickupCode ? `Collection barcode value: ${safePickupCode}
+` : ""}${safePickupPin ? `3-digit PIN fallback: ${safePickupPin}
+` : ""}
+Present this barcode (or PIN fallback) on collection.
 
 Thank you.`;
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a">
+        <p>Hi ${safeName},</p>
+        <p>Your order <strong>${safeOrderNo}</strong> is ready for collection by your courier.</p>
+        <p>
+          <strong>Order weight:</strong> ${weightLabel} kg<br/>
+          <strong>Parcels packed:</strong> ${parcelsLabel}
+        </p>
+        ${
+          safePickupCode
+            ? `<p><strong>Collection barcode value:</strong> ${safePickupCode}</p>
+               <p><img src="${barcodeUrl}" alt="Collection barcode ${safePickupCode}"/></p>`
+            : ""
+        }
+        ${safePickupPin ? `<p><strong>3-digit PIN fallback:</strong> ${safePickupPin}</p>` : ""}
+        <p>Present this barcode (or PIN fallback) on collection.</p>
+        <p>Thank you.</p>
+      </div>
+    `;
 
     const transport = getSmtpTransport();
     await transport.sendMail({
       from: config.SMTP_FROM,
       to: email,
       subject,
-      text
+      text,
+      html
     });
 
     return res.json({ ok: true });
