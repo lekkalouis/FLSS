@@ -141,6 +141,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const truckParcelCount = $("truckParcelCount");
   const dispatchCreateCombined = $("dispatchCreateCombined");
   const dispatchExpandToggle = $("dispatchExpandToggle");
+  const dispatchToggleCombinedGlow = $("dispatchToggleCombinedGlow");
   const uiBundleOrders = $("uiBundleOrders");
   const uiMultiShip = $("uiMultiShip");
 
@@ -4659,6 +4660,7 @@ async function startOrder(orderNo) {
   }
 
   const NAV_COLLAPSE_KEY = "fl_nav_collapsed";
+  const DISPATCH_COMBINED_GLOW_KEY = "fl_dispatch_combined_glow";
 
   function setNavCollapsed(collapsed) {
     document.body.classList.toggle("flNavCollapsed", collapsed);
@@ -4692,6 +4694,25 @@ async function startOrder(orderNo) {
     setDispatchExpanded(false);
     dispatchExpandToggle.addEventListener("click", () => {
       setDispatchExpanded(!dispatchExpanded);
+    });
+  }
+
+  function setCombinedGlowEnabled(enabled) {
+    document.body.classList.toggle("dispatchCombinedGlowOff", !enabled);
+    if (dispatchToggleCombinedGlow) {
+      dispatchToggleCombinedGlow.textContent = `Combined Glow: ${enabled ? "ON" : "OFF"}`;
+      dispatchToggleCombinedGlow.setAttribute("aria-pressed", enabled ? "true" : "false");
+    }
+    localStorage.setItem(DISPATCH_COMBINED_GLOW_KEY, String(enabled));
+  }
+
+  if (dispatchToggleCombinedGlow) {
+    const stored = localStorage.getItem(DISPATCH_COMBINED_GLOW_KEY);
+    const initialEnabled = stored !== "false";
+    setCombinedGlowEnabled(initialEnabled);
+    dispatchToggleCombinedGlow.addEventListener("click", () => {
+      const isEnabled = !document.body.classList.contains("dispatchCombinedGlowOff");
+      setCombinedGlowEnabled(!isEnabled);
     });
   }
 
