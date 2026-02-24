@@ -1287,6 +1287,13 @@
     align-items:center;
     justify-content:space-between;
     gap:.45rem;
+    cursor:pointer;
+    border-radius:.35rem;
+    padding:.08rem .2rem;
+    transition:background .12s ease;
+  }
+  .dispatchLineItem:hover{
+    background:rgba(226,232,240,.45);
   }
   .dispatchLineText{
     display:inline-flex;
@@ -1304,6 +1311,50 @@
   .dispatchLineItem.is-partial .dispatchLineText{
     text-decoration:line-through;
     color:#94a3b8;
+  }
+
+  .dispatchPackingPlanGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:.5rem;
+  }
+  .dispatchPackingPlanBox{
+    border:1px solid rgba(148,163,184,.4);
+    border-radius:.6rem;
+    background:#f8fafc;
+    padding:.45rem .5rem;
+  }
+  .dispatchPackingPlanBoxTitle{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.35rem;
+    font-size:.66rem;
+    color:#334155;
+    font-weight:700;
+    margin-bottom:.35rem;
+  }
+  .dispatchPackingPlanBoxIcon{
+    font-size:.78rem;
+  }
+  .dispatchPackingPlanBoxItems{
+    display:flex;
+    flex-direction:column;
+    gap:.25rem;
+  }
+  .dispatchPackingPlanItem{
+    font-size:.66rem;
+    background:#fff;
+    border:1px solid rgba(226,232,240,.9);
+    border-radius:.45rem;
+    padding:.2rem .35rem;
+    color:#0f172a;
+  }
+  .dispatchPackingPlanBoxMeta,
+  .dispatchPackingPlanBoxBreakdown{
+    font-size:.6rem;
+    color:#64748b;
+    margin-top:.35rem;
   }
   .dispatchLineMissing{
     font-weight:800;
