@@ -1,4 +1,5 @@
 import { PRODUCT_LIST } from "./products.js";
+import { PO_CATALOG_ITEMS } from "./purchase-order-catalog.js";
 
 let stockInitialized = false;
 
@@ -10,19 +11,8 @@ export function initStockView() {
   const LOG_STORAGE_KEY = "fl_stock_log_v2";
   const CRATE_UNITS = 102;
 
-  const poCatalog = [
-    { sku: "FL-BLEND-MP", title: "Blended Spice / Original Multi Purpose", icon: "🌿" },
-    { sku: "FL-BLEND-HOT", title: "Blended Spice / Hot & Spicy", icon: "🔥" },
-    { sku: "FL-BLEND-CM", title: "Blended Spice / Curry Mix", icon: "🍛" },
-    { sku: "LB-MP-100", title: "Labelled Bottle / Original / 100ml", icon: "🧴" },
-    { sku: "LB-MP-200", title: "Labelled Bottle / Original / 200ml", icon: "🧴" },
-    { sku: "LT-CM", title: "Labelled Tub / Curry Mix / 250ml", icon: "🪣" },
-    { sku: "LT-MP-750", title: "Labelled Tub / Original / 750g", icon: "🪣" },
-    { sku: "FL-PCAP-O", title: "Printed Flip Lid Caps / Orange", icon: "🟠" },
-    { sku: "FL-PCAP-R", title: "Printed Flip Lid Caps / Red", icon: "🔴" },
-    { sku: "BX-12-200", title: "12 x 200ml BOX", icon: "📦" },
-    { sku: "THE-LAB-ST", title: "Thermal Labels / Standard", icon: "🏷️" }
-  ];
+  const poCatalog = PO_CATALOG_ITEMS;
+
 
   const els = {
     root: document.getElementById("viewStock"),
@@ -226,7 +216,7 @@ export function initStockView() {
     els.poGrid.innerHTML = poCatalog
       .map((p) => {
         const qty = Math.max(0, Math.floor(num(state.poQty.get(p.sku))));
-        return `<article class="stock-poItem"><div class="stock-poIcon">${p.icon}</div><div><div class="name">${p.title}</div><div class="meta">${p.sku}</div></div><input type="number" min="0" step="1" data-po-sku="${p.sku}" class="stock-qtyInput" value="${qty}" /></article>`;
+        return `<article class="stock-poItem"><div class="stock-poIcon">${p.icon}</div><div><div class="name">${p.title}</div><div class="meta">${p.sku} • ${p.uom}</div></div><input type="number" min="0" step="1" data-po-sku="${p.sku}" class="stock-qtyInput" value="${qty}" /></article>`;
       })
       .join("");
   }

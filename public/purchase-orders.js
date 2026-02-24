@@ -1,10 +1,10 @@
+import { PO_CATALOG } from "./views/purchase-order-catalog.js";
+
 const PURCHASE_ORDER_ENDPOINTS = [
   "/api/v1/shopify/draft-orders/purchase-order",
   "/api/v1/draft-orders/purchase-order",
   "/api/v1/shopify/purchase-orders"
 ];
-
-const CATALOG_DATASET_PATH = "/data/purchase-order-catalog.generated.json";
 
 const state = {
   qtyBySku: new Map(),
@@ -26,19 +26,12 @@ function setStatus(message, tone = "") {
   els.status.textContent = message;
 }
 
-function itemIcon(item, group) {
-  if (item?.flavourMappingHints?.includes("hot_spicy")) return "🔥";
-  if (item?.flavourMappingHints?.includes("curry")) return "🍛";
-  if (item?.flavourMappingHints?.includes("worcester")) return "🟣";
-  return group.defaultIcon || "📦";
-}
-
 function filteredGroups() {
   const query = String(els.search?.value || "").trim().toLowerCase();
   if (!query) return state.groups;
   return state.groups.map((group) => ({
     ...group,
-    items: group.items.filter((item) => `${item.name} ${item.sku || ""}`.toLowerCase().includes(query))
+    items: group.items.filter((item) => `${item.title} ${item.sku || ""}`.toLowerCase().includes(query))
   })).filter((group) => group.items.length);
 }
 
@@ -49,15 +42,15 @@ function render() {
       <h2>${group.title}</h2>
       <div class="items">
         ${group.items.map((item) => {
-          const sku = item.sku || item.name;
+          const sku = item.sku || item.title;
           const qty = Number(state.qtyBySku.get(sku) || 0);
           return `<article class="item">
-            <div class="icon" aria-hidden="true">${itemIcon(item, group)}</div>
+            <div class="icon" aria-hidden="true">${item.icon}</div>
             <div>
-              <div class="name">${item.name}</div>
-              <div class="meta">${item.sku || "No SKU"} • ${item.unitOfMeasure || "unit"}${item.flavourMappingHints?.length ? ` • ${item.flavourMappingHints.join(", ")}` : ""}</div>
+              <div class="name">${item.title}</div>
+              <div class="meta">${item.sku || "No SKU"} • ${item.uom || "unit"}${item.flavour ? ` • ${item.flavour}` : ""}</div>
             </div>
-            <input class="qty" type="number" min="0" step="1" value="${qty}" data-sku="${sku}" aria-label="Qty for ${item.name}" />
+            <input class="qty" type="number" min="0" step="1" value="${qty}" data-sku="${sku}" aria-label="Qty for ${item.title}" />
           </article>`;
         }).join("")}
       </div>
@@ -69,10 +62,10 @@ function selectedLines() {
   const flat = state.groups.flatMap((group) => group.items);
   return flat
     .map((item) => {
-      const sku = item.sku || item.name;
+      const sku = item.sku || item.title;
       return {
         sku,
-        title: item.name,
+        title: item.title,
         quantity: Math.max(0, Math.floor(Number(state.qtyBySku.get(sku) || 0)))
       };
     })
@@ -80,32 +73,9 @@ function selectedLines() {
 }
 
 async function loadCatalog() {
-  setStatus("Loading PO catalog data...");
-  try {
-    const response = await fetch(CATALOG_DATASET_PATH, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Failed to load catalog (${response.status}). Run npm run po:catalog:generate.`);
-    }
-    const dataset = await response.json();
-    state.groups = Array.isArray(dataset?.groups) ? dataset.groups : [];
-    render();
-
-    if (!state.groups.length) {
-      setStatus("No materials are available in the generated PO catalog. Run npm run po:catalog:generate after placing source PDFs in context_content/.", "err");
-      return;
-    }
-
-    if (dataset?.fallbackMessage) {
-      setStatus(dataset.fallbackMessage, "err");
-      return;
-    }
-
-    setStatus(`Loaded ${state.groups.reduce((sum, group) => sum + (group.items?.length || 0), 0)} materials from generated catalog.`, "ok");
-  } catch (error) {
-    state.groups = [];
-    render();
-    setStatus(`Unable to load generated PO catalog. ${error.message} If source PDFs are missing, add context_content/VIP.pdf and context_content/raw_herbs_spices_blends.pdf then rerun npm run po:catalog:generate.`, "err");
-  }
+  state.groups = PO_CATALOG;
+  render();
+  setStatus(`Loaded ${state.groups.reduce((sum, group) => sum + (group.items?.length || 0), 0)} materials from shared catalog.`, "ok");
 }
 
 async function postPurchaseOrder(payload) {
