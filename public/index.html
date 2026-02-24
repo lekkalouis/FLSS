@@ -473,9 +473,13 @@
     flex-wrap:wrap;
   }
   .dispatchHeading{
+    display:flex;
+    align-items:center;
     font-weight:800;
     font-size:1.05rem;
     letter-spacing:.01em;
+    min-height:40px;
+    margin-right:.25rem;
   }
   .dispatchScanField{
     display:flex;
@@ -497,6 +501,7 @@
     align-items:center;
     gap:.6rem;
     flex-wrap:wrap;
+    margin-left:auto;
   }
   .btn--compact{
     font-size:.7rem;
@@ -508,7 +513,7 @@
     color:#312e81;
   }
   
-.dispatchTopActions .btn{ min-height:40px; }
+.dispatchTopActions .btn{ min-height:40px; display:inline-flex; align-items:center; justify-content:center; }
 .dispatchExpandToggle{ min-width:40px; padding:.45rem .55rem; }
 .dispatchTopDetails{
     display:none;
@@ -917,7 +922,8 @@
   font-weight:700;
 }
 .dispatchMixCell--missing{
-  color:#b45309;
+  color:#b91c1c;
+  background:rgba(220,38,38,.12);
   font-weight:700;
 }
 .dispatchSelectionPanel.is-hidden{
@@ -2333,6 +2339,7 @@
             </div>
             <div class="dispatchSelectionBody">
               <div class="dispatchSelectionMeta">
+                <div>Total units: <strong id="dispatchSelectionUnits">0</strong></div>
                 <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
                 <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
                 <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
