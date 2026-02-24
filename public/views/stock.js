@@ -50,7 +50,8 @@ export function initStockView() {
     log: [],
     poQty: new Map(),
     locationId: null,
-    missingBySku: new Map()
+    missingBySku: new Map(),
+    visibleSkus: new Set(finishedGoods.map((i) => i.sku))
   };
 
   function num(v) {
@@ -106,7 +107,12 @@ export function initStockView() {
     if (!resp.ok) return;
     const levels = Array.isArray(payload.levels) ? payload.levels : [];
     const byVar = new Map(levels.map((l) => [Number(l.variantId), Number(l.available || 0)]));
-    finishedGoods.forEach((item) => state.stock.set(item.sku, Math.floor(num(byVar.get(Number(item.variantId))))));
+    state.visibleSkus = new Set();
+    finishedGoods.forEach((item) => {
+      const available = Math.floor(num(byVar.get(Number(item.variantId))));
+      state.stock.set(item.sku, available);
+      if (available > 0) state.visibleSkus.add(item.sku);
+    });
   }
 
   async function loadMissingForOpenOrders() {
@@ -126,7 +132,11 @@ export function initStockView() {
 
   function filteredItems() {
     const q = String(els.search?.value || "").trim().toLowerCase();
-    return finishedGoods.filter((i) => !q || `${i.sku} ${i.title} ${i.flavour || ""}`.toLowerCase().includes(q));
+    return finishedGoods.filter((i) => {
+      if (!state.visibleSkus.has(i.sku)) return false;
+      if (!q) return true;
+      return `${i.sku} ${i.title} ${i.flavour || ""}`.toLowerCase().includes(q);
+    });
   }
 
   function renderMissingSummary() {
@@ -155,7 +165,10 @@ export function initStockView() {
 
   function renderTable() {
     if (!els.tbody) return;
-    els.tbody.innerHTML = filteredItems().map(rowMarkup).join("");
+    const items = filteredItems();
+    els.tbody.innerHTML = items.length
+      ? items.map(rowMarkup).join("")
+      : `<tr><td colspan="10" class="stock-muted">No items currently available at this location.</td></tr>`;
     updateModeUI();
   }
 
