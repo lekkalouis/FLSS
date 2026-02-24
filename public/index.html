@@ -970,11 +970,6 @@
   gap:.5rem;
 }
 .dispatchCard.is-combined{
-  border-width:2px;
-  border-color:var(--combined-color, rgba(94,234,212,.8));
-  box-shadow:0 0 0 1px color-mix(in srgb, var(--combined-color, #5eead4) 35%, transparent), 0 8px 16px rgba(15,23,42,.12);
-}
-body.dispatchCombinedGlowOff .dispatchCard.is-combined{
   border-width:1px;
   border-color:rgba(148,163,184,.32);
   box-shadow:0 2px 6px rgba(15,23,42,0.08);
@@ -2419,7 +2414,6 @@ body.dispatchCombinedGlowOff .dispatchCard.is-combined{
             <div class="dispatchTopActions">
               <button id="dispatchExpandToggle" class="btn dispatchExpandToggle" type="button" aria-expanded="false" title="Dispatch settings">⚙️</button>
               <button id="dispatchCreateCombined" class="btn btnToggle btn--compact dispatchSettingsOnly" type="button">Create Combined Shipment</button>
-              <button id="dispatchToggleCombinedGlow" class="btn btnToggle btn--compact dispatchSettingsOnly" type="button">Combined Glow: ON</button>
               <button id="modeToggle" class="btn btn--compact dispatchSettingsOnly" type="button">MODE: AUTO</button>
               <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
             </div>
