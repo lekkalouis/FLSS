@@ -2725,7 +2725,7 @@ async function startOrder(orderNo) {
           ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
           : "";
         const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
-        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${String(order?.name || "").replace("#", "").trim()}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${qtyLabel}</span>${missingTag}</div>`;
+        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${String(order?.name || "").replace("#", "").trim()}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${qtyLabel}</span>${missingTag}</div>`;
       })
       .filter(Boolean)
       .join("");
@@ -2755,7 +2755,7 @@ async function startOrder(orderNo) {
       <div class="dispatchDocsDropdown">
         <button class="dispatchBoxBtn" type="button" data-action="toggle-docs" data-order-no="${
           orderNo || ""
-        }" ${disabled} aria-label="Print documents">🖨️</button>
+        }" ${disabled} aria-label="Print documents" title="Print documents">🖨️</button>
         <div class="dispatchDocsMenu">
           ${SHIPPING_DOC_OPTIONS.map(
             (doc) =>
@@ -3868,7 +3868,7 @@ async function startOrder(orderNo) {
               orderNo
                 ? `<label class="dispatchCardSelect"><input class="dispatchCardSelectInput" type="checkbox" data-order-no="${orderNo}" ${
                     isSelected ? "checked" : ""
-                  } aria-label="Select order ${orderNo}"/>Select</label>`
+                  } aria-label="Select order ${orderNo}"/></label>`
                 : ""
             }
           </div>
