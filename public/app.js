@@ -169,9 +169,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dispatchSelectionTime = $("dispatchSelectionTime");
   const dispatchSelectionMixes = $("dispatchSelectionMixes");
   const dispatchSelectionClear = $("dispatchSelectionClear");
-  const dispatchPrintDocs = $("dispatchPrintDocs");
-  const dispatchDeliverSelected = $("dispatchDeliverSelected");
-  const dispatchMarkDelivered = $("dispatchMarkDelivered");
+  const dispatchPrepareDeliveriesContainer = $("dispatchPrepareDeliveriesContainer");
+  const dispatchPrepareDeliveries = $("dispatchPrepareDeliveries");
   const dispatchShipmentsSidebar = $("dispatchShipmentsSidebar");
   const dispatchOrderModal = $("dispatchOrderModal");
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
@@ -3399,6 +3398,10 @@ async function startOrder(orderNo) {
     if (dispatchSelectionTime) {
       dispatchSelectionTime.textContent = formatDispatchDuration(totals.totalTimeMin);
     }
+    const selectedDeliveryOrderCount = getSelectedDeliveryOrderNos().length;
+    if (dispatchPrepareDeliveriesContainer) {
+      dispatchPrepareDeliveriesContainer.classList.toggle("is-hidden", selectedDeliveryOrderCount === 0);
+    }
     if (dispatchSelectionMixes) {
       const entries = [...totals.flavourSizeTotals.values()].sort((a, b) => {
         const aKey = flavourKey(a.flavour);
@@ -4816,66 +4819,43 @@ async function startOrder(orderNo) {
     });
   }
 
-  dispatchPrintDocs?.addEventListener("click", async () => {
+  dispatchPrepareDeliveries?.addEventListener("click", async () => {
     const orders = getSelectedDeliveryOrderNos()
       .map((orderNo) => dispatchOrderCache.get(orderNo))
       .filter(Boolean);
     if (!orders.length) {
-      statusExplain("Select at least 1 delivery order to print docs.", "warn");
+      statusExplain("Select at least 1 delivery order to prepare.", "warn");
       return;
     }
-    let printed = 0;
-    let blocked = 0;
+
+    let prepared = 0;
+    let failed = 0;
     for (const order of orders) {
       const orderNo = orderNoFromName(order.name);
-      const ok = await printDocs(order);
-      if (ok) {
-        printed += 1;
+      const docsPrinted = await printDocs(order);
+      const notePrinted = await printDeliveryNote(order);
+      if (docsPrinted && notePrinted) {
+        prepared += 1;
         printedDeliveryNotes.add(orderNo);
       } else {
-        blocked += 1;
+        failed += 1;
       }
     }
+
     refreshDispatchViews();
-    if (!printed) {
-      statusExplain("No docs were printed (PrintNode request failed).", "warn");
-      return;
-    }
-    const suffix = blocked ? ` (${blocked} failed to send to PrintNode)` : "";
-    statusExplain(`Printed delivery docs for ${printed} delivery orders.${suffix}`, "ok");
-  });
+    clearDispatchSelection();
 
-  dispatchDeliverSelected?.addEventListener("click", async () => {
-    const selected = getSelectedDeliveryOrderNos();
-    if (!selected.length) {
-      statusExplain("Select at least 1 delivery order to mark ready for delivery.", "warn");
+    if (!prepared) {
+      statusExplain("Prepare deliveries failed. Some docs did not print.", "warn");
       return;
     }
-    const printable = selected.filter((orderNo) => printedDeliveryNotes.has(orderNo));
-    const missingDocs = selected.length - printable.length;
-    for (const orderNo of printable) {
-      await markDeliveryReady(orderNo);
-    }
-    if (missingDocs) {
-      statusExplain(
-        `Delivered ${printable.length} orders. ${missingDocs} skipped (print delivery note first).`,
-        "warn"
-      );
-      return;
-    }
-    statusExplain(`Delivered ${printable.length} selected delivery orders.`, "ok");
-  });
 
-  dispatchMarkDelivered?.addEventListener("click", async () => {
-    const selected = getSelectedDeliveryOrderNos();
-    if (!selected.length) {
-      statusExplain("Select at least 1 delivery order to mark as delivered.", "warn");
+    if (failed) {
+      statusExplain(`Prepared ${prepared} delivery orders (${failed} failed).`, "warn");
       return;
     }
-    for (const orderNo of selected) {
-      await markDeliveryReady(orderNo);
-    }
-    statusExplain(`Marked ${selected.length} selected delivery orders as delivered.`, "ok");
+
+    statusExplain(`Prepared ${prepared} delivery orders.`, "ok");
   });
 
   truckBookBtn?.addEventListener("click", async () => {

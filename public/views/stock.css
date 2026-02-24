@@ -17,8 +17,8 @@
 #viewStock .stock-table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:.76rem}
 #viewStock .stock-table th,#viewStock .stock-table td{padding:.35rem .45rem;border-bottom:1px solid #ecf1f7;vertical-align:middle}
 #viewStock .stock-table th{font-size:.64rem;text-transform:uppercase;color:var(--muted);background:#f8fafc;letter-spacing:.04em}
-#viewStock .stock-flavourBadge{--flavour-color:#22d3ee;display:inline-flex;align-items:center;gap:.3rem;border:1px solid var(--flavour-color);color:#0f172a;background:color-mix(in srgb, var(--flavour-color) 16%, #fff);border-radius:999px;padding:.15rem .5rem;font-size:.66rem;font-weight:700}
-#viewStock .stock-flavourBadge::before{content:"";width:.42rem;height:.42rem;border-radius:50%;background:var(--flavour-color);box-shadow:0 0 0 1px rgba(15,23,42,.12) inset}
+#viewStock .stock-flavourBadge{--flavour-color:#22d3ee;display:inline-flex;align-items:center;gap:.3rem;padding:.06rem .38rem;border-radius:999px;border:1px solid var(--flavour-color);font-size:.6rem;letter-spacing:.02em;text-transform:uppercase;color:var(--text);background:rgba(255,255,255,.9);white-space:nowrap}
+#viewStock .stock-flavourBadge::before{content:"";width:.4rem;height:.4rem;border-radius:999px;background:var(--flavour-color)}
 #viewStock .stock-qtyInput{width:4.5rem;border:1px solid var(--line);border-radius:8px;padding:.2rem .35rem}
 #viewStock .stock-iconBtn{border:1px solid var(--line);border-radius:999px;background:#fff;padding:.2rem .45rem;cursor:pointer}
 #viewStock .stock-actionBtn{border:1px solid #86efac;background:#dcfce7;border-radius:999px;padding:.22rem .6rem;font-size:.68rem;font-weight:700;cursor:pointer}
