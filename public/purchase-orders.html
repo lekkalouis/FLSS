@@ -18,7 +18,10 @@
     .group h2{margin:.1rem 0 .55rem;font-size:.9rem;text-transform:uppercase;letter-spacing:.05em}
     .items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem}
     .item{border:1px solid var(--line);border-radius:10px;background:#fff;padding:.45rem;display:grid;grid-template-columns:auto 1fr auto;gap:.4rem;align-items:center}
-    .icon{width:34px;height:34px;border-radius:9px;background:var(--accent-soft);display:grid;place-items:center;font-size:1.1rem}
+    .iconWrap{display:grid;place-items:center}
+    .iconChip{--flavour-color:#22d3ee;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:1.1rem;background:color-mix(in srgb,var(--flavour-color) 20%, #fff);border:1px solid color-mix(in srgb,var(--flavour-color) 60%, #cbd5e1)}
+    .iconChip--labelRoll{border-radius:999px;padding:0 .25rem;width:auto;min-width:34px;position:relative}
+    .iconChip--labelRoll::before{content:"";position:absolute;inset:6px;left:7px;right:7px;border-radius:999px;border:1px dashed color-mix(in srgb,var(--flavour-color) 70%, #334155);opacity:.7}
     .name{font-size:.78rem;font-weight:600}.meta{font-size:.67rem;color:var(--muted)}
     .qty{width:72px;padding:.35rem .4rem;border:1px solid var(--line);border-radius:7px;text-align:right}
     .status{min-height:1rem;font-size:.82rem;color:var(--muted)}.status.ok{color:var(--ok)}.status.err{color:var(--bad)}

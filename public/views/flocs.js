@@ -1,4 +1,5 @@
 import { PRODUCT_LIST } from "./products.js";
+import { normalizeFlavourKey, resolveFlavourColor } from "./flavour-map.js";
 
 let flocsInitialized = false;
 
@@ -106,29 +107,9 @@ export function initFlocsView() {
 
   const CUSTOMER_QUICK_PICK_EXCLUDED_SEGMENTS = new Set(["local", "private"]);
 
-  const FLAVOUR_COLORS = {
-    "hot & spicy": "#DA291C",
-    "original": "#8BAF84",
-    "worcester sauce": "#FF8200",
-    "red wine & garlic": "#904066",
-    "savoury herb": "#A1C935",
-    "savoury herbs": "#A1C935",
-    "salt & vinegar": "#40B2FF",
-    "curry": "#FFC72C",
-    "butter": "#FFE66D",
-    "sour cream & chives": "#7BC96F",
-    "parmesan cheese": "#7E22CE",
-    "cheese & onion": "#C4E36A"
-  };
-
-  const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
-  const flavourColor = (flavour) => {
-    const key = flavourKey(flavour);
-    if (key === "chutney") {
-      return state.productType === "popcorn" ? "#DA291C" : "#7E22CE";
-    }
-    return FLAVOUR_COLORS[key] || "#22d3ee";
-  };
+  const flavourKey = (flavour) => normalizeFlavourKey(flavour);
+  const flavourColor = (flavour) =>
+    resolveFlavourColor(flavour, { productType: state.productType });
   const flavourTag = (flavour) =>
     flavour
       ? `<span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span>`

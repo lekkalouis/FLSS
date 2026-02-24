@@ -1,5 +1,6 @@
 import { PRODUCT_LIST } from "./products.js";
 import { PO_CATALOG, PO_CATALOG_ITEMS } from "./purchase-order-catalog.js";
+import { resolveFlavourColor } from "./flavour-map.js";
 
 let stockInitialized = false;
 
@@ -39,26 +40,7 @@ export function initStockView() {
 
   const finishedGoods = PRODUCT_LIST.filter((p) => !p.isRawMaterial);
 
-  const FLAVOUR_COLORS = {
-    "hot & spicy": "#DA291C",
-    "original": "#8BAF84",
-    "worcester sauce": "#FF8200",
-    "red wine & garlic": "#904066",
-    "savoury herb": "#A1C935",
-    "savoury herbs": "#A1C935",
-    "salt & vinegar": "#40B2FF",
-    "curry": "#FFC72C",
-    "butter": "#FFE66D",
-    "sour cream & chives": "#7BC96F",
-    "parmesan cheese": "#7E22CE",
-    "cheese & onion": "#C4E36A"
-  };
-  const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
-  const flavourColor = (flavour) => {
-    const key = flavourKey(flavour);
-    if (key === "chutney") return "#7E22CE";
-    return FLAVOUR_COLORS[key] || "#22d3ee";
-  };
+  const flavourColor = (flavour) => resolveFlavourColor(flavour);
 
   const state = {
     tab: "stock",
@@ -219,6 +201,14 @@ export function initStockView() {
     return parts.join(" • ");
   }
 
+  function poIconChip(item) {
+    const accent = flavourColor(item.flavour);
+    const isLabelRoll = item.uom === "roll" && String(item.sku || "").startsWith("LBL-");
+    const variantClass = isLabelRoll ? " stock-poIcon--labelRoll" : "";
+    const icon = item.icon || "📦";
+    return `<span class="stock-poIcon${variantClass}" style="--flavour-color:${accent}" aria-hidden="true">${icon}</span>`;
+  }
+
   function renderPOGrid() {
     if (!els.poGrid) return;
     els.poGrid.innerHTML = poCatalogGroups
@@ -227,7 +217,7 @@ export function initStockView() {
           <h4>${group.title}</h4>
           ${(group.items || []).map((p) => {
             const qty = Math.max(0, Math.floor(num(state.poQty.get(p.sku))));
-            return `<article class="stock-poItem"><div class="stock-poIcon">${p.icon}</div><div><div class="name">${p.title}</div><div class="meta">${poMeta(p)}</div></div><input type="number" min="0" step="1" data-po-sku="${p.sku}" class="stock-qtyInput" value="${qty}" /></article>`;
+            return `<article class="stock-poItem"><div>${poIconChip(p)}</div><div><div class="name">${p.title}</div><div class="meta">${poMeta(p)}</div></div><input type="number" min="0" step="1" data-po-sku="${p.sku}" class="stock-qtyInput" value="${qty}" /></article>`;
           }).join("")}
         </section>
       `)
