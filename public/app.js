@@ -3755,7 +3755,7 @@ async function startOrder(orderNo) {
       { id: "shippingAgent", label: "Shipping (Agent)", type: "cards" },
       { id: "shippingA", label: "Shipping", type: "cards" },
       { id: "shippingB", label: "Shipping", type: "cards" },
-      { id: "shippingC", label: "Shipping", type: "cards" },
+      { id: "export", label: "Export", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" },
       { id: "delivery", label: "Delivery", type: "cards" }
     ];
@@ -3763,10 +3763,15 @@ async function startOrder(orderNo) {
       delivery: [],
       shippingAgent: [],
       shippingNonAgent: [],
+      export: [],
       pickup: []
     };
 
     list.forEach((o) => {
+      if (isExportOrder(o)) {
+        lanes.export.push(o);
+        return;
+      }
       const laneId = laneFromOrder(o);
       if (laneId === "shipping") {
         if (isAgentOrder(o)) {
@@ -3779,12 +3784,12 @@ async function startOrder(orderNo) {
       (lanes[laneId] || lanes.shippingNonAgent).push(o);
     });
 
-    const shippingLaneCount = 3;
+    const shippingLaneCount = 2;
     const shippingChunks = Array.from({ length: shippingLaneCount }, () => []);
     lanes.shippingNonAgent.forEach((order, index) => {
       shippingChunks[index % shippingLaneCount].push(order);
     });
-    const [shippingA, shippingB, shippingC] = shippingChunks;
+    const [shippingA, shippingB] = shippingChunks;
 
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
@@ -3872,8 +3877,8 @@ async function startOrder(orderNo) {
             ? shippingA
             : col.id === "shippingB"
             ? shippingB
-            : col.id === "shippingC"
-            ? shippingC
+            : col.id === "export"
+            ? lanes.export
             : col.id === "shippingAgent"
             ? lanes.shippingAgent
             : lanes[col.id] || [];
