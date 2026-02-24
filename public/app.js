@@ -2725,7 +2725,7 @@ async function startOrder(orderNo) {
           ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
           : "";
         const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
-        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${qtyLabel}</span>${missingTag}</div>`;
+        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${String(order?.name || "").replace("#", "").trim()}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet">•</span> ${qtyLabel}</span>${missingTag}</div>`;
       })
       .filter(Boolean)
       .join("");
@@ -3248,12 +3248,11 @@ async function startOrder(orderNo) {
     if (!plan || !plan.boxes.length) {
       return `<div class="dispatchPackingPlanEmpty">No packing plan available.</div>`;
     }
-    return plan.boxes
+    const boxes = plan.boxes
       .map((box) => {
         const itemsHtml = box.items
           .map(
-            (item) =>
-              `<div class="dispatchPackingPlanItem"><span>${item.label}</span><span>${item.quantity}</span></div>`
+            (item) => `<div class="dispatchPackingPlanItem"><strong>${item.quantity}×</strong> ${item.label}</div>`
           )
           .join("");
         const tag = `${box.curryMix ? "Curry Mix" : "Standard"} · ${box.size}`;
@@ -3273,14 +3272,43 @@ async function startOrder(orderNo) {
           : "";
         return `
           <div class="dispatchPackingPlanBox">
-            <div class="dispatchPackingPlanBoxTitle">${box.label} <span>${tag}</span></div>
-            <div class="dispatchPackingPlanBoxItems">${itemsHtml}</div>
+            <div class="dispatchPackingPlanBoxTitle"><span class="dispatchPackingPlanBoxIcon" aria-hidden="true">📦</span> ${box.label} <span>${tag}</span></div>
+            <div class="dispatchPackingPlanBoxItems">${itemsHtml || '<div class="dispatchPackingPlanItem">No items assigned.</div>'}</div>
             ${meta}
             ${breakdown}
           </div>
         `;
       })
       .join("");
+    return `<div class="dispatchPackingPlanGrid">${boxes}</div>`;
+  }
+
+  function toggleDispatchLineItemPacked(orderNo, itemKey) {
+    if (!orderNo || !itemKey) return;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return;
+    const state = dispatchPackingState.get(orderNo) || getPackingState(order);
+    if (!state) return;
+    if (!state.startTime) state.startTime = new Date().toISOString();
+    state.active = true;
+    if (state.endTime) state.endTime = null;
+    const item = getPackingItem(state, itemKey);
+    if (!item) return;
+    const currentPacked = Number(item.packed) || 0;
+    const quantity = Number(item.quantity) || 0;
+    if (quantity <= 0) return;
+    if (currentPacked >= quantity) {
+      item.packed = 0;
+    } else {
+      allocatePackedToBox(state, item.key, 1);
+      item.packed = Math.min(quantity, currentPacked + 1);
+    }
+    if (isPackingComplete(state)) {
+      finalizePacking(state);
+    } else {
+      savePackingState();
+    }
+    refreshDispatchViews(orderNo);
   }
 
   function renderDispatchPackingSummary(plan) {
@@ -5198,11 +5226,22 @@ async function startOrder(orderNo) {
         return;
       }
     }
-    const card = e.target.closest(".dispatchCard");
-    if (card && !e.target.closest("button") && !e.target.closest("input")) {
-      const orderNo = card.dataset.orderNo;
-      if (orderNo) openDispatchOrderModal(orderNo);
+    const lineItem = e.target.closest(".dispatchLineItem");
+    if (lineItem) {
+      if (e.target.closest("button") || e.target.closest("input") || e.target.closest("label")) return;
+      const orderNo = lineItem.dataset.orderNo;
+      const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
+      toggleDispatchLineItemPacked(orderNo, itemKey);
     }
+  });
+
+  dispatchBoard?.addEventListener("dblclick", (e) => {
+    const card = e.target.closest(".dispatchCard");
+    if (!card || e.target.closest("button") || e.target.closest("input") || e.target.closest("label")) {
+      return;
+    }
+    const orderNo = card.dataset.orderNo;
+    if (orderNo) openDispatchOrderModal(orderNo);
   });
 
   dispatchBoard?.addEventListener("change", (e) => {
