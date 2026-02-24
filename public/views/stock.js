@@ -10,7 +10,6 @@ export function initStockView() {
 
   const API_BASE = "/api/v1/shopify";
   const LOG_STORAGE_KEY = "fl_stock_log_v2";
-  const CRATE_UNITS = 102;
 
   const poCatalog = PO_CATALOG_ITEMS;
   const poCatalogGroups = PO_CATALOG;
@@ -129,6 +128,32 @@ export function initStockView() {
     return finishedGoods.filter((i) => !q || `${i.sku} ${i.title} ${i.flavour || ""}`.toLowerCase().includes(q));
   }
 
+  const countGroups = [
+    { title: "200ml", skus: ["FL002", "FL008", "FL014", "FL026", "FL035", "FL038", "FL041"] },
+    { title: "500g Bags", skus: ["FL003", "FL009", "FL015", "FL027", "FL032", "FL036", "FL039", "FL042"] },
+    { title: "1kg", skus: ["FL004", "FL010", "FL016", "FL028", "FL033", "FL037", "FL043"] },
+    { title: "Curry Mix", skus: ["FL031", "FL032", "FL033"] },
+    { title: "Popcorn Sprinkle", skus: ["FL050", "FL053", "FL056", "FL059", "FL062", "FL065"] },
+    { title: "Tubs", skus: ["FL005-1", "FL017-1"] },
+    { title: "Other", skus: ["FLBS001", "GBOX"] }
+  ];
+
+  function groupedItems(items) {
+    const bySku = new Map(items.map((item) => [item.sku, item]));
+    const assigned = new Set();
+    const groups = countGroups
+      .map((group) => {
+        const groupItems = group.skus.map((sku) => bySku.get(sku)).filter(Boolean);
+        groupItems.forEach((item) => assigned.add(item.sku));
+        return { title: group.title, items: groupItems };
+      })
+      .filter((group) => group.items.length > 0);
+
+    const ungrouped = items.filter((item) => !assigned.has(item.sku));
+    if (ungrouped.length) groups.push({ title: "More Products", items: ungrouped });
+    return groups;
+  }
+
   function renderMissingSummary() {
     // Missing summary chips removed by design; shortages remain visible in table column.
   }
@@ -137,14 +162,18 @@ export function initStockView() {
     const current = num(state.stock.get(item.sku));
     const demand = num(state.missingBySku.get(item.sku));
     const missing = Math.max(0, demand - current);
+    const crateUnits = Math.max(0, Math.floor(num(item.crateUnits)));
+    const crateControl = crateUnits
+      ? `<button class="stock-iconBtn" type="button" data-action="crate">🧺 +${crateUnits}</button> <span data-crate-count>0</span>`
+      : `<span class="stock-muted">—</span>`;
     return `
-      <tr data-sku="${item.sku}" data-crates="0">
+      <tr data-sku="${item.sku}" data-crates="0" data-crate-units="${crateUnits}">
         <td><strong>${item.sku}</strong></td>
         <td>${item.title}</td>
         <td><span class="stock-flavourBadge" style="--flavour-color:${flavourColor(item.flavour)}">${item.flavour || "-"}</span></td>
         <td class="${current < 0 ? "stock-neg" : ""}" data-current>${current}</td>
         <td class="stock-countCol"><input class="stock-qtyInput" type="number" min="0" step="1" data-manual /></td>
-        <td class="stock-countCol"><button class="stock-iconBtn" type="button" data-action="crate">🧺 +${CRATE_UNITS}</button> <span data-crate-count>0</span></td>
+        <td class="stock-countCol">${crateControl}</td>
         <td class="stock-countCol" data-new-total>${current}</td>
         <td class="stock-countCol" data-diff>0</td>
         <td class="stock-countCol"><button class="stock-actionBtn" type="button" data-action="set">Set</button></td>
@@ -155,7 +184,13 @@ export function initStockView() {
 
   function renderTable() {
     if (!els.tbody) return;
-    els.tbody.innerHTML = filteredItems().map(rowMarkup).join("");
+    const groups = groupedItems(filteredItems());
+    els.tbody.innerHTML = groups
+      .map((group) => {
+        const header = `<tr class="stock-groupRow"><td colspan="10">${group.title}</td></tr>`;
+        return `${header}${group.items.map(rowMarkup).join("")}`;
+      })
+      .join("");
     updateModeUI();
   }
 
@@ -163,7 +198,8 @@ export function initStockView() {
     const current = num(row.querySelector("[data-current]")?.textContent);
     const manual = Math.max(0, Math.floor(num(row.querySelector("[data-manual]")?.value)));
     const crates = Math.max(0, Math.floor(num(row.dataset.crates)));
-    const next = manual + crates * CRATE_UNITS;
+    const crateUnits = Math.max(0, Math.floor(num(row.dataset.crateUnits)));
+    const next = manual + crates * crateUnits;
     const diff = next - current;
     row.querySelector("[data-new-total]").textContent = String(next);
     row.querySelector("[data-diff]").textContent = String(diff);

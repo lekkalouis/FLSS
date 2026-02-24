@@ -26,6 +26,7 @@
 #viewStock .stock-log{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:.4rem;background:#f8fafc}
 #viewStock .stock-logEntry{font-size:.72rem;padding:.35rem;border-bottom:1px dashed #dbe3ee}
 #viewStock .stock-neg{color:#b91c1c;font-weight:700}
+#viewStock .stock-groupRow td{padding:.4rem .45rem;background:#eef2ff;font-size:.66rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#334155;border-top:1px solid #dbe3ee}
 #viewStock .stock-poGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.5rem}
 #viewStock .stock-poItem{border:1px solid var(--line);border-radius:10px;background:#fff;padding:.45rem;display:grid;grid-template-columns:auto 1fr auto;gap:.45rem;align-items:center}
 #viewStock .stock-poIcon{--flavour-color:#22d3ee;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--flavour-color) 20%, #fff);border:1px solid color-mix(in srgb,var(--flavour-color) 60%, #cbd5e1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)}
