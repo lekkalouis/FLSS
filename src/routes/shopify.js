@@ -1904,6 +1904,76 @@ router.get("/shopify/purchase-orders/open", async (req, res) => {
   }
 });
 
+router.get("/shopify/purchase-orders/raw-materials", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const query = new URLSearchParams({
+      status: "draft",
+      limit: "250",
+      fields: "id,title,tags,variants"
+    });
+    const resp = await shopifyFetch(`${base}/products.json?${query.toString()}`, {
+      method: "GET"
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { raw: text };
+      }
+      return res.status(502).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body: data
+      });
+    }
+
+    const body = await resp.json();
+    const products = Array.isArray(body?.products) ? body.products : [];
+    const looksLikeRawMaterial = (product) => {
+      const blob = `${product?.title || ""} ${product?.tags || ""}`.toLowerCase();
+      return ["raw", "material", "spice", "herb", "blend"].some((token) => blob.includes(token));
+    };
+
+    const items = products
+      .filter(looksLikeRawMaterial)
+      .flatMap((product) => {
+        const productTitle = String(product?.title || "").trim() || "Untitled";
+        const variants = Array.isArray(product?.variants) ? product.variants : [];
+        return variants.map((variant) => {
+          const variantTitle = String(variant?.title || "").trim();
+          const title = variantTitle && variantTitle !== "Default Title"
+            ? `${productTitle} – ${variantTitle}`
+            : productTitle;
+          const rawUom = String(variant?.weight_unit || "").trim().toLowerCase();
+          const uom = rawUom || "unit";
+          return {
+            sku: String(variant?.sku || "").trim(),
+            title,
+            uom,
+            category: "Other raw materials (From Shopify)",
+            flavour: "",
+            icon: "🧪"
+          };
+        });
+      })
+      .filter((item) => item.sku || item.title);
+
+    return res.json({ items });
+  } catch (err) {
+    console.error("Shopify purchase-order raw-material list error:", err);
+    return res
+      .status(502)
+      .json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 
 
 router.post("/pricing/resolve", async (req, res) => {
