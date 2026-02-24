@@ -1,8 +1,6 @@
 const CRATE_UNITS_BY_SIZE = {
   "100ml": 180,
-  "200ml": 102,
-  "500g": 40,
-  "1kg": 20
+  "200ml": 102
 };
 
 const BASE_PRODUCTS = [
@@ -317,6 +315,7 @@ const BASE_PRODUCTS = [
     title: "Original Multi Purpose Basting Sauce 375ml",
     flavour: "Original",
     size: "375ml",
+    crateUnits: 12,
     variantId: 43610234912815,
     weightKg: 0.42,
     prices: { agent: 22.0, retail: 24.0, export: 24.0, private: 30.0, public: 30.0 }
