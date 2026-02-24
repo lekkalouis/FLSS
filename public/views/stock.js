@@ -1,5 +1,5 @@
 import { PRODUCT_LIST } from "./products.js";
-import { PO_CATALOG_ITEMS } from "./purchase-order-catalog.js";
+import { PO_CATALOG, PO_CATALOG_ITEMS } from "./purchase-order-catalog.js";
 
 let stockInitialized = false;
 
@@ -12,6 +12,7 @@ export function initStockView() {
   const CRATE_UNITS = 102;
 
   const poCatalog = PO_CATALOG_ITEMS;
+  const poCatalogGroups = PO_CATALOG;
 
 
   const els = {
@@ -211,13 +212,25 @@ export function initStockView() {
     renderMissingSummary();
   }
 
+  function poMeta(item) {
+    const parts = [item.sku || "No SKU", item.uom || "unit"];
+    if (item.rollSize) parts.push(`${item.rollSize} / roll`);
+    if (item.flavour) parts.push(item.flavour);
+    return parts.join(" • ");
+  }
+
   function renderPOGrid() {
     if (!els.poGrid) return;
-    els.poGrid.innerHTML = poCatalog
-      .map((p) => {
-        const qty = Math.max(0, Math.floor(num(state.poQty.get(p.sku))));
-        return `<article class="stock-poItem"><div class="stock-poIcon">${p.icon}</div><div><div class="name">${p.title}</div><div class="meta">${p.sku} • ${p.uom}</div></div><input type="number" min="0" step="1" data-po-sku="${p.sku}" class="stock-qtyInput" value="${qty}" /></article>`;
-      })
+    els.poGrid.innerHTML = poCatalogGroups
+      .map((group) => `
+        <section class="stock-poGroup">
+          <h4>${group.title}</h4>
+          ${(group.items || []).map((p) => {
+            const qty = Math.max(0, Math.floor(num(state.poQty.get(p.sku))));
+            return `<article class="stock-poItem"><div class="stock-poIcon">${p.icon}</div><div><div class="name">${p.title}</div><div class="meta">${poMeta(p)}</div></div><input type="number" min="0" step="1" data-po-sku="${p.sku}" class="stock-qtyInput" value="${qty}" /></article>`;
+          }).join("")}
+        </section>
+      `)
       .join("");
   }
 

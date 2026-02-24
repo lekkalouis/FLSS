@@ -35,6 +35,13 @@ function filteredGroups() {
   })).filter((group) => group.items.length);
 }
 
+function formatItemMeta(item) {
+  const parts = [item.sku || "No SKU", item.uom || "unit"];
+  if (item.rollSize) parts.push(`${item.rollSize} / roll`);
+  if (item.flavour) parts.push(item.flavour);
+  return parts.join(" • ");
+}
+
 function render() {
   const groups = filteredGroups();
   els.grid.innerHTML = groups.map((group) => `
@@ -48,7 +55,7 @@ function render() {
             <div class="icon" aria-hidden="true">${item.icon}</div>
             <div>
               <div class="name">${item.title}</div>
-              <div class="meta">${item.sku || "No SKU"} • ${item.uom || "unit"}${item.flavour ? ` • ${item.flavour}` : ""}</div>
+              <div class="meta">${formatItemMeta(item)}</div>
             </div>
             <input class="qty" type="number" min="0" step="1" value="${qty}" data-sku="${sku}" aria-label="Qty for ${item.title}" />
           </article>`;
