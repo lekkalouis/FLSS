@@ -374,7 +374,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
     "hot & spicy multi-purpose spice": "H",
     "worcester sauce spice": "WS",
     "worcester sauce spice - tub": "WS",
-    "worcester sauce spice - bag": "WS",
+    "750g worcester sauce spice bag": "WS",
     "red wine & garlic sprinkle": "RG",
     "chutney sprinkle": "CS",
     "flippen lekka savoury herb mix": "SH",
