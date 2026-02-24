@@ -30,4 +30,14 @@ router.post("/manufacturing/orders/check", async (req, res, next) => {
   }
 });
 
+router.post("/manufacturing/setup/phase1", async (req, res, next) => {
+  try {
+    const apply = req.body?.apply === true;
+    const result = await manufacturingService.ensurePhase1Definitions({ apply });
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 export default router;

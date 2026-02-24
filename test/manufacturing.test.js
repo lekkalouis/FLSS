@@ -158,3 +158,29 @@ test("checkOrder aggregates demand and shortage state", async () => {
   assert.equal(result.components[0].required, 6);
   assert.equal(result.components[0].shortage, 2);
 });
+
+
+test("ensurePhase1Definitions reports missing definitions in dry-run mode", async () => {
+  const service = createManufacturingService({
+    shopifyFetchFn: async (_path, options) => {
+      const body = JSON.parse(options.body);
+      if (body.query.includes("query Phase1Definitions")) {
+        return makeJsonResponse({
+          data: {
+            metafieldDefinitions: { nodes: [{ key: "manufacturing_mode" }] },
+            metaobjectDefinitions: { nodes: [{ type: "flss_bom" }] }
+          }
+        });
+      }
+      throw new Error("unexpected GraphQL operation");
+    }
+  });
+
+  const result = await service.ensurePhase1Definitions({ apply: false });
+  assert.equal(result.apply, false);
+  assert.deepEqual(
+    result.missingVariantMetafields.map((item) => item.key),
+    ["bom_current", "bom_alternates", "batch_policy"]
+  );
+  assert.deepEqual(result.missingMetaobjectDefinitions.map((item) => item.type), ["flss_bom_line"]);
+});

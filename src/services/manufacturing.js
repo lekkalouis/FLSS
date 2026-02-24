@@ -12,6 +12,65 @@ const MF_BOM_CURRENT = "bom_current";
 const VARIANT_CHUNK_SIZE = 50;
 const METAOBJECT_CHUNK_SIZE = 50;
 
+const PHASE1_VARIANT_METAFIELDS = [
+  {
+    key: "manufacturing_mode",
+    name: "Manufacturing Mode",
+    type: "single_line_text_field",
+    description: "Manufacturing mode for variant: make|buy|kit"
+  },
+  {
+    key: "bom_current",
+    name: "Current BOM",
+    type: "metaobject_reference",
+    description: "Current BOM reference",
+    validations: [{ name: "metaobject_definition_id", value: "flss_bom" }]
+  },
+  {
+    key: "bom_alternates",
+    name: "Alternate BOMs",
+    type: "list.metaobject_reference",
+    description: "Optional alternate BOM references",
+    validations: [{ name: "metaobject_definition_id", value: "flss_bom" }]
+  },
+  {
+    key: "batch_policy",
+    name: "Batch Policy",
+    type: "json",
+    description: "Optional JSON batch policy"
+  }
+];
+
+const PHASE1_METAOBJECT_DEFINITIONS = [
+  {
+    type: "flss_bom",
+    name: "FLSS BOM",
+    fieldDefinitions: [
+      { key: "code", name: "Code", type: "single_line_text_field", required: true },
+      { key: "name", name: "Name", type: "single_line_text_field", required: true },
+      { key: "yield_qty", name: "Yield Qty", type: "number_decimal", required: true },
+      { key: "yield_uom", name: "Yield UOM", type: "single_line_text_field", required: true },
+      {
+        key: "lines",
+        name: "Lines",
+        type: "list.metaobject_reference",
+        validations: [{ name: "metaobject_definition_id", value: "flss_bom_line" }]
+      }
+    ]
+  },
+  {
+    type: "flss_bom_line",
+    name: "FLSS BOM Line",
+    fieldDefinitions: [
+      { key: "component_variant", name: "Component Variant", type: "variant_reference", required: true },
+      { key: "qty", name: "Quantity", type: "number_decimal", required: true },
+      { key: "uom", name: "UOM", type: "single_line_text_field", required: true },
+      { key: "loss_pct", name: "Loss %", type: "number_decimal" },
+      { key: "is_packaging", name: "Packaging", type: "boolean" }
+    ]
+  }
+];
+
 function nowMs() {
   return Date.now();
 }
@@ -289,6 +348,101 @@ export function createManufacturingService({
     return result;
   }
 
+  async function ensurePhase1Definitions({ apply = false } = {}) {
+    const query = `#graphql
+      query Phase1Definitions {
+        metafieldDefinitions(first: 100, ownerType: PRODUCTVARIANT, namespace: "${MF_NAMESPACE}") {
+          nodes { key }
+        }
+        metaobjectDefinitions(first: 100) {
+          nodes { type }
+        }
+      }
+    `;
+    const data = await runGraphql(query, {});
+    const existingVariantKeys = new Set(
+      (data?.metafieldDefinitions?.nodes || []).map((node) => String(node?.key || "")).filter(Boolean)
+    );
+    const existingMetaobjectTypes = new Set(
+      (data?.metaobjectDefinitions?.nodes || []).map((node) => String(node?.type || "")).filter(Boolean)
+    );
+
+    const missingVariantMetafields = PHASE1_VARIANT_METAFIELDS.filter(
+      (field) => !existingVariantKeys.has(field.key)
+    );
+    const missingMetaobjectDefinitions = PHASE1_METAOBJECT_DEFINITIONS.filter(
+      (definition) => !existingMetaobjectTypes.has(definition.type)
+    );
+
+    if (!apply) {
+      return {
+        apply,
+        missingVariantMetafields,
+        missingMetaobjectDefinitions
+      };
+    }
+
+    const createdVariantMetafields = [];
+    for (const field of missingVariantMetafields) {
+      const mutation = `#graphql
+        mutation CreateVariantMetafieldDefinition($definition: MetafieldDefinitionInput!) {
+          metafieldDefinitionCreate(definition: $definition) {
+            createdDefinition { id key namespace }
+            userErrors { field message }
+          }
+        }
+      `;
+      const resp = await runGraphql(mutation, {
+        definition: {
+          name: field.name,
+          namespace: MF_NAMESPACE,
+          key: field.key,
+          ownerType: "PRODUCTVARIANT",
+          type: field.type,
+          description: field.description,
+          validations: field.validations || []
+        }
+      });
+      const payload = resp?.metafieldDefinitionCreate || {};
+      if (Array.isArray(payload.userErrors) && payload.userErrors.length) {
+        throw new Error(`Failed to create metafield ${field.key}: ${payload.userErrors[0].message}`);
+      }
+      createdVariantMetafields.push(payload.createdDefinition);
+    }
+
+    const createdMetaobjectDefinitions = [];
+    for (const definition of missingMetaobjectDefinitions) {
+      const mutation = `#graphql
+        mutation CreateMetaobjectDefinition($definition: MetaobjectDefinitionCreateInput!) {
+          metaobjectDefinitionCreate(definition: $definition) {
+            metaobjectDefinition { id type name }
+            userErrors { field message }
+          }
+        }
+      `;
+      const resp = await runGraphql(mutation, {
+        definition: {
+          type: definition.type,
+          name: definition.name,
+          fieldDefinitions: definition.fieldDefinitions
+        }
+      });
+      const payload = resp?.metaobjectDefinitionCreate || {};
+      if (Array.isArray(payload.userErrors) && payload.userErrors.length) {
+        throw new Error(`Failed to create metaobject ${definition.type}: ${payload.userErrors[0].message}`);
+      }
+      createdMetaobjectDefinitions.push(payload.metaobjectDefinition);
+    }
+
+    return {
+      apply,
+      missingVariantMetafields,
+      missingMetaobjectDefinitions,
+      createdVariantMetafields,
+      createdMetaobjectDefinitions
+    };
+  }
+
   async function checkOrder({ orderId, locationId } = {}) {
     const normalizedOrderId = normalizeId(orderId);
     if (!normalizedOrderId) throw new Error("orderId is required");
@@ -369,7 +523,8 @@ export function createManufacturingService({
 
   return {
     resolveBoms,
-    checkOrder
+    checkOrder,
+    ensurePhase1Definitions
   };
 }
 
