@@ -4,46 +4,12 @@ const PURCHASE_ORDER_ENDPOINTS = [
   "/api/v1/shopify/purchase-orders"
 ];
 
-const GROUPS = [
-  {
-    title: "FL raw spice blends (recipes)",
-    items: [
-      { sku: "FL-BLEND-MP", title: "Blended Spice / Original Multi Purpose", icon: "🌿" },
-      { sku: "FL-BLEND-HOT", title: "Blended Spice / Hot & Spicy", icon: "🔥" },
-      { sku: "FL-BLEND-CM", title: "Blended Spice / Curry Mix", icon: "🍛" },
-      { sku: "FL-WS-GR", title: "FL Spice / Worcester Sauce", icon: "🟣" },
-      { sku: "FL-RG-GR", title: "FL Spice / Red Wine & Garlic", icon: "🍷" },
-      { sku: "FL-CS-GR", title: "FL Spice / Chutney", icon: "🥭" }
-    ]
-  },
-  {
-    title: "FL containers & finished material",
-    items: [
-      { sku: "LB-MP-100", title: "Labelled Bottle / Original / 100ml", icon: "🧴" },
-      { sku: "LB-MP-200", title: "Labelled Bottle / Original / 200ml", icon: "🧴" },
-      { sku: "LT-CM", title: "Labelled Tub / Curry Mix / 250ml", icon: "🪣" },
-      { sku: "LT-MP-750", title: "Labelled Tub / Original / 750g", icon: "🪣" },
-      { sku: "LT-WS-750", title: "Labelled Tub / Worcester / 750g", icon: "🪣" },
-      { sku: "FL-LVB-MP-500", title: "Labelled Vacuum Bag / Original / 500g", icon: "🥣" },
-      { sku: "FL-LVB-MP-1K", title: "Labelled Vacuum Bag / Original / 1kg", icon: "🛍️" }
-    ]
-  },
-  {
-    title: "Packaging & support",
-    items: [
-      { sku: "FL-PCAP-O", title: "Printed Flip Lid Caps / Orange", icon: "🟠" },
-      { sku: "FL-PCAP-R", title: "Printed Flip Lid Caps / Red", icon: "🔴" },
-      { sku: "FL-PCAP-BRN", title: "Printed Flip Lid Caps / Brown", icon: "🟤" },
-      { sku: "FL-PCAP-M", title: "Printed Flip Lid Caps / Maroon", icon: "🟥" },
-      { sku: "FL-PCAP-P", title: "Printed Flip Lid Caps / Purple", icon: "🟣" },
-      { sku: "FL-PCAP-GRN", title: "Printed Flip Lid Caps / Green", icon: "🟢" },
-      { sku: "BX-12-200", title: "12 x 200ml BOX", icon: "📦" },
-      { sku: "THE-LAB-ST", title: "Thermal Labels / Standard", icon: "🏷️" }
-    ]
-  }
-];
+const CATALOG_DATASET_PATH = "/data/purchase-order-catalog.generated.json";
 
-const state = { qtyBySku: new Map() };
+const state = {
+  qtyBySku: new Map(),
+  groups: []
+};
 
 const els = {
   grid: document.getElementById("materialGrid"),
@@ -60,12 +26,19 @@ function setStatus(message, tone = "") {
   els.status.textContent = message;
 }
 
+function itemIcon(item, group) {
+  if (item?.flavourMappingHints?.includes("hot_spicy")) return "🔥";
+  if (item?.flavourMappingHints?.includes("curry")) return "🍛";
+  if (item?.flavourMappingHints?.includes("worcester")) return "🟣";
+  return group.defaultIcon || "📦";
+}
+
 function filteredGroups() {
   const query = String(els.search?.value || "").trim().toLowerCase();
-  if (!query) return GROUPS;
-  return GROUPS.map((group) => ({
+  if (!query) return state.groups;
+  return state.groups.map((group) => ({
     ...group,
-    items: group.items.filter((item) => `${item.title} ${item.sku}`.toLowerCase().includes(query))
+    items: group.items.filter((item) => `${item.name} ${item.sku || ""}`.toLowerCase().includes(query))
   })).filter((group) => group.items.length);
 }
 
@@ -76,14 +49,15 @@ function render() {
       <h2>${group.title}</h2>
       <div class="items">
         ${group.items.map((item) => {
-          const qty = Number(state.qtyBySku.get(item.sku) || 0);
+          const sku = item.sku || item.name;
+          const qty = Number(state.qtyBySku.get(sku) || 0);
           return `<article class="item">
-            <div class="icon" aria-hidden="true">${item.icon}</div>
+            <div class="icon" aria-hidden="true">${itemIcon(item, group)}</div>
             <div>
-              <div class="name">${item.title}</div>
-              <div class="meta">${item.sku}</div>
+              <div class="name">${item.name}</div>
+              <div class="meta">${item.sku || "No SKU"} • ${item.unitOfMeasure || "unit"}${item.flavourMappingHints?.length ? ` • ${item.flavourMappingHints.join(", ")}` : ""}</div>
             </div>
-            <input class="qty" type="number" min="0" step="1" value="${qty}" data-sku="${item.sku}" aria-label="Qty for ${item.title}" />
+            <input class="qty" type="number" min="0" step="1" value="${qty}" data-sku="${sku}" aria-label="Qty for ${item.name}" />
           </article>`;
         }).join("")}
       </div>
@@ -92,11 +66,46 @@ function render() {
 }
 
 function selectedLines() {
-  const flat = GROUPS.flatMap((group) => group.items);
+  const flat = state.groups.flatMap((group) => group.items);
   return flat
-    .map((item) => ({ ...item, quantity: Math.max(0, Math.floor(Number(state.qtyBySku.get(item.sku) || 0)))}))
-    .filter((line) => line.quantity > 0)
-    .map((line) => ({ sku: line.sku, title: line.title, quantity: line.quantity }));
+    .map((item) => {
+      const sku = item.sku || item.name;
+      return {
+        sku,
+        title: item.name,
+        quantity: Math.max(0, Math.floor(Number(state.qtyBySku.get(sku) || 0)))
+      };
+    })
+    .filter((line) => line.quantity > 0);
+}
+
+async function loadCatalog() {
+  setStatus("Loading PO catalog data...");
+  try {
+    const response = await fetch(CATALOG_DATASET_PATH, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Failed to load catalog (${response.status}). Run npm run po:catalog:generate.`);
+    }
+    const dataset = await response.json();
+    state.groups = Array.isArray(dataset?.groups) ? dataset.groups : [];
+    render();
+
+    if (!state.groups.length) {
+      setStatus("No materials are available in the generated PO catalog. Run npm run po:catalog:generate after placing source PDFs in context_content/.", "err");
+      return;
+    }
+
+    if (dataset?.fallbackMessage) {
+      setStatus(dataset.fallbackMessage, "err");
+      return;
+    }
+
+    setStatus(`Loaded ${state.groups.reduce((sum, group) => sum + (group.items?.length || 0), 0)} materials from generated catalog.`, "ok");
+  } catch (error) {
+    state.groups = [];
+    render();
+    setStatus(`Unable to load generated PO catalog. ${error.message} If source PDFs are missing, add context_content/VIP.pdf and context_content/raw_herbs_spices_blends.pdf then rerun npm run po:catalog:generate.`, "err");
+  }
 }
 
 async function postPurchaseOrder(payload) {
@@ -161,4 +170,4 @@ els.grid?.addEventListener("input", (event) => {
 els.search?.addEventListener("input", render);
 els.submit?.addEventListener("click", submitPurchaseOrder);
 
-render();
+loadCatalog();
