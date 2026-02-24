@@ -3454,7 +3454,7 @@ async function startOrder(orderNo) {
             const cells = sizeList
               .map((size) => {
                 const qty = Number(mixMap.get(`${flavour}::${size}`) || 0);
-                return `<td class="${qty === 0 ? "dispatchMixCell--missing" : ""}">${qty}</td>`;
+                return `<td class="${qty === 0 ? "dispatchMixCell--missing" : ""}">${qty === 0 ? "" : qty}</td>`;
               })
               .join("");
             return `<tr><th scope="row" class="dispatchMixMatrixFlavour">${flavour}</th>${cells}</tr>`;
