@@ -9,7 +9,9 @@ const PURCHASE_ORDER_ENDPOINTS = [
 
 const state = {
   qtyBySku: new Map(),
-  groups: []
+  groups: [],
+  staticGroups: [],
+  shopifyRawItems: []
 };
 
 const els = {
@@ -44,13 +46,6 @@ function renderIconChip(item) {
   return `<span class="iconChip${isLabelRoll ? " iconChip--labelRoll" : ""}" style="--flavour-color:${accent}" aria-hidden="true">${icon}</span>`;
 }
 
-function formatItemMeta(item) {
-  const parts = [item.sku || "No SKU", item.uom || "unit"];
-  if (item.rollSize) parts.push(`${item.rollSize} / roll`);
-  if (item.flavour) parts.push(item.flavour);
-  return parts.join(" • ");
-}
-
 function render() {
   const groups = filteredGroups();
   els.grid.innerHTML = groups.map((group) => `
@@ -64,9 +59,11 @@ function render() {
             <div class="iconWrap">${renderIconChip(item)}</div>
             <div>
               <div class="name">${item.title}</div>
-              <div class="meta">${formatItemMeta(item)}</div>
             </div>
-            <input class="qty" type="number" min="0" step="1" value="${qty}" data-sku="${sku}" aria-label="Qty for ${item.title}" />
+            <div class="qtyWrap">
+              <input class="qty" type="number" min="0" step="1" value="${qty}" data-sku="${sku}" aria-label="Qty for ${item.title}" />
+              <span class="uom">${item.uom || "unit"}</span>
+            </div>
           </article>`;
         }).join("")}
       </div>
@@ -89,9 +86,31 @@ function selectedLines() {
 }
 
 async function loadCatalog() {
+  state.staticGroups = PO_CATALOG;
   state.groups = PO_CATALOG;
   render();
   setStatus(`Loaded ${state.groups.reduce((sum, group) => sum + (group.items?.length || 0), 0)} materials from shared catalog.`, "ok");
+
+  try {
+    const response = await fetch("/api/v1/shopify/purchase-orders/raw-materials");
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body?.message || body?.error || `Request failed (${response.status})`);
+    }
+    const items = Array.isArray(body?.items) ? body.items : [];
+    state.shopifyRawItems = items;
+    state.groups = [...state.staticGroups, {
+      title: "Other raw materials (From Shopify)",
+      items
+    }].filter((group) => group.items?.length);
+    render();
+    const total = state.groups.reduce((sum, group) => sum + (group.items?.length || 0), 0);
+    setStatus(`Loaded ${total} materials (including Shopify draft raw materials).`, "ok");
+  } catch (error) {
+    state.groups = state.staticGroups;
+    render();
+    setStatus(`Loaded catalog. Shopify draft raw materials unavailable: ${String(error?.message || error)}`, "err");
+  }
 }
 
 async function postPurchaseOrder(payload) {
