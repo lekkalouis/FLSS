@@ -7,7 +7,8 @@
     "dev": "node server.js",
     "start": "NODE_ENV=production node server.js",
     "test": "node --test",
-    "test:watch": "node --test --watch"
+    "test:watch": "node --test --watch",
+    "po:catalog:generate": "node scripts/generate-po-catalog.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -18,6 +19,7 @@
     "morgan": "^1.10.0",
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.9.13",
+    "pdf-parse": "^1.1.1",
     "pdfkit": "^0.17.2"
   }
 }

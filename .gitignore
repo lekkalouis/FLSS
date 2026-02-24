@@ -2,3 +2,6 @@ node_modules/*
 .env
 
 data/
+
+!public/data/
+!public/data/purchase-order-catalog.generated.json
