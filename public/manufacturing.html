@@ -24,24 +24,7 @@
   </div>
   <pre id="out">Click a button to run Phase 1 setup.</pre>
 
-  <script>
-    const out = document.getElementById('out');
-    async function run(apply) {
-      out.textContent = 'Running...';
-      try {
-        const resp = await fetch('/api/v1/manufacturing/setup/phase1', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apply })
-        });
-        const data = await resp.json();
-        out.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        out.textContent = 'Request failed: ' + (err?.message || String(err));
-      }
-    }
-    document.getElementById('btnDryRun').addEventListener('click', () => run(false));
-    document.getElementById('btnApply').addEventListener('click', () => run(true));
-  </script>
+  <script src="/manufacturing.js" defer></script>
+
 </body>
 </html>
