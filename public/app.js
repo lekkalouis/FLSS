@@ -153,6 +153,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dispatchLog = $("dispatchLog");
   const dispatchSelectionPanel = $("dispatchSelectionPanel");
   const dispatchSelectionCount = $("dispatchSelectionCount");
+  const dispatchSelectionUnits = $("dispatchSelectionUnits");
   const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
   const dispatchSelectionWeight = $("dispatchSelectionWeight");
   const dispatchSelectionTime = $("dispatchSelectionTime");
@@ -3406,6 +3407,9 @@ async function startOrder(orderNo) {
     if (dispatchSelectionCount) {
       dispatchSelectionCount.textContent = String(totals.orderCount || 0);
     }
+    if (dispatchSelectionUnits) {
+      dispatchSelectionUnits.textContent = String(totals.totalUnits || 0);
+    }
     if (dispatchSelectionBoxes) {
       dispatchSelectionBoxes.textContent = String(totals.totalBoxes || 0);
     }
@@ -3450,7 +3454,7 @@ async function startOrder(orderNo) {
             const cells = sizeList
               .map((size) => {
                 const qty = Number(mixMap.get(`${flavour}::${size}`) || 0);
-                return `<td class="${qty === 0 ? "dispatchMixCell--missing" : ""}">${qty === 0 ? "*" : qty}</td>`;
+                return `<td class="${qty === 0 ? "dispatchMixCell--missing" : ""}">${qty}</td>`;
               })
               .join("");
             return `<tr><th scope="row" class="dispatchMixMatrixFlavour">${flavour}</th>${cells}</tr>`;
