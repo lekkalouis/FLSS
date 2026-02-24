@@ -535,25 +535,23 @@
       --flavour-color:#22d3ee;
       display:inline-flex;
       align-items:center;
-      gap:.35rem;
-      padding:.1rem .5rem;
-      border-radius:.5rem;
+      gap:.3rem;
+      padding:.06rem .38rem;
+      border-radius:999px;
       border:1px solid var(--flavour-color);
-      background:var(--panel-soft);
-      color:var(--text);
-      font-size:.65rem;
-      font-weight:600;
-      text-transform:none;
+      font-size:.6rem;
       letter-spacing:.02em;
+      text-transform:uppercase;
+      color:var(--text);
+      background:rgba(255,255,255,.9);
       white-space:nowrap;
     }
     #viewFlocs .flocs-flavourTag::before{
       content:"";
-      width:.45rem;
-      height:.45rem;
+      width:.4rem;
+      height:.4rem;
       border-radius:999px;
       background:var(--flavour-color);
-      box-shadow:none;
     }
     #viewFlocs .flocs-filterRow{
       display:flex;

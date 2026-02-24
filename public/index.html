@@ -919,6 +919,9 @@
   flex-wrap:wrap;
   gap:.25rem;
 }
+.dispatchSelectionBulkActions.is-hidden{
+  display:none;
+}
 .dispatchSelectionBtn{
   border:1px solid rgba(148,163,184,.7);
   background:#fff;
@@ -2263,10 +2266,8 @@
                 <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
                 <div id="dispatchSelectionMixes" class="dispatchSelectionMixes"></div>
               </div>
-              <div class="dispatchSelectionBulkActions">
-                <button id="dispatchPrintDocs" class="dispatchSelectionBtn" type="button">Print Delivery Docs</button>
-                <button id="dispatchDeliverSelected" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Deliver</button>
-                <button id="dispatchMarkDelivered" class="dispatchSelectionBtn" type="button">Mark as delivered</button>
+              <div class="dispatchSelectionBulkActions is-hidden" id="dispatchPrepareDeliveriesContainer">
+                <button id="dispatchPrepareDeliveries" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Prepare deliveries</button>
               </div>
             </div>
           </div>
