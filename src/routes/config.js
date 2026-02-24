@@ -13,7 +13,7 @@ router.get("/config", (_req, res) => {
     TRUCK_ALERT_THRESHOLD: numberOrDefault(config.UI_TRUCK_ALERT_THRESHOLD, 25),
     BOX_DIM: {
       dim1: numberOrDefault(config.UI_BOX_DIM_1, 40),
-      dim2: numberOrDefault(config.UI_BOX_DIM_2, 40),
+      dim2: numberOrDefault(config.UI_BOX_DIM_2, 30),
       dim3: numberOrDefault(config.UI_BOX_DIM_3, 30),
       massKg: numberOrDefault(config.UI_BOX_MASS_KG, 5)
     },

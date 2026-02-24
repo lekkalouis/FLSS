@@ -27,13 +27,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
     "chutney": "#7E22CE",
     "cheese": "#C4E36A",
     "cheese & onion": "#C4E36A",
-    "salted": "#fbbf24",
-    "caramel": "#fb7185",
-    "sweet": "#f59e0b",
-    "bbq": "#ef4444",
-    "chilli": "#dc2626",
-    "sour cream": "#7BC96F"
-  };
+    };
 
   const FLAVOUR_ABBREVIATIONS = {
     "original": "ORG",
@@ -48,13 +42,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
     "sour cream & chives": "SCC",
     "parmesan": "PAR",
     "parmesan cheese": "PAR",
-    "cheese": "CHE",
-    "cheese & onion": "CHO",
-    "salted": "SLT",
-    "caramel": "CAR",
-    "sweet": "SWT",
-    "bbq": "BBQ",
-    "chilli": "CHI"
+    "cheese & onion": "CHO"
+   
   };
 
   const FLAVOUR_DISPLAY_NAMES = {
@@ -385,9 +374,10 @@ import { initPriceManagerView } from "./views/price-manager.js";
     "hot & spicy multi-purpose spice": "H",
     "worcester sauce spice": "WS",
     "worcester sauce spice - tub": "WS",
+    "worcester sauce spice - bag": "WS",
     "red wine & garlic sprinkle": "RG",
     "chutney sprinkle": "CS",
-    "savoury herb mix": "SH",
+    "flippen lekka savoury herb mix": "SH",
     "salt & vinegar seasoning": "SV",
     "butter popcorn sprinkle": "BUT",
     "sour cream & chives popcorn sprinkle": "SCC",
