@@ -2,7 +2,7 @@ const FLAVOUR_COLOR_MAP = Object.freeze({
   "hot spicy": "#DA291C",
   original: "#8BAF84",
   "worcester sauce": "#FF8200",
-  "red wine garlic": "#904066",
+  "red wine garlic": "#722F37",
   "savoury herb": "#A1C935",
   "salt vinegar": "#40B2FF",
   curry: "#FFC72C",
@@ -17,14 +17,14 @@ const FLAVOUR_ALIASES = Object.freeze({
   hs: "hot spicy",
   "hot spicy": "hot spicy",
   "hot and spicy": "hot spicy",
-  "hot & spicy": "hot spicy",
   "worcestershire sauce": "worcester sauce",
+  "red wine and garlic": "red wine garlic",
   "savoury herbs": "savoury herb",
+  "salt and vinegar": "salt vinegar",
   parmesan: "parmesan cheese",
   cheese: "parmesan cheese",
   "sour cream and chives": "sour cream chives",
-  "sour cream & chives": "sour cream chives",
-  "cheese & onion": "cheese onion"
+  "cheese and onion": "cheese onion"
 });
 
 export function normalizeFlavourKey(flavour) {
