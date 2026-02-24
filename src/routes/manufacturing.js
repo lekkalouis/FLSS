@@ -30,6 +30,17 @@ router.post("/manufacturing/orders/check", async (req, res, next) => {
   }
 });
 
+
+router.get("/manufacturing/setup/phase1", async (req, res, next) => {
+  try {
+    const apply = String(req.query?.apply || "").toLowerCase() === "true";
+    const result = await manufacturingService.ensurePhase1Definitions({ apply });
+    return res.json({ ok: true, method: "GET", hint: "Use POST with {apply:true|false} for automation.", ...result });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post("/manufacturing/setup/phase1", async (req, res, next) => {
   try {
     const apply = req.body?.apply === true;
