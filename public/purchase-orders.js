@@ -1,4 +1,5 @@
 import { PO_CATALOG } from "./views/purchase-order-catalog.js";
+import { resolveFlavourColor } from "./views/flavour-map.js";
 
 const PURCHASE_ORDER_ENDPOINTS = [
   "/api/v1/shopify/draft-orders/purchase-order",
@@ -35,6 +36,14 @@ function filteredGroups() {
   })).filter((group) => group.items.length);
 }
 
+
+function renderIconChip(item) {
+  const accent = resolveFlavourColor(item.flavour);
+  const icon = item.icon || "📦";
+  const isLabelRoll = item.uom === "roll" && String(item.sku || "").startsWith("LBL-");
+  return `<span class="iconChip${isLabelRoll ? " iconChip--labelRoll" : ""}" style="--flavour-color:${accent}" aria-hidden="true">${icon}</span>`;
+}
+
 function formatItemMeta(item) {
   const parts = [item.sku || "No SKU", item.uom || "unit"];
   if (item.rollSize) parts.push(`${item.rollSize} / roll`);
@@ -52,7 +61,7 @@ function render() {
           const sku = item.sku || item.title;
           const qty = Number(state.qtyBySku.get(sku) || 0);
           return `<article class="item">
-            <div class="icon" aria-hidden="true">${item.icon}</div>
+            <div class="iconWrap">${renderIconChip(item)}</div>
             <div>
               <div class="name">${item.title}</div>
               <div class="meta">${formatItemMeta(item)}</div>
