@@ -93,6 +93,7 @@ The server uses Shopify OAuth client credentials (Admin API) with token caching 
 - Flow trigger endpoint
 - Inventory lookups and adjustments
 - Email notifications for courier collection
+- Customer login/logout/session lookups via Storefront API
 
 ### ParcelPerfect proxy
 
@@ -178,6 +179,7 @@ All endpoints are available under `http://localhost:3000/api/v1` by default.
 - Fulfillment: `POST /shopify/fulfill`, `POST /shopify/ready-for-pickup`, `GET /shopify/fulfillment-events`, `GET /shopify/shipments/recent`
 - Inventory: `GET /shopify/inventory-levels`, `POST /shopify/inventory-levels/set`, `POST /shopify/inventory-levels/transfer`, `GET /shopify/locations`
 - Email notifications: `POST /shopify/notify-collection`
+- Customer auth: `POST /customer-auth/login`, `GET /customer-auth/me`, `POST /customer-auth/logout`
 
 ### Alerts
 
@@ -205,6 +207,7 @@ PP_PLACE_ID=origin-place-id
 SHOPIFY_STORE=your-store-subdomain
 SHOPIFY_CLIENT_ID=your-client-id
 SHOPIFY_CLIENT_SECRET=your-client-secret
+SHOPIFY_STOREFRONT_ACCESS_TOKEN=your-storefront-access-token
 SHOPIFY_API_VERSION=2025-10
 SHOPIFY_FLOW_TAG=dispatch_flow
 
@@ -230,6 +233,20 @@ UI_COST_ALERT_THRESHOLD=250
 UI_TRUCK_ALERT_THRESHOLD=25
 UI_FEATURE_MULTI_SHIP=true
 ```
+
+---
+
+
+### Shopify customer login flow
+
+The backend now exposes customer auth helpers for a custom FLSS frontend:
+
+1. `POST /api/v1/customer-auth/login` with `{ "email", "password" }`
+2. Server stores Shopify customer token in an HttpOnly cookie (`flss_customer_token`)
+3. `GET /api/v1/customer-auth/me` returns the logged-in customer profile
+4. `POST /api/v1/customer-auth/logout` clears cookie and revokes token best-effort
+
+For browser calls, send requests with `credentials: "include"` from your frontend.
 
 ---
 

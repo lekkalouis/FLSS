@@ -48,3 +48,17 @@ test('GET /api/v1/config returns expected config keys', async () => {
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+
+test('GET /api/v1/customer-auth/me returns 501 when storefront auth is not configured', async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/customer-auth/me`);
+    assert.equal(response.status, 501);
+
+    const body = await response.json();
+    assert.equal(body.error, 'SHOPIFY_CUSTOMER_AUTH_NOT_CONFIGURED');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
