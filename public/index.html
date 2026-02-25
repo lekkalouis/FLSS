@@ -2374,8 +2374,7 @@
         </div>
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
-            <button id="navDashboard" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewDashboard" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">🏠</span><span class="flNavBtnText">Dashboard</span></button>
-            <button id="navScan" class="flNavBtn" type="button" role="tab" aria-controls="viewScan" aria-selected="false" data-route="/scan"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">ScanStation</span></button>
+            <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Orders</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
            
             <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
@@ -2418,64 +2417,15 @@
           </div>
         </div>
 
-        <div class="flView flView--active" id="viewDashboard">
-          <div class="dashboardShell">
-            <div class="dashboardHeader">
-              <div>
-                <h1>Operations Dashboard</h1>
-                <p>Quick status glance plus instant access to the core operations apps.</p>
-              </div>
-            </div>
-            <section class="dashboardKpis" aria-label="Key performance indicators">
-              <div class="kpiCard">
-                <div class="kpiLabel">Today's parcels</div>
-                <div class="kpiValue" id="kpiParcels">0</div>
-                <div class="kpiMeta">Auto + manual bookings</div>
-              </div>
-              <div class="kpiCard">
-                <div class="kpiLabel">Open dispatch orders</div>
-                <div class="kpiValue" id="kpiOpenOrders">0</div>
-                <div class="kpiMeta">Shipping, delivery, pickup</div>
-              </div>
-              <div class="kpiCard">
-                <div class="kpiLabel">Recently shipped</div>
-                <div class="kpiValue" id="kpiRecentShipments">0</div>
-                <div class="kpiMeta">Latest fulfillment events</div>
-              </div>
-              <div class="kpiCard">
-                <div class="kpiLabel">Mode</div>
-                <div class="kpiValue" id="kpiMode">Auto</div>
-                <div class="kpiMeta">Dispatch scanning mode</div>
-              </div>
-              <div class="kpiCard">
-                <div class="kpiLabel">Truck status</div>
-                <div class="kpiValue" id="kpiTruckStatus">Not booked</div>
-                <div class="kpiMeta">Collection booking state</div>
-              </div>
-              <div class="kpiCard">
-                <div class="kpiLabel">Last scan</div>
-                <div class="kpiValue" id="kpiLastScan">--</div>
-                <div class="kpiMeta">Most recent barcode scan</div>
-              </div>
-            </section>
-            <section>
-              <div class="appsHeader">
-                <h2>Apps</h2>
-              </div>
-              <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
-            </section>
-          </div>
-        </div>
-
-        <div class="flView" id="viewScan" hidden>
+        <div class="flView flView--active" id="viewScan">
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
       <div id="dispatchNotesBar" class="dispatchBottomBar">
         <div class="dispatchTopBar" id="dispatchTopBar" aria-label="Dispatch controls" hidden>
           <div class="dispatchTopRow">
-            <div class="dispatchHeading">ScanStation</div>
+            <div class="dispatchHeading">Orders</div>
             <div class="dispatchScanField">
-              <label for="scanInput">ScanStation barcode</label>
-              <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="ScanStation input: focus here, scanner types then Enter." autofocus />
+              <label for="scanInput">Order barcode</label>
+              <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Order input: focus here, scanner types then Enter." autofocus />
             </div>
             <div class="dispatchTopActions">
               <button id="dispatchExpandToggle" class="btn dispatchExpandToggle" type="button" aria-expanded="false" title="Dispatch settings">⚙️</button>

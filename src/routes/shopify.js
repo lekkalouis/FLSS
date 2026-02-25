@@ -3426,6 +3426,7 @@ Thank you.`;
     await transport.sendMail({
       from: config.SMTP_FROM,
       to: sendTo,
+      bcc: config.SMTP_FROM,
       subject,
       text: `${text}${adminNotice}`,
       html: `${html}${
