@@ -655,7 +655,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
     if (!data || !data.services) {
       const unavailable = "Connections\nStatus unavailable";
       serverStatusBar.dataset.tooltip = unavailable;
-      serverStatusBar.title = unavailable;
       serverStatusBar.innerHTML = `<span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>`;
       return;
     }
@@ -670,7 +669,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
     const stamp = data.checkedAt ? `Updated ${new Date(data.checkedAt).toLocaleTimeString()}` : "";
     const tooltip = ["Connections", ...serviceRows, stamp].filter(Boolean).join("\n");
     serverStatusBar.dataset.tooltip = tooltip;
-    serverStatusBar.title = tooltip;
     serverStatusBar.innerHTML = Object.keys(data.services)
       .map(() => `<span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>`)
       .join("");
@@ -2714,6 +2712,7 @@ async function startOrder(orderNo) {
             ? sizeLabel || baseTitle
             : [sizeLabel, abbreviation || baseTitle].filter(Boolean).join(" ");
         const flavourGroup = getLineItemFlavour(li) || baseTitle;
+        const dotLabel = flavourAbbrev(flavourGroup) || "?";
         const lineItemFlavourColor = getDispatchFlavourColor(flavourGroup);
         const itemKey = makePackingKey(li, li.__index);
         const packedItem = getPackingItem(packingState, itemKey);
@@ -2724,26 +2723,10 @@ async function startOrder(orderNo) {
         const isPartial = packedCount > 0 && remaining > 0;
         const completedAt = Number(packedItem?.completedAt) || 0;
         const isNewlyComplete = isComplete && completedAt > 0 && Date.now() - completedAt < 1200;
-        const fulfillableQty = Number(li?.fulfillable_quantity);
-        const inventoryAvailableQty = Number(li?.inventory_available);
-        const isShortOrUnavailable =
-          (Number.isFinite(fulfillableQty) && fulfillableQty < requestedQty) ||
-          (Number.isFinite(inventoryAvailableQty) && inventoryAvailableQty < requestedQty);
         const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
-        const rightMeta = [
-          packedCount > 0
-            ? `<span class="dispatchLinePackedQty">${packedCount}/${totalCount}</span>`
-            : "",
-          isShortOrUnavailable
-            ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
-            : ""
-        ]
-          .filter(Boolean)
-          .join("");
-
         return {
           isComplete,
-          html: `<div class="dispatchLineItem ${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${qtyLabel}</span><span class="dispatchLineMeta">${rightMeta}</span></div>`
+          html: `<div class="dispatchLineItem ${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true">${dotLabel}</span> ${qtyLabel}</span></div>`
         };
       })
       .filter(Boolean);
@@ -2831,6 +2814,9 @@ async function startOrder(orderNo) {
                 orderNo || ""
               }" ${disabled}>${doc.label}</button>`
           ).join("")}
+          <button class="dispatchDocsMenuBtn" type="button" data-action="print-packing-plan" data-order-no="${
+            orderNo || ""
+          }" ${disabled}>Packing plan</button>
         </div>
       </div>`;
 
@@ -3200,28 +3186,25 @@ async function startOrder(orderNo) {
     const boxes = [];
     let boxIndex = 1;
 
-    function createBox(itemsInBox, curryMixOnly) {
-      const sizeCounts = new Map();
+    function createBox(itemsInBox, curryMixOnly = false) {
+      const sizeCountsInBox = new Map();
       let spacesUsed = 0;
       let weightUsed = 0;
       itemsInBox.forEach((entry) => {
         const label = entry.size || "Unspecified";
-        sizeCounts.set(label, (sizeCounts.get(label) || 0) + entry.quantity);
+        sizeCountsInBox.set(label, (sizeCountsInBox.get(label) || 0) + entry.quantity);
         spacesUsed += entry.quantity * entry.spaces;
         weightUsed += entry.quantity * entry.weight;
       });
-      const sizeLabels = Array.from(sizeCounts.keys());
+      const sizeLabels = Array.from(sizeCountsInBox.keys());
       const sizeLabel = sizeLabels.length === 1 ? sizeLabels[0] : "Mixed";
       return {
-        label: `Box ${boxIndex}`,
+        label: `Box ${boxIndex++}`,
         size: sizeLabel,
         curryMix: curryMixOnly,
         spacesUsed,
         weightUsed,
-        sizeBreakdown: Array.from(sizeCounts.entries()).map(([size, quantity]) => ({
-          size,
-          quantity
-        })),
+        sizeBreakdown: Array.from(sizeCountsInBox.entries()).map(([size, quantity]) => ({ size, quantity })),
         items: itemsInBox.map((entry) => ({
           label: entry.title,
           quantity: entry.quantity,
@@ -3234,86 +3217,65 @@ async function startOrder(orderNo) {
     if (isSingleBoxSmallOrder(lineItems)) {
       const curryMixOnly = items.length > 0 && items.every((entry) => entry.curryMix);
       boxes.push(createBox(items, curryMixOnly));
-      return {
-        boxes,
-        sizeCounts,
-        totalWeightKg,
-        estimatedBoxes: boxes.length,
-        totalUnits
-      };
+      return { boxes, sizeCounts, totalWeightKg, estimatedBoxes: boxes.length, totalUnits };
     }
 
-    const curryMixItems = [];
-    const otherItems = [];
-    items.forEach((item) => {
-      if (item.curryMix && item.size === "250ml") {
-        curryMixItems.push({ ...item });
-      } else {
-        otherItems.push({ ...item });
-      }
-    });
+    const isExport = isExportOrder(order);
+    const capacity = isExport ? 8 : BOX_MAX_SPACES;
 
-    let curryTotal = curryMixItems.reduce((sum, item) => sum + item.quantity, 0);
-    let curryRemaining = curryMixItems.map((item) => ({ ...item }));
-
-    while (curryTotal >= CURRY_BOX_MAX) {
-      let boxQtyRemaining = CURRY_BOX_MAX;
-      const boxItems = [];
-      const nextRemaining = [];
-      curryRemaining.forEach((item) => {
-        if (boxQtyRemaining <= 0) {
-          nextRemaining.push(item);
-          return;
-        }
-        const packQty = Math.min(item.quantity, boxQtyRemaining);
-        if (packQty > 0) {
-          boxItems.push({ ...item, quantity: packQty });
-          boxQtyRemaining -= packQty;
-          curryTotal -= packQty;
-        }
-        const leftoverQty = item.quantity - packQty;
-        if (leftoverQty > 0) {
-          nextRemaining.push({ ...item, quantity: leftoverQty });
-        }
+    const working = items
+      .map((item) => ({ ...item, sizeToken: normalizeSizeToken(item.size), qtyLeft: item.quantity }))
+      .sort((a, b) => {
+        const rank = (entry) => {
+          if (entry.sizeToken === "200ml") return 0;
+          if (entry.curryMix && entry.sizeToken === "250ml") return 1;
+          if (entry.sizeToken === "500g" || entry.sizeToken === "1kg") return 2;
+          return 3;
+        };
+        const rankDiff = rank(a) - rank(b);
+        if (rankDiff !== 0) return rankDiff;
+        const flavourDiff = String(a.title || "").localeCompare(String(b.title || ""));
+        if (flavourDiff !== 0) return flavourDiff;
+        return String(a.size || "").localeCompare(String(b.size || ""));
       });
-      boxes.push(createBox(boxItems, true));
-      boxIndex += 1;
-      curryRemaining = nextRemaining;
-    }
 
-    const remainingItems = [...otherItems, ...curryRemaining];
-    let itemsToPack = remainingItems.map((item) => ({ ...item }));
-    while (itemsToPack.length) {
-      let boxSpaces = 0;
-      let boxWeight = 0;
-      let packedAny = false;
-      const boxItems = [];
-      const nextRemaining = [];
-
-      itemsToPack.forEach((item) => {
-        let qtyLeft = item.quantity;
-        const spaceLeft = BOX_MAX_SPACES - boxSpaces;
-        const weightLeft = BOX_MAX_WEIGHT_KG - boxWeight;
-        const fitBySpace = item.spaces > 0 ? Math.floor(spaceLeft / item.spaces) : qtyLeft;
-        const fitByWeight = item.weight > 0 ? Math.floor(weightLeft / item.weight) : qtyLeft;
-        let fitQty = Math.min(fitBySpace, fitByWeight, qtyLeft);
-        if (fitQty > 0) {
-          packedAny = true;
-          boxItems.push({ ...item, quantity: fitQty });
-          boxSpaces += fitQty * item.spaces;
-          boxWeight += fitQty * item.weight;
-          qtyLeft -= fitQty;
-        }
-        if (qtyLeft > 0) {
-          nextRemaining.push({ ...item, quantity: qtyLeft });
+    // Keep curry mix in dedicated boxes whenever possible.
+    working
+      .filter((entry) => entry.curryMix && entry.sizeToken === "250ml")
+      .forEach((entry) => {
+        while (entry.qtyLeft > 0) {
+          const take = Math.min(capacity, entry.qtyLeft);
+          boxes.push(createBox([{ ...entry, quantity: take }], true));
+          entry.qtyLeft -= take;
         }
       });
 
-      if (!packedAny) break;
-      const curryMixOnly = boxItems.length > 0 && boxItems.every((entry) => entry.curryMix);
-      boxes.push(createBox(boxItems, curryMixOnly));
-      boxIndex += 1;
-      itemsToPack = nextRemaining;
+    // Keep bulk packs in dedicated boxes whenever possible.
+    working
+      .filter((entry) => entry.qtyLeft > 0 && (entry.sizeToken === "500g" || entry.sizeToken === "1kg"))
+      .forEach((entry) => {
+        while (entry.qtyLeft > 0) {
+          const take = Math.min(capacity, entry.qtyLeft);
+          boxes.push(createBox([{ ...entry, quantity: take }]));
+          entry.qtyLeft -= take;
+        }
+      });
+
+    // Fill flavour-by-flavour, starting with 200ml, to avoid mixing before needed.
+    const regular = working.filter((entry) => entry.qtyLeft > 0);
+    while (regular.some((entry) => entry.qtyLeft > 0)) {
+      let slots = capacity;
+      const boxItems = [];
+      regular.forEach((entry) => {
+        if (!entry.qtyLeft || slots <= 0) return;
+        const take = Math.min(slots, entry.qtyLeft);
+        if (take <= 0) return;
+        boxItems.push({ ...entry, quantity: take });
+        entry.qtyLeft -= take;
+        slots -= take;
+      });
+      if (!boxItems.length) break;
+      boxes.push(createBox(boxItems));
     }
 
     return {
@@ -3324,6 +3286,7 @@ async function startOrder(orderNo) {
       totalUnits
     };
   }
+
 
   function renderDispatchPackingPlan(plan) {
     if (!plan || !plan.boxes.length) {
@@ -3507,8 +3470,20 @@ async function startOrder(orderNo) {
 
   function renderDispatchPackingSummary(plan) {
     if (!plan) return "";
+    const iconBySize = {
+      "200ml": "🧴",
+      "250ml": "🫙",
+      "375ml": "🍾",
+      "500g": "🛍️",
+      "750g": "🥣",
+      "1kg": "🎒"
+    };
     const sizeRows = Array.from(plan.sizeCounts.entries())
-      .map(([size, qty]) => `<div class="dispatchPackingSummaryRow">${size}: ${qty}</div>`)
+      .map(([size, qty]) => {
+        const key = normalizeSizeToken(size);
+        const icon = iconBySize[key] || "📦";
+        return `<div class="dispatchPackingSummaryRow"><span class="dispatchPackingSummarySizeIcon" aria-hidden="true">${icon}</span><span class="dispatchPackingSummaryLabelText">${size}</span><strong>${qty}</strong></div>`;
+      })
       .join("");
     return `
       <div class="dispatchPackingSummary">
@@ -3525,6 +3500,7 @@ async function startOrder(orderNo) {
       </div>
     `;
   }
+
 
   function formatDispatchDuration(minutes) {
     if (!Number.isFinite(minutes) || minutes <= 0) return "—";
@@ -3652,19 +3628,25 @@ async function startOrder(orderNo) {
           return a.localeCompare(b);
         });
         const mixMap = new Map(entries.map((entry) => [`${entry.flavour}::${entry.size}`, entry.qty]));
-        const header = sizeList.map((size) => `<th scope="col">${size}</th>`).join("");
-        const rows = flavourList
+        const header = flavourList
           .map((flavour) => {
-            const cells = sizeList
-              .map((size) => {
+            const color = getDispatchFlavourColor(flavour);
+            const abbr = flavourAbbrev(flavour) || "?";
+            return `<th scope="col" title="${flavour}"><span class="dispatchMixFlavourDot" style="--dispatch-flavour-color:${color}">${abbr}</span></th>`;
+          })
+          .join("");
+        const rows = sizeList
+          .map((size) => {
+            const cells = flavourList
+              .map((flavour) => {
                 const qty = Number(mixMap.get(`${flavour}::${size}`) || 0);
                 return `<td class="${qty === 0 ? "dispatchMixCell--missing" : ""}">${qty === 0 ? "" : qty}</td>`;
               })
               .join("");
-            return `<tr><th scope="row" class="dispatchMixMatrixFlavour">${flavour}</th>${cells}</tr>`;
+            return `<tr><th scope="row" class="dispatchMixMatrixFlavour">${size}</th>${cells}</tr>`;
           })
           .join("");
-        dispatchSelectionMixes.innerHTML = `<table class="dispatchMixMatrix"><thead><tr><th scope="col">Flavour</th>${header}</tr></thead><tbody>${rows}</tbody></table>`;
+        dispatchSelectionMixes.innerHTML = `<table class="dispatchMixMatrix"><thead><tr><th scope="col">Size</th>${header}</tr></thead><tbody>${rows}</tbody></table>`;
       }
     }
 
@@ -3697,18 +3679,23 @@ async function startOrder(orderNo) {
     const packingPlanMarkup = renderDispatchPackingPlan(packingPlan);
     const packingSummaryMarkup = renderDispatchPackingSummary(packingPlan);
     dispatchOrderModalBody.innerHTML = `
-      <div class="dispatchCardLines">${lines || "No line items listed."}</div>
-      <div class="dispatchCardActions">
-        ${renderDispatchActions(order, laneId, orderNo, packingState)}
-      </div>
-      <div class="dispatchPackingPlanCard">
-        <div class="dispatchPackingPlanHeader">
-          <div class="dispatchPackingPlanTitle">Packing plan</div>
-          <button class="dispatchPackingPlanPrint" type="button" data-action="print-packing-plan" data-order-no="${orderNo}" title="Print packing plan">🧾</button>
+      <div class="dispatchOrderModalGrid">
+        <div class="dispatchOrderModalMain">
+          <div class="dispatchCardLines">${lines || "No line items listed."}</div>
+          <div class="dispatchCardActions">
+            ${renderDispatchActions(order, laneId, orderNo, packingState)}
+          </div>
         </div>
-        <div class="dispatchPackingPlanBody">${packingPlanMarkup}</div>
+        <div class="dispatchOrderModalAside">
+          ${packingSummaryMarkup}
+          <div class="dispatchPackingPlanCard">
+            <div class="dispatchPackingPlanHeader">
+              <div class="dispatchPackingPlanTitle">Packing plan</div>
+            </div>
+            <div class="dispatchPackingPlanBody">${packingPlanMarkup}</div>
+          </div>
+        </div>
       </div>
-      ${packingSummaryMarkup}
     `;
     dispatchOrderModal.classList.add("is-open");
     dispatchOrderModal.setAttribute("aria-hidden", "false");
@@ -4137,24 +4124,6 @@ async function startOrder(orderNo) {
             }
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
-          <div class="dispatchCardParcel">
-            <label class="dispatchParcelLabel" for="dispatchParcel-${orderNo}">Boxes</label>
-            <button class="dispatchParcelAdjustBtn" type="button" data-action="decrease-box" data-order-no="${orderNo}" aria-label="Decrease box count for order ${orderNo}">−</button>
-            <input
-              id="dispatchParcel-${orderNo}"
-              class="dispatchParcelCountInput"
-              type="number"
-              min="0"
-              step="1"
-              inputmode="numeric"
-              data-order-no="${orderNo}"
-              data-order-id="${o.id || ""}"
-              data-last-value="${parcelCountValue}"
-              value="${parcelCountValue}"
-              placeholder="--"
-            />
-            <button class="dispatchParcelAdjustBtn" type="button" data-action="increase-box" data-order-no="${orderNo}" aria-label="Increase box count for order ${orderNo}">+</button>
-          </div>
           ${
             exportCartonSummary
               ? `<div class="dispatchCardMeta">Export cartons: ${exportCartonSummary.displayCartons} · Outer cartons required: ${exportCartonSummary.outerCartons}</div>`
@@ -4162,7 +4131,25 @@ async function startOrder(orderNo) {
           }
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
-            ${renderDispatchActions(o, laneId, orderNo, packingState)}
+            <div class="dispatchCardParcel">
+              <label class="dispatchParcelLabel" for="dispatchParcel-${orderNo}">Boxes</label>
+              <button class="dispatchParcelAdjustBtn" type="button" data-action="decrease-box" data-order-no="${orderNo}" aria-label="Decrease box count for order ${orderNo}">−</button>
+              <input
+                id="dispatchParcel-${orderNo}"
+                class="dispatchParcelCountInput"
+                type="number"
+                min="0"
+                step="1"
+                inputmode="numeric"
+                data-order-no="${orderNo}"
+                data-order-id="${o.id || ""}"
+                data-last-value="${parcelCountValue}"
+                value="${parcelCountValue}"
+                placeholder="--"
+              />
+              <button class="dispatchParcelAdjustBtn" type="button" data-action="increase-box" data-order-no="${orderNo}" aria-label="Increase box count for order ${orderNo}">+</button>
+            </div>
+            <div class="dispatchCardActionButtons">${renderDispatchActions(o, laneId, orderNo, packingState)}</div>
           </div>
         </div>`;
     };
