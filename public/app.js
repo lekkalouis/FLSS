@@ -176,6 +176,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const scanProgressLabel = $("scanProgressLabel");
   const scanDispatchLog = $("scanDispatchLog");
   const dispatchTopBar = $("dispatchTopBar");
+  const navScanStation = $("navScanStation");
   const dispatchBookingOverlay = $("dispatchBookingOverlay");
   const dispatchOverlayProgressBar = $("dispatchOverlayProgressBar");
   const dispatchOverlayProgressFill = $("dispatchOverlayProgressFill");
@@ -4511,6 +4512,7 @@ async function startOrder(orderNo) {
     }
 
     if (dispatchTopBar) dispatchTopBar.hidden = !showScan;
+    if (navScanStation) navScanStation.hidden = !showScan;
   }
 
   const ROUTE_VIEW_MAP = new Map([
