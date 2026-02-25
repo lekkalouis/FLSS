@@ -2997,13 +2997,6 @@ async function startOrder(orderNo) {
     if (!packingState) return "";
     const isActive = packingState.active || options.forceOpen;
     const boxes = Array.isArray(packingState.boxes) ? packingState.boxes : [];
-    const itemLabelByKey = new Map(
-      packingState.items.map((item) => {
-        const variantLabel =
-          item.variant && item.variant.toLowerCase() !== "default title" ? item.variant : "";
-        return [item.key, [item.title, variantLabel].filter(Boolean).join(" · ") || "Item"];
-      })
-    );
     const parcelCount = getPackingParcelCount(packingState);
     return `
       <div class="dispatchPackingPanel ${isActive ? "is-active" : ""}" data-order-no="${orderNo}">
@@ -3046,31 +3039,20 @@ async function startOrder(orderNo) {
         </div>
         <div class="dispatchPackingFooter">
           <div class="dispatchParcelScan">
-            <button class="dispatchParcelBoxBtn" type="button" data-action="add-box" data-order-no="${orderNo}">Add box</button>
+            <button class="dispatchParcelBoxBtn" type="button" data-action="add-box" data-order-no="${orderNo}">Add parcel</button>
           </div>
           <div class="dispatchBoxList">
             ${
               boxes.length
                 ? boxes
-                    .map((box, index) => {
-                      const packedItems = Object.entries(box.items || {})
-                        .map(([itemKey, qty]) => {
-                          const normalizedQty = Number(qty) || 0;
-                          if (normalizedQty <= 0) return "";
-                          return `<li>${itemLabelByKey.get(itemKey) || "Item"} × ${normalizedQty}</li>`;
-                        })
-                        .filter(Boolean)
-                        .join("");
-                      return `
+                    .map(
+                      (box, index) => `
                         <div class="dispatchBoxRow">
-                          <span class="dispatchBoxLabel">${box.label}${packingState.activeBoxIndex === index ? " (Current)" : ""}</span>
+                          <span class="dispatchBoxLabel">${box.label}</span>
                           <input class="dispatchBoxParcelInput" type="text" placeholder="Parcel no (optional)" data-order-no="${orderNo}" data-box-index="${index}" value="${box.parcelCode || ""}" />
-                          <div class="dispatchBoxItems">
-                            ${packedItems ? `<ul>${packedItems}</ul>` : "<span>No items packed yet.</span>"}
-                          </div>
                         </div>
-                      `;
-                    })
+                      `
+                    )
                     .join("")
                 : `<span class="dispatchBoxEmpty">No parcels added yet.</span>`
             }
