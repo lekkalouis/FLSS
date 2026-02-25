@@ -445,6 +445,35 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const statusExplain = (msg, tone = "info") => {
     if (statusChip) statusChip.textContent = msg;
   };
+
+  function showSiteAlert({ title = "Notice", message = "", tone = "info" } = {}) {
+    const existing = document.getElementById("flssSiteAlertModal");
+    if (existing) existing.remove();
+    const modal = document.createElement("div");
+    modal.id = "flssSiteAlertModal";
+    modal.className = "dispatchSiteAlertModal";
+    modal.innerHTML = `
+      <div class="dispatchSiteAlertModal__backdrop" data-action="close-site-alert" aria-hidden="true"></div>
+      <div class="dispatchSiteAlertModal__content dispatchSiteAlertModal__content--${tone}" role="dialog" aria-modal="true" aria-labelledby="dispatchSiteAlertTitle">
+        <div class="dispatchSiteAlertModal__header">
+          <h3 id="dispatchSiteAlertTitle">${title}</h3>
+          <button type="button" class="dispatchSiteAlertModal__close" data-action="close-site-alert" aria-label="Close alert">✕</button>
+        </div>
+        <div class="dispatchSiteAlertModal__body">${message}</div>
+        <div class="dispatchSiteAlertModal__actions">
+          <button type="button" class="dispatchSiteAlertModal__ok" data-action="close-site-alert">OK</button>
+        </div>
+      </div>
+    `;
+    modal.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target instanceof HTMLElement && target.dataset.action === "close-site-alert") {
+        modal.remove();
+      }
+    });
+    document.body.appendChild(modal);
+  }
+
   const triggerBookedFlash = () => {};
 
   const appendDebug = (msg) => {
@@ -2592,6 +2621,11 @@ async function startOrder(orderNo) {
       statusExplain(`Collection fulfilled for order ${payload.orderNo}.`, "ok");
       logDispatchEvent(`Collection fulfilled from code for order ${payload.orderNo}.`);
       confirmScanFeedback("success");
+      showSiteAlert({
+        title: "Pickup complete",
+        tone: "ok",
+        message: `Order ${payload.orderNo} has been automatically released for pickup.`
+      });
       refreshDispatchData();
     } catch (err) {
       statusExplain("Collection scan failed.", "warn");
@@ -2769,14 +2803,17 @@ async function startOrder(orderNo) {
 
     if (normalizedLane === "pickup") {
       const tags = String(order?.tags || "").toLowerCase();
-      const notified = /(^|[\s,])pickup_notified([\s,]|$)/.test(tags);
+      const notified = /(^|[\s,])(stat:notified|pickup_notified)([\s,]|$)/.test(tags);
+      const pickedUpTag = /(^|[\s,])stat:pickedup([\s,]|$)/.test(tags);
       const fulfilled = String(order?.fulfillment_status || "").toLowerCase() === "fulfilled";
-      const actionType = fulfilled ? "released" : notified ? "release-pickup" : "notify-ready";
-      const notifyLabel = fulfilled ? "✅ Released" : notified ? "🔓 Release" : "Notify customer";
-      const pickupDisabled = fulfilled ? "disabled" : disabled;
+      const isComplete = fulfilled || pickedUpTag;
+      const actionType = isComplete ? "released" : notified ? "release-pickup" : "notify-ready";
+      const iconLabel = isComplete ? "✅" : notified ? "🔓" : "✉️";
+      const iconTitle = isComplete ? "Order released" : notified ? "Release order" : "Notify customer";
+      const pickupDisabled = isComplete ? "disabled" : disabled;
       return `
         ${docsDropdown}
-        <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${pickupDisabled}>${notifyLabel}</button>
+        <button class="dispatchBoxBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${pickupDisabled} aria-label="${iconTitle}" title="${iconTitle}">${iconLabel}</button>
       `;
     }
 
@@ -3641,8 +3678,6 @@ async function startOrder(orderNo) {
         body: JSON.stringify({
           orderNo,
           orderId: order.id,
-          email: "admin@flippenlekkaspices.co.za",
-          // email: order.email,
           customerName: order.customer_name || "Customer",
           parcelCount: Number(order.parcel_count || 0),
           weightKg: Number(order.total_weight_kg || 0)
@@ -3653,8 +3688,22 @@ async function startOrder(orderNo) {
         statusExplain("Ready marked but notify email failed.", "warn");
         logDispatchEvent(`Notify customer failed for order ${orderNo}: ${text}`);
       } else {
+        const notifyPayload = await notifyRes.json().catch(() => ({}));
         const cached = dispatchOrderCache.get(orderNo);
-        if (cached) cached.tags = `${cached.tags || ""}, pickup_notified`;
+        if (cached) cached.tags = `${cached.tags || ""}, stat:notified, pickup_notified`;
+        if (notifyPayload?.fallbackNotifiedAdmin) {
+          showSiteAlert({
+            title: `Order ${orderNo} ready for pickup`,
+            tone: "warn",
+            message: "No customer email was found. Admin was notified at admin@flippenlekkaspices.co.za."
+          });
+        } else {
+          showSiteAlert({
+            title: `Customer notified for ${orderNo}`,
+            tone: "ok",
+            message: `Pickup notice sent to ${notifyPayload?.sentTo || "the customer email on record"}.`
+          });
+        }
       }
       statusExplain(`Order ${orderNo} marked ready for collection.`, "ok");
       logDispatchEvent(`Order ${orderNo} marked ready for collection.`);
@@ -3691,13 +3740,25 @@ async function startOrder(orderNo) {
       const cached = dispatchOrderCache.get(orderNo);
       if (cached) {
         cached.fulfillment_status = "fulfilled";
+        cached.tags = `${cached.tags || ""}, stat:pickedup`;
       }
+      await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/tag`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, tag: "stat:pickedup" })
+      }).catch(() => null);
       statusExplain(`Order ${orderNo} released to customer.`, "ok");
       logDispatchEvent(`Order ${orderNo} released to customer.`);
+      showSiteAlert({
+        title: "Order released",
+        tone: "ok",
+        message: `Order ${orderNo} was released and tagged stat:pickedup.`
+      });
       refreshDispatchViews(orderNo);
     } catch (err) {
       statusExplain("Release failed.", "warn");
       logDispatchEvent(`Release failed for order ${orderNo}: ${String(err)}`);
+      showSiteAlert({ title: "Release failed", tone: "err", message: `Order ${orderNo} could not be released.` });
     }
   }
 
@@ -4799,6 +4860,20 @@ async function startOrder(orderNo) {
       if (!code) return;
       if (/^FLSS-PICKUP-/i.test(code)) {
         await handleCollectionScan(code);
+        return;
+      }
+      if (/^\d{3}$/.test(code)) {
+        const fallbackOrderNo = String(dispatchModalOrderNo || activeOrderNo || "").replace(/[^0-9A-Za-z]/g, "");
+        if (!fallbackOrderNo) {
+          statusExplain("Scan order barcode first, then enter the 3-digit PIN.", "warn");
+          showSiteAlert({
+            title: "PIN needs an order",
+            tone: "warn",
+            message: "Scan the pickup barcode first (or select/open an order) before entering a 3-digit PIN."
+          });
+          return;
+        }
+        await handleCollectionScan(`${fallbackOrderNo}${code}`);
         return;
       }
       await handleScan(code);
