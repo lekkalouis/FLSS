@@ -1264,14 +1264,40 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin-bottom: 0.35rem;
 }
 
-.dispatchCardParcel label {
-  font-weight: 600;
+.dispatchParcelLabel {
+  font-weight: 700;
+  font-size: 0.82rem;
   color: var(--text);
+}
+
+.dispatchParcelAdjustBtn {
+  border: 1px solid var(--panel-strong);
+  background: #fff;
+  color: var(--text);
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dispatchParcelAdjustBtn:hover {
+  background: #f8fafc;
+}
+
+.dispatchParcelAdjustBtn:focus {
+  outline: 2px solid rgba(56,189,248,0.4);
+  outline-offset: 1px;
 }
 
 .dispatchParcelCountInput {

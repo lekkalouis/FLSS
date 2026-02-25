@@ -3986,7 +3986,8 @@ async function startOrder(orderNo) {
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
           <div class="dispatchCardParcel">
-            <label for="dispatchParcel-${orderNo}">Parcels</label>
+            <label class="dispatchParcelLabel" for="dispatchParcel-${orderNo}">Boxes</label>
+            <button class="dispatchParcelAdjustBtn" type="button" data-action="decrease-box" data-order-no="${orderNo}" aria-label="Decrease box count for order ${orderNo}">−</button>
             <input
               id="dispatchParcel-${orderNo}"
               class="dispatchParcelCountInput"
@@ -4000,6 +4001,7 @@ async function startOrder(orderNo) {
               value="${parcelCountValue}"
               placeholder="--"
             />
+            <button class="dispatchParcelAdjustBtn" type="button" data-action="increase-box" data-order-no="${orderNo}" aria-label="Increase box count for order ${orderNo}">+</button>
           </div>
           ${
             exportCartonSummary
@@ -5333,9 +5335,49 @@ async function startOrder(orderNo) {
     return false;
   }
 
+  async function saveDispatchParcelInput(input) {
+    if (!input) return;
+    const orderId = input.dataset.orderId;
+    const orderNo = input.dataset.orderNo;
+    const raw = input.value.trim();
+    const lastValue = input.dataset.lastValue ?? "";
+
+    if (raw === lastValue) return;
+
+    if (raw === "") {
+      const ok = await updateDispatchParcelCount({ orderId, orderNo, value: "" });
+      if (ok) input.dataset.lastValue = "";
+      return;
+    }
+
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      statusExplain("Parcel count must be a non-negative number.", "warn");
+      input.value = lastValue;
+      return;
+    }
+
+    const ok = await updateDispatchParcelCount({ orderId, orderNo, value: parsed });
+    if (ok) input.dataset.lastValue = String(parsed);
+  }
+
   dispatchBoard?.addEventListener("click", async (e) => {
     const action = e.target.closest("[data-action]");
     if (action) {
+      if (action.dataset.action === "increase-box" || action.dataset.action === "decrease-box") {
+        const orderNo = action.dataset.orderNo;
+        const input = orderNo
+          ? dispatchBoard.querySelector(`.dispatchParcelCountInput[data-order-no="${orderNo}"]`)
+          : null;
+        if (!input) return;
+        const current = Number.parseInt(input.value, 10);
+        const safeCurrent = Number.isFinite(current) && current >= 0 ? current : 0;
+        const next = action.dataset.action === "increase-box" ? safeCurrent + 1 : Math.max(0, safeCurrent - 1);
+        input.value = String(next);
+        input.focus();
+        await saveDispatchParcelInput(input);
+        return;
+      }
       const handled = await handleDispatchAction(action);
       if (handled) return;
     }
@@ -5353,6 +5395,16 @@ async function startOrder(orderNo) {
       const orderNo = lineItem.dataset.orderNo;
       const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
       toggleDispatchLineItemPacked(orderNo, itemKey);
+      return;
+    }
+
+    const card = e.target.closest(".dispatchCard");
+    if (card && !e.target.closest("button") && !e.target.closest("input") && !e.target.closest("label")) {
+      const input = card.querySelector(".dispatchParcelCountInput");
+      if (input) {
+        input.focus();
+        input.select();
+      }
     }
   });
 
@@ -5408,28 +5460,7 @@ async function startOrder(orderNo) {
   dispatchBoard?.addEventListener("focusout", async (e) => {
     const input = e.target.closest(".dispatchParcelCountInput");
     if (!input) return;
-    const orderId = input.dataset.orderId;
-    const orderNo = input.dataset.orderNo;
-    const raw = input.value.trim();
-    const lastValue = input.dataset.lastValue ?? "";
-
-    if (raw === lastValue) return;
-
-    if (raw === "") {
-      const ok = await updateDispatchParcelCount({ orderId, orderNo, value: "" });
-      if (ok) input.dataset.lastValue = "";
-      return;
-    }
-
-    const parsed = Number(raw);
-    if (!Number.isInteger(parsed) || parsed < 0) {
-      statusExplain("Parcel count must be a non-negative number.", "warn");
-      input.value = lastValue;
-      return;
-    }
-
-    const ok = await updateDispatchParcelCount({ orderId, orderNo, value: parsed });
-    if (ok) input.dataset.lastValue = String(parsed);
+    await saveDispatchParcelInput(input);
   });
 
   dispatchShipmentsSidebar?.addEventListener("click", async (e) => {
