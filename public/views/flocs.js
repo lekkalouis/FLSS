@@ -1,4 +1,5 @@
 import { PRODUCT_LIST } from "./products.js";
+import { normalizeFlavourKey, resolveFlavourColor } from "./flavour-map.js";
 
 let flocsInitialized = false;
 
@@ -17,7 +18,9 @@ export function initFlocsView() {
   // ===== DOM =====
   const shell            = document.getElementById("flocs-shell");
   const customerSearch   = document.getElementById("flocs-customerSearch");
-  const customerSearchClear = document.getElementById("flocs-customerSearchClear");
+  const customerQuickSearch = document.getElementById("flocs-customerQuickSearch");
+  const customerProvinceFilter = document.getElementById("flocs-customerProvinceFilter");
+  const customerSort = document.getElementById("flocs-customerSort");
   const customerResults  = document.getElementById("flocs-customerResults");
   const customerStatus   = document.getElementById("flocs-customerStatus");
   const customerChips    = document.getElementById("flocs-selectedCustomerChips");
@@ -28,9 +31,13 @@ export function initFlocsView() {
   const customerLast     = document.getElementById("flocs-customerLast");
   const customerEmail    = document.getElementById("flocs-customerEmail");
   const customerPhone    = document.getElementById("flocs-customerPhone");
+  const customerAccountEmail = document.getElementById("flocs-customerAccountEmail");
+  const customerAccountContact = document.getElementById("flocs-customerAccountContact");
+  const customerTier = document.getElementById("flocs-customerTier");
   const customerCompany  = document.getElementById("flocs-customerCompany");
   const customerTier     = document.getElementById("flocs-customerTier");
   const customerVat      = document.getElementById("flocs-customerVat");
+  const customerPaymentTerms = document.getElementById("flocs-customerPaymentTerms");
   const customerDeliveryNotes = document.getElementById("flocs-customerDeliveryNotes");
   const customerDelivery = document.getElementById("flocs-customerDelivery");
   const customerAddr1    = document.getElementById("flocs-customerAddr1");
@@ -52,7 +59,16 @@ export function initFlocsView() {
   const billingAddrPreview = document.getElementById("flocs-billingAddressPreview");
 
   const productsBody     = document.getElementById("flocs-productsBody");
+<<<<<<< HEAD
   const filterCategory   = document.getElementById("flocs-filterCategory");
+=======
+  const productsHeadRow  = document.getElementById("flocs-productsHeadRow");
+  const productTypeFilter = document.getElementById("flocs-productTypeFilter");
+  const bulkColumnsToggle = document.getElementById("flocs-bulkColumnsToggle");
+  const bulkColumnsWrap  = document.getElementById("flocs-bulkColumnsWrap");
+  const qtyModeGroup     = document.getElementById("flocs-qtyModeGroup");
+  const cartonSizeGroup  = document.getElementById("flocs-cartonSizeGroup");
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
@@ -71,40 +87,40 @@ export function initFlocsView() {
     customer: null,
     po: "",
     deliveryDate: "",
-    delivery: "shipping",        // shipping | pickup | delivery
+    delivery: "",        // shipping | pickup | delivery
     shippingAddressIndex: null,      // index in customer.addresses
     billingAddressIndex: null,       // index in customer.addresses
     items: {},               // sku -> qty
-    products: PRODUCT_LIST.filter((product) => product.variantId),
+    products: PRODUCT_LIST.filter((product) => product.variantId || product.sku === "GBOX"),
     shippingQuote: null,     // { service, total, quoteno, raw }
     errors: [],
     isSubmitting: false,
     lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
+<<<<<<< HEAD
     filters: { category: "Spices" },
     azLetters: [],
     priceResolutionByKey: {}
+=======
+    productType: "spices",
+    showBulkColumns: false,
+    qtyMode: "units",
+    cartonUnits: 12,
+    priceOverrides: {},
+    priceOverrideEnabled: {},
+    azLetters: [],
+    customers: [],
+    loadingCustomers: false,
+    spaceTapTimes: []
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   };
 
-  const FLAVOUR_COLORS = {
-    "hot & spicy": "#DA291C",
-    "chutney": "#7340B2",
-    "original": "#8BAF84",
-    "worcester sauce": "#FF8200",
-    "red wine & garlic": "#904066",
-    "savoury herb": "#A1C935",
-    "savoury herbs": "#A1C935",
-    "salt & vinegar": "#40B2FF",
-    "curry": "#FFC72C",
-    "butter": "#FFE66D",
-    "sour cream & chives": "#7BC96F",
-    "parmesan cheese": "#FACC15",
-    "cheese & onion": "#C4E36A"
-  };
+  const CUSTOMER_QUICK_PICK_EXCLUDED_SEGMENTS = new Set(["local", "private"]);
 
-  const flavourKey = (flavour) => String(flavour || "").toLowerCase().trim();
-  const flavourColor = (flavour) => FLAVOUR_COLORS[flavourKey(flavour)] || "#22d3ee";
+  const flavourKey = (flavour) => normalizeFlavourKey(flavour);
+  const flavourColor = (flavour) =>
+    resolveFlavourColor(flavour, { productType: state.productType });
   const flavourTag = (flavour) =>
     flavour
       ? `<span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span>`
@@ -164,7 +180,34 @@ export function initFlocsView() {
     String(p.variantId || p.sku || p.title || "").trim();
 
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
+<<<<<<< HEAD
+=======
+  const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 36, 48, 50, 100, 250];
+  const MATRIX_POPCORN_SIZES = ["100ml"];
+  const MATRIX_BASE_SIZES = ["200ml", "250ml"];
+  const MATRIX_BULK_SIZES = ["500g", "1kg", "750g", "750g Tubs"];
+  const MATRIX_SIZES = [...MATRIX_POPCORN_SIZES, ...MATRIX_BASE_SIZES, ...MATRIX_BULK_SIZES];
+  const SPICE_FLAVOUR_ORDER = [
+    "original",
+    "hot & spicy",
+    "worcester sauce",
+    "red wine & garlic",
+    "chutney",
+    "savoury herb",
+    "salt & vinegar",
+    "curry"
+  ];
+  const POPCORN_FLAVOUR_ORDER = [
+    "butter",
+    "sour cream & chives",
+    "chutney",
+    "parmesan cheese",
+    "cheese & onion",
+    "salt & vinegar"
+  ];
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   const AUTO_QUOTE_DELAY_MS = 3000;
+  const REQUIRE_RESOLVED_PRICING = CONFIG?.FLOCS?.REQUIRE_RESOLVED_PRICING !== false;
   let autoQuoteTimer = null;
   const deliveryHintDefault = deliveryHint ? deliveryHint.textContent : "";
   const CUSTOMER_TIER_OPTIONS = ["agent", "retail", "export", "private", "fkb"];
@@ -191,8 +234,152 @@ export function initFlocsView() {
 
   function resolvePriceTier(tags) {
     const normalized = tags.map((t) => t.toLowerCase());
+<<<<<<< HEAD
     const tier = PRICE_TAGS.find((tag) => normalized.includes(tag)) || null;
     return tier === "retailer" ? "retail" : tier;
+=======
+    const found = PRICE_TAGS.find((tag) => normalized.includes(tag)) || null;
+    return found;
+  }
+
+  function normalizeCustomerTier(tier) {
+    const normalized = String(tier || "").trim().toLowerCase();
+    const aliases = {
+      retailer: "retail",
+      public: "fkb"
+    };
+    const resolved = aliases[normalized] || normalized;
+    return PRICE_TAGS.includes(resolved) ? resolved : null;
+  }
+
+  function resolveTierValue(tiers, tier) {
+    if (!tiers || !tier) return null;
+    const aliases = {
+      retail: ["retail", "retailer"],
+      retailer: ["retailer", "retail"],
+      fkb: ["fkb", "public"],
+      public: ["public", "fkb"]
+    };
+    const keys = aliases[tier] || [tier];
+    for (const key of keys) {
+      if (tiers[key] == null) continue;
+      const numeric = Number(tiers[key]);
+      if (Number.isFinite(numeric)) return numeric;
+    }
+    return null;
+  }
+
+  function customerPrimaryAddress(customer) {
+    const addresses = Array.isArray(customer?.addresses) ? customer.addresses : [];
+    return addresses[0] || customer?.default_address || {};
+  }
+
+  function customerProvinceLabel(customer) {
+    return String(customerPrimaryAddress(customer)?.province || "").trim();
+  }
+
+  function customerCityLabel(customer) {
+    return String(customerPrimaryAddress(customer)?.city || "").trim();
+  }
+
+  function customerSegment(customer) {
+    const tags = normalizeTags(customer?.tags).map((tag) => String(tag).toLowerCase());
+    if (tags.includes("online")) return "online";
+    if (tags.includes("agent")) return "agent";
+    if (tags.includes("retailer") || tags.includes("retail")) return "retailer";
+    if (tags.includes("export")) return "export";
+    if (tags.includes("local")) return "local";
+    if (tags.includes("private")) return "private";
+    return "retailer";
+  }
+
+  function renderProvinceFilterOptions(customers = []) {
+    if (!customerProvinceFilter) return;
+    const provinces = Array.from(
+      new Set((customers || []).map(customerProvinceLabel).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
+    const selectedProvince = customerProvinceFilter.value || "";
+    customerProvinceFilter.innerHTML =
+      `<option value="">All provinces</option>` +
+      provinces.map((province) => `<option value="${province}">${province}</option>`).join("");
+    customerProvinceFilter.value = provinces.includes(selectedProvince) ? selectedProvince : "";
+  }
+
+  function filteredQuickPickCustomers(customers = []) {
+    let next = Array.isArray(customers) ? [...customers] : [];
+    next = next.filter((customer) => !CUSTOMER_QUICK_PICK_EXCLUDED_SEGMENTS.has(customerSegment(customer)));
+
+    if (customerProvinceFilter?.value) {
+      const activeProvince = customerProvinceFilter.value.toLowerCase();
+      next = next.filter((customer) => customerProvinceLabel(customer).toLowerCase() === activeProvince);
+    }
+
+    const quickSearch = (customerQuickSearch?.value || "").trim().toLowerCase();
+    if (quickSearch) {
+      next = next.filter((customer) => {
+        const haystack = [
+          customer?.name,
+          customer?.companyName,
+          customerCityLabel(customer),
+          customerProvinceLabel(customer),
+          customer?.phone
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(quickSearch);
+      });
+    }
+
+    const sortBy = customerSort?.value === "city" ? "city" : "name";
+    next.sort((a, b) => {
+      const aName = String(a?.name || "");
+      const bName = String(b?.name || "");
+      if (sortBy === "city") {
+        const byCity = String(customerCityLabel(a) || "").localeCompare(
+          String(customerCityLabel(b) || ""),
+          undefined,
+          { sensitivity: "base" }
+        );
+        if (byCity !== 0) return byCity;
+      }
+      return aName.localeCompare(bName, undefined, { sensitivity: "base" });
+    });
+
+    return next;
+  }
+
+  function renderCustomerQuickPicker(customers = []) {
+    if (customerResults) customerResults.hidden = false;
+    const filtered = filteredQuickPickCustomers(customers);
+
+    if (!filtered.length) {
+      customerResults.innerHTML = `<div class="flocs-customerEmpty">No customers match the current filters.</div>`;
+      customerResults._data = [];
+      customerResults._allData = Array.isArray(customers) ? customers : [];
+      customerStatus.textContent = "No match yet. Refine search.";
+      return;
+    }
+
+    const selectedId = String(state.customer?.id || "");
+    customerResults.innerHTML = filtered
+      .map((customer, idx) => {
+        const city = customerCityLabel(customer);
+        const province = customerProvinceLabel(customer);
+        const location = [city, province].filter(Boolean).join(", ") || "Location unavailable";
+        const isActive = selectedId && String(customer?.id || "") === selectedId;
+        return `
+        <button type="button" class="flocs-customerItem${isActive ? " is-active" : ""}" data-idx="${idx}">
+          <strong>${customer.name || "Unnamed"}</strong>
+          <div class="flocs-customerItem-meta">${location}</div>
+        </button>
+      `;
+      })
+      .join("");
+    customerResults._data = filtered;
+    customerResults._allData = Array.isArray(customers) ? customers : [];
+    customerStatus.textContent = "Click a row to select customer.";
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
 
   function normalizePriceTiers(product) {
@@ -213,6 +400,16 @@ export function initFlocsView() {
     return normalized;
   }
 
+  function retailPriceForProduct(product) {
+    if (!product) return null;
+    const tiers = normalizePriceTiers(product);
+    if (tiers && tiers.default != null) return Number(tiers.default);
+    if (tiers && tiers.standard != null) return Number(tiers.standard);
+    if (product.price != null) return Number(product.price);
+    return null;
+  }
+
+
   function priceForCustomer(product) {
     if (!product) return null;
     const key = productKey(product);
@@ -223,12 +420,17 @@ export function initFlocsView() {
 
     const tier = state.priceTier;
     const tiers = normalizePriceTiers(product);
-    if (tier && tiers && tiers[tier] != null) {
-      return Number(tiers[tier]);
+    if (tier && tiers) {
+      const tierValue = resolveTierValue(tiers, tier);
+      if (tierValue != null) return tierValue;
     }
     if (tiers) {
-      const fallback = tiers.default != null ? tiers.default : tiers.standard;
-      if (fallback != null) return Number(fallback);
+      const fallback =
+        resolveTierValue(tiers, "default") ??
+        resolveTierValue(tiers, "standard") ??
+        resolveTierValue(tiers, "retail") ??
+        resolveTierValue(tiers, "public");
+      if (fallback != null) return fallback;
     }
     if (product.price != null) {
       return Number(product.price);
@@ -292,7 +494,7 @@ export function initFlocsView() {
   }
 
   function currentDelivery() {
-    return state.delivery || "shipping";
+    return state.delivery || "";
   }
 
   function currentShippingAddress() {
@@ -337,7 +539,8 @@ export function initFlocsView() {
         variantId: p.variantId,
         quantity: qty,
         weightKg: p.weightKg || 0,
-        price: resolveLinePrice(p) // optional
+        retailPrice: retailPriceForProduct(p),
+        price: resolveLinePrice(p) // optional tier/net target
       });
     }
     return out.sort((a, b) =>
@@ -355,7 +558,7 @@ export function initFlocsView() {
         subtotal += Number(li.price) * li.quantity;
       }
     }
-    const shipping = state.shippingQuote?.total || 0;
+    const shipping = state.shippingQuote?.subtotal ?? state.shippingQuote?.total ?? 0;
     return {
       subtotal,
       shipping,
@@ -397,10 +600,11 @@ export function initFlocsView() {
 
   function normalizeDeliveryMethod(value) {
     const normalized = String(value || "").toLowerCase().trim();
+    if (normalized === "free_shipping" || normalized === "free shipping") return "free_shipping";
     if (normalized === "ship" || normalized === "shipping") return "shipping";
     if (normalized === "deliver" || normalized === "delivery") return "delivery";
     if (normalized === "pickup") return "pickup";
-        return "shipping";
+    return "";
   }
 
   function syncDeliveryGroup() {
@@ -471,8 +675,109 @@ export function initFlocsView() {
   }
 
   // ===== UI: products table rendering =====
+  function normalizeMatrixSize(size) {
+    const normalized = String(size || "").toLowerCase().replace(/\s+/g, " ").trim();
+    if (normalized === "750g tub" || normalized === "750g tubs") return "750g tubs";
+    return normalized;
+  }
+
+  function visibleMatrixSizes() {
+    if (state.productType === "popcorn") return [...MATRIX_POPCORN_SIZES];
+    const sizes = [...MATRIX_BASE_SIZES];
+    if (state.showBulkColumns) sizes.push(...MATRIX_BULK_SIZES);
+    return sizes;
+  }
+
+  function renderProductsHeader() {
+    if (!productsHeadRow) return;
+    const sizeHeaders = visibleMatrixSizes().map((size) => `<th>${size}</th>`).join("");
+    productsHeadRow.innerHTML = `<th>SKU</th><th>Description</th>${sizeHeaders}`;
+  }
+
+  function renderBulkToggleState() {
+    if (bulkColumnsWrap) bulkColumnsWrap.hidden = state.productType === "popcorn";
+    if (bulkColumnsToggle) bulkColumnsToggle.checked = Boolean(state.showBulkColumns);
+  }
+
+  function isPopcornSprinkleProduct(product) {
+    const title = String(product?.title || "").toLowerCase();
+    return title.includes("popcorn sprinkle");
+  }
+
+  function filteredProductsForMatrix() {
+    const type = state.productType === "popcorn" ? "popcorn" : "spices";
+    return state.products.filter((product) =>
+      type === "popcorn"
+        ? isPopcornSprinkleProduct(product)
+        : !isPopcornSprinkleProduct(product)
+    );
+  }
+
+  function flavourSortIndex(flavour) {
+    const key = flavourKey(flavour);
+    const order = state.productType === "popcorn" ? POPCORN_FLAVOUR_ORDER : SPICE_FLAVOUR_ORDER;
+    const idx = order.indexOf(key);
+    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+  }
+
+  function groupedProductsForMatrix() {
+    const grouped = new Map();
+    for (const product of filteredProductsForMatrix()) {
+      const flavour = String(product.flavour || "Other").trim() || "Other";
+      if (!grouped.has(flavour)) grouped.set(flavour, []);
+      grouped.get(flavour).push(product);
+    }
+
+    return Array.from(grouped.entries())
+      .map(([flavour, products]) => {
+        const bySize = new Map();
+        products
+          .slice()
+          .sort((a, b) =>
+            String(a.sku || "").localeCompare(String(b.sku || ""), undefined, {
+              numeric: true,
+              sensitivity: "base"
+            })
+          )
+          .forEach((product) => {
+            const normalizedSize = normalizeMatrixSize(product.size);
+            if (!bySize.has(normalizedSize)) {
+              bySize.set(normalizedSize, product);
+            }
+          });
+        return [flavour, bySize];
+      })
+      .sort((a, b) => {
+        const flavourCmp = flavourSortIndex(a[0]) - flavourSortIndex(b[0]);
+        if (flavourCmp !== 0) return flavourCmp;
+        return String(a[0]).localeCompare(String(b[0]), undefined, {
+          sensitivity: "base"
+        });
+      });
+  }
+
+
+  function toDisplayQty(units) {
+    const base = Number(units || 0);
+    if (!base) return "";
+    if (state.qtyMode === "cartons") {
+      return String(Math.floor(base / Number(state.cartonUnits || 12)));
+    }
+    return String(base);
+  }
+
+  function displayQtyToUnits(displayQty) {
+    const base = Number(displayQty || 0);
+    if (!Number.isFinite(base) || base <= 0) return 0;
+    if (state.qtyMode === "cartons") {
+      return Math.floor(base) * Number(state.cartonUnits || 12);
+    }
+    return Math.floor(base);
+  }
+
   function renderProductsTable() {
     if (!productsBody) return;
+<<<<<<< HEAD
     const selectedCategory = state.filters.category || "Spices";
     const filtered = state.products.filter(
       (product) => categoryForProduct(product) === selectedCategory
@@ -535,11 +840,105 @@ export function initFlocsView() {
           ${sizeInputs}
           <td><button class="flocs-actionBtn" type="button" data-action="clear-row" data-row-key="${row.flavour}__${row.groupName}">Clear</button></td>
         </tr>`;
+=======
+    const activeSizes = visibleMatrixSizes();
+    renderProductsHeader();
+    renderBulkToggleState();
+    const grouped = groupedProductsForMatrix();
+    const nonMatrixProducts = filteredProductsForMatrix().filter((product) => {
+      const normalizedSize = normalizeMatrixSize(product.size);
+      return !normalizedSize || !MATRIX_SIZES.includes(normalizedSize);
+    });
+    if (!grouped.length) {
+      const extraRows = nonMatrixProducts.map((product) => {
+        const key = productKey(product);
+        const units = Number(state.items[key] || 0);
+        const value = toDisplayQty(units);
+        const quickButtons = QUICK_QTY.map(
+          (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
+        ).join("");
+        return `<tr style="--flavour-color:${flavourColor(product.flavour)}">
+          <td>${product.sku || ""}</td>
+          <td><span class="flocs-productName">${displayProductTitle(product)}</span></td>
+          <td class="flocs-matrixCell" colspan="${activeSizes.length}">
+            <div class="flocs-qtyArea">
+              <div class="flocs-qtyQuick">${quickButtons}</div>
+              <div class="flocs-qtyWrap">
+                <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
+                <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
+                <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+      }).join("");
+      const emptyRow = `<tr><td colspan="${2 + activeSizes.length}" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
+      productsBody.innerHTML = `${emptyRow}${extraRows}`;
+      return;
+    }
+    const groupedRows = grouped
+      .map(([flavour, bySize]) => {
+        const cells = activeSizes.map((label) => {
+          const lookup = normalizeMatrixSize(label);
+          const product = bySize.get(lookup);
+          if (!product) return `<td class="flocs-matrixCell flocs-matrixCell--empty">—</td>`;
+          const key = productKey(product);
+          const units = Number(state.items[key] || 0);
+          const value = toDisplayQty(units);
+          const quickButtons = QUICK_QTY.map(
+            (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
+          ).join("");
+          return `
+            <td class="flocs-matrixCell">
+              <div class="flocs-matrixSku">${product.sku || ""}</div>
+              <div class="flocs-qtyArea">
+                <div class="flocs-qtyQuick">${quickButtons}</div>
+                <div class="flocs-qtyWrap">
+                  <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
+                  <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
+                  <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+                </div>
+              </div>
+            </td>`;
+        }).join("");
+        return `
+          <tr style="--flavour-color:${flavourColor(flavour)}">
+            <td><span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span></td>
+            <td><span class="flocs-productName">${flavour} products</span></td>
+            ${cells}
+          </tr>`;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
       })
       .join("");
+
+    const extraRows = nonMatrixProducts.map((product) => {
+      const key = productKey(product);
+      const units = Number(state.items[key] || 0);
+      const value = toDisplayQty(units);
+      const quickButtons = QUICK_QTY.map(
+        (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
+      ).join("");
+      return `<tr style="--flavour-color:${flavourColor(product.flavour)}">
+        <td>${product.sku || ""}</td>
+        <td><span class="flocs-productName">${displayProductTitle(product)}</span></td>
+        <td class="flocs-matrixCell" colspan="${activeSizes.length}">
+          <div class="flocs-qtyArea">
+            <div class="flocs-qtyQuick">${quickButtons}</div>
+            <div class="flocs-qtyWrap">
+              <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
+              <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
+              <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }).join("");
+
+    productsBody.innerHTML = `${groupedRows}${extraRows}`;
   }
 
 
+<<<<<<< HEAD
   async function previewPriceResolution(products) {
     if (resolverPreviewLoading) return;
     const contexts = products
@@ -591,6 +990,8 @@ export function initFlocsView() {
     }
   }
 
+=======
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   async function hydratePriceTiersForProducts(products) {
     if (priceTierLoading) return;
     const missingIds = Array.from(
@@ -656,6 +1057,7 @@ export function initFlocsView() {
       c.email,
       c.phone,
       c.companyName,
+      c.paymentTerms ? `Terms: ${c.paymentTerms}` : null,
       state.priceTier ? `Tier: ${state.priceTier}` : null
     ].filter(Boolean);
 
@@ -727,7 +1129,11 @@ export function initFlocsView() {
     const customerName = state.customer ? state.customer.name : "—";
     const po = state.po || "—";
     const deliveryLabel =
-      delivery === "pickup"
+      delivery === ""
+        ? "Not selected"
+        : delivery === "free_shipping"
+        ? "Free Shipping"
+        : delivery === "pickup"
         ? "Pickup at Flippen Lekka"
         : delivery === "delivery"
         ? "Delivery (own vehicle)"
@@ -742,24 +1148,28 @@ ${state.customer.email || ""}${
         }${
           state.customer.vatNumber ? "\nVAT: " + state.customer.vatNumber : ""
         }${
+          state.customer.paymentTerms ? "\nTerms: " + state.customer.paymentTerms : ""
+        }${
           billAddr ? "\n" + formatAddress(billAddr) : ""
         }`
       : "No customer selected";
 
-    const shipToLabel = delivery === "shipping" ? "Ship to" : "Shipping address";
+    const shipToLabel = delivery === "shipping" || delivery === "free_shipping" ? "Ship to" : "Shipping address";
     const shipToText =
       shipAddr
         ? formatAddress(shipAddr)
-        : delivery === "shipping"
+        : delivery === "shipping" || delivery === "free_shipping"
         ? "Ship selected but no address chosen"
         : "Not selected";
 
     const shippingLine =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? "Free Shipping: R0"
+        : delivery === "shipping" && state.shippingQuote
         ? `Shipping (${state.shippingQuote.service || "Courier"} @ ${money(
             state.shippingQuote.ratePerKg || 0
           )}/kg, quoteno ${state.shippingQuote.quoteno}): ${money(
-            state.shippingQuote.total
+            state.shippingQuote.subtotal ?? state.shippingQuote.total
           )}`
         : delivery === "shipping"
         ? "Shipping will be added once SWE quote is calculated"
@@ -772,7 +1182,7 @@ ${state.customer.email || ""}${
           <tr>
             <td>${li.title || li.sku}</td>
             <td>${li.sku}</td>
-            <td>${li.quantity}</td>
+            <td>${state.qtyMode === "cartons" ? Math.floor(li.quantity / Number(state.cartonUnits || 12)) : li.quantity}</td>
             <td>${li.price != null ? money(li.price) : "—"}</td>
             <td>${li.price != null ? money(li.price * li.quantity) : "—"}</td>
           </tr>
@@ -784,6 +1194,13 @@ ${state.customer.email || ""}${
     const pricingNote = state.priceTier
       ? `Pricing tier: ${state.priceTier}`
       : "Pricing tier: default";
+<<<<<<< HEAD
+=======
+    const unresolvedPricingCount = items.filter((li) => state.priceTier && li.variantId && li.price == null).length;
+    const overrideNote = overrideCount
+      ? ` · ${overrideCount} price override${overrideCount === 1 ? "" : "s"}`
+      : "";
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
 
     invoice.innerHTML = `
       <div class="flocs-invoiceHeader">
@@ -813,7 +1230,7 @@ ${state.customer.email || ""}${
           <tr>
             <th>Item</th>
             <th>SKU</th>
-            <th>Qty</th>
+            <th>${state.qtyMode === "cartons" ? "Cartons" : "Qty"}</th>
             <th>Unit price</th>
             <th>Line total</th>
           </tr>
@@ -839,7 +1256,11 @@ ${state.customer.email || ""}${
       </div>
 
       <div class="flocs-invoiceNote">
+<<<<<<< HEAD
         ${pricingNote}. Final pricing and tax are still controlled in Shopify.
+=======
+        ${pricingNote}${overrideNote}${unresolvedPricingCount ? ` • ${unresolvedPricingCount} line(s) missing tier pricing` : ""}. Final pricing and tax are still controlled in Shopify.
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
       </div>
     `;
   }
@@ -862,6 +1283,13 @@ ${state.customer.email || ""}${
       }
       if (!state.shippingQuote) {
         errs.push("Calculate shipping (SWE quote) before creating the order.");
+      }
+    }
+
+    if (REQUIRE_RESOLVED_PRICING && state.priceTier) {
+      const unresolved = items.filter((li) => li.variantId && li.price == null);
+      if (unresolved.length) {
+        errs.push(`Pricing unresolved for ${unresolved.length} line(s). Tier price is required.`);
       }
     }
 
@@ -983,7 +1411,9 @@ ${state.customer.email || ""}${
     if (currentDelivery() !== "shipping") {
       state.shippingQuote = null;
       shippingSummary.textContent =
-        "Delivery type is pickup/delivery – no courier shipping.";
+        currentDelivery() === "free_shipping"
+          ? "Free Shipping selected — shipping cost will be R0."
+          : "Delivery type is pickup/delivery – no courier shipping.";
       validate();
       renderInvoice();
       return;
@@ -1106,14 +1536,15 @@ ${state.customer.email || ""}${
       }
 
       const baseTotal =
-        Number(picked.total ?? picked.subtotal ?? picked.charge ?? 0) || 0;
-      const total = baseTotal;
+        Number(picked.subtotal ?? picked.total ?? picked.charge ?? 0) || 0;
+      const subtotal = baseTotal;
       const marginRate = 1;
       const marginAmount = 0;
-      const ratePerKg = grossWeightKg ? total / grossWeightKg : 0;
+      const ratePerKg = grossWeightKg ? subtotal / grossWeightKg : 0;
       state.shippingQuote = {
         service: picked.service,
-        total,
+        total: subtotal,
+        subtotal,
         baseTotal,
         marginRate,
         marginAmount,
@@ -1126,7 +1557,7 @@ ${state.customer.email || ""}${
       };
 
       shippingSummary.textContent =
-        `Quote: ${picked.service} – ${money(total)}` +
+        `Quote: ${picked.service} – ${money(subtotal)}` +
         ` · ${money(ratePerKg)}/kg · ${grossWeightKg.toFixed(2)}kg gross incl ${boxCount} boxes` +
         ` (quoteno ${quoteno})`;
 
@@ -1144,30 +1575,31 @@ ${state.customer.email || ""}${
   }
 
   // ===== Shopify calls =====
-  const searchCustomersDebounced = debounce(searchCustomersNow, 320);
+  const searchCustomersDebounced = debounce(searchCustomersNow, 300);
 
-  async function searchCustomersNow() {
-    const q = (customerSearch.value || "").trim();
-    if (!q) {
-      customerResults.hidden = true;
-      customerResults.innerHTML = "";
-      customerStatus.textContent = "Search by name, email, company, or phone";
-      return;
+  async function preloadCustomers() {
+    state.loadingCustomers = true;
+    if (customerStatus) customerStatus.textContent = "Loading customers…";
+    if (customerResults) {
+      customerResults.hidden = false;
+      customerResults.innerHTML = `<div class="flocs-customerEmpty">Loading customers…</div>`;
     }
 
-    customerStatus.textContent = "Searching…";
-    customerResults.hidden = false;
-    customerResults.innerHTML =
-      `<div class="flocs-customerEmpty">Searching…</div>`;
-
     try {
-      const url = `${CONFIG.SHOPIFY.PROXY_BASE}/customers/search?q=${encodeURIComponent(
-        q
-      )}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const list = Array.isArray(data.customers) ? data.customers : [];
+      const allCustomers = [];
+      let pageInfo = "";
+      do {
+        const params = new URLSearchParams({ limit: "250" });
+        if (pageInfo) params.set("pageInfo", pageInfo);
+        const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers/recent?${params.toString()}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.message || "Customer preload failed");
+        const list = Array.isArray(data.customers) ? data.customers : [];
+        allCustomers.push(...list);
+        pageInfo = data.nextPageInfo || "";
+      } while (pageInfo);
 
+<<<<<<< HEAD
       if (!list.length) {
         customerResults.innerHTML =
           `<div class="flocs-customerEmpty">No customers found.</div>`;
@@ -1194,16 +1626,86 @@ ${state.customer.email || ""}${
       customerResults._data = list;
       customerStatus.textContent =
         "Click a row to select customer.";
+=======
+      state.customers = allCustomers;
+      renderProvinceFilterOptions(state.customers);
+      await searchCustomersNow();
+      if (customerStatus) customerStatus.textContent = `Loaded ${state.customers.length} customers.`;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     } catch (e) {
-      console.error("Customer search error:", e);
-      customerResults.innerHTML =
-        `<div class="flocs-customerEmpty">Error searching: ${String(
-          e?.message || e
-        )}</div>`;
-      customerStatus.textContent = "Error searching customers.";
+      console.error("Customer preload error:", e);
+      if (customerResults) {
+        customerResults.innerHTML = `<div class="flocs-customerEmpty">Error loading customers: ${String(e?.message || e)}</div>`;
+      }
+      if (customerStatus) customerStatus.textContent = "Error loading customers.";
+    } finally {
+      state.loadingCustomers = false;
     }
   }
 
+  async function searchCustomersNow() {
+    const q = (customerSearch.value || "").trim().toLowerCase();
+    const source = Array.isArray(state.customers) ? state.customers : [];
+
+    if (state.loadingCustomers) {
+      if (customerStatus) customerStatus.textContent = "Loading customers…";
+      return;
+    }
+
+    let list = source;
+    if (q) {
+      list = source.filter((customer) => {
+        const haystack = [
+          customer?.name,
+          customer?.email,
+          customer?.companyName,
+          customer?.phone,
+          customerCityLabel(customer),
+          customerProvinceLabel(customer)
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(q);
+      });
+    }
+
+    if (!q && !source.length) {
+      customerResults.hidden = false;
+      customerResults.innerHTML = `<div class="flocs-customerEmpty">No customers loaded yet.</div>`;
+      customerResults._data = [];
+      customerResults._allData = [];
+      customerStatus.textContent = "No customers loaded.";
+      return;
+    }
+
+    renderProvinceFilterOptions(list.length ? list : source);
+    renderCustomerQuickPicker(list);
+  }
+
+
+  async function hydrateCustomerCustomFields(customer) {
+    if (!customer?.id || customer.customFieldsLoaded) return customer;
+    try {
+      const resp = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/customers/${encodeURIComponent(customer.id)}/metafields`);
+      const payload = await resp.json();
+      if (!resp.ok) return customer;
+      return {
+        ...customer,
+        ...(payload?.metafields || {}),
+        delivery_method: payload?.metafields?.delivery_method || customer.delivery_method || null,
+        deliveryInstructions:
+          payload?.metafields?.delivery_instructions || customer.deliveryInstructions || null,
+        companyName: payload?.metafields?.company_name || customer.companyName || null,
+        vatNumber: payload?.metafields?.vat_number || customer.vatNumber || null,
+        paymentTerms: payload?.metafields?.payment_terms || customer.paymentTerms || null,
+        tier: payload?.metafields?.tier || customer.tier || null,
+        customFieldsLoaded: true
+      };
+    } catch {
+      return customer;
+    }
+  }
 
   async function createCustomer() {
     if (!customerCreateBtn) return;
@@ -1212,8 +1714,15 @@ ${state.customer.email || ""}${
     const email = customerEmail?.value?.trim() || "";
     const phone = customerPhone?.value?.trim() || "";
     const company = customerCompany?.value?.trim() || "";
+<<<<<<< HEAD
     const tier = normalizeCustomerTier(customerTier?.value);
+=======
+    const accountEmail = customerAccountEmail?.value?.trim() || "";
+    const accountContact = customerAccountContact?.value?.trim() || "";
+    const tier = customerTier?.value || "";
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     const vatNumber = customerVat?.value?.trim() || "";
+    const paymentTerms = customerPaymentTerms?.value || "";
     const deliveryInstructions = customerDeliveryNotes?.value?.trim() || "";
     const deliveryMethod = customerDelivery?.value || "";
     const address1 = customerAddr1?.value?.trim() || "";
@@ -1252,9 +1761,16 @@ ${state.customer.email || ""}${
       email,
       phone,
       company,
+<<<<<<< HEAD
       tier,
       createTierMetafield: true,
+=======
+      accountEmail,
+      accountContact,
+      tier,
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
       vatNumber,
+      paymentTerms,
       deliveryInstructions,
       deliveryMethod,
       address: address1 || address2 || city || province || zip || country
@@ -1291,7 +1807,7 @@ ${state.customer.email || ""}${
         return;
       }
 
-      applySelectedCustomer(data.customer);
+      applySelectedCustomer({ ...data.customer, customFieldsLoaded: true });
       if (customerCreateStatus) {
         customerCreateStatus.textContent =
           `Created: ${data.customer.name} (${data.customer.tier || tier})`;
@@ -1315,9 +1831,13 @@ ${state.customer.email || ""}${
     if (customerLast) customerLast.value = "";
     if (customerEmail) customerEmail.value = "";
     if (customerPhone) customerPhone.value = "";
+    if (customerAccountEmail) customerAccountEmail.value = "";
+    if (customerAccountContact) customerAccountContact.value = "";
+    if (customerTier) customerTier.value = "";
     if (customerCompany) customerCompany.value = "";
     if (customerTier) customerTier.value = "";
     if (customerVat) customerVat.value = "";
+    if (customerPaymentTerms) customerPaymentTerms.value = "";
     if (customerDeliveryNotes) customerDeliveryNotes.value = "";
     if (customerDelivery) customerDelivery.value = "";
     if (customerAddr1) customerAddr1.value = "";
@@ -1349,8 +1869,17 @@ ${state.customer.email || ""}${
     if (hasDeliveryMethod) {
       state.delivery = normalizeDeliveryMethod(c.delivery_method);
     } else {
-      state.delivery = "shipping";
+      state.delivery = "";
     }
+
+    const tags = normalizeTags(c.tags).map((tag) => tag.toLowerCase());
+    state.qtyMode = tags.includes("export") ? "cartons" : "units";
+    if (qtyModeGroup) {
+      qtyModeGroup.querySelectorAll("input[name='qtyMode']").forEach((radio) => {
+        radio.checked = radio.value === state.qtyMode;
+      });
+    }
+    if (cartonSizeGroup) cartonSizeGroup.hidden = state.qtyMode !== "cartons";
     syncDeliveryGroup();
 
     const addrs = Array.isArray(c.addresses) ? c.addresses : [];
@@ -1361,7 +1890,8 @@ ${state.customer.email || ""}${
     if (customerResults) customerResults.hidden = true;
     if (customerStatus) customerStatus.textContent = `Selected: ${c.name}`;
     state.customerTags = normalizeTags(c.tags);
-    state.priceTier = resolvePriceTier(state.customerTags);
+    const metafieldTier = normalizeCustomerTier(c.tier);
+    state.priceTier = metafieldTier || resolvePriceTier(state.customerTags);
     renderCustomerChips();
     renderProductsTable();
     renderBillingAddressSelect();
@@ -1388,6 +1918,7 @@ ${state.customer.email || ""}${
     validate();
   }
 
+<<<<<<< HEAD
   function updateFiltersFromProducts() {
     if (!filterCategory) return;
     const categories = ["Spices", "Popcorn Sprinkle", "Other"];
@@ -1398,6 +1929,9 @@ ${state.customer.email || ""}${
       })
       .join("");
   }
+=======
+
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
 
 
   async function createDraftOrder() {
@@ -1422,15 +1956,21 @@ ${state.customer.email || ""}${
     const delivery = currentDelivery();
     const addr = currentShippingAddress();
     const shippingPrice =
-      delivery === "shipping" && state.shippingQuote
-        ? state.shippingQuote.total
+      delivery === "free_shipping"
+        ? 0
+        : delivery === "shipping" && state.shippingQuote
+        ? state.shippingQuote.subtotal ?? state.shippingQuote.total
         : null;
     const shippingBaseTotal =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? 0
+        : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.baseTotal
         : null;
     const shippingService =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? "Free Shipping"
+        : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.service
         : null;
     const shippingQuoteNo =
@@ -1465,6 +2005,7 @@ ${state.customer.email || ""}${
         title: li.title,
         variantId: li.variantId,
         quantity: li.quantity,
+        retailPrice: li.retailPrice,
         price: li.price
       }))
     };
@@ -1511,6 +2052,10 @@ ${state.customer.email || ""}${
       if (d.adminUrl) {
         console.log("Draft order admin URL:", d.adminUrl);
       }
+      const openUrl = d.adminUrl || d.invoiceUrl || null;
+      if (openUrl) {
+        window.open(openUrl, "_blank", "noopener");
+      }
 
       state.lastDraftOrderId = d.id || null;
 
@@ -1549,15 +2094,21 @@ ${state.customer.email || ""}${
     const delivery = currentDelivery();
     const addr = currentShippingAddress();
     const shippingPrice =
-      delivery === "shipping" && state.shippingQuote
-        ? state.shippingQuote.total
+      delivery === "free_shipping"
+        ? 0
+        : delivery === "shipping" && state.shippingQuote
+        ? state.shippingQuote.subtotal ?? state.shippingQuote.total
         : null;
     const shippingBaseTotal =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? 0
+        : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.baseTotal
         : null;
     const shippingService =
-      delivery === "shipping" && state.shippingQuote
+      delivery === "free_shipping"
+        ? "Free Shipping"
+        : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.service
         : null;
     const shippingQuoteNo =
@@ -1591,6 +2142,7 @@ ${state.customer.email || ""}${
         title: li.title,
         variantId: li.variantId,
         quantity: li.quantity,
+        retailPrice: li.retailPrice,
         price: li.price
       }))
     };
@@ -1656,8 +2208,16 @@ ${state.customer.email || ""}${
     }
     state.customerTags = [];
     state.priceTier = null;
+<<<<<<< HEAD
     state.filters = { category: "Spices" };
+=======
+    state.priceOverrides = {};
+    state.priceOverrideEnabled = {};
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     state.azLetters = [];
+    state.productType = "spices";
+    state.qtyMode = "units";
+    state.cartonUnits = 12;
 
     if (customerSearch) customerSearch.value = "";
     updateAzBarActive([]);
@@ -1673,6 +2233,22 @@ ${state.customer.email || ""}${
     }
     if (deliveryGroup) {
       syncDeliveryGroup();
+    }
+    if (productTypeFilter) {
+      productTypeFilter.querySelectorAll("button[data-type]").forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.type === state.productType);
+      });
+    }
+    if (qtyModeGroup) {
+      qtyModeGroup.querySelectorAll("input[name='qtyMode']").forEach((radio) => {
+        radio.checked = radio.value === state.qtyMode;
+      });
+    }
+    if (cartonSizeGroup) {
+      cartonSizeGroup.hidden = true;
+      cartonSizeGroup.querySelectorAll("input[name='cartonUnits']").forEach((radio) => {
+        radio.checked = Number(radio.value) === state.cartonUnits;
+      });
     }
     if (shippingSummary) {
       shippingSummary.textContent = "No shipping quote yet.";
@@ -1691,7 +2267,6 @@ ${state.customer.email || ""}${
     }
 
     renderCustomerChips();
-    updateFiltersFromProducts();
     renderProductsTable();
     renderBillingAddressSelect();
     renderShippingAddressSelect();
@@ -1746,6 +2321,23 @@ ${state.customer.email || ""}${
     }
   }
 
+  function maybeHandleDoubleSpaceQuickPicker(event) {
+    if (event.key !== " " || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return false;
+    const target = event.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return false;
+    const now = Date.now();
+    state.spaceTapTimes = state.spaceTapTimes.filter((time) => now - time < 450);
+    state.spaceTapTimes.push(now);
+    if (state.spaceTapTimes.length >= 2) {
+      state.spaceTapTimes = [];
+      event.preventDefault();
+      if (customerQuickSearch) customerQuickSearch.focus();
+      if (customerResults) customerResults.hidden = false;
+      return true;
+    }
+    return false;
+  }
+
   // ===== EVENT WIRING =====
   function initEvents() {
     if (customerSearch) {
@@ -1754,15 +2346,48 @@ ${state.customer.email || ""}${
       );
     }
 
+    document.addEventListener("keydown", (e) => {
+      if (maybeHandleDoubleSpaceQuickPicker(e)) return;
+      if (!shell || shell.closest("[hidden]")) return;
+      const active = document.activeElement;
+      if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
+      if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
+      if (!customerSearch) return;
+      customerSearch.hidden = true;
+      customerSearch.value = `${customerSearch.value || ""}${e.key}`;
+      searchCustomersDebounced();
+      customerResults.hidden = false;
+    });
+
+    if (customerQuickSearch) {
+      customerQuickSearch.addEventListener("input", () => {
+        renderCustomerQuickPicker(customerResults?._allData || []);
+      });
+    }
+
+    if (customerProvinceFilter) {
+      customerProvinceFilter.addEventListener("change", () => {
+        renderCustomerQuickPicker(customerResults?._allData || []);
+      });
+    }
+
+    if (customerSort) {
+      customerSort.addEventListener("change", () => {
+        renderCustomerQuickPicker(customerResults?._allData || []);
+      });
+    }
+
     if (customerResults) {
-      customerResults.addEventListener("click", (e) => {
+      customerResults.addEventListener("click", async (e) => {
         const row = e.target.closest(".flocs-customerItem");
         if (!row || !customerResults._data) return;
         const idx = Number(row.dataset.idx);
         const list = customerResults._data;
         const c = list[idx];
         if (!c) return;
-        applySelectedCustomer(c);
+        customerStatus.textContent = "Loading customer details…";
+        const hydrated = await hydrateCustomerCustomFields(c);
+        applySelectedCustomer(hydrated);
       });
     }
 
@@ -1814,7 +2439,9 @@ ${state.customer.email || ""}${
         if (state.delivery !== "shipping") {
           state.shippingQuote = null;
           shippingSummary.textContent =
-            "No courier shipping for pickup/delivery.";
+            state.delivery === "free_shipping"
+              ? "Free Shipping selected — shipping cost will be R0."
+              : "No courier shipping for pickup/delivery.";
         }
         renderCustomerChips();
         renderInvoice();
@@ -1863,6 +2490,7 @@ ${state.customer.email || ""}${
         if (!(t instanceof HTMLInputElement)) return;
         const key = t.dataset.key;
         if (!key) return;
+<<<<<<< HEAD
         const digitsOnly = String(t.value || "").replace(/\D/g, "");
         if (digitsOnly === "") {
           delete state.items[key];
@@ -1876,6 +2504,14 @@ ${state.customer.email || ""}${
             state.items[key] = Math.floor(qty);
             t.value = String(Math.floor(qty));
           }
+=======
+        const units = displayQtyToUnits(t.value || 0);
+        if (!units) {
+          delete state.items[key];
+        } else {
+          state.items[key] = units;
+          t.value = toDisplayQty(units);
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
         }
         renderInvoice();
         validate();
@@ -1885,6 +2521,7 @@ ${state.customer.email || ""}${
       productsBody.addEventListener("click", (e) => {
         const btn = e.target.closest("[data-action='clear-row']");
         if (!btn) return;
+<<<<<<< HEAD
         const row = btn.closest("tr");
         if (!row) return;
         row.querySelectorAll("input[data-key]").forEach((input) => {
@@ -1893,18 +2530,79 @@ ${state.customer.email || ""}${
           delete state.items[key];
           input.value = "";
         });
+=======
+        const action = btn.dataset.action;
+        const key = btn.dataset.key;
+        if (!key) return;
+        const current = Number(state.items[key] || 0);
+        const step = state.qtyMode === "cartons" ? Number(state.cartonUnits || 12) : 1;
+        if (action === "quick-add") {
+          const amount = Number(btn.dataset.amount || 0);
+          if (Number.isFinite(amount) && amount > 0) {
+            state.items[key] = current + displayQtyToUnits(amount);
+          }
+        } else if (action === "inc") {
+          state.items[key] = current + step;
+        } else if (action === "dec") {
+          const next = Math.max(0, current - step);
+          if (next === 0) delete state.items[key];
+          else state.items[key] = next;
+        } else {
+          return;
+        }
+        const input = productsBody.querySelector(`.flocs-qtyInput[data-key="${CSS.escape(key)}"]`);
+        if (input) input.value = toDisplayQty(state.items[key] || 0);
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
         renderInvoice();
         validate();
         scheduleAutoQuote();
       });
     }
 
+<<<<<<< HEAD
     if (filterCategory) {
       filterCategory.addEventListener("click", (e) => {
         const btn = e.target.closest("[data-filter='category']");
         if (!btn) return;
         state.filters.category = btn.dataset.value || "Spices";
         updateFiltersFromProducts();
+=======
+    if (qtyModeGroup) {
+      qtyModeGroup.addEventListener("change", (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLInputElement) || t.name !== "qtyMode") return;
+        state.qtyMode = t.value === "cartons" ? "cartons" : "units";
+        if (cartonSizeGroup) cartonSizeGroup.hidden = state.qtyMode !== "cartons";
+        renderProductsTable();
+      });
+    }
+
+    if (cartonSizeGroup) {
+      cartonSizeGroup.addEventListener("change", (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLInputElement) || t.name !== "cartonUnits") return;
+        const next = Number(t.value || 12);
+        state.cartonUnits = next === 24 ? 24 : 12;
+        renderProductsTable();
+      });
+    }
+
+    if (productTypeFilter) {
+      productTypeFilter.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-type]");
+        if (!btn) return;
+        state.productType = btn.dataset.type === "popcorn" ? "popcorn" : "spices";
+        productTypeFilter.querySelectorAll("button[data-type]").forEach((node) => {
+          node.classList.toggle("is-active", node === btn);
+        });
+        renderProductsTable();
+      });
+    }
+
+    if (bulkColumnsToggle) {
+      bulkColumnsToggle.addEventListener("change", () => {
+        state.showBulkColumns = Boolean(bulkColumnsToggle.checked);
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
         renderProductsTable();
       });
     }
@@ -1945,15 +2643,6 @@ ${state.customer.email || ""}${
       });
     }
 
-    if (customerSearchClear && customerSearch) {
-      customerSearchClear.addEventListener("click", () => {
-        customerSearch.value = "";
-        state.azLetters = [];
-        updateAzBarActive([]);
-        searchCustomersNow();
-      });
-    }
-
     if (calcShipBtn) {
       calcShipBtn.addEventListener("click", () => {
         requestShippingQuote();
@@ -1981,13 +2670,16 @@ ${state.customer.email || ""}${
 
   // ===== BOOT =====
   function boot() {
-    updateFiltersFromProducts();
     renderProductsTable();
     resetForm();
     hydratePriceTiersForProducts(state.products);
     previewPriceResolution(state.products);
     initEvents();
+<<<<<<< HEAD
     updateCreateCustomerButtonState();
+=======
+    preloadCustomers();
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
 
   if (document.readyState === "loading") {

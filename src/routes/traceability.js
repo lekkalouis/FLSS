@@ -1,4 +1,5 @@
 import { Router } from "express";
+<<<<<<< HEAD
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -544,6 +545,48 @@ router.get("/traceability/lookup", async (req, res) => {
     coas,
     inspections
   });
+=======
+
+import { badRequest } from "../utils/http.js";
+import { buildTraceabilityReport, buildTraceabilityTemplateBuffer } from "../services/traceability.js";
+
+const router = Router();
+
+router.get("/traceability/template.xlsx", (_req, res) => {
+  const workbookBuffer = buildTraceabilityTemplateBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", "attachment; filename=traceability_sample_data.xlsx");
+  return res.send(workbookBuffer);
+});
+
+router.post("/traceability/report", async (req, res) => {
+  const batchNumber = String(req.body?.batchNumber || "").trim();
+  const flavor = String(req.body?.flavor || "").trim();
+
+  if (!batchNumber) {
+    return badRequest(res, "batchNumber is required.");
+  }
+
+  try {
+    const report = await buildTraceabilityReport({
+      batchNumber,
+      flavor,
+      purchasesFileBase64: req.body?.purchasesFileBase64,
+      coaFileBase64: req.body?.coaFileBase64
+    });
+
+    if (report?.error) {
+      return badRequest(res, report.error);
+    }
+
+    return res.json({ ok: true, report });
+  } catch (error) {
+    return res.status(500).json({
+      error: "TRACEABILITY_REPORT_FAILED",
+      message: error?.message || "Could not build traceability report"
+    });
+  }
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
 });
 
 export default router;

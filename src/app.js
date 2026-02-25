@@ -8,6 +8,7 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 
 import { config, getFrontendOrigin } from "./config.js";
+<<<<<<< HEAD
 import alertsRouter from "./routes/alerts.js";
 import parcelPerfectRouter from "./routes/parcelperfect.js";
 import printnodeRouter from "./routes/printnode.js";
@@ -19,6 +20,9 @@ import traceabilityRouter from "./routes/traceability.js";
 import stockistAdminRouter from "./routes/stockists/admin.js";
 import stockistPublicRouter from "./routes/stockists/public.js";
 import wholesaleRouter from "./routes/wholesale.js";
+=======
+import { apiRouters } from "./routes/index.js";
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +38,7 @@ function isPrivateHostname(hostname) {
   return false;
 }
 
+<<<<<<< HEAD
 function requireAdminToken(req, res, next) {
   if (!config.ADMIN_TOKEN) return next();
   const authHeader = req.get("authorization") || "";
@@ -67,16 +72,21 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
 
   const frontendOrigin = getFrontendOrigin();
+=======
+function buildCorsConfig() {
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   const allowedOrigins = new Set(
-    String(frontendOrigin || "")
+    String(getFrontendOrigin() || "")
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean)
   );
   const allowAllOrigins = config.NODE_ENV !== "production" && allowedOrigins.has("*");
 
-  app.use(
-    cors({
+  return {
+    allowAllOrigins,
+    allowedOrigins,
+    middleware: cors({
       origin: (origin, cb) => {
         if (!origin || allowAllOrigins || allowedOrigins.has(origin)) return cb(null, true);
         if (config.NODE_ENV !== "production") {
@@ -94,7 +104,30 @@ export function createApp() {
       credentials: false,
       maxAge: 86400
     })
-  );
+  };
+}
+
+function mountApiRouters(app, basePath = "/api/v1") {
+  const apiRouter = express.Router();
+  apiRouters.forEach(({ router }) => apiRouter.use(router));
+  app.use(basePath, apiRouter);
+  app.use(basePath, (_req, res) => res.status(404).json({ error: "Not found" }));
+}
+
+export function createApp() {
+  const app = express();
+
+  app.disable("x-powered-by");
+  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  app.use(express.json({
+    limit: "1mb",
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    }
+  }));
+
+  const corsConfig = buildCorsConfig();
+  app.use(corsConfig.middleware);
   app.options("*", (_req, res) => res.sendStatus(204));
 
   app.use("/flocs", requireAdminToken);
@@ -105,6 +138,7 @@ export function createApp() {
 
   app.use(statusRouter);
 
+<<<<<<< HEAD
   apiRouter.use(statusRouter);
   apiRouter.use(configRouter);
   apiRouter.use(parcelPerfectRouter);
@@ -126,4 +160,17 @@ export function createApp() {
   app.get("*", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
 
   return { app, allowAllOrigins, allowedOrigins };
+=======
+  mountApiRouters(app);
+
+  const publicDir = path.join(__dirname, "..", "public");
+  app.use(express.static(publicDir));
+  app.get("*", (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
+
+  return {
+    app,
+    allowAllOrigins: corsConfig.allowAllOrigins,
+    allowedOrigins: corsConfig.allowedOrigins
+  };
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
 }

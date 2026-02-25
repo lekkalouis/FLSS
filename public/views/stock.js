@@ -1,17 +1,23 @@
 import { PRODUCT_LIST } from "./products.js";
+import { PO_CATALOG, PO_CATALOG_ITEMS } from "./purchase-order-catalog.js";
+import { resolveFlavourColor } from "./flavour-map.js";
 
 let stockInitialized = false;
 
 export function initStockView() {
   if (stockInitialized) return;
   stockInitialized = true;
-  "use strict";
 
+<<<<<<< HEAD
   const LOG_STORAGE_KEY = "fl_stock_log";
   const MRP_STORAGE_KEY = "67495329839";
   const LOCATION_STORAGE_KEY = "80981557295";
+=======
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   const API_BASE = "/api/v1/shopify";
+  const LOG_STORAGE_KEY = "fl_stock_log_v2";
 
+<<<<<<< HEAD
   const rootView = document.getElementById("viewStock");
   const searchInput = document.getElementById("stock-search");
   const modeButtons = document.querySelectorAll(".stock-modeBtn");
@@ -43,15 +49,13 @@ export function initStockView() {
   const poCreateBatch = document.getElementById("po-createBatch");
   const poClearLines = document.getElementById("po-clearLines");
   const poBatchList = document.getElementById("po-batchList");
+=======
+  const poCatalog = PO_CATALOG_ITEMS;
+  const poCatalogGroups = PO_CATALOG;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
 
-  const RAW_MATERIALS = [
-    { sku: "RM-BASE-ORIG", title: "Original base blend (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
-    { sku: "RM-BASE-HOT", title: "Hot & spicy base blend (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
-    { sku: "RM-PACK-200", title: "200ml shaker packs (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
-    { sku: "RM-PACK-500", title: "500g pouches (Draft)", variantId: null, isRawMaterial: true, isDraft: true },
-    { sku: "RM-LABEL", title: "Product labels (Draft)", variantId: null, isRawMaterial: true, isDraft: true }
-  ];
 
+<<<<<<< HEAD
   const finishedGoods = PRODUCT_LIST.filter((item) => !item.isRawMaterial);
   const rawMaterials = RAW_MATERIALS;
   let items = [...finishedGoods];
@@ -66,12 +70,51 @@ export function initStockView() {
   let mrpDraftLines = [];
   let poDraftLines = [];
   const CRATE_UNITS = 102;
+=======
+  const els = {
+    root: document.getElementById("viewStock"),
+    search: document.getElementById("stock-search"),
+    location: document.getElementById("stock-location"),
+    modeBtns: document.querySelectorAll(".stock-modeBtn[data-mode]"),
+    areaTabs: document.querySelectorAll(".stock-tabBtn[data-tab]"),
+    stockArea: document.getElementById("stock-stockArea"),
+    purchaseArea: document.getElementById("stock-purchaseArea"),
+    table: document.getElementById("stock-table"),
+    tbody: document.getElementById("stock-tableBody"),
+    log: document.getElementById("stock-log"),
+    poGrid: document.getElementById("po-grid"),
+    poSupplier: document.getElementById("po-supplier"),
+    poNote: document.getElementById("po-note"),
+    poSubmit: document.getElementById("po-submit"),
+    poToast: document.getElementById("po-toast"),
+    poOpenTable: document.getElementById("po-openTable"),
+    poTabBtns: document.querySelectorAll(".stock-tabBtn[data-po-tab]"),
+    poCreatePanel: document.getElementById("po-createPanel"),
+    poReceivePanel: document.getElementById("po-receivePanel")
+  };
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
 
-  function getStock(sku) {
-    const val = Number(stockLevels[sku] || 0);
-    return Number.isFinite(val) ? val : 0;
+  const finishedGoods = PRODUCT_LIST.filter((p) => !p.isRawMaterial);
+
+  const flavourColor = (flavour) => resolveFlavourColor(flavour);
+
+  const state = {
+    tab: "stock",
+    mode: "read",
+    poTab: "create",
+    stock: new Map(finishedGoods.map((i) => [i.sku, 0])),
+    log: [],
+    poQty: new Map(),
+    locationId: null,
+    missingBySku: new Map()
+  };
+
+  function num(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
   }
 
+<<<<<<< HEAD
   function setStock(sku, value) {
     stockLevels[sku] = Math.floor(value);
   }
@@ -179,68 +222,36 @@ export function initStockView() {
       newCount
     });
     saveLogEntries();
+=======
+  function setToast(msg) {
+    if (!els.poToast) return;
+    els.poToast.hidden = false;
+    els.poToast.textContent = msg;
+    setTimeout(() => {
+      if (els.poToast) els.poToast.hidden = true;
+    }, 2800);
+  }
+
+  function addLog(entry) {
+    state.log.unshift({ ts: new Date().toLocaleString(), ...entry });
+    state.log = state.log.slice(0, 200);
+    localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(state.log));
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     renderLog();
   }
 
-  function loadMrpState() {
-    try {
-      const raw = localStorage.getItem(MRP_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.batches)) {
-          mrpState = {
-            batches: parsed.batches,
-            purchaseOrders: Array.isArray(parsed.purchaseOrders) ? parsed.purchaseOrders : []
-          };
-          return;
-        }
-      }
-    } catch {}
-    mrpState = { batches: [], purchaseOrders: [] };
-  }
-
-  function saveMrpState() {
-    try {
-      localStorage.setItem(MRP_STORAGE_KEY, JSON.stringify(mrpState));
-    } catch {}
-  }
-
-  function getProductBySku(sku) {
-    return items.find((entry) => entry.sku === sku);
-  }
-
-  function renderMrpSkuOptions() {
-    if (!mrpSkuSelect) return;
-    mrpSkuSelect.innerHTML = finishedGoods
-      .map((item) => `<option value="${item.sku}">${item.sku} — ${item.title}</option>`)
-      .join("");
-  }
-
-  function renderDraftLines() {
-    if (!mrpLinesTable) return;
-    if (!mrpDraftLines.length) {
-      mrpLinesTable.innerHTML = `
-        <tr>
-          <td colspan="4" class="stock-muted">Add line items to build the batch.</td>
-        </tr>
-      `;
+  function renderLog() {
+    if (!els.log) return;
+    if (!state.log.length) {
+      els.log.innerHTML = `<div class="stock-logEntry">No updates yet.</div>`;
       return;
     }
-    mrpLinesTable.innerHTML = mrpDraftLines
-      .map((line) => {
-        const product = getProductBySku(line.sku);
-        return `
-          <tr data-sku="${line.sku}">
-            <td><strong>${line.sku}</strong></td>
-            <td>${product?.title || "Unknown"}</td>
-            <td>${formatNumber(line.qty)}</td>
-            <td><button class="stock-actionBtn stock-actionBtn--inline" type="button" data-mrp-remove="${line.sku}">Remove</button></td>
-          </tr>
-        `;
-      })
+    els.log.innerHTML = state.log
+      .map((l) => `<div class="stock-logEntry"><span>${l.ts}</span> <strong>${l.sku}</strong> ${l.msg}</div>`)
       .join("");
   }
 
+<<<<<<< HEAD
   function renderPoSkuOptions() {
     if (!poSkuSelect) return;
     poSkuSelect.innerHTML = rawMaterials
@@ -571,10 +582,49 @@ export function initStockView() {
       renderLocationButtons();
     } catch (err) {
       console.error("Failed to load locations", err);
+=======
+  async function loadLocations() {
+    if (!els.location) return;
+    const resp = await fetch(`${API_BASE}/locations`);
+    const payload = await resp.json().catch(() => ({}));
+    if (!resp.ok) return;
+    const locations = Array.isArray(payload.locations) ? payload.locations : [];
+    els.location.innerHTML = locations.map((l) => `<option value="${l.id}">${l.name || l.id}</option>`).join("");
+    if (locations[0]) {
+      state.locationId = Number(locations[0].id);
+      els.location.value = String(state.locationId);
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     }
   }
 
+  async function loadStock() {
+    const variantIds = finishedGoods.map((i) => i.variantId).filter(Boolean);
+    if (!variantIds.length) return;
+    const resp = await fetch(`${API_BASE}/inventory-levels?variantIds=${variantIds.join(",")}${state.locationId ? `&locationId=${state.locationId}` : ""}`);
+    const payload = await resp.json().catch(() => ({}));
+    if (!resp.ok) return;
+    const levels = Array.isArray(payload.levels) ? payload.levels : [];
+    const byVar = new Map(levels.map((l) => [Number(l.variantId), Number(l.available || 0)]));
+    finishedGoods.forEach((item) => state.stock.set(item.sku, Math.floor(num(byVar.get(Number(item.variantId))))));
+  }
+
+  async function loadMissingForOpenOrders() {
+    const resp = await fetch(`${API_BASE}/orders/open`);
+    const payload = await resp.json().catch(() => ({}));
+    state.missingBySku = new Map();
+    if (!resp.ok) return;
+    const orders = Array.isArray(payload.orders) ? payload.orders : [];
+    orders.forEach((o) => {
+      (o.line_items || []).forEach((li) => {
+        const key = String(li.sku || "").trim();
+        if (!key) return;
+        state.missingBySku.set(key, (state.missingBySku.get(key) || 0) + Math.max(0, num(li.quantity_remaining ?? li.quantity)));
+      });
+    });
+  }
+
   function filteredItems() {
+<<<<<<< HEAD
     const sourceItems = currentMode === "buy" ? rawMaterials : finishedGoods;
     items = sourceItems;
     const q = (searchInput?.value || "").trim().toLowerCase();
@@ -584,16 +634,39 @@ export function initStockView() {
         item.sku.toLowerCase().includes(q) ||
         item.title.toLowerCase().includes(q)
     );
+=======
+    const q = String(els.search?.value || "").trim().toLowerCase();
+    return finishedGoods.filter((i) => !q || `${i.sku} ${i.title} ${i.flavour || ""}`.toLowerCase().includes(q));
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
 
-  function sumRowCounts(row) {
-    const inputs = row.querySelectorAll("input[data-count]");
-    return Array.from(inputs).reduce((sum, input) => {
-      const val = Number(input.value);
-      return Number.isFinite(val) ? sum + val : sum;
-    }, 0);
+  const countGroups = [
+    { title: "200ml", skus: ["FL002", "FL008", "FL014", "FL026", "FL035", "FL038", "FL041"] },
+    { title: "500g Bags", skus: ["FL003", "FL009", "FL015", "FL027", "FL032", "FL036", "FL039", "FL042"] },
+    { title: "1kg", skus: ["FL004", "FL010", "FL016", "FL028", "FL033", "FL037", "FL043"] },
+    { title: "Curry Mix", skus: ["FL031", "FL032", "FL033"] },
+    { title: "Popcorn Sprinkle", skus: ["FL050", "FL053", "FL056", "FL059", "FL062", "FL065"] },
+    { title: "Tubs", skus: ["FL005-1", "FL017-1"] },
+    { title: "Other", skus: ["FLBS001", "GBOX"] }
+  ];
+
+  function groupedItems(items) {
+    const bySku = new Map(items.map((item) => [item.sku, item]));
+    const assigned = new Set();
+    const groups = countGroups
+      .map((group) => {
+        const groupItems = group.skus.map((sku) => bySku.get(sku)).filter(Boolean);
+        groupItems.forEach((item) => assigned.add(item.sku));
+        return { title: group.title, items: groupItems };
+      })
+      .filter((group) => group.items.length > 0);
+
+    const ungrouped = items.filter((item) => !assigned.has(item.sku));
+    if (ungrouped.length) groups.push({ title: "More Products", items: ungrouped });
+    return groups;
   }
 
+<<<<<<< HEAD
   function updateRowTotal(row) {
     const crateClicks = Number(row.dataset.crateClicks || 0);
     const total = sumRowCounts(row) + crateClicks * CRATE_UNITS;
@@ -621,6 +694,34 @@ export function initStockView() {
     const crateCount = row.querySelector("[data-unit-count='crate']");
     if (crateCount) crateCount.textContent = "0";
     updateRowTotal(row);
+=======
+  function renderMissingSummary() {
+    // Missing summary chips removed by design; shortages remain visible in table column.
+  }
+
+  function rowMarkup(item) {
+    const current = num(state.stock.get(item.sku));
+    const demand = num(state.missingBySku.get(item.sku));
+    const missing = Math.max(0, demand - current);
+    const crateUnits = Math.max(0, Math.floor(num(item.crateUnits)));
+    const crateControl = crateUnits
+      ? `<button class="stock-iconBtn" type="button" data-action="crate">🧺 +${crateUnits}</button> <span data-crate-count>0</span>`
+      : `<span class="stock-muted">—</span>`;
+    return `
+      <tr data-sku="${item.sku}" data-crates="0" data-crate-units="${crateUnits}">
+        <td><strong>${item.sku}</strong></td>
+        <td>${item.title}</td>
+        <td><span class="stock-flavourBadge" style="--flavour-color:${flavourColor(item.flavour)}">${item.flavour || "-"}</span></td>
+        <td class="${current < 0 ? "stock-neg" : ""}" data-current>${current}</td>
+        <td class="stock-countCol"><input class="stock-qtyInput" type="number" min="0" step="1" data-manual /></td>
+        <td class="stock-countCol">${crateControl}</td>
+        <td class="stock-countCol" data-new-total>${current}</td>
+        <td class="stock-countCol" data-diff>0</td>
+        <td class="stock-countCol"><button class="stock-actionBtn" type="button" data-action="set">Set</button></td>
+        <td class="stock-makeCol">${missing}</td>
+      </tr>
+    `;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
 
   function getHealthMeta(current) {
@@ -634,6 +735,7 @@ export function initStockView() {
   }
 
   function renderTable() {
+<<<<<<< HEAD
     if (!tableBody) return;
     const list = filteredItems();
     tableBody.innerHTML = list
@@ -681,11 +783,45 @@ export function initStockView() {
             </td>
           </tr>
         `;
+=======
+    if (!els.tbody) return;
+    const groups = groupedItems(filteredItems());
+    els.tbody.innerHTML = groups
+      .map((group) => {
+        const header = `<tr class="stock-groupRow"><td colspan="10">${group.title}</td></tr>`;
+        return `${header}${group.items.map(rowMarkup).join("")}`;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
       })
       .join("");
+    updateModeUI();
+  }
+
+  function updateRowTotals(row) {
+    const current = num(row.querySelector("[data-current]")?.textContent);
+    const manual = Math.max(0, Math.floor(num(row.querySelector("[data-manual]")?.value)));
+    const crates = Math.max(0, Math.floor(num(row.dataset.crates)));
+    const crateUnits = Math.max(0, Math.floor(num(row.dataset.crateUnits)));
+    const next = manual + crates * crateUnits;
+    const diff = next - current;
+    row.querySelector("[data-new-total]").textContent = String(next);
+    row.querySelector("[data-diff]").textContent = String(diff);
+  }
+
+  async function setInventory(item, nextValue, modeForLog) {
+    const resp = await fetch(`${API_BASE}/inventory-levels/set`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ variantId: item.variantId, mode: "count", value: nextValue, locationId: state.locationId })
+    });
+    const payload = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(payload?.message || "Stock update failed");
+    const available = Math.floor(num(payload?.level?.available));
+    state.stock.set(item.sku, available);
+    addLog({ sku: item.sku, msg: `${modeForLog}: ${nextValue} (Δ ${nextValue - num(payload?.previous?.available || 0)})` });
   }
 
   function updateModeUI() {
+<<<<<<< HEAD
     const isReadOnly = currentMode === "make" || currentMode === "buy";
     const isReceive = currentMode === "receive";
     const isCountMode = currentMode === "count" || currentMode === "stock";
@@ -1122,27 +1258,196 @@ export function initStockView() {
         });
       }
     });
+=======
+    els.table.dataset.mode = state.mode;
+    const isRead = state.mode === "read";
+    const isMake = state.mode === "make";
+    els.root.dataset.mode = state.mode;
+    els.root.dataset.tab = state.tab;
+    els.tbody?.querySelectorAll("[data-manual], .stock-iconBtn, .stock-actionBtn").forEach((el) => {
+      el.disabled = isRead || isMake;
+    });
+    renderMissingSummary();
   }
 
-  loadLogEntries();
-  renderLog();
-  loadMrpState();
-  renderMrpSkuOptions();
-  renderPoSkuOptions();
-  renderDraftLines();
-  renderPoDraftLines();
-  renderMrpBatches();
-  renderPoBatches();
-  renderMrpSummary();
-  renderTable();
-  updateModeUI();
-  loadLocations().then(() => {
-    loadStockLevels().then(() => {
-      renderTable();
-      updateModeUI();
-      renderMrpSummary();
-      renderMrpBatches();
+  function poMeta(item) {
+    const parts = [item.sku || "No SKU", item.uom || "unit"];
+    if (item.rollSize) parts.push(`${item.rollSize} / roll`);
+    if (item.flavour) parts.push(item.flavour);
+    return parts.join(" • ");
+  }
+
+  function poIconChip(item) {
+    const accent = flavourColor(item.flavour);
+    const isLabelRoll = item.uom === "roll" && String(item.sku || "").startsWith("LBL-");
+    const variantClass = isLabelRoll ? " stock-poIcon--labelRoll" : "";
+    const icon = item.icon || "📦";
+    return `<span class="stock-poIcon${variantClass}" style="--flavour-color:${accent}" aria-hidden="true">${icon}</span>`;
+  }
+
+  function renderPOGrid() {
+    if (!els.poGrid) return;
+    els.poGrid.innerHTML = poCatalogGroups
+      .map((group) => `
+        <section class="stock-poGroup">
+          <h4>${group.title}</h4>
+          ${(group.items || []).map((p) => {
+            const qty = Math.max(0, Math.floor(num(state.poQty.get(p.sku))));
+            return `<article class="stock-poItem"><div>${poIconChip(p)}</div><div><div class="name">${p.title}</div><div class="meta">${poMeta(p)}</div></div><input type="number" min="0" step="1" data-po-sku="${p.sku}" class="stock-qtyInput" value="${qty}" /></article>`;
+          }).join("")}
+        </section>
+      `)
+      .join("");
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+  }
+
+  async function createPO() {
+    const lines = poCatalog
+      .map((p) => ({ sku: p.sku, title: p.title, quantity: Math.max(0, Math.floor(num(state.poQty.get(p.sku)))) }))
+      .filter((l) => l.quantity > 0);
+    if (!lines.length) return;
+    const resp = await fetch(`${API_BASE}/purchase-orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ supplierName: String(els.poSupplier?.value || ""), note: String(els.poNote?.value || ""), lines })
     });
+    const payload = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(payload?.message || "Could not create PO");
+    setToast("Purchase order draft created successfully.");
+    state.poQty.clear();
+    renderPOGrid();
+    await loadOpenPOs();
+  }
+
+  async function loadOpenPOs() {
+    if (!els.poOpenTable) return;
+    const resp = await fetch(`${API_BASE}/purchase-orders/open`);
+    const payload = await resp.json().catch(() => ({}));
+    const list = resp.ok ? (payload.purchaseOrders || []) : [];
+    els.poOpenTable.innerHTML = list
+      .map((po) => {
+        const lineCount = (po.line_items || []).reduce((s, l) => s + num(l.quantity), 0);
+        return `<tr data-po-id="${po.id}"><td>${po.name || po.id}</td><td>${new Date(po.created_at || Date.now()).toLocaleString()}</td><td>${lineCount}</td><td><button class="stock-actionBtn" data-po-action="receive">Receive</button> <button class="stock-actionBtn" data-po-action="print" ${po.adminUrl ? "" : "disabled"}>Print docs</button></td></tr>`;
+      })
+      .join("") || `<tr><td colspan="4" class="stock-muted">No open PO drafts found.</td></tr>`;
+  }
+
+  function switchTab(tab) {
+    state.tab = tab;
+    els.stockArea.hidden = tab !== "stock";
+    els.purchaseArea.hidden = tab !== "purchase";
+    els.areaTabs.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === tab));
+  }
+
+  function switchPoTab(tab) {
+    state.poTab = tab;
+    els.poCreatePanel.hidden = tab !== "create";
+    els.poReceivePanel.hidden = tab !== "receive";
+    els.poTabBtns.forEach((b) => b.classList.toggle("is-active", b.dataset.poTab === tab));
+  }
+
+  try {
+    const raw = localStorage.getItem(LOG_STORAGE_KEY);
+    state.log = raw ? JSON.parse(raw) : [];
+  } catch {
+    state.log = [];
+  }
+
+  els.search?.addEventListener("input", renderTable);
+  els.location?.addEventListener("change", async () => {
+    state.locationId = Number(els.location.value);
+    await loadStock();
+    renderTable();
   });
-  initEvents();
+
+  els.modeBtns.forEach((b) => b.addEventListener("click", () => {
+    state.mode = b.dataset.mode;
+    els.modeBtns.forEach((x) => x.classList.toggle("is-active", x === b));
+    updateModeUI();
+  }));
+
+  els.areaTabs.forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+  els.poTabBtns.forEach((b) => b.addEventListener("click", async () => {
+    switchPoTab(b.dataset.poTab);
+    if (b.dataset.poTab === "receive") await loadOpenPOs();
+  }));
+
+  els.tbody?.addEventListener("input", (e) => {
+    const row = e.target.closest("tr");
+    if (!row) return;
+    if (e.target.matches("[data-manual]")) updateRowTotals(row);
+  });
+
+  els.tbody?.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    const row = btn.closest("tr");
+    if (!row) return;
+    if (btn.dataset.action === "crate") {
+      row.dataset.crates = String(num(row.dataset.crates) + 1);
+      const countEl = row.querySelector("[data-crate-count]");
+      if (countEl) countEl.textContent = String(row.dataset.crates);
+      updateRowTotals(row);
+      return;
+    }
+    if (btn.dataset.action === "set") {
+      const sku = row.dataset.sku;
+      const item = finishedGoods.find((i) => i.sku === sku);
+      if (!item?.variantId) return;
+      const nextVal = Math.floor(num(row.querySelector("[data-new-total]")?.textContent));
+      const current = num(state.stock.get(sku));
+      const diff = nextVal - current;
+      try {
+        await setInventory(item, nextVal, "count");
+        state.stock.set(sku, nextVal);
+        addLog({ sku, msg: `count set to ${nextVal} (diff ${diff >= 0 ? "+" : ""}${diff})` });
+        renderTable();
+      } catch (err) {
+        addLog({ sku, msg: `update failed: ${String(err.message || err)}` });
+      }
+    }
+  });
+
+  els.poGrid?.addEventListener("input", (e) => {
+    const input = e.target.closest("input[data-po-sku]");
+    if (!input) return;
+    state.poQty.set(input.dataset.poSku, Math.max(0, Math.floor(num(input.value))));
+  });
+
+  els.poSubmit?.addEventListener("click", async () => {
+    try {
+      await createPO();
+    } catch (err) {
+      setToast(String(err?.message || err));
+    }
+  });
+
+  els.poOpenTable?.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-po-action]");
+    if (!btn) return;
+    const row = btn.closest("tr[data-po-id]");
+    if (!row) return;
+    if (btn.dataset.poAction === "print") {
+      window.open(`https://${location.host}/purchase-orders`, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (btn.dataset.poAction === "receive") {
+      setToast("PO receive logged. Print templates can be triggered from Shopify OrderPrinterPro.");
+      addLog({ sku: row.dataset.poId, msg: "PO marked as received (manual template print required)." });
+      row.remove();
+    }
+  });
+
+  Promise.resolve()
+    .then(loadLocations)
+    .then(loadStock)
+    .then(loadMissingForOpenOrders)
+    .then(() => {
+      renderPOGrid();
+      renderTable();
+      renderLog();
+      switchTab("stock");
+      switchPoTab("create");
+      updateModeUI();
+    });
 }

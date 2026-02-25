@@ -1,0 +1,224 @@
+{
+  "generatedAt": "2026-02-24T06:31:54.980Z",
+  "sourceDirectory": "context_content",
+  "warnings": [],
+  "fallbackMessage": "",
+  "groups": [
+    {
+      "title": "VIP plastics & packaging",
+      "sourceFile": "VIP.pdf",
+      "defaultIcon": "📦",
+      "items": [
+        {
+          "name": "100ml PET Bottle",
+          "sku": "FLB100",
+          "unitOfMeasure": "box",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Flip Lid Cap / Orange",
+          "sku": "FL-CAP-O",
+          "unitOfMeasure": "box",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Flip Lid Cap / Red",
+          "sku": "FL-CAP-R",
+          "unitOfMeasure": "box",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Flip Lid Cap / Purple",
+          "sku": "FL-CAP-P",
+          "unitOfMeasure": "box",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Flip Lid Cap / Light Blue",
+          "sku": "FL-CAP-LB",
+          "unitOfMeasure": "box",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Flip Lid Cap / Brown",
+          "sku": "FL-CAP-BRN",
+          "unitOfMeasure": "box",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "200ml PET Bottle",
+          "sku": "FLB200",
+          "unitOfMeasure": "box",
+          "flavourMappingHints": []
+        }
+      ]
+    },
+    {
+      "title": "FL raw herbs, spices & blends",
+      "sourceFile": "Raw Herbs & Spices & Blends.pdf",
+      "defaultIcon": "🌿",
+      "items": [
+        {
+          "name": "Pinto Spice",
+          "sku": "FL-MP-PINTO",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "original"
+          ]
+        },
+        {
+          "name": "Herbs / Mixed Herbs",
+          "sku": "MX-HERBS",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Herbs / Bay Leaves",
+          "sku": "LEAVES-BAY",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Herbs / Cinnamon Sticks",
+          "sku": "STICK-CINNA",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Maize",
+          "sku": "MAIZE",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Flippen Lekka Spice Blend / Original Multi Purpose",
+          "sku": "BLEND-MP",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "original"
+          ]
+        },
+        {
+          "name": "Flippen Lekka Spice Blend / Hot & Spicy",
+          "sku": "BLEND-HS",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "hot_spicy"
+          ]
+        },
+        {
+          "name": "Flippen Lekka Spice Blend / Curry Mix",
+          "sku": "BLEND-CM",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "curry"
+          ]
+        },
+        {
+          "name": "Hennies Bietjie Blaf Spice Blend",
+          "sku": "HEN-BB-BLEND",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Popcorn Sprinkle / Cheese & Onion",
+          "sku": "PS-CHO",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "cheese_onion"
+          ]
+        },
+        {
+          "name": "Popcorn Sprinkle / Butter",
+          "sku": "PS-BUT",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "butter"
+          ]
+        },
+        {
+          "name": "Popcorn Sprinkle / Parmesan",
+          "sku": "PS-PAR",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "parmesan"
+          ]
+        },
+        {
+          "name": "FL Spice / Curry",
+          "sku": "FL-CM-GR",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "curry"
+          ]
+        },
+        {
+          "name": "Popcorn Sprinkle / Sour Cream and Chives",
+          "sku": "PS-SCC",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "sour_cream_chives"
+          ]
+        },
+        {
+          "name": "Popcorn Sprinkle / Chutney",
+          "sku": "PS-CHUT",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "chutney"
+          ]
+        },
+        {
+          "name": "FL Spice / Original",
+          "sku": "FL-MP-GR",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "original"
+          ]
+        },
+        {
+          "name": "FL Spice / Worcester Sauce",
+          "sku": "FL-WS-GR",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "worcester"
+          ]
+        },
+        {
+          "name": "Popcorn Sprinkle / Cheese",
+          "sku": "PS-CHE",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "Popcorn Sprinkle / Salt & Vinegar",
+          "sku": "PS-SV",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": []
+        },
+        {
+          "name": "FL Spice / Chutney",
+          "sku": "FL-CS-GR",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "chutney"
+          ]
+        },
+        {
+          "name": "FL Spice / Red Wine & Garlic",
+          "sku": "FL-RG-GR",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": [
+            "garlic"
+          ]
+        },
+        {
+          "name": "Flippen Lekka Spice Blend / Savoury Herb Mix",
+          "sku": "BLEND-SH",
+          "unitOfMeasure": "kg",
+          "flavourMappingHints": []
+        }
+      ]
+    }
+  ]
+}

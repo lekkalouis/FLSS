@@ -302,11 +302,16 @@
 
     #viewFlocs .flocs-customerResults{
       margin-top:.4rem;
-      max-height:190px;
+      max-height:340px;
       overflow:auto;
       border-radius:.6rem;
       border:1px solid var(--panel-strong);
       background:var(--panel);
+      display:flex;
+      flex-wrap:wrap;
+      gap:.35rem;
+      padding:.35rem;
+      align-content:flex-start;
     }
     #viewFlocs .flocs-searchRow{
       display:flex;
@@ -376,21 +381,49 @@
       white-space:normal;
     }
     #viewFlocs .flocs-customerItem{
-      padding:.4rem .55rem;
-      font-size:.8rem;
+      border:1px solid var(--panel-strong);
+      background:var(--panel);
+      color:var(--muted);
+      font-size:.62rem;
+      border-radius:.6rem;
+      padding:.25rem .35rem;
       cursor:pointer;
-      border-bottom:1px solid rgba(148,163,184,.2);
+      transition:all .2s ease;
+      width:5.2rem;
+      min-height:2.2rem;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      text-align:left;
     }
     #viewFlocs .flocs-customerItem:hover{
-      background:rgba(0,128,96,.08);
+      border-color:rgba(0,128,96,.4);
+      color:#0f5132;
+      background:var(--accent-soft);
+    }
+    #viewFlocs .flocs-customerItem.is-active{
+      border-color:rgba(34,197,94,.8);
+      color:#052e16;
+      background:rgba(74,222,128,.28);
+      box-shadow:0 0 0 1px rgba(34,197,94,.35) inset;
     }
     #viewFlocs .flocs-customerItem strong{
       display:block;
-      margin-bottom:.15rem;
+      margin-bottom:.1rem;
+      font-size:.62rem;
+      line-height:1.15;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
     #viewFlocs .flocs-customerItem-meta{
-      color:var(--muted);
-      font-size:.7rem;
+      color:inherit;
+      opacity:.9;
+      font-size:.55rem;
+      line-height:1.1;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
     #viewFlocs .flocs-customerEmpty{
       padding:.5rem .6rem;
@@ -529,25 +562,23 @@
       --flavour-color:#22d3ee;
       display:inline-flex;
       align-items:center;
-      gap:.35rem;
-      padding:.1rem .5rem;
-      border-radius:.5rem;
+      gap:.3rem;
+      padding:.06rem .38rem;
+      border-radius:999px;
       border:1px solid var(--flavour-color);
-      background:var(--panel-soft);
-      color:var(--text);
-      font-size:.65rem;
-      font-weight:600;
-      text-transform:none;
+      font-size:.6rem;
       letter-spacing:.02em;
+      text-transform:uppercase;
+      color:var(--text);
+      background:rgba(255,255,255,.9);
       white-space:nowrap;
     }
     #viewFlocs .flocs-flavourTag::before{
       content:"";
-      width:.45rem;
-      height:.45rem;
+      width:.4rem;
+      height:.4rem;
       border-radius:999px;
       background:var(--flavour-color);
-      box-shadow:none;
     }
     #viewFlocs .flocs-filterRow{
       display:flex;
@@ -707,10 +738,10 @@
       border:1px solid var(--panel-strong);
       background:var(--panel-soft);
       color:var(--text);
-      font-size:.65rem;
-      padding:.15rem .35rem;
+      font-size:.62rem;
+      padding:.1rem .28rem;
       cursor:pointer;
-      min-width:1.6rem;
+      min-width:1.4rem;
       text-align:center;
     }
     #viewFlocs .flocs-qtyQuickBtn:hover{
@@ -998,3 +1029,95 @@
       letter-spacing:.02em;
       cursor:pointer;
     }
+
+/* --- Order capture v2 layout overrides --- */
+#viewFlocs .flocs-layout{
+  grid-template-columns:minmax(0,2fr) minmax(320px,1fr);
+  align-items:stretch;
+  min-height:calc(100vh - 11rem);
+}
+#viewFlocs #flocs-formPanel{
+  min-height:0;
+}
+#viewFlocs .flocs-previewPanel{
+  position:sticky;
+  top:1rem;
+  height:calc(100vh - 9rem);
+  overflow:auto;
+}
+#viewFlocs .flocs-previewControls .flocs-formSection{
+  margin-bottom:.6rem;
+  padding-bottom:.45rem;
+}
+#viewFlocs .flocs-formSection--customer{
+  padding-top:.2rem;
+}
+#viewFlocs .flocs-searchRow--large .flocs-input{
+  font-size:1.05rem;
+  padding:.75rem .8rem;
+  max-width:none;
+}
+#viewFlocs .flocs-azBar{
+  display:grid;
+  grid-template-columns:repeat(26, minmax(0, 1fr));
+  gap:.25rem;
+  width:100%;
+}
+#viewFlocs .flocs-azBar button{
+  font-size:1rem;
+  padding:.38rem .15rem;
+  font-weight:700;
+}
+#viewFlocs .flocs-productsTable{
+  font-size:.72rem;
+  table-layout:fixed;
+}
+#viewFlocs .flocs-productsTable th,
+#viewFlocs .flocs-productsTable td{
+  padding:.2rem .28rem;
+}
+#viewFlocs .flocs-productsTable th:nth-child(1){width:11%}
+#viewFlocs .flocs-productsTable th:nth-child(2){width:15%}
+#viewFlocs .flocs-matrixCell{vertical-align:middle;}
+#viewFlocs .flocs-matrixCell--empty{color:#9ca3af;text-align:center;}
+#viewFlocs .flocs-matrixSku{
+  font-family:var(--mono);
+  font-size:.62rem;
+  color:var(--muted);
+  margin-bottom:.15rem;
+}
+#viewFlocs .flocs-productName{max-width:none;}
+#viewFlocs .flocs-qtyArea{flex-direction:column; align-items:stretch; gap:.18rem;}
+#viewFlocs .flocs-qtyQuick{flex-wrap:wrap; gap:.15rem; justify-content:flex-start;}
+#viewFlocs .flocs-qtyQuickBtn{font-size:.58rem; min-width:1.2rem; padding:.1rem .22rem;}
+#viewFlocs .flocs-qtyWrap{justify-content:flex-start; margin-left:0;}
+#viewFlocs .flocs-qtyBtn{width:1.45rem;height:1.45rem;}
+#viewFlocs .flocs-qtyInput{width:3.2rem; font-size:.72rem; padding:.13rem .2rem;}
+#viewFlocs .flocs-invoice{margin-top:.5rem;}
+
+@media (max-width:1200px){
+  #viewFlocs .flocs-layout{grid-template-columns:1fr;min-height:0;}
+  #viewFlocs .flocs-previewPanel{position:static;height:auto;}
+  #viewFlocs .flocs-azBar{grid-template-columns:repeat(13, minmax(0, 1fr));}
+}
+
+
+#viewFlocs .flocs-productTypeFilter{
+  display:inline-flex;
+  gap:.35rem;
+  align-items:center;
+}
+#viewFlocs .flocs-productTypeFilter button{
+  border:1px solid var(--panel-strong);
+  background:var(--panel);
+  color:var(--muted);
+  border-radius:.45rem;
+  padding:.2rem .55rem;
+  font-size:.66rem;
+  cursor:pointer;
+}
+#viewFlocs .flocs-productTypeFilter button.is-active{
+  border-color:rgba(0,128,96,.45);
+  color:#0f5132;
+  background:var(--accent-soft);
+}

@@ -54,7 +54,11 @@
     border:1px solid var(--panel-strong);
     box-shadow:var(--shadow-soft);
     border-radius:0;
+<<<<<<< HEAD
     padding:1rem .9rem;
+=======
+    padding:.5rem .9rem;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     display:flex;
     flex-direction:column;
     gap:.9rem;
@@ -75,10 +79,17 @@
   }
   .flNav{
     display:flex;
+<<<<<<< HEAD
     flex-direction:column;
     gap:.75rem;
     align-items:stretch;
     justify-content:flex-start;
+=======
+    flex-direction:row;
+    gap:.45rem;
+    align-items:center;
+    justify-content:space-between;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
   .flNavTitle{
     font-weight:700;
@@ -96,8 +107,8 @@
     background:var(--panel);
     color:var(--text);
     font-weight:600;
-    font-size:.85rem;
-    padding:.55rem .9rem;
+    font-size:.78rem;
+    padding:.42rem .65rem;
     border-radius:.75rem;
     cursor:pointer;
     transition:all .2s ease;
@@ -106,14 +117,7 @@
     align-items:center;
     width:100%;
     justify-content:flex-start;
-    gap:.5rem;
-  }
-  .flNavBtnIcon{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:1.2rem;
-    font-size:1rem;
+    gap:.2rem;
   }
   .flNavBtn:hover{
     border-color:rgba(99,102,241,.45);
@@ -129,10 +133,12 @@
   }
   .flNavStatus{
     display:flex;
-    align-items:center;
-    gap:.6rem;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:.4rem;
     flex-wrap:wrap;
   }
+<<<<<<< HEAD
 
   .navToggle{
     display:inline-flex;
@@ -167,11 +173,58 @@
   }
   body.flNavCollapsed .flNavBtnIcon{
     width:auto;
+=======
+  .flNavSummary{
+    width:min(640px, 100%);
+  }
+  .flNavScanInputWrap{
+    display:flex;
+    align-items:center;
+    gap:.45rem;
+    width:min(520px,100%);
+    padding:.35rem .55rem;
+    border:1px solid var(--panel-strong);
+    border-radius:.7rem;
+    background:#fff;
+  }
+  .flNavScanInputWrap span{
+    font-size:.72rem;
+    font-weight:700;
+    color:#475569;
+    white-space:nowrap;
+  }
+  #scanInput{
+    width:100%;
+    min-width:0;
+    border:0;
+    outline:none;
+    font-family:var(--mono);
+    font-size:.9rem;
+    padding:0;
+    background:transparent;
+    color:var(--text);
+  }
+  .multiShipmentBtn{
+    border:1px solid rgba(99,102,241,.35);
+    background:#fff;
+    color:#312e81;
+    border-radius:.6rem;
+    padding:.22rem .4rem;
+    font-size:.92rem;
+    line-height:1;
+    cursor:pointer;
+    transition:all .18s ease;
+  }
+  .multiShipmentBtn:hover{
+    border-color:rgba(99,102,241,.55);
+    background:rgba(99,102,241,.08);
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
   .flMain{
     flex:1;
     display:flex;
     flex-direction:column;
+<<<<<<< HEAD
     gap:1rem;
     padding:1.25rem 1.75rem 1.75rem;
     min-width:0;
@@ -240,9 +293,21 @@
     .sharedControlCard{
       flex:1 1 calc(33.333% - .4rem);
     }
+=======
+    gap:.7rem;
+    padding:.7rem 1rem 1rem;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
   @media (max-width:800px){
     .flMain{ padding:1rem; }
+    .flMainHeader{ flex-direction:column; align-items:stretch; }
+    .dispatchSelectionFloat{
+      left:1rem;
+      right:1rem;
+      bottom:1rem;
+      margin-top:.5rem;
+    }
+    .dispatchSelectionPanel{ width:100%; }
   }
   @media (max-width:1080px){
     .flLayout{
@@ -286,6 +351,12 @@
     body.flNavCollapsed .flNav{
       display:none;
     }
+<<<<<<< HEAD
+=======
+    .flNavBtn{ flex:1; }
+    .flNavStatus{ align-items:stretch; }
+    .flNavScanInputWrap{ width:100%; }
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
   .actionFlash{
     font-size:.72rem;
@@ -493,6 +564,7 @@
   .moduleOpenBtn:hover{
     background:rgba(99,102,241,.2);
   }
+<<<<<<< HEAD
   .todoWidget{
     position:fixed;
     right:1.1rem;
@@ -575,61 +647,73 @@
     color:#cbd5e1;
   }
   .statusBar{
+=======
+  .flMainHeader{
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     display:flex;
-    align-items:center;
-    gap:.4rem;
-    flex-wrap:wrap;
-    padding:.35rem .65rem;
-    border-radius:var(--radius-md);
-    border:1px solid var(--panel-strong);
-    background:var(--panel);
-    box-shadow:0 16px 32px rgba(15,23,42,.08);
-    font-size:.64rem;
-    color:var(--text-muted);
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:.65rem;
   }
-  .statusBarLabel{
-    font-weight:600;
-    text-transform:uppercase;
-    letter-spacing:.06em;
-    font-size:.58rem;
-    color:var(--text-muted);
+  .statusBar{
+    display:inline-flex;
+    align-items:center;
+    gap:.3rem;
+    padding:0;
+    min-height:0;
+    border:0;
+    background:transparent;
+    box-shadow:none;
+    font-size:0;
+  }
+  .statusBar{
+    position:relative;
+    cursor:help;
+  }
+  .statusBar::after{
+    content:attr(data-tooltip);
+    position:absolute;
+    right:0;
+    top:calc(100% + .45rem);
+    background:#0f172a;
+    color:#f8fafc;
+    font-size:.68rem;
+    line-height:1.35;
+    padding:.45rem .55rem;
+    border-radius:.45rem;
+    border:1px solid rgba(148,163,184,.45);
+    white-space:pre-line;
+    min-width:200px;
+    max-width:min(72vw, 340px);
+    opacity:0;
+    transform:translateY(-4px);
+    pointer-events:none;
+    transition:opacity .15s ease, transform .15s ease;
+    z-index:80;
+  }
+  .statusBar:hover::after,
+  .statusBar:focus-visible::after{
+    opacity:1;
+    transform:translateY(0);
   }
   .statusPill{
     display:inline-flex;
     align-items:center;
-    gap:.28rem;
+    gap:0;
     border-radius:999px;
-    padding:.18rem .45rem;
-    border:1px solid rgba(99,102,241,.2);
-    background:var(--panel-muted);
-    color:var(--text);
-    font-weight:600;
-    font-size:.62rem;
+    padding:0;
+    border:0;
+    background:transparent;
+    color:transparent;
+    font-size:0;
   }
   .statusPillDot{
-    width:6px;
-    height:6px;
+    width:8px;
+    height:8px;
     border-radius:999px;
-    background:var(--panel-strong);
+    background:#22c55e;
+    box-shadow:0 0 0 1px rgba(34,197,94,.35), 0 0 8px rgba(34,197,94,.45);
   }
-  .statusPill--ok{
-    border-color:rgba(34,197,94,.45);
-    background:rgba(34,197,94,.12);
-    color:#065f46;
-  }
-  .statusPill--ok .statusPillDot{ background:#22c55e; }
-  .statusPill--err{
-    border-color:rgba(248,113,113,.5);
-    background:rgba(248,113,113,.12);
-    color:#991b1b;
-  }
-  .statusPill--err .statusPillDot{ background:#ef4444; }
-  .statusPill--warn{
-    border-color:rgba(251,191,36,.55);
-    background:rgba(251,191,36,.12);
-    color:#92400e;
-  }
-  .statusPill--warn .statusPillDot{ background:#f59e0b; }
   .shell{
     width:100%;
     max-width:none;
@@ -673,30 +757,21 @@
     flex-wrap:wrap;
   }
   .dispatchHeading{
+    display:flex;
+    align-items:center;
     font-weight:800;
     font-size:1.05rem;
     letter-spacing:.01em;
+    min-height:40px;
+    margin-right:.25rem;
   }
-  .dispatchScanField{
-    display:flex;
-    flex-direction:column;
-    gap:.35rem;
-    min-width:280px;
-    flex:1;
-  }
-  .dispatchScanField label{
-    font-size:.72rem;
-    text-transform:uppercase;
-    letter-spacing:.08em;
-    color:var(--text-muted);
-  }
-  #scanInput{ width:100%; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:1rem; outline:none; padding:.55rem .7rem; }
-  #scanInput:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(34,211,238,.2); }
-  .dispatchTopActions{
+  #scanInput:focus{ box-shadow:none; }
+   .dispatchTopActions{
     display:flex;
     align-items:center;
     gap:.6rem;
     flex-wrap:wrap;
+    margin-left:auto;
   }
   .btn--compact{
     font-size:.7rem;
@@ -707,14 +782,18 @@
     background:rgba(99,102,241,.12);
     color:#312e81;
   }
-  .dispatchTopDetails{
+  
+.dispatchTopActions .btn{ min-height:40px; display:inline-flex; align-items:center; justify-content:center; }
+.dispatchExpandToggle{ min-width:40px; padding:.45rem .55rem; }
+.dispatchTopDetails{
     display:none;
     border-top:1px solid var(--panel-strong);
     padding-top:1rem;
     gap:1rem;
+    justify-content:flex-end;
   }
-  #viewScan.dispatchExpanded .dispatchTopDetails{
-    display:grid;
+  .dispatchTopBar.dispatchExpanded .dispatchTopDetails{
+    display:flex;
   }
   .dispatchDetailGrid{
     display:grid;
@@ -751,8 +830,9 @@
   }
   .dispatchTopPanels{
     display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
     gap:.85rem;
+    width:min(980px, 100%);
   }
   .dispatchTruckIndicator{
     display:flex;
@@ -1007,7 +1087,7 @@
   display:flex;
   flex-direction:column;
   gap:.85rem;
-  padding:1.25rem 0 1.25rem 1.5rem;
+  padding:1.25rem 1.5rem;
   border-radius:var(--radius-lg);
   background:var(--panel);
   border:1px solid var(--panel-strong);
@@ -1015,22 +1095,37 @@
   min-height:calc(100dvh - 160px);
 }
 
+.dispatchSelectionFloat{
+  position:fixed;
+  right:1rem;
+  bottom:.85rem;
+  z-index:35;
+  display:flex;
+  justify-content:flex-end;
+  pointer-events:none;
+  left:auto;
+  width:calc(100vw - 3rem);
+  max-width:1180px;
+}
+
 .dispatchSelectionPanel{
   width:100%;
   border-radius:var(--radius-lg);
   border:1px solid var(--panel-strong);
-  padding:.85rem 1rem;
+  padding:.55rem .7rem;
   background:rgba(255,255,255,.98);
-  box-shadow:0 18px 32px rgba(15,23,42,.12);
+  box-shadow:0 12px 26px rgba(15,23,42,.12);
   display:flex;
   flex-direction:column;
-  gap:.65rem;
+  gap:.45rem;
+  flex-shrink:0;
+  pointer-events:auto;
 }
 .dispatchSelectionHeader{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  font-size:.82rem;
+  font-size:.72rem;
   font-weight:700;
   color:#0f172a;
 }
@@ -1044,9 +1139,9 @@
   border:1px solid rgba(148,163,184,.7);
   background:#fff;
   color:#475569;
-  font-size:.7rem;
+  font-size:.64rem;
   font-weight:600;
-  padding:.2rem .6rem;
+  padding:.18rem .48rem;
   cursor:pointer;
 }
 .dispatchSelectionClear:hover{
@@ -1054,8 +1149,8 @@
   color:#0c4a6e;
 }
 .dispatchSelectionCount{
-  font-size:.7rem;
-  padding:.2rem .5rem;
+  font-size:.64rem;
+  padding:.18rem .45rem;
   border-radius:999px;
   border:1px solid rgba(56,189,248,.4);
   background:rgba(56,189,248,.15);
@@ -1064,51 +1159,72 @@
 .dispatchSelectionBody{
   display:flex;
   flex-direction:column;
-  gap:.65rem;
-  font-size:.72rem;
+  gap:.45rem;
+  font-size:.68rem;
   color:var(--text);
-}
-.dispatchSelectionLabel{
-  font-weight:700;
-  color:#0f172a;
-  margin-bottom:.35rem;
-}
-.dispatchSelectionList{
-  display:flex;
-  flex-direction:column;
-  gap:.35rem;
-  padding:.2rem .1rem;
-}
-.dispatchSelectionRow{
-  display:flex;
-  justify-content:space-between;
-  gap:.6rem;
-  padding:.3rem .35rem;
-  border-radius:.45rem;
-  background:rgba(148,163,184,.12);
-  font-variant-numeric:tabular-nums;
 }
 .dispatchSelectionMeta{
   display:grid;
-  gap:.3rem;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.25rem;
   font-variant-numeric:tabular-nums;
+}
+.dispatchSelectionMixes{
+  overflow:auto;
+  border:1px solid rgba(148,163,184,.22);
+  border-radius:.6rem;
+  background:#fff;
+}
+.dispatchMixMatrix{
+  width:max-content;
+  min-width:100%;
+  border-collapse:collapse;
+  font-size:.63rem;
+}
+.dispatchMixMatrix th,
+.dispatchMixMatrix td{
+  border-bottom:1px solid rgba(148,163,184,.18);
+  border-right:1px solid rgba(148,163,184,.14);
+  padding:.2rem .35rem;
+  text-align:center;
+  white-space:nowrap;
+}
+.dispatchMixMatrix th:last-child,
+.dispatchMixMatrix td:last-child{
+  border-right:none;
+}
+.dispatchMixMatrix th{
+  background:#f8fafc;
+  font-weight:700;
+}
+.dispatchMixMatrixFlavour{
+  text-align:left;
+  font-weight:700;
+}
+.dispatchMixCell--missing{
+  color:#b91c1c;
+  background:rgba(220,38,38,.12);
+  font-weight:700;
 }
 .dispatchSelectionPanel.is-hidden{
   display:none;
 }
 
 .dispatchSelectionBulkActions{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:.35rem;
+  display:flex;
+  flex-wrap:wrap;
+  gap:.25rem;
+}
+.dispatchSelectionBulkActions.is-hidden{
+  display:none;
 }
 .dispatchSelectionBtn{
   border:1px solid rgba(148,163,184,.7);
   background:#fff;
   color:#334155;
-  font-size:.7rem;
+  font-size:.66rem;
   font-weight:700;
-  padding:.35rem .55rem;
+  padding:.36rem .58rem;
   border-radius:.5rem;
   cursor:pointer;
 }
@@ -1134,59 +1250,21 @@
   gap:.5rem;
 }
 .dispatchCard.is-combined{
-  border-width:2px;
-  border-color:var(--combined-color, rgba(94,234,212,.8));
-  box-shadow:0 0 0 1px color-mix(in srgb, var(--combined-color, #5eead4) 35%, transparent), 0 8px 16px rgba(15,23,42,.12);
+  border-width:1px;
+  border-color:rgba(148,163,184,.32);
+  box-shadow:0 2px 6px rgba(15,23,42,0.08);
 }
 
 .dispatchBoardLayout{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) 320px;
-  gap:1rem;
-  align-items:stretch;
+  display:flex;
+  flex-direction:column;
+  gap:.55rem;
   min-height:100%;
-}
-@media (max-width:1100px){
-  .dispatchBoardLayout{
-    grid-template-columns:1fr;
-  }
 }
 .dispatchBoardMain{
   display:flex;
   flex-direction:column;
   gap:.85rem;
-}
-.dispatchBoardSidebar{
-  display:flex;
-  flex-direction:column;
-  gap:.85rem;
-  height:100%;
-  padding-right:1.5rem;
-}
-.dispatchShipmentsPanel{
-  border-radius:var(--radius-lg);
-  border:1px solid var(--panel-strong);
-  padding:1rem;
-  background:var(--panel);
-  box-shadow:0 12px 28px rgba(15,23,42,.08);
-  display:flex;
-  flex-direction:column;
-  flex:1;
-}
-.dispatchShipmentsHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:.5rem;
-  margin-bottom:.75rem;
-  font-weight:700;
-  font-size:.85rem;
-}
-.dispatchShipmentsBody{
-  display:flex;
-  flex-direction:column;
-  gap:.6rem;
-  flex:1;
 }
 
 .dispatchStatusPanel {
@@ -1359,6 +1437,7 @@
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
+<<<<<<< HEAD
   grid-template-columns: repeat(5, minmax(260px, 1fr));
   gap: 1rem;
   padding: .35rem;
@@ -1374,6 +1453,14 @@
 }
 @media (max-width:700px){
   #dispatchBoardGrid { grid-template-columns: 1fr; }
+=======
+  grid-template-columns: repeat(6, minmax(220px, 1fr));
+  gap: .75rem;
+  padding: .2rem;
+  min-height: 65vh;
+  background:var(--panel-muted);
+  overflow:hidden;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
 }
 
 /* column headers */
@@ -1396,6 +1483,19 @@
   box-shadow: 0 2px 6px rgba(15,23,42,0.08);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
+  position:relative;
+}
+.dispatchCard--green{
+  border-color:var(--panel-strong);
+  box-shadow:0 0 0 1px rgba(34,197,94,.2), 0 8px 18px rgba(34,197,94,.2);
+}
+.dispatchCard--yellow{
+  border-color:var(--panel-strong);
+  box-shadow:0 0 0 1px rgba(234,179,8,.2), 0 8px 18px rgba(234,179,8,.18);
+}
+.dispatchCard--red{
+  border-color:var(--panel-strong);
+  box-shadow:0 0 0 1px rgba(239,68,68,.2), 0 8px 18px rgba(239,68,68,.18);
 }
 .dispatchCard.is-selected{
   border-color: rgba(56,189,248,.6);
@@ -1436,16 +1536,11 @@
 .dispatchCardSelect{
   display:flex;
   align-items:center;
-  gap:.25rem;
-  font-size:.62rem;
-  font-weight:700;
-  color:#0f172a;
-  text-transform:uppercase;
-  letter-spacing:.04em;
+  gap:0;
 }
 .dispatchCardSelect input{
-  width:.8rem;
-  height:.8rem;
+  width:.9rem;
+  height:.9rem;
   accent-color:#38bdf8;
 }
 
@@ -1457,19 +1552,58 @@
   overflow:hidden;
   text-overflow:ellipsis;
 }
+.dispatchCardMissingDot{
+  width:.65rem;
+  height:.65rem;
+  border-radius:999px;
+  display:block;
+  position:absolute;
+  left:.55rem;
+  bottom:.55rem;
+  box-shadow:0 0 0 1px rgba(15,23,42,.22);
+}
+.dispatchCardMissingDot--green{ background:#22c55e; }
+.dispatchCardMissingDot--yellow{ background:#facc15; }
+.dispatchCardMissingDot--red{ background:#ef4444; }
 
 .dispatchCardParcel {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin-bottom: 0.35rem;
 }
 
-.dispatchCardParcel label {
-  font-weight: 600;
+.dispatchParcelLabel {
+  font-weight: 700;
+  font-size: 0.82rem;
   color: var(--text);
+}
+
+.dispatchParcelAdjustBtn {
+  border: 1px solid var(--panel-strong);
+  background: #fff;
+  color: var(--text);
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dispatchParcelAdjustBtn:hover {
+  background: #f8fafc;
+}
+
+.dispatchParcelAdjustBtn:focus {
+  outline: 2px solid rgba(56,189,248,0.4);
+  outline-offset: 1px;
 }
 
 .dispatchParcelCountInput {
@@ -1488,27 +1622,247 @@
 }
 
 
-  .dispatchCardLines {
-    font-size: 0.72rem;
+.dispatchCardLines {
+    font-size: calc(0.72rem + 1pt);
     color: #334155;
-    line-height: 1.25;
-    white-space: pre-line;
+    line-height: 1.3;
     word-break:break-word;
   }
   .dispatchLineItem{
-    display:inline;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.45rem;
+    cursor:pointer;
+    border-radius:.35rem;
+    padding:.08rem .2rem;
+    transition:background .12s ease;
   }
-  .dispatchLineItem.is-complete{
-    text-decoration:line-through;
-    color:#94a3b8;
+  .dispatchLineItem:hover{
+    background:rgba(226,232,240,.45);
   }
-  .dispatchLineItem.is-partial{
-    text-decoration:line-through;
-    color:#94a3b8;
+  .dispatchLineText{
+    display:inline-flex;
+    align-items:baseline;
+    gap:.28rem;
   }
-  .dispatchLineRemainder{
+  .dispatchLineBullet{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:.55rem;
+    color: var(--dispatch-flavour-color, #334155);
+  }
+  .dispatchLineBullet::before{
+    content:"|";
     font-weight:800;
+    line-height:1;
+  }
+  .dispatchLineItem.is-complete .dispatchLineText{
+    color:#94a3b8;
+    text-decoration-color:#94a3b8;
+  }
+  .dispatchLineItem.is-complete .dispatchLineText,
+  .dispatchLineItem.is-partial .dispatchLineText{
+    text-decoration-line:line-through;
+  }
+  .dispatchLineItem.is-partial .dispatchLineText{
+    color:#94a3b8;
+  }
+  .dispatchLineItem.is-newly-complete .dispatchLineText{
+    animation:dispatchStrikeIn .28s ease-out;
+  }
+  @keyframes dispatchStrikeIn{
+    from{ text-decoration-thickness:0; opacity:.75; }
+    to{ text-decoration-thickness:2px; opacity:1; }
+  }
+  .dispatchLineMeta{
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    margin-left:.5rem;
+  }
+  .dispatchLinePackedQty{
+    font-size:.63rem;
+    font-weight:700;
+    color:#0f766e;
+    border:1px solid rgba(13,148,136,.35);
+    border-radius:.35rem;
+    padding:.02rem .28rem;
+    background:rgba(45,212,191,.12);
+    line-height:1.2;
+  }
+  .dispatchCardSplit{
+    display:flex;
+    flex-direction:column;
+    gap:.45rem;
+  }
+  .dispatchCardSplitBottom{
+    border-top:1px dashed rgba(148,163,184,.7);
+    padding-top:.4rem;
+    display:flex;
+    flex-direction:column;
+    gap:.2rem;
+  }
+  .dispatchCardSplitTitle{
+    font-size:.63rem;
+    font-weight:700;
+    color:#64748b;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+  }
+
+  .dispatchPackingPlanGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+    gap:.5rem;
+  }
+  .dispatchPackingPlanBox{
+    border:1px solid rgba(148,163,184,.4);
+    border-radius:.6rem;
+    background:#f8fafc;
+    padding:.45rem .5rem;
+  }
+  .dispatchPackingPlanBoxTitle{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.35rem;
+    font-size:.66rem;
+    color:#334155;
+    font-weight:700;
+    margin-bottom:.35rem;
+  }
+  .dispatchPackingPlanBoxIcon{
+    font-size:.78rem;
+  }
+  .dispatchPackingPlanBoxItems{
+    display:flex;
+    flex-direction:column;
+    gap:.25rem;
+  }
+  .dispatchPackingPlanItem{
+    font-size:.66rem;
+    background:#fff;
+    border:1px solid rgba(226,232,240,.9);
+    border-radius:.45rem;
+    padding:.2rem .35rem;
     color:#0f172a;
+  }
+  .dispatchPackingPlanBoxMeta,
+  .dispatchPackingPlanBoxBreakdown{
+    font-size:.6rem;
+    color:#64748b;
+    margin-top:.35rem;
+  }
+  .dispatchLineMissing{
+    font-weight:800;
+    color:#b45309;
+    white-space:nowrap;
+  }
+
+  .dispatchLineMissingMark{
+    font-weight:900;
+    color:#b45309;
+  }
+  .dispatchPackedQtyModal{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(3px);
+    display:grid;
+    place-items:center;
+    z-index:9000;
+    padding:1rem;
+  }
+  .dispatchPackedQtyCard{
+    width:min(360px,95vw);
+    background:#fff;
+    border:1px solid rgba(148,163,184,.45);
+    border-radius:1rem;
+    box-shadow:0 25px 60px rgba(15,23,42,.25);
+    padding:1rem;
+  }
+  .dispatchPackedQtyCard h3{
+    margin:0;
+    font-size:1rem;
+  }
+  .dispatchPackedQtyCard p{
+    margin:.35rem 0 .8rem;
+    color:#475569;
+    font-size:.84rem;
+  }
+  .dispatchPackedQtyControls{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:.75rem;
+  }
+  .dispatchPackedQtyBtn{
+    width:2rem;
+    height:2rem;
+    border-radius:999px;
+    border:1px solid rgba(148,163,184,.7);
+    background:#f8fafc;
+    font-size:1.2rem;
+    font-weight:800;
+    cursor:pointer;
+  }
+  .dispatchPackedQtyValue{
+    min-width:3ch;
+    text-align:center;
+    font-size:1.5rem;
+    color:#0f172a;
+  }
+  .dispatchPackedQtyMax{
+    text-align:center;
+    margin-top:.35rem;
+    color:#64748b;
+    font-size:.72rem;
+  }
+  .dispatchPackedQtyActions{
+    display:flex;
+    justify-content:flex-end;
+    gap:.5rem;
+    margin-top:.95rem;
+  }
+  .dispatchPackedQtyAction{
+    border-radius:.55rem;
+    border:1px solid var(--panel-strong);
+    padding:.35rem .65rem;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .dispatchPackedQtyAction--ghost{ background:#fff; color:#334155; }
+  .dispatchPackedQtyAction--primary{ background:linear-gradient(130deg, var(--accent), var(--accent-strong)); color:#0f172a; border-color:transparent; }
+
+  .dispatchSettingsOnly{
+    display:none;
+  }
+  .dispatchTopBar.dispatchExpanded .dispatchSettingsOnly{
+    display:inline-flex;
+  }
+
+  .dispatchBookingOverlay{
+    position:fixed;
+    inset:0;
+    z-index:80;
+    background:rgba(15,23,42,.48);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:1rem;
+  }
+  .dispatchBookingOverlay[hidden]{
+    display:none;
+  }
+  .dispatchBookingOverlayCard{
+    width:min(720px, 92vw);
+    border-radius:var(--radius-lg);
+    border:1px solid var(--panel-strong);
+    background:#fff;
+    padding:1rem;
+    box-shadow:0 20px 40px rgba(15,23,42,.35);
   }
 
   .dispatchCardActions{
@@ -1535,6 +1889,66 @@
   .dispatchFulfillBtn:disabled{
     opacity:.5;
     cursor:not-allowed;
+  }
+
+  .dispatchBoxBtn{
+    border:none;
+    background:transparent;
+    color:#0f172a;
+    font-size:1rem;
+    font-weight:700;
+    width:1.9rem;
+    height:1.9rem;
+    padding:0;
+    border-radius:999px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .dispatchBoxBtn:hover{
+    background:rgba(148,163,184,.2);
+  }
+  .dispatchBoxBtn:disabled{
+    opacity:.5;
+    cursor:not-allowed;
+  }
+
+  .dispatchDocsDropdown{
+    position:relative;
+  }
+  .dispatchDocsMenu{
+    position:absolute;
+    bottom:calc(100% + .25rem);
+    top:auto;
+    right:0;
+    min-width:9.5rem;
+    border:1px solid var(--panel-strong);
+    border-radius:.55rem;
+    background:#fff;
+    box-shadow:0 8px 16px rgba(15,23,42,.16);
+    padding:.25rem;
+    display:none;
+    z-index:4;
+  }
+  .dispatchDocsDropdown:hover .dispatchDocsMenu,
+  .dispatchDocsDropdown:focus-within .dispatchDocsMenu{
+    display:block;
+  }
+  .dispatchDocsMenuBtn{
+    width:100%;
+    border:0;
+    border-radius:.4rem;
+    text-align:left;
+    background:transparent;
+    color:#334155;
+    font-size:.7rem;
+    font-weight:700;
+    padding:.35rem .45rem;
+    cursor:pointer;
+  }
+  .dispatchDocsMenuBtn:hover{
+    background:#f1f5f9;
   }
 
   .dispatchBookBtn{
@@ -1618,6 +2032,72 @@
   .dispatchNotifyBtn:disabled{
     opacity:.5;
     cursor:not-allowed;
+  }
+
+  .dispatchSiteAlertModal{
+    position:fixed;
+    inset:0;
+    z-index:2200;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .dispatchSiteAlertModal__backdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(15,23,42,.48);
+  }
+  .dispatchSiteAlertModal__content{
+    position:relative;
+    width:min(92vw, 28rem);
+    border-radius:.8rem;
+    border:1px solid var(--panel-strong);
+    background:#fff;
+    box-shadow:0 20px 40px rgba(15,23,42,.35);
+    padding:.8rem;
+  }
+  .dispatchSiteAlertModal__content--ok{ border-color:rgba(34,197,94,.45); }
+  .dispatchSiteAlertModal__content--warn{ border-color:rgba(234,179,8,.5); }
+  .dispatchSiteAlertModal__content--err{ border-color:rgba(239,68,68,.45); }
+  .dispatchSiteAlertModal__header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.5rem;
+  }
+  .dispatchSiteAlertModal__header h3{
+    margin:0;
+    font-size:.95rem;
+    color:#0f172a;
+  }
+  .dispatchSiteAlertModal__close,
+  .dispatchSiteAlertModal__ok{
+    border:1px solid var(--panel-strong);
+    background:#f8fafc;
+    color:#0f172a;
+    border-radius:.45rem;
+    cursor:pointer;
+    font-weight:700;
+  }
+  .dispatchSiteAlertModal__close{
+    width:1.8rem;
+    height:1.8rem;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .dispatchSiteAlertModal__body{
+    margin:.7rem 0;
+    color:#334155;
+    font-size:.84rem;
+    line-height:1.4;
+  }
+  .dispatchSiteAlertModal__actions{
+    display:flex;
+    justify-content:flex-end;
+  }
+  .dispatchSiteAlertModal__ok{
+    padding:.35rem .7rem;
   }
 
   .dispatchCol--shipments .dispatchColBody{
@@ -1874,7 +2354,8 @@
   }
   .dispatchBoxRow{
     display:flex;
-    align-items:center;
+    align-items:flex-start;
+    flex-direction:column;
     gap:.45rem;
     background:rgba(226,232,240,.8);
     border-radius:.6rem;
@@ -1894,6 +2375,18 @@
     padding:.2rem .3rem;
     font-size:.62rem;
     min-width:140px;
+  }
+  .dispatchBoxItems{
+    width:100%;
+    color:#334155;
+    font-weight:500;
+  }
+  .dispatchBoxItems ul{
+    margin:.2rem 0 0;
+    padding-left:1rem;
+  }
+  .dispatchBoxItems li{
+    margin:.12rem 0;
   }
   .dispatchBoxEmpty{
     color:#94a3b8;
@@ -2054,10 +2547,13 @@
     background:rgba(148,163,184,.35);
   }
 
+
+.dispatchBottomBar{display:contents;}
+.dispatchBottomBar .dispatchTopBar{border-radius:.8rem;padding:.55rem .7rem;box-shadow:0 10px 22px rgba(15,23,42,.14);}
 .dispatchColBody {
-  overflow-y: auto;
-  max-height: 62vh;
-  padding-right: 6px;
+  overflow: visible;
+  max-height: none;
+  padding-right: 0;
 }
 
 /* lane separation */
@@ -2091,6 +2587,76 @@
 }
 
   /* Documentation */
+  .docsModule{
+    width:100%;
+    max-width:1240px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:minmax(220px,260px) minmax(0,1fr) minmax(180px,220px);
+    gap:1rem;
+  }
+  .docsPanel{
+    background:var(--panel);
+    border:1px solid var(--panel-strong);
+    border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-soft);
+  }
+  .docsTopics{
+    padding:.75rem;
+    display:flex;
+    flex-direction:column;
+    gap:.45rem;
+    max-height:78vh;
+    overflow:auto;
+  }
+  .docsTopicBtn{
+    border:1px solid var(--panel-strong);
+    background:var(--panel-muted);
+    color:var(--text);
+    text-align:left;
+    border-radius:.65rem;
+    padding:.6rem .7rem;
+    cursor:pointer;
+    font-size:.8rem;
+    font-weight:600;
+  }
+  .docsTopicBtn small{ display:block; color:var(--text-muted); font-weight:500; margin-top:.15rem; }
+  .docsTopicBtn--active{
+    background:var(--accent-soft);
+    border-color:rgba(99,102,241,.45);
+    color:#4338ca;
+  }
+  .docsContent{
+    padding:1.25rem 1.4rem;
+    min-height:70vh;
+    overflow:auto;
+  }
+  .docsContent h1{ font-size:1.15rem; margin:.25rem 0 .75rem; }
+  .docsContent h2{ font-size:1rem; margin:1.15rem 0 .5rem; }
+  .docsContent h3{ font-size:.9rem; margin:1rem 0 .4rem; }
+  .docsContent p,.docsContent li{ font-size:.84rem; line-height:1.55; color:var(--text); }
+  .docsContent pre{
+    font-family:var(--mono);
+    font-size:.76rem;
+    background:var(--panel-muted);
+    border:1px solid var(--panel-strong);
+    padding:.8rem;
+    border-radius:.6rem;
+    overflow:auto;
+  }
+  .docsContent code{ font-family:var(--mono); font-size:.78rem; }
+  .docsContent table{ width:100%; border-collapse:collapse; font-size:.8rem; margin:.6rem 0; }
+  .docsContent th,.docsContent td{ border:1px solid var(--panel-strong); padding:.45rem .5rem; text-align:left; }
+  .docsContent th{ background:var(--panel-muted); }
+  .docsSubnav{
+    padding:1rem;
+    max-height:78vh;
+    overflow:auto;
+  }
+  .docsSubnavTitle{ margin:0 0 .65rem; font-size:.8rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; }
+  .docsSubnav a{ display:block; color:var(--text-muted); text-decoration:none; font-size:.78rem; margin:.35rem 0; }
+  .docsSubnav a:hover{ color:#4338ca; }
+  .docsEmpty{ color:var(--text-muted); font-size:.8rem; }
   .docsShell{
     max-width:1200px;
     width:100%;
@@ -2098,6 +2664,7 @@
     background:var(--panel);
     border:1px solid var(--panel-strong);
     border-radius:var(--radius-lg);
+<<<<<<< HEAD
     box-shadow:0 18px 48px rgba(15,23,42,.1);
     padding:1.75rem 2rem;
   }
@@ -2185,41 +2752,31 @@
     padding:.5rem .6rem;
     border-radius:var(--radius-md);
     color:#0c4a6e;
+=======
+    box-shadow:var(--shadow-soft);
+    padding:1.4rem 1.6rem;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
+  .docsDivider{ border:none; height:1px; background:var(--panel-strong); margin:1.2rem 0; }
+  .docsCode{ font-family:var(--mono); font-size:.78rem; }
   .docsBlock{
     font-family:var(--mono);
-    font-size:.78rem;
+    font-size:.76rem;
     background:var(--panel-muted);
     border:1px solid var(--panel-strong);
-    padding:.85rem 1rem;
-    border-radius:var(--radius-md);
-    color:var(--text);
+    padding:.8rem;
+    border-radius:.6rem;
     overflow:auto;
     white-space:pre;
   }
-  .docsDivider{
-    border:none;
-    height:1px;
-    background:var(--panel-strong);
-    margin:1.5rem 0;
+  @media (max-width:1000px){
+    .docsModule{ grid-template-columns:minmax(200px,240px) minmax(0,1fr); }
+    .docsSubnav{ display:none; }
   }
-  .docsTable{
-    width:100%;
-    border-collapse:collapse;
-    font-size:.82rem;
-    color:var(--text);
-    margin:0 0 1rem;
-  }
-  .docsTable th,
-  .docsTable td{
-    border:1px solid var(--panel-strong);
-    padding:.6rem .7rem;
-    text-align:left;
-    vertical-align:top;
-  }
-  .docsTable th{
-    background:var(--panel-muted);
-    font-weight:700;
+  @media (max-width:760px){
+    .docsModule{ grid-template-columns:1fr; }
+    .docsTopics{ max-height:none; }
+    .docsContent{ min-height:auto; }
   }
   .slotEgg{
     position:fixed;
@@ -2384,11 +2941,16 @@
     padding:1.5rem 0;
     text-align:center;
   }
+<<<<<<< HEAD
   .sessionControlRow{
     margin-top:.5rem;
     display:flex;
     flex-wrap:wrap;
     gap:.5rem;
+=======
+  .stock-table th {
+    text-align: left;
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
 
 </style>
@@ -2406,6 +2968,7 @@
       <aside class="flSide">
         <div class="flSideHeader">
           <div class="flNavTitle">Flippen Lekka Operations</div>
+<<<<<<< HEAD
           <button id="navToggle" class="navToggle" type="button" aria-expanded="true" aria-label="Toggle sidebar">☰</button>
         </div>
         <nav class="flNav" aria-label="Primary">
@@ -2423,13 +2986,35 @@
             <button id="navTraceability" class="flNavBtn" type="button" role="tab" aria-controls="viewTraceability" aria-selected="false" data-route="/traceability"><span class="flNavBtnIcon" aria-hidden="true">🔎</span><span class="flNavBtnText">Traceability</span></button>
             <button id="navStockists" class="flNavBtn" type="button" role="tab" aria-controls="viewStockists" aria-selected="false" data-route="/stockists"><span class="flNavBtnIcon" aria-hidden="true">📍</span><span class="flNavBtnText">Distribution Network</span></button>
             <button id="navYearPlanner" class="flNavBtn" type="button" role="tab" aria-controls="viewYearPlanner" aria-selected="false" data-route="/year-planner"><span class="flNavBtnIcon" aria-hidden="true">🗓️</span><span class="flNavBtnText">Year Planner</span></button>
+=======
+          <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
+            <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
+          </div>
+        </div>
+        <nav class="flNav" aria-label="Primary">
+          <div class="flNavGroup" role="tablist" aria-label="Primary views">
+            <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Orders</span></button>
+            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
+           
+            <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
+            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
+            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
+            <a class="flNavBtn" href="/traceability.html"><span class="flNavBtnIcon" aria-hidden="true">🧪</span><span class="flNavBtnText">Traceability</span></a>
+         
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
           </div>
           <div class="flNavStatus">
-            <span id="statusChip" class="statusChip">Ready to scan orders…</span>
+            <div class="flNavScanInputWrap">
+              <span>Scan station</span>
+              <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan order barcode + Enter" autofocus />
+              <button id="multiShipmentBtn" class="multiShipmentBtn" type="button" hidden aria-label="Create multi-shipment" title="Select 2+ delivery orders to create a multi-shipment">📦📦</button>
+            </div>
+            <div class="flNavSummary"></div>
           </div>
         </nav>
       </aside>
       <main class="flMain">
+<<<<<<< HEAD
         <div class="sharedStickyHeader" aria-label="Shared dispatch and connection controls">
           <div class="sharedHeaderSection">
             <div id="serverStatusBar" class="statusBar sharedStatusBar" role="status" aria-live="polite">
@@ -2469,51 +3054,35 @@
               <div>
                 <h1>Operations Dashboard</h1>
                 <p>Quick status glance plus instant access to the core operations apps.</p>
+=======
+        <div class="dispatchSelectionFloat" aria-live="polite">
+          <div class="dispatchSelectionPanel" id="dispatchSelectionPanel">
+            <div class="dispatchSelectionHeader">
+              <span>Selected orders</span>
+              <div class="dispatchSelectionActions">
+                <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
+                <button class="dispatchSelectionClear" id="dispatchSelectionClear" type="button">Clear</button>
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
               </div>
             </div>
-            <section class="dashboardKpis" aria-label="Key performance indicators">
-              <div class="kpiCard">
-                <div class="kpiLabel">Today's parcels</div>
-                <div class="kpiValue" id="kpiParcels">0</div>
-                <div class="kpiMeta">Auto + manual bookings</div>
+            <div class="dispatchSelectionBody">
+              <div class="dispatchSelectionMeta">
+                <div>Total units: <strong id="dispatchSelectionUnits">0</strong></div>
+                <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
+                <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
+                <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
               </div>
-              <div class="kpiCard">
-                <div class="kpiLabel">Open dispatch orders</div>
-                <div class="kpiValue" id="kpiOpenOrders">0</div>
-                <div class="kpiMeta">Shipping, delivery, pickup</div>
+              <div id="dispatchSelectionMixes" class="dispatchSelectionMixes"></div>
+              <div class="dispatchSelectionBulkActions is-hidden" id="dispatchPrepareDeliveriesContainer">
+                <button id="dispatchPrepareDeliveries" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Prepare deliveries</button>
               </div>
-              <div class="kpiCard">
-                <div class="kpiLabel">Recently shipped</div>
-                <div class="kpiValue" id="kpiRecentShipments">0</div>
-                <div class="kpiMeta">Latest fulfillment events</div>
-              </div>
-              <div class="kpiCard">
-                <div class="kpiLabel">Mode</div>
-                <div class="kpiValue" id="kpiMode">Auto</div>
-                <div class="kpiMeta">Dispatch scanning mode</div>
-              </div>
-              <div class="kpiCard">
-                <div class="kpiLabel">Truck status</div>
-                <div class="kpiValue" id="kpiTruckStatus">Not booked</div>
-                <div class="kpiMeta">Collection booking state</div>
-              </div>
-              <div class="kpiCard">
-                <div class="kpiLabel">Last scan</div>
-                <div class="kpiValue" id="kpiLastScan">--</div>
-                <div class="kpiMeta">Most recent barcode scan</div>
-              </div>
-            </section>
-            <section>
-              <div class="appsHeader">
-                <h2>Apps</h2>
-              </div>
-              <div id="moduleGrid" class="moduleGrid" aria-live="polite"></div>
-            </section>
+            </div>
           </div>
         </div>
 
-        <div class="flView" id="viewScan" hidden>
+        <div class="flView flView--active" id="viewScan">
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
+<<<<<<< HEAD
       <div class="dispatchTopBar" aria-label="Dispatch controls">
         <div class="dispatchTopRow">
           <div class="dispatchHeading">Dispatch</div>
@@ -2569,12 +3138,14 @@
           </div>
         </div>
       </div>
+=======
+
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
       <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">
             <div class="dispatchBoardPanel">
               <div class="sectionTitle" style="margin-top:.4rem">
-                <span>Whiteboard</span>
                 <span id="dispatchStamp" class="dispatchStamp">–</span>
               </div>
               <div class="dispatchBoard" id="dispatchBoardGrid">
@@ -2582,6 +3153,7 @@
               </div>
             </div>
           </div>
+<<<<<<< HEAD
           <aside class="dispatchBoardSidebar" aria-label="Dispatch sidebar">
             <div class="dispatchSelectionPanel" id="dispatchSelectionPanel" aria-live="polite">
               <div class="dispatchSelectionHeader">
@@ -2611,6 +3183,8 @@
               </div>
             </div>
           </aside>
+=======
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
         </div>
       </div>
     </div>
@@ -2693,11 +3267,31 @@
           <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
         </div>
       </div>
+<<<<<<< HEAD
   
+=======
+      <div id="dispatchBookingOverlay" class="dispatchBookingOverlay" hidden aria-live="polite" aria-label="Booking progress overlay">
+        <div class="dispatchBookingOverlayCard">
+          <div class="dispatchStatusPanel dispatchStatusPanel--compact">
+            <div class="dispatchStatusHeader">
+              <h3>Booking progress</h3>
+              <span class="dispatchStatusLabel" id="dispatchOverlayProgressLabel">Ready</span>
+            </div>
+            <div class="dispatchProgressBar" id="dispatchOverlayProgressBar">
+              <div class="dispatchProgressFill" id="dispatchOverlayProgressFill"></div>
+              <span class="dispatchProgressSun" aria-hidden="true"></span>
+            </div>
+            <div class="dispatchProgressSteps" id="dispatchOverlayProgressSteps"></div>
+          </div>
+        </div>
+      </div>
+        </div>
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
 
         <div class="flView" id="viewOps" hidden></div>
 
         <div class="flView" id="viewDocs" hidden>
+<<<<<<< HEAD
       <div class="docsShell">
         <h2>FLSS Knowledge Hub</h2>
         <p class="docsMeta">Documentation is now split by audience so teams can find the right runbook faster.</p>
@@ -2756,6 +3350,14 @@
       </div>
     </div>
 
+=======
+          <div class="docsModule" id="docsModuleRoot">
+            <aside class="docsPanel docsTopics" id="docsTopics" aria-label="Documentation topics"></aside>
+            <article class="docsPanel docsContent" id="docsContent" aria-live="polite"></article>
+            <nav class="docsPanel docsSubnav" id="docsSubnav" aria-label="Topic navigation"></nav>
+          </div>
+        </div>
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     <div class="flView" id="viewFlowcharts" hidden>
       <div class="docsShell">
         <div class="pill">FLOW LOGIC</div>
@@ -2886,6 +3488,7 @@
 
           <main class="flocs-layout">
             <section class="flocs-panel form" id="flocs-formPanel">
+<<<<<<< HEAD
               <div class="flocs-topGrid">
                 <div class="flocs-column">
                   <!-- Customer -->
@@ -3058,79 +3661,207 @@
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div class="flocs-formSection">
-                    <div class="flocs-labelRow">
-                      <span>Delivery date</span>
-                      <span class="flocs-hint">Optional requested delivery date.</span>
-                    </div>
-                    <input id="flocs-deliveryDate" class="flocs-input" type="date" />
-                  </div>
-
-                  <div class="flocs-formSection">
-                    <div class="flocs-labelRow">
-                      <span>Shipping quote summary</span>
-                      <span class="flocs-hint">Updated after calculating shipping.</span>
-                    </div>
-                    <div class="flocs-actionsRow">
-                      <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
-                      <button id="flocs-calcShip" class="flocs-actionBtn" type="button">
-                        <span>⛟</span>
-                        <span>Calculate shipping</span>
-                      </button>
-                    </div>
-                  </div>
+=======
+              <div class="flocs-formSection flocs-formSection--customer">
+                <div class="flocs-azBar" id="flocs-azBar">
+                  <button type="button" data-letter="A">A</button><button type="button" data-letter="B">B</button><button type="button" data-letter="C">C</button><button type="button" data-letter="D">D</button><button type="button" data-letter="E">E</button><button type="button" data-letter="F">F</button><button type="button" data-letter="G">G</button><button type="button" data-letter="H">H</button><button type="button" data-letter="I">I</button><button type="button" data-letter="J">J</button><button type="button" data-letter="K">K</button><button type="button" data-letter="L">L</button><button type="button" data-letter="M">M</button><button type="button" data-letter="N">N</button><button type="button" data-letter="O">O</button><button type="button" data-letter="P">P</button><button type="button" data-letter="Q">Q</button><button type="button" data-letter="R">R</button><button type="button" data-letter="S">S</button><button type="button" data-letter="T">T</button><button type="button" data-letter="U">U</button><button type="button" data-letter="V">V</button><button type="button" data-letter="W">W</button><button type="button" data-letter="X">X</button><button type="button" data-letter="Y">Y</button><button type="button" data-letter="Z">Z</button>
                 </div>
-
-                <div class="flocs-column flocs-column--preview">
-                  <aside class="flocs-panel flocs-previewPanel" aria-label="Invoice preview">
-                    <div class="flocs-previewHeader">
-                      <div>
-                        <div class="flocs-previewTitle">Invoice preview</div>
-                      </div>
-                      <div>
-                        <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
-                        <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>
-                          Convert draft to order
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="flocs-invoice" id="flocs-invoice">
-                      <!-- Filled by JS -->
-                    </div>
-                  </aside>
+                <div class="flocs-labelRow">
+                  <span>Customer</span>
+                  <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
+                </div>
+                <div class="flocs-searchRow flocs-searchRow--large">
+                  <input id="flocs-customerSearch" class="flocs-input" type="text" placeholder="Type to search Shopify customers…" autocomplete="off" hidden />
+                  <div class="flocs-hint">Start typing anywhere on this page to search customers instantly.</div>
+                </div>
+                <div class="flocs-row" style="margin-top:.4rem">
+                  <input id="flocs-customerQuickSearch" class="flocs-input" type="text" placeholder="Quick filter customers in results…" autocomplete="off" />
+                  <select id="flocs-customerProvinceFilter" class="flocs-select">
+                    <option value="">All provinces</option>
+                  </select>
+                  <select id="flocs-customerSort" class="flocs-select">
+                    <option value="name">Sort: Name</option>
+                    <option value="city">Sort: City/Town</option>
+                  </select>
+                </div>
+                <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
+                <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
+                <div class="flocs-inlineActions" style="margin-top:.5rem">
+                  <button id="flocs-customerCreateToggle" class="flocs-miniBtn" type="button">Add new customer</button>
+                </div>
+                <div class="flocs-subSection" id="flocs-customerCreatePanel" hidden>
+                  <div class="flocs-labelRow">
+                    <span>Create new customer</span>
+                    <span class="flocs-hint" id="flocs-customerCreateStatus">Add a customer if search returns nothing.</span>
+                  </div>
+                  <div class="flocs-row">
+                    <input id="flocs-customerFirst" class="flocs-input" type="text" placeholder="First name" />
+                    <input id="flocs-customerLast" class="flocs-input" type="text" placeholder="Last name" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerEmail" class="flocs-input" type="email" placeholder="Email" />
+                    <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerAccountEmail" class="flocs-input" type="email" placeholder="Account email (optional)" />
+                    <input id="flocs-customerAccountContact" class="flocs-input" type="text" placeholder="Account contact (optional)" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <select id="flocs-customerTier" class="flocs-select">
+                      <option value="">Customer tier (optional)</option>
+                      <option value="agent">Agent</option>
+                      <option value="retailer">Retailer</option>
+                      <option value="export">Export</option>
+                      <option value="fkb">FKB</option>
+                      <option value="public">Public</option>
+                    </select>
+                    <div></div>
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
+                    <select id="flocs-customerDelivery" class="flocs-select">
+                      <option value="">Default delivery (optional)</option>
+                      <option value="shipping">Shipping</option>
+                      <option value="free_shipping">Free Shipping</option>
+                      <option value="pickup">Pickup</option>
+                      <option value="delivery">Delivery</option>
+                    </select>
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerVat" class="flocs-input" type="text" placeholder="VAT number (optional)" />
+                    <select id="flocs-customerPaymentTerms" class="flocs-select">
+                      <option value="">Payment terms (optional)</option>
+                      <option value="Due on delivery">Due on delivery</option>
+                      <option value="7 days">7 days</option>
+                      <option value="30 days">30 days</option>
+                      <option value="60 days">60 days</option>
+                      <option value="90 days">90 days</option>
+                    </select>
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1" />
+                    <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
+                    <input id="flocs-customerProvince" class="flocs-input" type="text" placeholder="Province" />
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />
+                    <input id="flocs-customerCountry" class="flocs-input" type="text" placeholder="Country" value="South Africa" />
+                  </div>
+                  <div class="flocs-inlineActions" style="margin-top:.5rem">
+                    <button id="flocs-customerCreateBtn" class="flocs-btn primary" type="button">Create customer</button>
+                    <button id="flocs-customerResetBtn" class="flocs-miniBtn" type="button">Clear form</button>
+                  </div>
                 </div>
               </div>
 
-              <!-- Product grid -->
+              <div class="flocs-formSection flocs-formSection--addresses">
+                <div class="flocs-row">
+                  <div>
+                    <div class="flocs-labelRow"><span>Billing address</span></div>
+                    <select id="flocs-billingAddressSelect" class="flocs-select"><option value="">Select a customer first…</option></select>
+                  </div>
+                  <div>
+                    <div class="flocs-labelRow"><span>Shipping address</span></div>
+                    <select id="flocs-addressSelect" class="flocs-select"><option value="">Select a customer first…</option></select>
+                  </div>
+                </div>
+              </div>
+
               <div class="flocs-formSection">
+<<<<<<< HEAD
               <div class="flocs-labelRow flocs-labelRow--items">
                 <span>Items</span>
                 <div class="flocs-filterRow flocs-filterRow--inline" aria-label="Item filters">
                   <div class="flocs-filterGroup">
                     <span class="flocs-filterLabel">Category</span>
                     <div id="flocs-filterCategory" class="flocs-filterButtons"></div>
+=======
+                <div class="flocs-labelRow flocs-labelRow--items">
+                  <span>Items</span>
+                  <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+                    <div class="flocs-productTypeFilter" id="flocs-productTypeFilter">
+                      <button type="button" class="is-active" data-type="spices">Spices</button>
+                      <button type="button" data-type="popcorn">Popcorn sprinkle</button>
+                    </div>
+                    <label id="flocs-bulkColumnsWrap" class="flocs-hint" style="display:inline-flex;align-items:center;gap:.35rem;margin:0">
+                      <input id="flocs-bulkColumnsToggle" type="checkbox" />
+                      Show bulk columns (500g, 1kg, 750g)
+                    </label>
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
                   </div>
                 </div>
-              </div>
                 <table class="flocs-productsTable">
                   <thead>
                     <tr id="flocs-productsHeadRow">
+<<<<<<< HEAD
                       <th>Description</th>
                       <th>Flavour</th>
                       <th>Action</th>
+=======
+                      <th>SKU</th>
+                      <th>Description</th>
+                      <th>200ml</th>
+                      <th>250ml</th>
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
                     </tr>
                   </thead>
-                  <tbody id="flocs-productsBody">
-                    <!-- Populated by JS -->
-                  </tbody>
+                  <tbody id="flocs-productsBody"></tbody>
                 </table>
                 <div id="flocs-errors" class="flocs-errors"></div>
               </div>
             </section>
 
+            <aside class="flocs-panel flocs-previewPanel" aria-label="Invoice preview">
+              <div class="flocs-previewHeader">
+                <div><div class="flocs-previewTitle">Invoice preview</div></div>
+                <div>
+                  <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
+                  <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>Convert draft to order</button>
+                </div>
+              </div>
+              <div class="flocs-previewControls">
+                <div class="flocs-formSection">
+                  <div class="flocs-labelRow"><span>Customer PO</span><span class="flocs-hint">Stored on draft order note & metafield</span></div>
+                  <input id="flocs-po" class="flocs-input" type="text" placeholder="PO / reference (optional)" />
+                </div>
+                <div class="flocs-formSection">
+                  <div class="flocs-labelRow"><span>Delivery type</span><span class="flocs-hint" id="flocs-deliveryHint">Uses customer metafield custom.delivery_method if set</span></div>
+                  <div class="flocs-radioGroup" id="flocs-deliveryGroup">
+                    <label class="flocs-radioPill"><input type="radio" name="delivery" value="shipping" checked /><span>Shipping</span></label>
+                    <label class="flocs-radioPill"><input type="radio" name="delivery" value="free_shipping" /><span>Free Shipping</span></label>
+                    <label class="flocs-radioPill"><input type="radio" name="delivery" value="pickup" /><span>Pickup</span></label>
+                    <label class="flocs-radioPill"><input type="radio" name="delivery" value="delivery" /><span>Delivery</span></label>
+                  </div>
+                </div>
+                <div class="flocs-formSection">
+                  <div class="flocs-labelRow"><span>Delivery date</span></div>
+                  <input id="flocs-deliveryDate" class="flocs-input" type="date" />
+                </div>
+                <div class="flocs-formSection">
+                  <div class="flocs-labelRow"><span>Shipping quote summary</span></div>
+                  <div class="flocs-actionsRow">
+                    <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
+                    <button id="flocs-calcShip" class="flocs-actionBtn" type="button"><span>⛟</span><span>Calculate shipping</span></button>
+                  </div>
+                </div>
+                <div class="flocs-formSection">
+                  <div class="flocs-labelRow"><span>Quantity mode</span></div>
+                  <div class="flocs-radioGroup" id="flocs-qtyModeGroup">
+                    <label class="flocs-radioPill"><input type="radio" name="qtyMode" value="units" checked /><span>Units</span></label>
+                    <label class="flocs-radioPill"><input type="radio" name="qtyMode" value="cartons" /><span>Cartons</span></label>
+                  </div>
+                  <div class="flocs-radioGroup" id="flocs-cartonSizeGroup" hidden style="margin-top:.4rem">
+                    <label class="flocs-radioPill"><input type="radio" name="cartonUnits" value="12" checked /><span>12 / carton</span></label>
+                    <label class="flocs-radioPill"><input type="radio" name="cartonUnits" value="24" /><span>24 / carton</span></label>
+                  </div>
+                </div>
+              </div>
+              <div class="flocs-invoice" id="flocs-invoice"></div>
+            </aside>
           </main>
         </div>
 
@@ -3140,8 +3871,9 @@
         
     </div>
 
-    <div class="flView" id="viewStock" hidden>
+        <div class="flView" id="viewStock" hidden>
       <div class="stock-shell">
+<<<<<<< HEAD
         <div class="stock-grid">
           <section class="stock-card stock-overviewCard">
             <h2>Inventory overview</h2>
@@ -3160,35 +3892,80 @@
                 <div id="stock-locationButtons" class="stock-locationButtons" role="group" aria-label="Stock location"></div>
               </div>
               <span class="stock-pill" id="stock-modeLabel">Mode: Count (stock take)</span>
+=======
+        <section class="stock-card stock-overviewCard">
+          <div class="stock-inventoryHeader">
+            <div>
+              <h2>Stock</h2>
+              <p class="stock-muted">Read, count, make and purchase-order workflows.</p>
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
             </div>
-            <table class="stock-table" id="stock-table">
+            <div class="stock-tabToggle" role="tablist" aria-label="Stock areas">
+              <button id="stock-tabStock" class="stock-tabBtn is-active" type="button" data-tab="stock">Stock</button>
+              <button id="stock-tabPurchase" class="stock-tabBtn" type="button" data-tab="purchase">Purchase Orders</button>
+            </div>
+          </div>
+
+          <div id="stock-stockArea">
+            <div class="stock-toolbar">
+              <input id="stock-search" class="stock-input" type="text" placeholder="Search SKU, product or flavour..." />
+              <div class="stock-toolbarGroup">
+                <span class="stock-toolbarLabel">Location</span>
+                <select id="stock-location" class="stock-select"></select>
+              </div>
+              <div class="stock-modeToggle">
+                <button class="stock-modeBtn is-active" type="button" data-mode="read">Read</button>
+                <button class="stock-modeBtn" type="button" data-mode="count">Count</button>
+                <button class="stock-modeBtn" type="button" data-mode="make">Make</button>
+              </div>
+            </div>
+            <table class="stock-table" id="stock-table" data-mode="read">
               <thead>
                 <tr>
                   <th>SKU</th>
-                  <th>Product</th>
+                  <th>Item</th>
+                  <th>Flavour</th>
                   <th>Current</th>
+<<<<<<< HEAD
                   <th>Count 1</th>
                   <th>Count 2</th>
                   <th>Count 3</th>
                   <th>Total</th>
                   <th>Crate</th>
                   <th>Action</th>
+=======
+                  <th class="stock-countCol">Count</th>
+                  <th class="stock-countCol">Crates</th>
+                  <th class="stock-countCol">New total</th>
+                  <th class="stock-countCol">Diff</th>
+                  <th class="stock-countCol">Action</th>
+                  <th class="stock-makeCol">Missing for open orders</th>
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
                 </tr>
               </thead>
               <tbody id="stock-tableBody"></tbody>
             </table>
-            <h3 class="stock-logTitle">Activity log</h3>
-            <div id="stock-log" class="stock-log"></div>
-          </section>
+          </div>
 
+<<<<<<< HEAD
           <section class="stock-card stock-mrpCard">
             <div class="stock-mrpHeader">
               <div>
                 <h2>Manufacturing &amp; buying</h2>
                 <p class="stock-muted">Create manufacturing orders, plan buying, and receive open orders.</p>
+=======
+          <div id="stock-purchaseArea" hidden>
+            <div class="stock-toolbar" style="margin-bottom:.8rem">
+              <div class="stock-tabToggle" role="tablist" aria-label="PO tabs">
+                <button class="stock-tabBtn is-active" type="button" data-po-tab="create" id="po-tabCreate">Create</button>
+                <button class="stock-tabBtn" type="button" data-po-tab="receive" id="po-tabReceive">Receive</button>
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
               </div>
-              <span class="stock-pill">Live plan</span>
+              <input id="po-supplier" class="stock-input" type="text" placeholder="Supplier name (optional)" />
+              <input id="po-note" class="stock-input" type="text" placeholder="PO note (optional)" />
+              <button id="po-submit" class="stock-primaryBtn" type="button">Create draft purchase order</button>
             </div>
+<<<<<<< HEAD
 
             <form id="mrp-batchForm" class="stock-form" data-panel="make">
               <div class="stock-formRow">
@@ -3237,23 +4014,22 @@
 
             <div class="stock-subsection" data-panel="make">
               <h3>Committed &amp; missing items</h3>
+=======
+            <div id="po-toast" class="stock-poToast" hidden></div>
+            <div id="po-createPanel">
+              <div id="po-grid" class="stock-poGrid"></div>
+            </div>
+            <div id="po-receivePanel" hidden>
+              <h3 class="stock-logTitle">Recently created PO's</h3>
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
               <table class="stock-table stock-table--compact">
-                <thead>
-                  <tr>
-                    <th>SKU</th>
-                    <th>Committed</th>
-                    <th>On hand</th>
-                    <th>Missing</th>
-                  </tr>
-                </thead>
-                <tbody id="mrp-summaryTable">
-                  <tr>
-                    <td colspan="4" class="stock-muted">No committed items yet.</td>
-                  </tr>
-                </tbody>
+                <thead><tr><th>PO</th><th>Created</th><th>Lines</th><th>Actions</th></tr></thead>
+                <tbody id="po-openTable"></tbody>
               </table>
             </div>
+          </div>
 
+<<<<<<< HEAD
             <div class="stock-subsection" data-panel="make receive">
               <h3>Manufacturing orders</h3>
               <div id="mrp-batchList" class="stock-batchList"></div>
@@ -3306,6 +4082,11 @@
             </div>
           </section>
         </div>
+=======
+          <h3 class="stock-logTitle">Activity log</h3>
+          <div id="stock-log" class="stock-log"></div>
+        </section>
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
       </div>
     </div>
 

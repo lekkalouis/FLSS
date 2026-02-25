@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #viewStock{
       --bg:#f1f5f9;
       --panel:#ffffff;
@@ -543,3 +544,45 @@
       background:rgba(239,68,68,.12);
       color:#991b1b;
     }
+=======
+#viewStock{--panel:#fff;--line:#dbe3ee;--muted:#607089;--chip:#eef2ff;--chip-border:#c7d2fe}
+#viewStock .stock-shell{padding:.5rem 0 1.5rem}
+#viewStock .stock-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1rem;box-shadow:0 8px 20px rgba(15,23,42,.06)}
+#viewStock .stock-inventoryHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:.8rem;flex-wrap:wrap}
+#viewStock h2{margin:0;font-size:1.1rem}
+#viewStock .stock-muted{margin:.2rem 0 0;color:var(--muted);font-size:.8rem}
+#viewStock .stock-tabToggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:#f8fafc;padding:.2rem}
+#viewStock .stock-tabBtn{border:0;background:transparent;padding:.35rem .8rem;border-radius:999px;font-weight:700;cursor:pointer}
+#viewStock .stock-tabBtn.is-active{background:#fff;box-shadow:0 0 0 1px var(--line)}
+#viewStock .stock-toolbar{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-bottom:.55rem}
+#viewStock .stock-input,#viewStock .stock-select{border:1px solid var(--line);border-radius:10px;padding:.45rem .6rem;font-size:.82rem;min-width:140px}
+#viewStock .stock-toolbarGroup{display:flex;align-items:center;gap:.35rem}
+#viewStock .stock-toolbarLabel{font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase}
+#viewStock .stock-modeToggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+#viewStock .stock-modeBtn{border:0;background:#fff;padding:.35rem .65rem;font-size:.72rem;font-weight:700;cursor:pointer}
+#viewStock .stock-modeBtn.is-active{background:#e2e8f0}
+#viewStock .stock-table{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:.76rem}
+#viewStock .stock-table th,#viewStock .stock-table td{padding:.35rem .45rem;border-bottom:1px solid #ecf1f7;vertical-align:middle}
+#viewStock .stock-table th{font-size:.64rem;text-transform:uppercase;color:var(--muted);background:#f8fafc;letter-spacing:.04em}
+#viewStock .stock-flavourBadge{--flavour-color:#22d3ee;display:inline-flex;align-items:center;gap:.3rem;padding:.06rem .38rem;border-radius:999px;border:1px solid var(--flavour-color);font-size:.6rem;letter-spacing:.02em;text-transform:uppercase;color:var(--text);background:rgba(255,255,255,.9);white-space:nowrap}
+#viewStock .stock-flavourBadge::before{content:"";width:.4rem;height:.4rem;border-radius:999px;background:var(--flavour-color)}
+#viewStock .stock-qtyInput{width:4.5rem;border:1px solid var(--line);border-radius:8px;padding:.2rem .35rem}
+#viewStock .stock-iconBtn{border:1px solid var(--line);border-radius:999px;background:#fff;padding:.2rem .45rem;cursor:pointer}
+#viewStock .stock-actionBtn{border:1px solid #86efac;background:#dcfce7;border-radius:999px;padding:.22rem .6rem;font-size:.68rem;font-weight:700;cursor:pointer}
+#viewStock .stock-logTitle{margin:.8rem 0 .4rem;font-size:.75rem;text-transform:uppercase;color:var(--muted)}
+#viewStock .stock-log{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:.4rem;background:#f8fafc}
+#viewStock .stock-logEntry{font-size:.72rem;padding:.35rem;border-bottom:1px dashed #dbe3ee}
+#viewStock .stock-neg{color:#b91c1c;font-weight:700}
+#viewStock .stock-groupRow td{padding:.4rem .45rem;background:#eef2ff;font-size:.66rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#334155;border-top:1px solid #dbe3ee}
+#viewStock .stock-poGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.5rem}
+#viewStock .stock-poItem{border:1px solid var(--line);border-radius:10px;background:#fff;padding:.45rem;display:grid;grid-template-columns:auto 1fr auto;gap:.45rem;align-items:center}
+#viewStock .stock-poIcon{--flavour-color:#22d3ee;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--flavour-color) 20%, #fff);border:1px solid color-mix(in srgb,var(--flavour-color) 60%, #cbd5e1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)}
+#viewStock .stock-poIcon--labelRoll{border-radius:999px;padding:0 .2rem;width:auto;min-width:34px;position:relative}
+#viewStock .stock-poIcon--labelRoll::before{content:"";position:absolute;inset:6px;left:7px;right:7px;border:1px dashed color-mix(in srgb,var(--flavour-color) 70%, #334155);border-radius:999px;opacity:.7}
+#viewStock .stock-primaryBtn{border-radius:999px;padding:.3rem .7rem;font-size:.72rem;cursor:pointer;border:1px solid #7dd3fc;background:#e0f2fe}
+#viewStock .stock-poToast{margin:.4rem 0;padding:.45rem .65rem;border-radius:10px;background:#dcfce7;border:1px solid #86efac;font-size:.78rem;color:#166534}
+#viewStock[data-mode="read"] .stock-countCol{display:none}
+#viewStock[data-mode="make"] .stock-countCol{display:none}
+#viewStock[data-mode="read"] .stock-makeCol{display:none}
+#viewStock[data-mode="count"] .stock-makeCol{display:none}
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
