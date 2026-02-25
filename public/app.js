@@ -2022,35 +2022,6 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
   }
 
 
-  async function promptAndRunPartialFulfillment(orderNo) {
-    const order = dispatchOrderCache.get(orderNo);
-    if (!order?.id) return false;
-    const lineItems = Array.isArray(order.line_items) ? order.line_items : [];
-    const selected = [];
-    for (const li of lineItems) {
-      const maxQty = getRemainingLineItemQty(li);
-      if (maxQty <= 0 || !li.id) continue;
-      const label = `${li.title || "Item"}${li.variant_title ? ` (${li.variant_title})` : ""}`;
-      const raw = window.prompt(`Fulfill qty for ${label} (0-${maxQty})`, "0");
-      if (raw == null) continue;
-      const qty = Math.max(0, Math.min(maxQty, Math.floor(Number(raw) || 0)));
-      if (qty > 0) selected.push({ id: li.id, quantity: qty });
-    }
-    if (!selected.length) {
-      statusExplain("No item quantities selected for partial fulfillment.", "warn");
-      return false;
-    }
-    const details = { raw: { id: order.id, line_items: lineItems } };
-    const ok = await fulfillOnShopify(details, "", selected);
-    if (ok) {
-      statusExplain(`Partial fulfillment completed for ${orderNo}.`, "ok");
-      await loadDispatchBoard();
-    } else {
-      statusExplain(`Partial fulfillment failed for ${orderNo}.`, "warn");
-    }
-    return ok;
-  }
-
   function promptManualParcelCount(orderNo) {
     const raw = window.prompt(`Enter parcel count for order ${orderNo} (required):`, "");
     if (!raw) return null;
@@ -2773,7 +2744,39 @@ async function startOrder(orderNo) {
     return OPP_DOCUMENTS.find((doc) => doc.type === docType)?.label || "OPP document";
   }
 
-  function renderDispatchActions(order, laneId, orderNo) {
+  function getPackedFulfillmentSelection(order, packingState) {
+    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const selectedLineItems = [];
+    let hasRemainingItems = false;
+    let allRemainingPacked = true;
+    let anyPacked = false;
+
+    lineItems.forEach((lineItem, index) => {
+      const remainingQty = getRemainingLineItemQty(lineItem);
+      if (remainingQty <= 0 || !lineItem?.id) return;
+      hasRemainingItems = true;
+      const itemKey = makePackingKey(lineItem, index);
+      const packedItem = getPackingItem(packingState, itemKey);
+      const packedQty = Math.max(0, Number(packedItem?.packed) || 0);
+      const qtyToFulfill = Math.min(remainingQty, packedQty);
+      if (qtyToFulfill > 0) {
+        anyPacked = true;
+        selectedLineItems.push({ id: lineItem.id, quantity: qtyToFulfill });
+      }
+      if (qtyToFulfill < remainingQty) {
+        allRemainingPacked = false;
+      }
+    });
+
+    return {
+      hasRemainingItems,
+      allRemainingPacked: hasRemainingItems ? allRemainingPacked : false,
+      anyPacked,
+      selectedLineItems
+    };
+  }
+
+  function renderDispatchActions(order, laneId, orderNo, packingState) {
     const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
     const disabled = orderNo ? "" : "disabled";
     const docsDropdown = `
@@ -2817,10 +2820,17 @@ async function startOrder(orderNo) {
       `;
     }
 
+    const fulfillmentState = getPackedFulfillmentSelection(order, packingState);
+    const showFulfill = fulfillmentState.anyPacked;
     return `
       ${docsDropdown}
-      <button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping" data-order-no="${orderNo || ""}" ${disabled}>Fulfill</button>
-      <button class="dispatchFulfillBtn" type="button" data-action="partial-fulfill" data-order-no="${orderNo || ""}" ${disabled}>Fulfill some</button>
+      ${
+        showFulfill
+          ? `<button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping" data-order-no="${
+              orderNo || ""
+            }" ${disabled}>Fulfill</button>`
+          : ""
+      }
     `;
   }
 
@@ -3326,13 +3336,17 @@ async function startOrder(orderNo) {
     const item = getPackingItem(state, itemKey);
     if (!item) return;
     const currentPacked = Number(item.packed) || 0;
-    const quantity = Number(item.quantity) || 0;
+    const orderLineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const orderLineItem = Number.isInteger(item.index) ? orderLineItems[item.index] : null;
+    const quantity = orderLineItem ? getRemainingLineItemQty(orderLineItem) : Number(item.quantity) || 0;
     if (quantity <= 0) return;
+    item.quantity = quantity;
     if (currentPacked >= quantity) {
       item.packed = 0;
     } else {
-      allocatePackedToBox(state, item.key, 1);
-      item.packed = Math.min(quantity, currentPacked + 1);
+      const delta = Math.max(0, quantity - currentPacked);
+      allocatePackedToBox(state, item.key, delta);
+      item.packed = quantity;
     }
     if (isPackingComplete(state)) {
       finalizePacking(state);
@@ -5146,38 +5160,41 @@ async function startOrder(orderNo) {
     }
     if (actionType === "fulfill-shipping") {
       if (!orderNo) return true;
-      if (isBooked(orderNo)) {
-        statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
+      const order = dispatchOrderCache.get(orderNo);
+      if (!order?.id) {
+        statusExplain("Fulfill unavailable for this order.", "warn");
         return true;
       }
-      const order = dispatchOrderCache.get(orderNo);
-      const presetCount =
-        typeof order?.parcel_count === "number" && order.parcel_count > 0
-          ? order.parcel_count
-          : getAutoParcelCountForOrder(order?.line_items);
-      await startOrder(orderNo);
-      let parcelCount = getExpectedParcelCount(orderDetails);
-      if (!parcelCount && presetCount) {
-        parcelCount = presetCount;
+      const packingState = getPackingState(order);
+      const fulfillmentState = getPackedFulfillmentSelection(order, packingState);
+      if (!fulfillmentState.anyPacked || !fulfillmentState.selectedLineItems.length) {
+        statusExplain("Mark at least one packed line item before fulfilling.", "warn");
+        return true;
       }
-      if (!parcelCount) {
-        const count = promptManualParcelCount(orderNo);
-        if (!count) {
-          statusExplain("Parcel count required (cancelled).", "warn");
-          return true;
-        }
-        parcelCount = count;
+
+      if (!fulfillmentState.allRemainingPacked) {
+        const proceed = window.confirm(
+          `Not all line items are marked packed for order ${orderNo}. Continuing will create a split fulfillment for only the packed items. Continue?`
+        );
+        if (!proceed) return true;
       }
-      orderDetails.manualParcelCount = parcelCount;
-      renderSessionUI();
-      navigateTo("/scan", { replace: true });
-      statusExplain(`Booking order ${orderNo} (${parcelCount} parcels).`, "info");
-      await doBookingNow({ manual: true, parcelCount });
-      return true;
-    }
-    if (actionType === "partial-fulfill") {
-      if (!orderNo) return true;
-      await promptAndRunPartialFulfillment(orderNo);
+
+      const details = { raw: { id: order.id, line_items: order.line_items || [] } };
+      const selectedLineItems = fulfillmentState.allRemainingPacked
+        ? null
+        : fulfillmentState.selectedLineItems;
+      const ok = await fulfillOnShopify(details, "", selectedLineItems);
+      if (ok) {
+        statusExplain(
+          fulfillmentState.allRemainingPacked
+            ? `Fulfillment completed for ${orderNo}.`
+            : `Split fulfillment completed for ${orderNo} (packed items only).`,
+          "ok"
+        );
+        await loadDispatchBoard();
+      } else {
+        statusExplain(`Fulfillment failed for ${orderNo}.`, "warn");
+      }
       return true;
     }
     if (actionType === "prepare-delivery") {
