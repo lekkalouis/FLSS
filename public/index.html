@@ -124,6 +124,44 @@
   .flNavSummary{
     width:min(640px, 100%);
   }
+  .navScanStation{
+    width:min(420px, 100%);
+    display:flex;
+    flex-direction:column;
+    gap:.35rem;
+    padding:.55rem .65rem;
+    border:1px solid var(--panel-strong);
+    border-radius:.7rem;
+    background:linear-gradient(180deg, #fff, #f8fafc);
+    box-shadow:0 8px 20px rgba(15,23,42,.06);
+  }
+  .navScanStationLabel{
+    font-size:.66rem;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--text-muted);
+  }
+  .navScanStation #scanInput{
+    width:100%;
+    background:#fff;
+    border:1px solid var(--panel-strong);
+    border-radius:.55rem;
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:.92rem;
+    outline:none;
+    padding:.48rem .62rem;
+  }
+  .navScanStation #scanInput:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(34,211,238,.2);
+  }
+  .navScanStationHint{
+    font-size:.68rem;
+    color:var(--text-muted);
+    line-height:1.25;
+  }
   .flMain{
     flex:1;
     display:flex;
@@ -456,159 +494,6 @@
   .badge{ background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.5); color:#0e7490; font-size:1.1rem; border-radius:var(--radius-md); padding:.2rem .45rem; }
   .sessionInfo{ font-size:.8rem; color:var(--text-muted); line-height:1.4; font-family:var(--mono);} 
   .scanBox,.addrBox,.card{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.85rem; }
-  .dispatchTopBar{
-    display:flex;
-    flex-direction:column;
-    gap:1rem;
-    background:var(--panel);
-    border-radius:var(--radius-lg);
-    border:1px solid var(--panel-strong);
-    padding:1rem 1.25rem;
-    box-shadow:var(--shadow-soft);
-  }
-  .dispatchTopRow{
-    display:flex;
-    align-items:center;
-    gap:1rem;
-    flex-wrap:wrap;
-  }
-  .dispatchHeading{
-    display:flex;
-    align-items:center;
-    font-weight:800;
-    font-size:1.05rem;
-    letter-spacing:.01em;
-    min-height:40px;
-    margin-right:.25rem;
-  }
-  .dispatchScanField{
-    display:flex;
-    flex-direction:column;
-    gap:.35rem;
-    min-width:280px;
-    flex:1;
-  }
-  .dispatchScanField label{
-    font-size:.72rem;
-    text-transform:uppercase;
-    letter-spacing:.08em;
-    color:var(--text-muted);
-  }
-  #scanInput{ width:100%; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:1rem; outline:none; padding:.55rem .7rem; }
-  #scanInput:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(34,211,238,.2); }
-   .dispatchTopActions{
-    display:flex;
-    align-items:center;
-    gap:.6rem;
-    flex-wrap:wrap;
-    margin-left:auto;
-  }
-  .btn--compact{
-    font-size:.7rem;
-    padding:.35rem .6rem;
-  }
-  .dispatchExpandToggle{
-    border:1px solid rgba(99,102,241,.4);
-    background:rgba(99,102,241,.12);
-    color:#312e81;
-  }
-  
-.dispatchTopActions .btn{ min-height:40px; display:inline-flex; align-items:center; justify-content:center; }
-.dispatchExpandToggle{ min-width:40px; padding:.45rem .55rem; }
-.dispatchTopDetails{
-    display:none;
-    border-top:1px solid var(--panel-strong);
-    padding-top:1rem;
-    gap:1rem;
-    justify-content:flex-end;
-  }
-  .dispatchTopBar.dispatchExpanded .dispatchTopDetails{
-    display:flex;
-  }
-  .dispatchDetailGrid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
-    gap:.85rem;
-  }
-  .dispatchDetailCard{
-    background:var(--panel-muted);
-    border:1px solid var(--panel-strong);
-    border-radius:var(--radius-md);
-    padding:.75rem .85rem;
-    display:flex;
-    flex-direction:column;
-    gap:.35rem;
-  }
-  .dispatchDetailLabel{
-    font-size:.7rem;
-    text-transform:uppercase;
-    letter-spacing:.08em;
-    color:var(--text-muted);
-    font-weight:700;
-  }
-  .dispatchDetailValue{
-    font-size:.9rem;
-    font-weight:700;
-  }
-  .dispatchDetailAddress{
-    grid-column:1/-1;
-  }
-  .dispatchDetailAddress .dispatchDetailValue{
-    font-weight:500;
-    white-space:pre-line;
-    font-size:.85rem;
-  }
-  .dispatchTopPanels{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
-    gap:.85rem;
-    width:min(980px, 100%);
-  }
-  .dispatchTruckIndicator{
-    margin-left:auto;
-    display:flex;
-    align-items:center;
-    gap:.75rem;
-  }
-  .dispatchTruckButton{
-    display:flex;
-    align-items:center;
-    gap:.5rem;
-    border:1px solid rgba(239,68,68,.6);
-    background:rgba(239,68,68,.08);
-    color:#b91c1c;
-    border-radius:999px;
-    padding:.4rem .75rem;
-    font-weight:700;
-    font-size:.72rem;
-    text-transform:uppercase;
-    letter-spacing:.06em;
-    cursor:pointer;
-  }
-  .dispatchTruckButton.is-booked{
-    border-color:rgba(34,197,94,.6);
-    background:rgba(34,197,94,.12);
-    color:#047857;
-  }
-  .dispatchTruckIcon{
-    width:18px;
-    height:18px;
-    display:inline-flex;
-  }
-  .dispatchTruckMeta{
-    display:flex;
-    align-items:center;
-    gap:.35rem;
-    font-size:.72rem;
-    color:var(--text-muted);
-  }
-  .dispatchTruckBox{
-    display:inline-flex;
-    align-items:center;
-    gap:.35rem;
-    font-weight:700;
-    color:var(--text);
-  }
   .btn{
     border:1px solid rgba(99,102,241,.45);
     background:rgba(99,102,241,.12);
@@ -1264,14 +1149,40 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   margin-bottom: 0.35rem;
 }
 
-.dispatchCardParcel label {
-  font-weight: 600;
+.dispatchParcelLabel {
+  font-weight: 700;
+  font-size: 0.82rem;
   color: var(--text);
+}
+
+.dispatchParcelAdjustBtn {
+  border: 1px solid var(--panel-strong);
+  background: #fff;
+  color: var(--text);
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.dispatchParcelAdjustBtn:hover {
+  background: #f8fafc;
+}
+
+.dispatchParcelAdjustBtn:focus {
+  outline: 2px solid rgba(56,189,248,0.4);
+  outline-offset: 1px;
 }
 
 .dispatchParcelCountInput {
@@ -1391,9 +1302,6 @@
 
   .dispatchSettingsOnly{
     display:none;
-  }
-  .dispatchTopBar.dispatchExpanded .dispatchSettingsOnly{
-    display:inline-flex;
   }
 
   .dispatchBookingOverlay{
@@ -2053,8 +1961,7 @@
   }
 
 
-.dispatchBottomBar{display:contents;}
-.dispatchBottomBar .dispatchTopBar{border-radius:.8rem;padding:.55rem .7rem;box-shadow:0 10px 22px rgba(15,23,42,.14);}
+
 .dispatchColBody {
   overflow: visible;
   max-height: none;
@@ -2388,6 +2295,11 @@
               <span class="statusBarLabel">Connections</span>
               <span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Loading…</span>
             </div>
+            <div id="navScanStation" class="navScanStation" aria-label="Scan station input">
+              <label for="scanInput" class="navScanStationLabel">Scan station</label>
+              <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan order barcode / number then press Enter" autofocus />
+              <div class="navScanStationHint">The scanner should type directly here for fast order lookup.</div>
+            </div>
             <div class="flNavSummary"></div>
           </div>
         </nav>
@@ -2419,45 +2331,6 @@
 
         <div class="flView flView--active" id="viewScan">
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
-      <div id="dispatchNotesBar" class="dispatchBottomBar">
-        <div class="dispatchTopBar" id="dispatchTopBar" aria-label="Dispatch controls" hidden>
-          <div class="dispatchTopRow">
-            <div class="dispatchHeading">Orders</div>
-            <div class="dispatchScanField">
-              <label for="scanInput">Order barcode</label>
-              <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Order input: focus here, scanner types then Enter." autofocus />
-            </div>
-            <div class="dispatchTopActions">
-              <button id="dispatchExpandToggle" class="btn dispatchExpandToggle" type="button" aria-expanded="false" title="Dispatch settings">⚙️</button>
-              <button id="dispatchCreateCombined" class="btn btnToggle btn--compact dispatchSettingsOnly" type="button">Create Combined Shipment</button>
-              <button id="modeToggle" class="btn btn--compact dispatchSettingsOnly" type="button">MODE: AUTO</button>
-              <button id="btnBookNow" class="btn btnPrimary" hidden>BOOK NOW</button>
-            </div>
-          </div>
-          <div class="dispatchTopDetails" aria-live="polite">
-            <div class="dispatchTopPanels">
-              <div class="dispatchStatusPanel dispatchStatusPanel--compact">
-                <div class="dispatchStatusHeader">
-                  <h3>Booking progress</h3>
-                  <span class="dispatchStatusLabel" id="dispatchProgressLabel">Ready</span>
-                </div>
-                <div class="dispatchProgressBar" id="dispatchProgressBar">
-                  <div class="dispatchProgressFill" id="dispatchProgressFill"></div>
-                  <span class="dispatchProgressSun" aria-hidden="true"></span>
-                </div>
-                <div class="dispatchProgressSteps" id="dispatchProgressSteps"></div>
-              </div>
-              <div class="dispatchLogPanel dispatchLogPanel--compact">
-                <div class="dispatchLogHeader">
-                  <strong>Dispatch log</strong>
-                </div>
-                <div class="dispatchLog" id="dispatchLog" aria-live="polite"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">
