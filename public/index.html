@@ -1421,6 +1421,18 @@
   .dispatchLineItem:hover{
     background:rgba(226,232,240,.45);
   }
+  .dispatchLineItem:focus-visible{
+    outline:2px solid rgba(34,211,238,.75);
+    outline-offset:1px;
+    background:rgba(125,211,252,.22);
+    box-shadow:0 0 0 1px rgba(34,211,238,.38), 0 0 16px rgba(34,211,238,.3);
+  }
+  body.dispatchRotaryMode .dispatchRotaryFocus{
+    position:relative;
+    z-index:2;
+    box-shadow:0 0 0 1px rgba(56,189,248,.55), 0 0 0 3px rgba(125,211,252,.32), 0 0 18px rgba(56,189,248,.42);
+    filter:brightness(1.06);
+  }
   .dispatchLineText{
     display:inline-flex;
     align-items:center;
@@ -1675,6 +1687,15 @@
   .dispatchFulfillBtn:disabled{
     opacity:.5;
     cursor:not-allowed;
+  }
+
+  .dispatchCardActions button:focus-visible,
+  .dispatchCardActions .dispatchCardSelectInput:focus-visible,
+  .dispatchCardActions .dispatchParcelCountInput:focus-visible,
+  .dispatchCardActions .dispatchParcelAdjustBtn:focus-visible{
+    outline:2px solid rgba(56,189,248,.72);
+    outline-offset:2px;
+    box-shadow:0 0 0 2px rgba(125,211,252,.3), 0 0 14px rgba(56,189,248,.35);
   }
 
   .dispatchBoxBtn{

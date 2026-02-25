@@ -2805,7 +2805,7 @@ async function startOrder(orderNo) {
         const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
         return {
           isComplete,
-          html: `<div class="dispatchLineItem ${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true">${dotLabel}</span> ${qtyLabel}</span></div>`
+          html: `<div class="dispatchLineItem ${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}" role="button" tabindex="0" aria-label="Toggle packed for ${qtyLabel}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true">${dotLabel}</span> ${qtyLabel}</span></div>`
         };
       })
       .filter(Boolean);
@@ -5654,6 +5654,102 @@ async function startOrder(orderNo) {
     }
   }
 
+  const DISPATCH_ROTARY_MODE_CLASS = "dispatchRotaryMode";
+  const DISPATCH_ROTARY_FOCUS_CLASS = "dispatchRotaryFocus";
+
+  function isDispatchViewActive() {
+    return Boolean(document.querySelector("#viewDispatch.flView--active"));
+  }
+
+  function isTextEntryElement(node) {
+    if (!(node instanceof HTMLElement)) return false;
+    if (node.isContentEditable) return true;
+    if (node.tagName === "TEXTAREA") return true;
+    if (node.tagName === "SELECT") return true;
+    if (node.tagName !== "INPUT") return false;
+    const type = String(node.getAttribute("type") || "text").toLowerCase();
+    return !["checkbox", "radio", "button", "submit", "reset"].includes(type);
+  }
+
+  function collectRotaryTargetsFromCard(card) {
+    if (!(card instanceof HTMLElement)) return [];
+    const targets = [
+      ...Array.from(card.querySelectorAll(".dispatchLineItem")),
+      ...Array.from(card.querySelectorAll(".dispatchCardSelectInput")),
+      ...Array.from(card.querySelectorAll(".dispatchCardActions button:not([disabled])"))
+    ];
+    return targets.filter(
+      (node) => node instanceof HTMLElement && !node.hasAttribute("disabled") && node.getAttribute("aria-hidden") !== "true"
+    );
+  }
+
+  function collectDispatchRotaryTargets() {
+    const targets = [];
+    if (dispatchOrderModal?.classList.contains("is-open") && dispatchOrderModalBody) {
+      const modalCards = dispatchOrderModalBody.querySelectorAll(".dispatchOrderModalMain .dispatchCardActions, .dispatchPackingPanel");
+      targets.push(...Array.from(dispatchOrderModalBody.querySelectorAll(".dispatchLineItem")));
+      modalCards.forEach((section) => {
+        if (!(section instanceof HTMLElement)) return;
+        targets.push(...Array.from(section.querySelectorAll("button:not([disabled]), .dispatchCardSelectInput")));
+      });
+    } else if (dispatchBoard) {
+      const cards = dispatchBoard.querySelectorAll(".dispatchCard");
+      cards.forEach((card) => {
+        targets.push(...collectRotaryTargetsFromCard(card));
+      });
+    }
+
+    const unique = [];
+    const seen = new Set();
+    targets.forEach((node) => {
+      if (!(node instanceof HTMLElement)) return;
+      if (seen.has(node)) return;
+      seen.add(node);
+      unique.push(node);
+    });
+    return unique;
+  }
+
+  function applyDispatchRotaryFocus(target) {
+    if (!(target instanceof HTMLElement)) return;
+    document.querySelectorAll(`.${DISPATCH_ROTARY_FOCUS_CLASS}`).forEach((node) => node.classList.remove(DISPATCH_ROTARY_FOCUS_CLASS));
+    target.classList.add(DISPATCH_ROTARY_FOCUS_CLASS);
+    document.body.classList.add(DISPATCH_ROTARY_MODE_CLASS);
+    target.focus({ preventScroll: false });
+    const orderNo = target.closest("[data-order-no]")?.dataset?.orderNo || target.dataset.orderNo || "";
+    const itemKey = target.dataset.itemKey ? decodeURIComponent(target.dataset.itemKey) : "";
+    window.dispatchEvent(new CustomEvent("flss:rotary-focus-changed", { detail: { orderNo, itemKey } }));
+  }
+
+  function moveDispatchRotaryFocus(step = 1) {
+    const direction = step >= 0 ? 1 : -1;
+    const targets = collectDispatchRotaryTargets();
+    if (!targets.length) return false;
+    const current = document.activeElement;
+    const currentIndex = current instanceof HTMLElement ? targets.indexOf(current) : -1;
+    const startIndex = currentIndex === -1 ? (direction > 0 ? -1 : 0) : currentIndex;
+    const nextIndex = (startIndex + direction + targets.length) % targets.length;
+    applyDispatchRotaryFocus(targets[nextIndex]);
+    return true;
+  }
+
+  function activateDispatchRotaryFocus({ longPress = false } = {}) {
+    const target = document.activeElement;
+    if (!(target instanceof HTMLElement)) return false;
+    if (target.classList.contains("dispatchLineItem")) {
+      const orderNo = target.dataset.orderNo;
+      const itemKey = target.dataset.itemKey ? decodeURIComponent(target.dataset.itemKey) : "";
+      if (longPress) showDispatchPackedQtyPrompt(orderNo, itemKey);
+      else toggleDispatchLineItemPacked(orderNo, itemKey);
+      return true;
+    }
+    if (target.matches("button, [role='button'], input[type='checkbox'], input[type='radio']")) {
+      target.click();
+      return true;
+    }
+    return false;
+  }
+
   dispatchBoard?.addEventListener("pointerdown", (e) => {
     const lineItem = e.target.closest(".dispatchLineItem");
     if (!lineItem) return;
@@ -5747,6 +5843,73 @@ async function startOrder(orderNo) {
       card.classList.toggle("is-selected", checkbox.checked);
     }
     updateDispatchSelectionSummary();
+  });
+
+  dispatchBoard?.addEventListener("keydown", (e) => {
+    const lineItem = e.target.closest(".dispatchLineItem");
+    if (!lineItem) return;
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    const orderNo = lineItem.dataset.orderNo;
+    const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
+    toggleDispatchLineItemPacked(orderNo, itemKey);
+  });
+
+  document.addEventListener("focusin", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (
+      target.closest(".dispatchCard") &&
+      (target.classList.contains("dispatchLineItem") || target.closest(".dispatchCardActions"))
+    ) {
+      target.classList.add(DISPATCH_ROTARY_FOCUS_CLASS);
+    }
+  });
+
+  document.addEventListener("focusout", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    target.classList.remove(DISPATCH_ROTARY_FOCUS_CLASS);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (!isDispatchViewActive()) return;
+    if (slotEgg && !slotEgg.hidden) return;
+    const key = event.key;
+    if (!["Tab", "ArrowDown", "ArrowUp", "Enter"].includes(key)) return;
+    if (isTextEntryElement(event.target) && key !== "Tab") return;
+
+    if (key === "Tab" || key === "ArrowDown" || key === "ArrowUp") {
+      if (key !== "Tab" && isTextEntryElement(event.target)) return;
+      event.preventDefault();
+      moveDispatchRotaryFocus(key === "ArrowUp" || event.shiftKey ? -1 : 1);
+      return;
+    }
+
+    if (key === "Enter" && document.activeElement?.classList?.contains("dispatchLineItem")) {
+      event.preventDefault();
+      activateDispatchRotaryFocus();
+    }
+  });
+
+  window.addEventListener("flss:rotary", (event) => {
+    const detail = event?.detail || {};
+    if (!isDispatchViewActive()) return;
+    const directionValue = detail.direction ?? detail.step ?? detail.delta ?? null;
+    if (directionValue != null) {
+      const delta = Number(directionValue);
+      if (directionValue === "prev" || directionValue === "previous" || (!Number.isNaN(delta) && delta < 0)) {
+        moveDispatchRotaryFocus(-1);
+      } else if (directionValue === "next" || (!Number.isNaN(delta) && delta > 0)) {
+        moveDispatchRotaryFocus(1);
+      }
+    }
+    if (detail.action === "press" || detail.click === true || detail.press === true) {
+      activateDispatchRotaryFocus({ longPress: detail.longPress === true });
+    }
+    if (detail.action === "long-press") {
+      activateDispatchRotaryFocus({ longPress: true });
+    }
   });
 
   
