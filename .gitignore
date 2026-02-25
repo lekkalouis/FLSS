@@ -1,5 +1,13 @@
 node_modules/*
 .env
+<<<<<<< HEAD
 .env
 .env
 .env
+=======
+
+data/
+
+!public/data/
+!public/data/purchase-order-catalog.generated.json
+>>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
