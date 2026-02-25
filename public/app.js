@@ -182,7 +182,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dispatchOverlayProgressSteps = $("dispatchOverlayProgressSteps");
   const dispatchOverlayProgressLabel = $("dispatchOverlayProgressLabel");
 
-  const navDashboard = $("navDashboard");
   const navScan = $("navScan");
   const navOps = $("navOps");
   const navDocs = $("navDocs");
@@ -193,7 +192,6 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const navDispatchSettings = $("navDispatchSettings");
   const navLogs = $("navLogs");
   const navToggle = $("navToggle");
-  const viewDashboard = $("viewDashboard");
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
@@ -228,10 +226,10 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const MODULES = [
     {
       id: "scan",
-      title: "Dispatch",
-      description: "Scan parcels and auto-book shipments with live booking progress.",
+      title: "Orders",
+      description: "Manage orders, scan parcels, and auto-book shipments with live booking progress.",
       type: "route",
-      target: "/scan",
+      target: "/",
       meta: "Internal module",
       tag: "Core"
     },
@@ -3559,7 +3557,6 @@ async function startOrder(orderNo) {
         <div class="dispatchPackingPlanBody">${packingPlanMarkup}</div>
       </div>
       ${packingSummaryMarkup}
-      ${renderDispatchPackingPanel(packingState, orderNo, { forceOpen: true })}
     `;
     dispatchOrderModal.classList.add("is-open");
     dispatchOrderModal.setAttribute("aria-hidden", "false");
@@ -4424,7 +4421,6 @@ async function startOrder(orderNo) {
   });
 
   function switchMainView(view) {
-    const showDashboard = view === "dashboard";
     const showScan = view === "scan";
     const showOps = view === "ops";
     const showDocs = view === "docs";
@@ -4435,10 +4431,6 @@ async function startOrder(orderNo) {
     const showDispatchSettings = view === "dispatch-settings";
     const showLogs = view === "logs";
 
-    if (viewDashboard) {
-      viewDashboard.hidden = !showDashboard;
-      viewDashboard.classList.toggle("flView--active", showDashboard);
-    }
     if (viewScan) {
       viewScan.hidden = !showScan;
       viewScan.classList.toggle("flView--active", showScan);
@@ -4476,7 +4468,6 @@ async function startOrder(orderNo) {
       viewLogs.classList.toggle("flView--active", showLogs);
     }
 
-    navDashboard?.classList.toggle("flNavBtn--active", showDashboard);
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
@@ -4486,7 +4477,6 @@ async function startOrder(orderNo) {
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navDispatchSettings?.classList.toggle("flNavBtn--active", showDispatchSettings);
     navLogs?.classList.toggle("flNavBtn--active", showLogs);
-    navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
@@ -4497,10 +4487,8 @@ async function startOrder(orderNo) {
     navDispatchSettings?.setAttribute("aria-selected", showDispatchSettings ? "true" : "false");
     navLogs?.setAttribute("aria-selected", showLogs ? "true" : "false");
 
-    if (showDashboard) {
-      statusExplain("Dashboard ready — choose a module to launch.", "info");
-    } else if (showScan) {
-      statusExplain("Ready to scan orders…", "info");
+    if (showScan) {
+      statusExplain("Orders view ready.", "info");
       scanInput?.focus();
     } else if (showDocs) {
       statusExplain("Viewing operator documentation", "info");
@@ -4524,8 +4512,7 @@ async function startOrder(orderNo) {
   }
 
   const ROUTE_VIEW_MAP = new Map([
-    ["/", "dashboard"],
-    ["/dashboard", "dashboard"],
+    ["/", "scan"],
     ["/scan", "scan"],
     ["/ops", "scan"],
     ["/docs", "docs"],
@@ -4538,9 +4525,8 @@ async function startOrder(orderNo) {
   ]);
 
   const VIEW_ROUTE_MAP = {
-    dashboard: "/",
-    scan: "/scan",
-    ops: "/scan",
+    scan: "/",
+    ops: "/",
     docs: "/docs",
     flowcharts: "/flowcharts",
     flocs: "/flocs",
@@ -4751,7 +4737,7 @@ async function startOrder(orderNo) {
   }
 
   function viewForPath(path) {
-    return ROUTE_VIEW_MAP.get(normalizePath(path)) || "dashboard";
+    return ROUTE_VIEW_MAP.get(normalizePath(path)) || "scan";
   }
 
   function routeForView(view) {
@@ -4818,7 +4804,6 @@ async function startOrder(orderNo) {
 
   const ADMIN_UNLOCKED_KEY = "fl_admin_unlocked";
   const applyAdminMenuVisibility = (visible) => {
-    if (navDashboard) navDashboard.hidden = !visible;
     if (navDocs) navDocs.hidden = !visible;
     if (navFlowcharts) navFlowcharts.hidden = !visible;
     if (navPriceManager) navPriceManager.hidden = !visible;
@@ -4827,7 +4812,7 @@ async function startOrder(orderNo) {
 
     if (!visible) {
       const activeView = document.querySelector(".flView.flView--active")?.id;
-      const nonCoreViews = new Set(["viewDashboard", "viewDocs", "viewFlowcharts", "viewPriceManager", "viewDispatchSettings", "viewLogs"]);
+      const nonCoreViews = new Set(["viewDocs", "viewFlowcharts", "viewPriceManager", "viewDispatchSettings", "viewLogs"]);
       if (activeView && nonCoreViews.has(activeView)) {
         switchMainView("scan");
       }
@@ -5543,18 +5528,6 @@ async function startOrder(orderNo) {
 
   slotSpinBtn?.addEventListener("click", spinSlots);
   slotCloseButtons.forEach((btn) => btn.addEventListener("click", closeSlotEgg));
-
-  dispatchOrderModal?.addEventListener("change", (e) => {
-    const input = e.target.closest(".dispatchBoxParcelInput");
-    if (!input) return;
-    const orderNo = input.dataset.orderNo;
-    const boxIndex = Number(input.dataset.boxIndex);
-    if (!orderNo || !Number.isInteger(boxIndex)) return;
-    const state = dispatchPackingState.get(orderNo);
-    if (!state || !Array.isArray(state.boxes) || !state.boxes[boxIndex]) return;
-    state.boxes[boxIndex].parcelCode = input.value.trim();
-    savePackingState();
-  });
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
