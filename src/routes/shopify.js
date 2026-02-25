@@ -3363,15 +3363,27 @@ router.post("/shopify/notify-collection", async (req, res) => {
     if (!requireShopifyConfigured(res)) return;
     const { orderNo, orderId, email, customerName, parcelCount = 0, weightKg = 0 } = req.body || {};
 
-    if (!email) {
-      return badRequest(res, "Missing customer email address");
-    }
-
     if (!orderId) {
       return badRequest(res, "Missing orderId");
     }
 
     const { normalizedOrderNo, pin, barcodeValue } = buildCollectionCredentials(orderNo);
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+
+    const orderResp = await shopifyFetch(`${base}/orders/${orderId}.json?fields=id,email,customer,tags,name`, { method: "GET" });
+    const orderData = await orderResp.json().catch(() => ({}));
+    if (!orderResp.ok || !orderData?.order?.id) {
+      return res.status(orderResp.status || 502).json({
+        error: "ORDER_LOOKUP_FAILED",
+        message: "Unable to load order for notification.",
+        body: orderData
+      });
+    }
+
+    const orderRecord = orderData.order;
+    const customerEmail = String(email || orderRecord.email || orderRecord.customer?.email || "").trim();
+    const fallbackNotifiedAdmin = !customerEmail;
+    const sendTo = fallbackNotifiedAdmin ? "admin@flippenlekkaspices.co.za" : customerEmail;
 
     const safeOrderNo = orderNo ? `#${String(orderNo).replace("#", "")}` : "your order";
     const safeName = customerName || "there";
@@ -3383,7 +3395,7 @@ router.post("/shopify/notify-collection", async (req, res) => {
     )}&code=Code128&dpi=120`;
     const text = `Hi ${safeName},
 
-Your order ${safeOrderNo} is ready for collection by your courier.
+Your order ${safeOrderNo} is ready for pickup by your courier.
 
 Order weight: ${weightLabel} kg
 Parcels packed: ${parcelsLabel}
@@ -3394,7 +3406,7 @@ Thank you.`;
 
     const html = `
       <p>Hi ${safeName},</p>
-      <p>Your order <strong>${safeOrderNo}</strong> is ready for collection by your courier.</p>
+      <p>Your order <strong>${safeOrderNo}</strong> is ready for pickup by your courier.</p>
       <p>
         <strong>Order weight:</strong> ${weightLabel} kg<br/>
         <strong>Parcels packed:</strong> ${parcelsLabel}
@@ -3407,24 +3419,63 @@ Thank you.`;
     `;
 
     const transport = getSmtpTransport();
+    const adminNotice = fallbackNotifiedAdmin
+      ? `\n\nNo customer email is on record for ${safeOrderNo}. This admin message confirms the order is ready for pickup, but no customer notification could be sent.`
+      : "";
+
     await transport.sendMail({
       from: config.SMTP_FROM,
-      to: email,
+      to: sendTo,
       subject,
-      text,
-      html
+      text: `${text}${adminNotice}`,
+      html: `${html}${
+        fallbackNotifiedAdmin
+          ? `<p><strong>No customer email is on record for ${safeOrderNo}.</strong> This admin email confirms the order is ready for pickup, but no customer notification could be sent.</p>`
+          : ""
+      }`
     });
 
-    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     await appendOrderTag(base, orderId, "pickup_notified");
+    await appendOrderTag(base, orderId, "stat:notified");
 
-    return res.json({ ok: true, barcodeValue, pin, orderNo: normalizedOrderNo });
+    return res.json({
+      ok: true,
+      barcodeValue,
+      pin,
+      orderNo: normalizedOrderNo,
+      sentTo: sendTo,
+      fallbackNotifiedAdmin
+    });
   } catch (err) {
     console.error("Notify collection error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)
     });
+  }
+});
+
+router.post("/shopify/orders/tag", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+    const { orderId, tag } = req.body || {};
+    if (!orderId) return badRequest(res, "Missing orderId");
+    const tagToApply = String(tag || "").trim();
+    if (!tagToApply) return badRequest(res, "Missing tag");
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const result = await appendOrderTag(base, orderId, tagToApply);
+    if (!result.ok) {
+      return res.status(result.status || 502).json({
+        error: "TAG_APPLY_FAILED",
+        statusText: result.statusText,
+        body: result.body
+      });
+    }
+    return res.json({ ok: true, tag: tagToApply, tags: result.tags || [] });
+  } catch (err) {
+    console.error("Order tag error:", err);
+    return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
   }
 });
 
@@ -3461,6 +3512,7 @@ router.post("/shopify/collection/fulfill-from-code", async (req, res) => {
       });
     }
 
+    await appendOrderTag(base, order.id, "stat:pickedup");
     return res.json({ ok: true, orderId: order.id, orderNo: parsed.orderNo, fulfillment: fulfillResult.fulfillment });
   } catch (err) {
     console.error("Collection fulfill-from-code error:", err);
