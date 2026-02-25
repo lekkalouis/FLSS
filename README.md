@@ -27,6 +27,238 @@ FLSS is a single-page operations console for Flippen Lekka that runs on a Node/E
 
 ---
 
+## Comprehensive operator manual (click-by-click)
+
+This section is intended as a full operator runbook. It explains navigation, what each control does, what data it loads, and the normal sequence of clicks for each module/page.
+
+### 0) Start-up and first load checks
+
+1. Run `npm run dev`.
+2. Open `http://localhost:3000`.
+3. Confirm the top nav renders and the scan input is focused.
+4. Open **Documentation** and verify system health (`/api/v1/healthz`) and integration health (`/api/v1/statusz`).
+5. If any integration is offline, continue with modules that do not depend on that service (for example docs/templates/local flows) and resolve credentials before booking/printing.
+
+### 1) Global shell controls (visible in the main SPA)
+
+- **Orders** (`navScan`)
+  - Click to open the Scan/Operations dashboard route (`/`).
+- **Documentation** (`navDocs`)
+  - Click to open embedded docs topics loaded from `README.md` + `docs/*.md`.
+- **Order capture** (`navFlocs`)
+  - Click to open FLOCS customer + product + order builder.
+- **Stock take** (`navStock`)
+  - Click to open stock tools and purchase-order tools.
+- **Price manager** (`navPriceManager`)
+  - Click to open price-tier management tools.
+- **Scan input** (`scanInput`)
+  - Paste/type/scan a parcel barcode and press Enter to load order context.
+- **Multi-shipment button** (`multiShipmentBtn`, appears conditionally)
+  - Use when combining selected delivery orders into one shipment flow.
+
+### 2) Orders / Scan Station module (`/`)
+
+#### What loads automatically
+- UI config from `/api/v1/config` (timeouts, thresholds, feature flags).
+- Live status cards (order number, parcel counts, mode, source).
+- Server/integration status bar polling.
+
+#### Primary operator sequence
+1. Scan barcode in **scanInput**.
+2. Verify resolved order number, customer, destination, parcel sequence/list.
+3. Confirm place/service override if needed (address search + service selector).
+4. Choose booking behavior:
+   - leave auto-book on to book after idle timeout, or
+   - press **Book Now** (`btnBookNow`) for immediate booking.
+5. Review booking progress stages (quote/service/book/print/booked/notify).
+6. Print labels (PrintNode path) and confirm fulfillment update in Shopify.
+
+#### Controls you will use often
+- **Book Now** (`btnBookNow`): immediate booking for current order/session.
+- **Mode toggle** (`modeToggle`): switch workflow modes where enabled.
+- **Address search** (`addrSearch`) + results (`addrResults`): look up/override place code.
+- **Place code** (`placeCode`): manually force destination place if lookup is ambiguous.
+- **Service override** (`serviceOverride`): force courier service code where needed.
+- **Emergency stop** (`emergencyStop`): abort/lock accidental in-flight automation action.
+
+### 3) Dispatch Board module (`/ops`)
+
+#### What it is for
+A triage board for open orders + recent shipments, with dispatch preparation and booking shortcuts.
+
+#### Core sequence
+1. Open dispatch view (from route/module card).
+2. Wait for open orders and shipment snapshots to load.
+3. Select orders to prepare/dispatch.
+4. Click **Prepare deliveries** (`dispatchPrepareDeliveries`) for grouped processing.
+5. Open order/shipment detail modals and close with **✕** buttons when done.
+6. Clear current selection with **Clear** (`dispatchSelectionClear`) to reset.
+
+#### Dispatch-related controls
+- **Prepare deliveries** (`dispatchPrepareDeliveries`): starts prep flow for selected orders.
+- **Clear** (`dispatchSelectionClear`): clears selected rows/orders.
+- **Truck booking** (`truckBookBtn`): sends truck-booking alert email when threshold reached/approved.
+- **Combined shipment** (`dispatchCreateCombined`): create grouped shipment payloads (when enabled).
+- **Expand toggle** (`dispatchExpandToggle`): expand/collapse board density/details.
+
+### 4) Documentation module (`/docs`)
+
+- Click a topic in the docs sidebar list (`docsTopics`).
+- The markdown body loads in `docsContent`.
+- Use docs subnav (`docsSubnav`) for faster jumps when available.
+- This is the quickest operator self-help location for route specs and setup instructions.
+
+### 5) FLOCS / Order Capture module (`/flocs`)
+
+#### Intended flow
+1. Choose customer path:
+   - search existing customer, or
+   - click **Add new customer** (`flocs-customerCreateToggle`) then complete form and click **Create customer** (`flocs-customerCreateBtn`).
+2. Set customer details (tier, delivery method, VAT/payment terms, addresses).
+3. Search/filter products, set quantities, and build cart/invoice preview.
+4. Set delivery type and optional PO/reference/date.
+5. Click **Calculate shipping** (`flocs-calcShip`) to fetch ParcelPerfect quote.
+6. Create transaction:
+   - **Create draft order** (`flocs-createDraftBtn`) for review/approval workflow, or
+   - **Create order now** (`flocs-createOrderBtn`) for immediate order creation.
+7. If needed, use **Convert draft to order** (`flocs-convertBtn`) after draft creation.
+
+#### High-use FLOCS controls
+- Customer search/filter/sort: `flocs-customerSearch`, `flocs-customerQuickSearch`, province/sort selects.
+- Customer form clear: `flocs-customerResetBtn`.
+- Delivery type radio group: `flocs-deliveryGroup`.
+- Quantity mode/carton mode controls: `flocs-qtyModeGroup`, `flocs-cartonSizeGroup`.
+
+### 6) Stock Take module (`/stock` in SPA and `stock.html`)
+
+#### Stock tab workflow
+1. Choose location (`stock-location`).
+2. Filter products via search (`stock-search`).
+3. Select mode:
+   - **Read only** (no changes),
+   - **Stock take** (set counted value),
+   - **Stock received** (increment/adjust).
+4. For focused adjustment, enter value in `stock-focusInput` and click **Apply** (`stock-focusApply`).
+5. Navigate queued rows with **◀ Prev** (`stock-focusPrev`) and **Next ▶** (`stock-focusNext`).
+6. Watch activity history/log (`stock-log`) for local audit trail.
+
+#### Purchase-order tab workflow (inside stock module)
+1. Switch to Purchase Orders tab (`stock-tabPurchase`).
+2. Build PO lines and click **Create draft purchase order** (`po-submit`).
+3. In PO list, use row actions:
+   - **Receive** to apply receipt adjustments.
+   - **Print docs** to print supporting documents (enabled when URL exists).
+
+### 7) Price Manager module (`/price-manager` in SPA and `price-manager.html`)
+
+#### What it does
+Loads variants/products, shows tier breakpoints, and allows saving tier metafields and syncing storefront prices when chosen.
+
+#### Typical sequence
+1. Wait for product list to load (status shown in `pmStatus`).
+2. Filter/search target variants/products.
+3. Edit tier columns/values in grid rows.
+4. Click row **Save** to write `custom.price_tiers` metafield updates.
+5. Use sync action (if enabled in UI context) to push tier-derived price to variant `price`.
+
+### 8) Shipping Matrix page (`/shipping-matrix.html`)
+
+Use for quote simulation only (no booking):
+1. Enter weight set(s).
+2. Pick destination center type (`all`/`major`/`regional`) or custom places.
+3. Run matrix generation to compare costs.
+4. Use output table to choose service assumptions for real booking modules.
+
+### 9) Custom Order Capture page (`/order-capture-custom.html`)
+
+#### Authentication + account load
+1. Enter local password to unlock page features.
+2. (Optional) click **Load account** (`customer-access-load`) to pull account context.
+
+#### Order creation controls
+- **Create draft order** (`submit-draft-order`)
+- **Create order** (`submit-order`)
+- **Print** (`print-form`)
+- Quick picker supports search/sort/province filters and close button (`quick-picker-close`).
+
+### 10) Customer Accounts page (`/customer-accounts.html`)
+
+#### Auth area
+- **Login** (`loginBtn`) with email/password.
+- **Register** (`registerBtn`) with first/last/phone + credentials.
+
+#### Profile area
+- Edit profile/address fields, then click **Save profile** (`saveProfileBtn`).
+- Click **Logout** (`logoutBtn`) to end session.
+
+#### Ordering area
+- Set product quantities, then click **Place order** (`placeOrderBtn`).
+- Click **Refresh history** (`refreshOrdersBtn`) to reload order timeline.
+
+### 11) Purchase Orders page (`/purchase-orders.html`)
+
+1. Enter optional supplier (`supplier`).
+2. Search materials (`search`).
+3. Add required lines/quantities.
+4. Click **Create draft purchase order** (`submitBtn`).
+5. Confirm returned draft order id/name and tags include `purchase-order`.
+
+### 12) Liquid Templates page (`/liquid-templates.html`)
+
+- **+ New** (`newTemplateBtn`): create a blank template record.
+- Template name (`templateName`): set display name.
+- Editor: write/update liquid markup.
+- **Refresh preview** (`refreshPreviewBtn`): regenerate rendered sample output.
+- **Save template** (`saveTemplateBtn`): persist template payload.
+- **Delete template** (`deleteTemplateBtn`): remove selected template.
+
+### 13) Notification Templates page (`/notification-templates.html`)
+
+- **+ New** (`newTemplateBtn`): create notification template definition.
+- Edit metadata: template name, event key, source, channel, enabled toggle.
+- Edit subject/body content.
+- **Refresh preview** (`refreshPreviewBtn`) to test rendering.
+- **Save template** (`saveTemplateBtn`) to persist.
+- **Delete template** (`deleteTemplateBtn`) to remove.
+
+### 14) Operator troubleshooting checklist
+
+1. **Nothing loads / blank state**: check `/api/v1/healthz`, browser console, and env config.
+2. **Can’t book shipment**: verify ParcelPerfect credentials + place code validity.
+3. **Can’t print**: verify PrintNode key/printer ids and printer online state.
+4. **Order/fulfillment issues**: verify Shopify app credentials and scopes.
+5. **Email actions fail**: verify SMTP host/auth and sender values.
+6. **Stock/price writes blocked**: ensure account permissions and location/variant ids are valid.
+
+---
+
+## API function map (all routers)
+
+All API routes are mounted beneath `/api/v1`.
+
+- **Status/config**: `/healthz`, `/statusz`, `/config`
+- **Docs**: `/docs`, `/docs/:slug`
+- **ParcelPerfect**: `/pp`, `/pp/place`, `/pp/matrix`
+- **PrintNode**: `/printnode/print`, `/printnode/print-delivery-note`, `/printnode/print-url`
+- **Alerts**: `/alerts/book-truck`
+- **Customer Accounts**:
+  `/customer-accounts/register`, `/customer-accounts/login`, `/customer-accounts/logout`,
+  `/customer-accounts/me`, `/customer-accounts/catalog`, `/customer-accounts/orders`
+- **Liquid templates**: `/liquid-templates` (GET/POST)
+- **Notification templates**: `/notification-templates` (GET/POST)
+- **Shopify (selected groups)**:
+  - Customers: search, recent, metafields, by-access-code, create
+  - Products/collections: search, collection
+  - Pricing: resolve, reconcile draft pricing, reconcile status
+  - Price tiers: upsert/fetch variant tier metafields
+  - Draft orders: create, complete, purchase-order create/open/raw-material helpers
+  - Orders: create/cash/list/open/by-name, parcel-count update, run-flow, tag
+  - Fulfillment: fulfill, ready-for-pickup, fulfillment-events, recent shipments, fulfill-from-code
+  - Inventory: inventory-levels, locations, set, transfer
+  - Notifications: notify-collection
+
+---
+
 ## Architecture
 
 ```mermaid
