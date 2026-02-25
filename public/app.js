@@ -448,8 +448,19 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
 
-  const statusExplain = (msg, tone = "info") => {
+  const statusExplain = (msg, tone = "info", opts = {}) => {
     if (statusChip) statusChip.textContent = msg;
+    const wantsModal =
+      typeof opts.modal === "boolean"
+        ? opts.modal
+        : tone === "warn" || tone === "err";
+    if (wantsModal && msg) {
+      showSiteAlert({
+        title: opts.title || (tone === "err" ? "Action failed" : tone === "warn" ? "Attention" : "Update"),
+        tone,
+        message: msg
+      });
+    }
   };
 
   function showSiteAlert({ title = "Notice", message = "", tone = "info" } = {}) {
@@ -692,6 +703,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   }
 
   let dispatchAudioCtx = null;
+  let lastUiClickToneAt = 0;
 
   function playDispatchTone(freq = 740, duration = 0.12) {
     try {
@@ -755,6 +767,13 @@ import { initPriceManagerView } from "./views/price-manager.js";
     }
   }
 
+  function playUiClickTone() {
+    const now = Date.now();
+    if (now - lastUiClickToneAt < 45) return;
+    lastUiClickToneAt = now;
+    playDispatchTone(620, 0.04);
+  }
+
   function triggerScreenFlash(type = "success") {
     if (!screenFlash) return;
     screenFlash.classList.remove("screenFlash--success", "screenFlash--failure", "screenFlash--warn");
@@ -776,6 +795,61 @@ import { initPriceManagerView } from "./views/price-manager.js";
   function confirmBookingFeedback(type) {
     playFeedbackTone(type);
     triggerScreenFlash(type);
+  }
+
+  function handlePackingParcelProgress(parsed, rawCode) {
+    if (!parsed?.orderNo) return;
+    const order =
+      dispatchOrderCache.get(parsed.orderNo) ||
+      dispatchOrdersLatest.find((entry) => String(entry?.name || "").replace("#", "").trim() === parsed.orderNo);
+    if (!order) return;
+    const state = getPackingState(order);
+    if (!state) return;
+
+    if (!state.startTime) state.startTime = new Date().toISOString();
+    state.active = true;
+
+    if (!Array.isArray(state.boxes) || !state.boxes.length) {
+      addPackingBox(state, { seedPacked: true });
+    }
+
+    const targetIndex = Math.max(0, Number(parsed.parcelSeq || 1) - 1);
+    while (state.boxes.length <= targetIndex) {
+      addPackingBox(state, { seedPacked: true });
+    }
+
+    const activeBox = state.boxes[targetIndex];
+    if (activeBox) {
+      activeBox.parcelCode = String(rawCode || "").trim();
+    }
+
+    const remainingItems = state.items.reduce(
+      (sum, item) => sum + Math.max(0, (Number(item.quantity) || 0) - (Number(item.packed) || 0)),
+      0
+    );
+
+    if (remainingItems > 0) {
+      const nextIndex = targetIndex + 1;
+      while (state.boxes.length <= nextIndex) {
+        addPackingBox(state, { seedPacked: true });
+      }
+      state.activeBoxIndex = nextIndex;
+      statusExplain(
+        `Parcel ${parsed.parcelSeq} scanned for order ${parsed.orderNo}. ${remainingItems} item(s) still need packing; waiting for the next parcel scan.`,
+        "ok",
+        { modal: true, title: "Parcel scanned" }
+      );
+    } else {
+      state.activeBoxIndex = targetIndex;
+      finalizePacking(state);
+      statusExplain(`Parcel ${parsed.parcelSeq} scanned and packing is complete for order ${parsed.orderNo}.`, "ok", {
+        modal: true,
+        title: "Packing complete"
+      });
+    }
+
+    savePackingState();
+    refreshDispatchViews(parsed.orderNo);
   }
 
   function announceBookingSuccess() {
@@ -2436,6 +2510,7 @@ async function startOrder(orderNo) {
 
     const parcelSet = getParcelSet(parsed.orderNo);
     parcelSet.add(parsed.parcelSeq);
+    handlePackingParcelProgress(parsed, code);
     lastScanAt = Date.now();
     lastScanCode = code;
     armedForBooking = false;
@@ -5122,6 +5197,14 @@ async function startOrder(orderNo) {
     event.preventDefault();
     navigateTo(route);
   });
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const clickable = target.closest('button, [role="button"], a, input[type="checkbox"], input[type="radio"], .btn');
+    if (!clickable) return;
+    playUiClickTone();
+  }, { capture: true });
 
   modeToggle?.addEventListener("click", () => {
     isAutoMode = !isAutoMode;
