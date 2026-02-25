@@ -3641,7 +3641,7 @@ async function startOrder(orderNo) {
         body: JSON.stringify({
           orderNo,
           orderId: order.id,
-          email: "louis@flippenlekkaspices.co.za",
+          email: "admin@flippenlekkaspices.co.za",
           // email: order.email,
           customerName: order.customer_name || "Customer",
           parcelCount: Number(order.parcel_count || 0),
