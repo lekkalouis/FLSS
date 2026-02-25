@@ -417,7 +417,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
       templateId: "a731ae235f8ce951ce08",
       multiplier: 2254,
       slugPrefix: "tax-invoice",
-      printerId: 74901099
+      printerId: 74467271
     },
     parcelStickers: {
       templateId: "a731ae235f8ce951ce08",
