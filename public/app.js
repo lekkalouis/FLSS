@@ -192,6 +192,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const navPriceManager = $("navPriceManager");
   const navDispatchSettings = $("navDispatchSettings");
   const navLogs = $("navLogs");
+  const navFooterAdmin = $("navFooterAdmin");
+  const navFooterChangelog = $("navFooterChangelog");
   const navToggle = $("navToggle");
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
@@ -205,6 +207,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const viewPriceManager = $("viewPriceManager");
   const viewDispatchSettings = $("viewDispatchSettings");
   const viewLogs = $("viewLogs");
+  const viewAdmin = $("viewAdmin");
+  const viewChangelog = $("viewChangelog");
   const dispatchNotesBar = $("dispatchNotesBar");
   const dispatchNotesInput = $("dispatchNotesInput");
   const dispatchNotesClose = $("dispatchNotesClose");
@@ -4589,6 +4593,8 @@ async function startOrder(orderNo) {
     const showPriceManager = view === "price-manager";
     const showDispatchSettings = view === "dispatch-settings";
     const showLogs = view === "logs";
+    const showAdmin = view === "admin";
+    const showChangelog = view === "changelog";
 
     if (viewScan) {
       viewScan.hidden = !showScan;
@@ -4626,6 +4632,14 @@ async function startOrder(orderNo) {
       viewLogs.hidden = !showLogs;
       viewLogs.classList.toggle("flView--active", showLogs);
     }
+    if (viewAdmin) {
+      viewAdmin.hidden = !showAdmin;
+      viewAdmin.classList.toggle("flView--active", showAdmin);
+    }
+    if (viewChangelog) {
+      viewChangelog.hidden = !showChangelog;
+      viewChangelog.classList.toggle("flView--active", showChangelog);
+    }
 
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navOps?.classList.toggle("flNavBtn--active", showOps);
@@ -4636,6 +4650,8 @@ async function startOrder(orderNo) {
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navDispatchSettings?.classList.toggle("flNavBtn--active", showDispatchSettings);
     navLogs?.classList.toggle("flNavBtn--active", showLogs);
+    navFooterAdmin?.classList.toggle("flNavBtn--active", showAdmin);
+    navFooterChangelog?.classList.toggle("flNavBtn--active", showChangelog);
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
@@ -4645,6 +4661,8 @@ async function startOrder(orderNo) {
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
     navDispatchSettings?.setAttribute("aria-selected", showDispatchSettings ? "true" : "false");
     navLogs?.setAttribute("aria-selected", showLogs ? "true" : "false");
+    navFooterAdmin?.setAttribute("aria-selected", showAdmin ? "true" : "false");
+    navFooterChangelog?.setAttribute("aria-selected", showChangelog ? "true" : "false");
 
     if (showScan) {
       statusExplain("Orders view ready.", "info");
@@ -4663,6 +4681,10 @@ async function startOrder(orderNo) {
       statusExplain("Dispatch settings loaded.", "info");
     } else if (showLogs) {
       statusExplain("Logs view loaded.", "info");
+    } else if (showAdmin) {
+      statusExplain("Admin workspace loaded.", "info");
+    } else if (showChangelog) {
+      statusExplain("Changelog opened.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -4680,7 +4702,9 @@ async function startOrder(orderNo) {
     ["/stock", "stock"],
     ["/price-manager", "price-manager"],
     ["/dispatch-settings", "dispatch-settings"],
-    ["/logs", "logs"]
+    ["/logs", "logs"],
+    ["/admin", "admin"],
+    ["/changelog", "changelog"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -4692,7 +4716,9 @@ async function startOrder(orderNo) {
     stock: "/stock",
     "price-manager": "/price-manager",
     "dispatch-settings": "/dispatch-settings",
-    logs: "/logs"
+    logs: "/logs",
+    admin: "/admin",
+    changelog: "/changelog"
   };
 
   const docsState = {
