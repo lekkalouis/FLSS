@@ -132,6 +132,7 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const quoteBox = $("quoteBox");
   const printMount = $("printMount");
   const serverStatusBar = $("serverStatusBar");
+  const multiShipmentBtn = $("multiShipmentBtn");
   const addrSearch = $("addrSearch");
   const addrResults = $("addrResults");
   const placeCodeInput = $("placeCode");
@@ -591,8 +592,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
     return combinedShipments.get(groupId) || null;
   }
 
-  async function createCombinedShipmentFromSelection() {
-    const selected = Array.from(dispatchSelectedOrders);
+  async function createCombinedShipmentFromSelection(orderNos = Array.from(dispatchSelectedOrders)) {
+    const selected = [...new Set((orderNos || []).map((orderNo) => String(orderNo || "").trim()).filter(Boolean))];
     if (selected.length < 2) {
       statusExplain("Select at least 2 orders to create a combined shipment.", "warn");
       return;
@@ -652,21 +653,27 @@ import { initPriceManagerView } from "./views/price-manager.js";
   function renderServerStatusBar(data) {
     if (!serverStatusBar) return;
     if (!data || !data.services) {
-      serverStatusBar.innerHTML = `<span class="statusBarLabel">Connections</span><span class="statusPill statusPill--warn"><span class="statusPillDot"></span>Status unavailable</span>`;
+      const unavailable = "Connections\nStatus unavailable";
+      serverStatusBar.dataset.tooltip = unavailable;
+      serverStatusBar.title = unavailable;
+      serverStatusBar.innerHTML = `<span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>`;
       return;
     }
 
-    const pills = Object.entries(data.services).map(([key, service]) => {
+    const serviceRows = Object.entries(data.services).map(([key, service]) => {
       const label = SERVICE_LABELS[key] || key;
-      const cls = service.ok ? "statusPill--ok" : "statusPill--err";
+      const state = service.ok ? "Online" : "Offline";
       const detail = service.detail ? ` — ${service.detail}` : "";
-      return `<span class="statusPill ${cls}" title="${label}${detail}"><span class="statusPillDot"></span>${label}</span>`;
+      return `${label}: ${state}${detail}`;
     });
 
-    const stamp = data.checkedAt ? new Date(data.checkedAt).toLocaleTimeString() : "";
-    serverStatusBar.innerHTML = `<span class="statusBarLabel">Connections</span>${pills.join("")}${
-      stamp ? `<span class="statusBarLabel">Updated ${stamp}</span>` : ""
-    }`;
+    const stamp = data.checkedAt ? `Updated ${new Date(data.checkedAt).toLocaleTimeString()}` : "";
+    const tooltip = ["Connections", ...serviceRows, stamp].filter(Boolean).join("\n");
+    serverStatusBar.dataset.tooltip = tooltip;
+    serverStatusBar.title = tooltip;
+    serverStatusBar.innerHTML = Object.keys(data.services)
+      .map(() => `<span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>`)
+      .join("");
   }
 
   async function refreshServerStatus() {
@@ -3617,6 +3624,7 @@ async function startOrder(orderNo) {
       dispatchSelectionTime.textContent = formatDispatchDuration(totals.totalTimeMin);
     }
     const selectedDeliveryOrderCount = getSelectedDeliveryOrderNos().length;
+    updateMultiShipmentButtonVisibility();
     if (dispatchPrepareDeliveriesContainer) {
       dispatchPrepareDeliveriesContainer.classList.toggle("is-hidden", selectedDeliveryOrderCount === 0);
     }
@@ -5100,11 +5108,31 @@ async function startOrder(orderNo) {
     await createCombinedShipmentFromSelection();
   });
 
+  multiShipmentBtn?.addEventListener("click", async () => {
+    const selectedDeliveryOrderNos = getSelectedDeliveryOrderNos();
+    if (selectedDeliveryOrderNos.length < 2) {
+      statusExplain("Select at least 2 delivery orders to create a multi-shipment.", "warn");
+      return;
+    }
+    await createCombinedShipmentFromSelection(selectedDeliveryOrderNos);
+  });
+
   function getSelectedDeliveryOrderNos() {
     return Array.from(dispatchSelectedOrders).filter((orderNo) => {
       const order = dispatchOrderCache.get(orderNo);
       return laneFromOrder(order) === "delivery";
     });
+  }
+
+  function updateMultiShipmentButtonVisibility() {
+    if (!multiShipmentBtn) return;
+    const selectedDeliveryOrderCount = getSelectedDeliveryOrderNos().length;
+    const canCreateMultiShipment = selectedDeliveryOrderCount > 1;
+    multiShipmentBtn.hidden = !canCreateMultiShipment;
+    multiShipmentBtn.disabled = !canCreateMultiShipment;
+    multiShipmentBtn.title = canCreateMultiShipment
+      ? `Create multi-shipment (${selectedDeliveryOrderCount} delivery orders selected)`
+      : "Select at least 2 delivery orders to create a multi-shipment";
   }
 
   dispatchPrepareDeliveries?.addEventListener("click", async () => {
