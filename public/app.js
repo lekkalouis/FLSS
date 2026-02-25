@@ -2770,10 +2770,13 @@ async function startOrder(orderNo) {
     if (normalizedLane === "pickup") {
       const tags = String(order?.tags || "").toLowerCase();
       const notified = /(^|[\s,])pickup_notified([\s,]|$)/.test(tags);
-      const notifyLabel = notified ? "✉️ ✅ Notified" : "Notify customer";
+      const fulfilled = String(order?.fulfillment_status || "").toLowerCase() === "fulfilled";
+      const actionType = fulfilled ? "released" : notified ? "release-pickup" : "notify-ready";
+      const notifyLabel = fulfilled ? "✅ Released" : notified ? "🔓 Release" : "Notify customer";
+      const pickupDisabled = fulfilled ? "disabled" : disabled;
       return `
         ${docsDropdown}
-        <button class="dispatchFulfillBtn" type="button" data-action="notify-ready" data-order-no="${orderNo || ""}" ${disabled}>${notifyLabel}</button>
+        <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${pickupDisabled}>${notifyLabel}</button>
       `;
     }
 
@@ -3621,9 +3624,16 @@ async function startOrder(orderNo) {
       });
       if (!res.ok) {
         const text = await res.text();
-        statusExplain("Ready-for-collection failed.", "warn");
-        logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${text}`);
-        return;
+        const unsupportedReadyMutation =
+          text.includes("fulfillmentOrderMarkReadyForPickup") && text.includes("doesn't exist");
+        if (!unsupportedReadyMutation) {
+          statusExplain("Ready-for-collection failed.", "warn");
+          logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${text}`);
+          return;
+        }
+        logDispatchEvent(
+          `Ready-for-pickup mutation unavailable for order ${orderNo}; continuing with customer email notification.`
+        );
       }
       const notifyRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/notify-collection`, {
         method: "POST",
@@ -3652,6 +3662,42 @@ async function startOrder(orderNo) {
     } catch (err) {
       statusExplain("Ready-for-collection failed.", "warn");
       logDispatchEvent(`Ready-for-collection failed for order ${orderNo}: ${String(err)}`);
+    }
+  }
+
+  async function releasePickupOrder(orderNo) {
+    if (!orderNo) return;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return;
+    try {
+      setDispatchProgress(6, `Releasing ${orderNo} for collection`);
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          trackingNumber: "",
+          trackingUrl: "",
+          trackingCompany: "Collection",
+          message: "Order released to customer for collection."
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        statusExplain("Release failed.", "warn");
+        logDispatchEvent(`Release failed for order ${orderNo}: ${text}`);
+        return;
+      }
+      const cached = dispatchOrderCache.get(orderNo);
+      if (cached) {
+        cached.fulfillment_status = "fulfilled";
+      }
+      statusExplain(`Order ${orderNo} released to customer.`, "ok");
+      logDispatchEvent(`Order ${orderNo} released to customer.`);
+      refreshDispatchViews(orderNo);
+    } catch (err) {
+      statusExplain("Release failed.", "warn");
+      logDispatchEvent(`Release failed for order ${orderNo}: ${String(err)}`);
     }
   }
 
@@ -5201,6 +5247,10 @@ async function startOrder(orderNo) {
     }
     if (actionType === "notify-ready") {
       await notifyPickupReady(orderNo);
+      return true;
+    }
+    if (actionType === "release-pickup") {
+      await releasePickupOrder(orderNo);
       return true;
     }
     return false;
