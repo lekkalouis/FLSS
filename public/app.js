@@ -353,11 +353,14 @@ import { initPriceManagerView } from "./views/price-manager.js";
   const DISPATCH_PRIORITY_KEY = "fl_dispatch_priority_v1";
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
+  const DISPATCH_LINE_HOLD_MS = 1500;
   let dailyParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
   let truckBookedBy = null;
   let truckBookingInFlight = false;
+  let dispatchLineHoldTimer = null;
+  let dispatchLineHoldTriggered = false;
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -918,7 +921,8 @@ import { initPriceManagerView } from "./views/price-manager.js";
     const items = lineItems.map((item) => {
       const prev = existingByKey.get(item.key);
       const packed = prev ? Math.min(prev.packed, item.quantity) : 0;
-      return { ...item, packed };
+      const completedAt = prev?.completedAt ? Number(prev.completedAt) : null;
+      return { ...item, packed, completedAt: Number.isFinite(completedAt) ? completedAt : null };
     });
     const state = {
       orderNo,
@@ -2675,7 +2679,8 @@ async function startOrder(orderNo) {
   }
 
   function renderDispatchLineItems(order, packingState) {
-    return (order.line_items || [])
+    const orderNo = String(order?.name || "").replace("#", "").trim();
+    const lineEntries = (order.line_items || [])
       .map((item, index) => ({ ...item, __index: index }))
       .sort((a, b) => {
         const aKey = String(a.title || "").trim().toLowerCase();
@@ -2690,7 +2695,7 @@ async function startOrder(orderNo) {
       })
       .map((li) => {
         const requestedQty = getRemainingLineItemQty(li);
-        if (requestedQty <= 0) return "";
+        if (requestedQty <= 0) return null;
         const baseTitle = li.title || "";
         const variantTitle = (li.variant_title || "").trim();
         const hasVariant = variantTitle && variantTitle.toLowerCase() !== "default title";
@@ -2705,25 +2710,55 @@ async function startOrder(orderNo) {
         const lineItemFlavourColor = getDispatchFlavourColor(flavourGroup);
         const itemKey = makePackingKey(li, li.__index);
         const packedItem = getPackingItem(packingState, itemKey);
-        const packedCount = packedItem ? Number(packedItem.packed) || 0 : 0;
-        const totalCount = packedItem ? Number(packedItem.quantity) || 0 : requestedQty;
+        const packedCount = Math.max(0, packedItem ? Number(packedItem.packed) || 0 : 0);
+        const totalCount = Math.max(requestedQty, packedItem ? Number(packedItem.quantity) || 0 : 0);
         const remaining = Math.max(0, totalCount - packedCount);
         const isComplete = packedCount > 0 && remaining === 0;
         const isPartial = packedCount > 0 && remaining > 0;
+        const completedAt = Number(packedItem?.completedAt) || 0;
+        const isNewlyComplete = isComplete && completedAt > 0 && Date.now() - completedAt < 1200;
         const fulfillableQty = Number(li?.fulfillable_quantity);
         const inventoryAvailableQty = Number(li?.inventory_available);
         const isShortOrUnavailable =
           (Number.isFinite(fulfillableQty) && fulfillableQty < requestedQty) ||
           (Number.isFinite(inventoryAvailableQty) && inventoryAvailableQty < requestedQty);
-        const missingTag = isShortOrUnavailable
-          ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
-          : "";
         const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
-        return `<div class="dispatchLineItem ${isComplete ? "is-complete" : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${String(order?.name || "").replace("#", "").trim()}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${qtyLabel}</span>${missingTag}</div>`;
+        const rightMeta = [
+          packedCount > 0
+            ? `<span class="dispatchLinePackedQty">${packedCount}/${totalCount}</span>`
+            : "",
+          isShortOrUnavailable
+            ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
+            : ""
+        ]
+          .filter(Boolean)
+          .join("");
+
+        return {
+          isComplete,
+          html: `<div class="dispatchLineItem ${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${qtyLabel}</span><span class="dispatchLineMeta">${rightMeta}</span></div>`
+        };
       })
-      .filter(Boolean)
-      .join("");
+      .filter(Boolean);
+
+    const unpacked = lineEntries.filter((entry) => !entry.isComplete);
+    const packed = lineEntries.filter((entry) => entry.isComplete);
+
+    if (packed.length && unpacked.length) {
+      return `
+        <div class="dispatchCardSplit">
+          <div class="dispatchCardSplitTop">${unpacked.map((entry) => entry.html).join("")}</div>
+          <div class="dispatchCardSplitBottom">
+            <div class="dispatchCardSplitTitle">Packed:</div>
+            ${packed.map((entry) => entry.html).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    return lineEntries.map((entry) => entry.html).join("");
   }
+
 
   function renderOppDocButtons(orderNo) {
     if (!orderNo) {
@@ -3333,19 +3368,27 @@ async function startOrder(orderNo) {
     if (state.endTime) state.endTime = null;
     const item = getPackingItem(state, itemKey);
     if (!item) return;
-    const currentPacked = Number(item.packed) || 0;
+    const currentPacked = Math.max(0, Number(item.packed) || 0);
     const orderLineItems = Array.isArray(order?.line_items) ? order.line_items : [];
     const orderLineItem = Number.isInteger(item.index) ? orderLineItems[item.index] : null;
     const quantity = orderLineItem ? getRemainingLineItemQty(orderLineItem) : Number(item.quantity) || 0;
     if (quantity <= 0) return;
     item.quantity = quantity;
+
     if (currentPacked >= quantity) {
       item.packed = 0;
-    } else {
+      item.completedAt = null;
+    } else if (currentPacked > 0) {
       const delta = Math.max(0, quantity - currentPacked);
       allocatePackedToBox(state, item.key, delta);
       item.packed = quantity;
+      item.completedAt = Date.now();
+    } else {
+      item.packed = quantity;
+      item.completedAt = Date.now();
+      allocatePackedToBox(state, item.key, quantity);
     }
+
     if (isPackingComplete(state)) {
       finalizePacking(state);
     } else {
@@ -3353,6 +3396,107 @@ async function startOrder(orderNo) {
     }
     refreshDispatchViews(orderNo);
   }
+
+  function setDispatchLinePackedQuantity(orderNo, itemKey, packedQty) {
+    if (!orderNo || !itemKey) return;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return;
+    const state = dispatchPackingState.get(orderNo) || getPackingState(order);
+    if (!state) return;
+    if (!state.startTime) state.startTime = new Date().toISOString();
+    state.active = true;
+    if (state.endTime) state.endTime = null;
+
+    const item = getPackingItem(state, itemKey);
+    if (!item) return;
+    const orderLineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const orderLineItem = Number.isInteger(item.index) ? orderLineItems[item.index] : null;
+    const quantity = orderLineItem ? getRemainingLineItemQty(orderLineItem) : Number(item.quantity) || 0;
+    if (quantity <= 0) return;
+
+    const nextPacked = Math.max(0, Math.min(quantity, Number(packedQty) || 0));
+    const prevPacked = Math.max(0, Number(item.packed) || 0);
+    item.quantity = quantity;
+    item.packed = nextPacked;
+    item.completedAt = nextPacked >= quantity ? Date.now() : null;
+
+    if (nextPacked > prevPacked) {
+      allocatePackedToBox(state, item.key, nextPacked - prevPacked);
+    }
+
+    if (isPackingComplete(state)) {
+      finalizePacking(state);
+    } else {
+      savePackingState();
+    }
+    refreshDispatchViews(orderNo);
+  }
+
+  function showDispatchPackedQtyPrompt(orderNo, itemKey) {
+    if (!orderNo || !itemKey) return;
+    const order = dispatchOrderCache.get(orderNo);
+    const state = order ? dispatchPackingState.get(orderNo) || getPackingState(order) : null;
+    const item = state ? getPackingItem(state, itemKey) : null;
+    if (!order || !state || !item) return;
+    const orderLineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const orderLineItem = Number.isInteger(item.index) ? orderLineItems[item.index] : null;
+    const maxQty = orderLineItem ? getRemainingLineItemQty(orderLineItem) : Number(item.quantity) || 0;
+    if (maxQty <= 0) return;
+
+    const modal = document.createElement("div");
+    modal.className = "dispatchPackedQtyModal";
+    const baseTitle = item.title || "Line item";
+    const variant = String(item.variant || "").trim();
+    const name = variant && variant.toLowerCase() !== "default title" ? `${baseTitle} · ${variant}` : baseTitle;
+    let value = Math.max(0, Math.min(maxQty, Number(item.packed) || 0));
+
+    modal.innerHTML = `
+      <div class="dispatchPackedQtyCard" role="dialog" aria-modal="true" aria-label="Packed quantity">
+        <h3>Update packed quantity</h3>
+        <p>${name}</p>
+        <div class="dispatchPackedQtyControls">
+          <button type="button" class="dispatchPackedQtyBtn" data-role="decrease">−</button>
+          <strong class="dispatchPackedQtyValue" data-role="value">${value}</strong>
+          <button type="button" class="dispatchPackedQtyBtn" data-role="increase">+</button>
+        </div>
+        <div class="dispatchPackedQtyMax">of ${maxQty}</div>
+        <div class="dispatchPackedQtyActions">
+          <button type="button" class="dispatchPackedQtyAction dispatchPackedQtyAction--ghost" data-role="cancel">Cancel</button>
+          <button type="button" class="dispatchPackedQtyAction dispatchPackedQtyAction--primary" data-role="save">Save</button>
+        </div>
+      </div>
+    `;
+
+    const valueEl = modal.querySelector('[data-role="value"]');
+    const close = () => modal.remove();
+    const paint = () => {
+      if (valueEl) valueEl.textContent = String(value);
+    };
+
+    modal.addEventListener("click", (event) => {
+      const target = event.target.closest("[data-role]");
+      if (!target) {
+        if (event.target === modal) close();
+        return;
+      }
+      const role = target.dataset.role;
+      if (role === "decrease") {
+        value = Math.max(0, value - 1);
+        paint();
+      } else if (role === "increase") {
+        value = Math.min(maxQty, value + 1);
+        paint();
+      } else if (role === "cancel") {
+        close();
+      } else if (role === "save") {
+        setDispatchLinePackedQuantity(orderNo, itemKey, value);
+        close();
+      }
+    });
+
+    document.body.appendChild(modal);
+  }
+
 
   function renderDispatchPackingSummary(plan) {
     if (!plan) return "";
@@ -3986,7 +4130,8 @@ async function startOrder(orderNo) {
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
           <div class="dispatchCardParcel">
-            <label for="dispatchParcel-${orderNo}">Parcels</label>
+            <label class="dispatchParcelLabel" for="dispatchParcel-${orderNo}">Boxes</label>
+            <button class="dispatchParcelAdjustBtn" type="button" data-action="decrease-box" data-order-no="${orderNo}" aria-label="Decrease box count for order ${orderNo}">−</button>
             <input
               id="dispatchParcel-${orderNo}"
               class="dispatchParcelCountInput"
@@ -4000,6 +4145,7 @@ async function startOrder(orderNo) {
               value="${parcelCountValue}"
               placeholder="--"
             />
+            <button class="dispatchParcelAdjustBtn" type="button" data-action="increase-box" data-order-no="${orderNo}" aria-label="Increase box count for order ${orderNo}">+</button>
           </div>
           ${
             exportCartonSummary
@@ -5333,9 +5479,74 @@ async function startOrder(orderNo) {
     return false;
   }
 
+  async function saveDispatchParcelInput(input) {
+    if (!input) return;
+    const orderId = input.dataset.orderId;
+    const orderNo = input.dataset.orderNo;
+    const raw = input.value.trim();
+    const lastValue = input.dataset.lastValue ?? "";
+
+    if (raw === lastValue) return;
+
+    if (raw === "") {
+      const ok = await updateDispatchParcelCount({ orderId, orderNo, value: "" });
+      if (ok) input.dataset.lastValue = "";
+      return;
+    }
+
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      statusExplain("Parcel count must be a non-negative number.", "warn");
+      input.value = lastValue;
+      return;
+    }
+
+    const ok = await updateDispatchParcelCount({ orderId, orderNo, value: parsed });
+    if (ok) input.dataset.lastValue = String(parsed);
+  }
+
+  function clearDispatchLineHold() {
+    if (dispatchLineHoldTimer) {
+      clearTimeout(dispatchLineHoldTimer);
+      dispatchLineHoldTimer = null;
+    }
+  }
+
+  dispatchBoard?.addEventListener("pointerdown", (e) => {
+    const lineItem = e.target.closest(".dispatchLineItem");
+    if (!lineItem) return;
+    dispatchLineHoldTriggered = false;
+    const orderNo = lineItem.dataset.orderNo;
+    const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
+    clearDispatchLineHold();
+    dispatchLineHoldTimer = setTimeout(() => {
+      dispatchLineHoldTriggered = true;
+      showDispatchPackedQtyPrompt(orderNo, itemKey);
+      clearDispatchLineHold();
+    }, DISPATCH_LINE_HOLD_MS);
+  });
+
+  dispatchBoard?.addEventListener("pointerup", clearDispatchLineHold);
+  dispatchBoard?.addEventListener("pointerleave", clearDispatchLineHold);
+  dispatchBoard?.addEventListener("pointercancel", clearDispatchLineHold);
+
   dispatchBoard?.addEventListener("click", async (e) => {
     const action = e.target.closest("[data-action]");
     if (action) {
+      if (action.dataset.action === "increase-box" || action.dataset.action === "decrease-box") {
+        const orderNo = action.dataset.orderNo;
+        const input = orderNo
+          ? dispatchBoard.querySelector(`.dispatchParcelCountInput[data-order-no="${orderNo}"]`)
+          : null;
+        if (!input) return;
+        const current = Number.parseInt(input.value, 10);
+        const safeCurrent = Number.isFinite(current) && current >= 0 ? current : 0;
+        const next = action.dataset.action === "increase-box" ? safeCurrent + 1 : Math.max(0, safeCurrent - 1);
+        input.value = String(next);
+        input.focus();
+        await saveDispatchParcelInput(input);
+        return;
+      }
       const handled = await handleDispatchAction(action);
       if (handled) return;
     }
@@ -5350,9 +5561,23 @@ async function startOrder(orderNo) {
     const lineItem = e.target.closest(".dispatchLineItem");
     if (lineItem) {
       if (e.target.closest("button") || e.target.closest("input") || e.target.closest("label")) return;
+      if (dispatchLineHoldTriggered) {
+        dispatchLineHoldTriggered = false;
+        return;
+      }
       const orderNo = lineItem.dataset.orderNo;
       const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
       toggleDispatchLineItemPacked(orderNo, itemKey);
+      return;
+    }
+
+    const card = e.target.closest(".dispatchCard");
+    if (card && !e.target.closest("button") && !e.target.closest("input") && !e.target.closest("label")) {
+      const input = card.querySelector(".dispatchParcelCountInput");
+      if (input) {
+        input.focus();
+        input.select();
+      }
     }
   });
 
@@ -5408,28 +5633,7 @@ async function startOrder(orderNo) {
   dispatchBoard?.addEventListener("focusout", async (e) => {
     const input = e.target.closest(".dispatchParcelCountInput");
     if (!input) return;
-    const orderId = input.dataset.orderId;
-    const orderNo = input.dataset.orderNo;
-    const raw = input.value.trim();
-    const lastValue = input.dataset.lastValue ?? "";
-
-    if (raw === lastValue) return;
-
-    if (raw === "") {
-      const ok = await updateDispatchParcelCount({ orderId, orderNo, value: "" });
-      if (ok) input.dataset.lastValue = "";
-      return;
-    }
-
-    const parsed = Number(raw);
-    if (!Number.isInteger(parsed) || parsed < 0) {
-      statusExplain("Parcel count must be a non-negative number.", "warn");
-      input.value = lastValue;
-      return;
-    }
-
-    const ok = await updateDispatchParcelCount({ orderId, orderNo, value: parsed });
-    if (ok) input.dataset.lastValue = String(parsed);
+    await saveDispatchParcelInput(input);
   });
 
   dispatchShipmentsSidebar?.addEventListener("click", async (e) => {
