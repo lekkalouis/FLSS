@@ -4174,7 +4174,7 @@ async function startOrder(orderNo) {
 
     const filtered = (orders || []).filter((o) => {
       const fs = (o.fulfillment_status || "").toLowerCase();
-      if (fs && fs !== "unfulfilled" && fs !== "in_progress") return false;
+      if (fs && fs !== "unfulfilled" && fs !== "in_progress" && fs !=="partial") return false;
       if (!o.created_at) return true;
       const createdMs = new Date(o.created_at).getTime();
       if (!Number.isFinite(createdMs)) return true;
