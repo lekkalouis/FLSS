@@ -22,6 +22,24 @@ const router = Router();
 const DEFAULT_MATRIX_WEIGHTS_KG = [1, 2, 5, 10, 15, 20, 25];
 
 
+function getParcelPerfectRuntimeConfig() {
+  const usingTestAccount = config.TEST_MODE && Boolean(config.TEST_PP_BASE_URL);
+  return {
+    usingTestAccount,
+    baseUrl: usingTestAccount ? config.TEST_PP_BASE_URL : config.PP_BASE_URL,
+    token: usingTestAccount ? config.TEST_PP_TOKEN : config.PP_TOKEN,
+    requireToken: String(usingTestAccount ? config.TEST_PP_REQUIRE_TOKEN : config.PP_REQUIRE_TOKEN).toLowerCase() === "true"
+  };
+}
+
+function shouldSimulateParcelPerfect() {
+  if (!config.TEST_MODE) return false;
+  if (!config.TEST_PP_BASE_URL) return true;
+  const runtime = getParcelPerfectRuntimeConfig();
+  return !runtime.baseUrl || !runtime.baseUrl.startsWith("http");
+}
+
+
 function buildTestModeParcelPerfectResponse({ method, className, params }) {
   const normalizedMethod = String(method || "").toLowerCase();
 
@@ -94,11 +112,11 @@ function getDefaultMatrixDetails({ place, town, type }) {
   };
 }
 
-async function requestQuote({ details, weightKg, signal }) {
+async function requestQuote({ details, weightKg, signal, runtime }) {
   const form = new URLSearchParams();
   form.set("method", "requestQuote");
   form.set("class", "Quote");
-  if (config.PP_TOKEN) form.set("token_id", config.PP_TOKEN);
+  if (runtime.token) form.set("token_id", runtime.token);
   form.set(
     "params",
     JSON.stringify({
@@ -117,7 +135,7 @@ async function requestQuote({ details, weightKg, signal }) {
   );
 
   const upstream = await fetchWithTimeout(
-    config.PP_BASE_URL,
+    runtime.baseUrl,
     {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -128,7 +146,7 @@ async function requestQuote({ details, weightKg, signal }) {
     {
       upstream: "parcelperfect",
       route: "POST /pp/matrix",
-      target: config.PP_BASE_URL
+      target: runtime.baseUrl
     }
   );
 
@@ -169,11 +187,13 @@ router.post("/pp", async (req, res) => {
       return badRequest(res, "Expected { method, classVal|class, params } in body");
     }
 
-    if (config.TEST_MODE) {
+    const runtime = getParcelPerfectRuntimeConfig();
+
+    if (shouldSimulateParcelPerfect()) {
       return res.json(buildTestModeParcelPerfectResponse({ method, className, params }));
     }
 
-    if (!config.PP_BASE_URL || !config.PP_BASE_URL.startsWith("http")) {
+    if (!runtime.baseUrl || !runtime.baseUrl.startsWith("http")) {
       return res.status(500).json({
         error: "CONFIG_ERROR",
         message: "PP_BASE_URL is not a valid URL"
@@ -185,12 +205,11 @@ router.post("/pp", async (req, res) => {
     form.set("class", String(className));
     form.set("params", JSON.stringify(params));
 
-    const mustUseToken = String(config.PP_REQUIRE_TOKEN) === "true";
-    const tokenToUse = mustUseToken ? config.PP_TOKEN : "";
+    const tokenToUse = runtime.requireToken ? runtime.token : "";
     if (tokenToUse) form.set("token_id", tokenToUse);
 
     const upstream = await fetchWithTimeout(
-      config.PP_BASE_URL,
+      runtime.baseUrl,
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -200,7 +219,7 @@ router.post("/pp", async (req, res) => {
       {
         upstream: "parcelperfect",
         route: "POST /pp",
-        target: config.PP_BASE_URL
+        target: runtime.baseUrl
       }
     );
 
@@ -232,7 +251,9 @@ router.get("/pp/place", async (req, res) => {
     const query = (req.query.q || req.query.query || "").trim();
     if (!query) return badRequest(res, "Missing ?q= query string for place search");
 
-    if (config.TEST_MODE) {
+    const runtime = getParcelPerfectRuntimeConfig();
+
+    if (shouldSimulateParcelPerfect()) {
       return res.json(
         buildTestModeParcelPerfectResponse({
           method: "getPlacesByName",
@@ -242,17 +263,17 @@ router.get("/pp/place", async (req, res) => {
       );
     }
 
-    if (!config.PP_BASE_URL || !config.PP_BASE_URL.startsWith("http")) {
+    if (!runtime.baseUrl || !runtime.baseUrl.startsWith("http")) {
       return res.status(500).json({
         error: "CONFIG_ERROR",
         message: "PP_BASE_URL is not a valid URL"
       });
     }
 
-    if (!config.PP_TOKEN) {
+    if (runtime.requireToken && !runtime.token) {
       return res.status(500).json({
         error: "CONFIG_ERROR",
-        message: "PP_TOKEN is required for place lookups"
+        message: "PP token is required for place lookups"
       });
     }
 
@@ -263,11 +284,11 @@ router.get("/pp/place", async (req, res) => {
     const form = new URLSearchParams();
     form.set("method", method);
     form.set("class", "Quote");
-    form.set("token_id", config.PP_TOKEN);
+    if (runtime.token) form.set("token_id", runtime.token);
     form.set("params", JSON.stringify(paramsObj));
 
     const upstream = await fetchWithTimeout(
-      config.PP_BASE_URL,
+      runtime.baseUrl,
       {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -277,7 +298,7 @@ router.get("/pp/place", async (req, res) => {
       {
         upstream: "parcelperfect",
         route: "GET /pp/place",
-        target: config.PP_BASE_URL
+        target: runtime.baseUrl
       }
     );
 
@@ -304,7 +325,9 @@ router.get("/pp/place", async (req, res) => {
 
 router.post("/pp/matrix", async (req, res) => {
   try {
-    if (config.TEST_MODE) {
+    const runtime = getParcelPerfectRuntimeConfig();
+
+    if (shouldSimulateParcelPerfect()) {
       const weights = normalizeWeights(req.body?.weightsKg || req.body?.weights || DEFAULT_MATRIX_WEIGHTS_KG);
       const destinations = selectMatrixDestinations(req.body || {});
       const rows = [];
@@ -325,17 +348,16 @@ router.post("/pp/matrix", async (req, res) => {
       return res.json({ ok: true, mode: "test", rows });
     }
 
-    if (!config.PP_BASE_URL || !config.PP_BASE_URL.startsWith("http")) {
+    if (!runtime.baseUrl || !runtime.baseUrl.startsWith("http")) {
       return res.status(500).json({
         error: "CONFIG_ERROR",
         message: "PP_BASE_URL is not a valid URL"
       });
     }
-    const mustUseToken = String(config.PP_REQUIRE_TOKEN) === "true";
-    if (mustUseToken && !config.PP_TOKEN) {
+    if (runtime.requireToken && !runtime.token) {
       return res.status(500).json({
         error: "CONFIG_ERROR",
-        message: "PP_TOKEN is required when PP_REQUIRE_TOKEN=true"
+        message: "PP token is required when token enforcement is enabled"
       });
     }
 
@@ -362,7 +384,7 @@ router.post("/pp/matrix", async (req, res) => {
       for (const weightKg of weights) {
         try {
           const details = getDefaultMatrixDetails(destination);
-          const quote = await requestQuote({ details, weightKg });
+          const quote = await requestQuote({ details, weightKg, runtime });
           if (quote.ok) successCount += 1;
           row.quotes.push({ weightKg, ...quote });
         } catch (error) {

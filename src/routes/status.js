@@ -15,7 +15,11 @@ router.get("/statusz", async (_req, res) => {
   };
 
   if (config.TEST_MODE) {
-    services.parcelPerfect = buildServiceStatus(true, "Simulated (test mode)");
+    const hasTestParcelPerfectAccount = Boolean(config.TEST_PP_BASE_URL && config.TEST_PP_BASE_URL.startsWith("http"));
+    services.parcelPerfect = buildServiceStatus(
+      true,
+      hasTestParcelPerfectAccount ? "Test account configured" : "Simulated (test mode)"
+    );
     services.printNode = buildServiceStatus(true, "Simulated (test mode)");
     services.email = buildServiceStatus(true, "Simulated (test mode)");
     services.shopify = buildServiceStatus(true, "Simulated (test mode)");

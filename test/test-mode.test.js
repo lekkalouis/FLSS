@@ -5,6 +5,8 @@ import http from 'node:http';
 process.env.TEST_MODE = 'true';
 process.env.TEST_PRINTNODE_PRINTER_ID = '12345';
 process.env.TEST_PRINTNODE_DELIVERY_NOTE_PRINTER_IDS = '23456,34567';
+process.env.TEST_PP_BASE_URL = '';
+process.env.TEST_PP_TOKEN = '';
 
 const { createApp } = await import('../src/app.js');
 
