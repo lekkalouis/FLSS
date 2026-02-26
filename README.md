@@ -31,6 +31,21 @@ FLSS is a single-page operations console for Flippen Lekka that runs on a Node/E
 
 This section is intended as a full operator runbook. It explains navigation, what each control does, what data it loads, and the normal sequence of clicks for each module/page.
 
+### Test mode (offline sandbox)
+
+To exercise the app without hitting real Shopify, ParcelPerfect, PrintNode, or SMTP endpoints, enable **test mode** in your `.env`:
+
+- `TEST_MODE=true`
+- `TEST_PRINTNODE_PRINTER_ID=<test-printer-id>` (optional, falls back to `PRINTNODE_PRINTER_ID`)
+- `TEST_PRINTNODE_DELIVERY_NOTE_PRINTER_IDS=<comma-separated-test-printer-ids>` (optional)
+
+When test mode is on:
+- `/api/v1/shopify/*` responses are simulated (no outbound Shopify calls).
+- `/api/v1/pp*` responses are simulated (quote/place/matrix test payloads).
+- `/api/v1/printnode/*` uses simulated print jobs and test printer IDs.
+- Truck-alert email endpoint returns a simulated success payload (no SMTP send).
+- `/api/v1/config` and `/api/v1/statusz` include `TEST_MODE` visibility.
+
 ### 0) Start-up and first load checks
 
 1. Run `npm run dev`.

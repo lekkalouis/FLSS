@@ -21,6 +21,47 @@ const router = Router();
 
 const DEFAULT_MATRIX_WEIGHTS_KG = [1, 2, 5, 10, 15, 20, 25];
 
+
+function buildTestModeParcelPerfectResponse({ method, className, params }) {
+  const normalizedMethod = String(method || "").toLowerCase();
+
+  if (normalizedMethod === "requestquote") {
+    return {
+      success: true,
+      response: {
+        quoteno: `TEST-QUOTE-${Date.now()}`,
+        rates: [
+          { service: "Road Freight", total: 99.99, subtotal: 99.99 },
+          { service: "Express", total: 149.99, subtotal: 149.99 }
+        ]
+      },
+      mode: "test"
+    };
+  }
+
+  if (normalizedMethod === "getplacesbyname" || normalizedMethod === "getplacesbypostcode") {
+    return {
+      success: true,
+      response: {
+        places: [
+          { place: 4663, town: "Cape Town", postcode: "7530" },
+          { place: 1404, town: "Johannesburg", postcode: "2000" }
+        ]
+      },
+      mode: "test"
+    };
+  }
+
+  return {
+    success: true,
+    method,
+    class: className,
+    params,
+    mode: "test"
+  };
+}
+
+
 function getDefaultMatrixDetails({ place, town, type }) {
   return {
     origpers: config.UI_ORIGIN_PERSON || "Flippen Lekka Holdings (Pty) Ltd",
@@ -128,6 +169,10 @@ router.post("/pp", async (req, res) => {
       return badRequest(res, "Expected { method, classVal|class, params } in body");
     }
 
+    if (config.TEST_MODE) {
+      return res.json(buildTestModeParcelPerfectResponse({ method, className, params }));
+    }
+
     if (!config.PP_BASE_URL || !config.PP_BASE_URL.startsWith("http")) {
       return res.status(500).json({
         error: "CONFIG_ERROR",
@@ -186,6 +231,16 @@ router.get("/pp/place", async (req, res) => {
   try {
     const query = (req.query.q || req.query.query || "").trim();
     if (!query) return badRequest(res, "Missing ?q= query string for place search");
+
+    if (config.TEST_MODE) {
+      return res.json(
+        buildTestModeParcelPerfectResponse({
+          method: "getPlacesByName",
+          className: "Quote",
+          params: { query }
+        })
+      );
+    }
 
     if (!config.PP_BASE_URL || !config.PP_BASE_URL.startsWith("http")) {
       return res.status(500).json({
@@ -249,6 +304,27 @@ router.get("/pp/place", async (req, res) => {
 
 router.post("/pp/matrix", async (req, res) => {
   try {
+    if (config.TEST_MODE) {
+      const weights = normalizeWeights(req.body?.weightsKg || req.body?.weights || DEFAULT_MATRIX_WEIGHTS_KG);
+      const destinations = selectMatrixDestinations(req.body || {});
+      const rows = [];
+      for (const destination of destinations) {
+        for (const weight of weights) {
+          rows.push({
+            place: destination.place,
+            town: destination.town,
+            type: destination.type,
+            province: destination.province,
+            weightKg: weight,
+            service: "Road Freight",
+            amount: Number((75 + Number(weight) * 4.5).toFixed(2)),
+            quoteno: `TEST-MATRIX-${destination.place}-${weight}`
+          });
+        }
+      }
+      return res.json({ ok: true, mode: "test", rows });
+    }
+
     if (!config.PP_BASE_URL || !config.PP_BASE_URL.startsWith("http")) {
       return res.status(500).json({
         error: "CONFIG_ERROR",

@@ -1,6 +1,106 @@
 import { config } from "../config.js";
 import { fetchWithTimeout } from "../utils/http.js";
 
+
+class MockHeaders {
+  constructor(entries = {}) {
+    this.map = new Map(Object.entries(entries).map(([k, v]) => [String(k).toLowerCase(), String(v)]));
+  }
+
+  get(name) {
+    return this.map.get(String(name || "").toLowerCase()) || null;
+  }
+}
+
+class MockResponse {
+  constructor(payload, { status = 200, headers = {} } = {}) {
+    this.payload = payload;
+    this.status = status;
+    this.ok = status >= 200 && status < 300;
+    this.statusText = this.ok ? "OK" : "ERROR";
+    this.headers = new MockHeaders(headers);
+  }
+
+  async json() {
+    return this.payload;
+  }
+
+  async text() {
+    return JSON.stringify(this.payload);
+  }
+}
+
+function buildMockShopifyPayload(pathname, method, body) {
+  const path = String(pathname || "");
+  const lowerMethod = String(method || "GET").toUpperCase();
+  const parsedBody = typeof body === "string" ? (() => { try { return JSON.parse(body); } catch { return {}; } })() : (body || {});
+
+  if (path.includes('/graphql.json')) {
+    return { data: {} };
+  }
+  if (/\/fulfillment_orders\.json/.test(path) && lowerMethod === 'GET') {
+    return { fulfillment_orders: [{ id: 9001, status: 'open' }] };
+  }
+  if (/\/fulfillments\.json/.test(path) && lowerMethod === 'POST') {
+    return { fulfillment: { id: 8001, status: 'success' } };
+  }
+  if (/\/orders\/\d+\.json/.test(path) && lowerMethod === 'GET') {
+    return { order: { id: 1001, name: '#TEST-1001', tags: 'test_mode', email: 'test@example.com', customer: { id: 501 } } };
+  }
+  if (/\/orders\.json/.test(path) && lowerMethod === 'GET') {
+    return { orders: [] };
+  }
+  if (/\/orders\.json/.test(path) && ['POST','PUT'].includes(lowerMethod)) {
+    return { order: { id: 1001, ...(parsedBody.order || {}) } };
+  }
+  if (/\/draft_orders\/\d+\/complete\.json/.test(path) && lowerMethod === 'POST') {
+    return { draft_order: { id: 7001, order_id: 1001, status: 'completed' } };
+  }
+  if (/\/draft_orders\/\d+\.json/.test(path) && lowerMethod === 'GET') {
+    return { draft_order: { id: 7001, line_items: [], customer: { id: 501 } } };
+  }
+  if (/\/draft_orders\.json/.test(path) && lowerMethod === 'GET') {
+    return { draft_orders: [] };
+  }
+  if (/\/draft_orders\.json/.test(path) && ['POST','PUT'].includes(lowerMethod)) {
+    return { draft_order: { id: 7001, name: '#DRAFT-7001', ...(parsedBody.draft_order || {}) } };
+  }
+  if (/\/customers\.json/.test(path) && lowerMethod === 'GET') {
+    return { customers: [] };
+  }
+  if (/\/customers\/\d+\/metafields\.json/.test(path) && lowerMethod === 'GET') {
+    return { metafields: [] };
+  }
+  if (/\/customers\/\d+\/metafields\.json/.test(path) && ['POST','PUT'].includes(lowerMethod)) {
+    return { metafield: { id: 3001, ...(parsedBody.metafield || {}) } };
+  }
+  if (/\/metafields\/\d+\.json/.test(path) && lowerMethod === 'DELETE') {
+    return {};
+  }
+  if (/\/metafields/.test(path)) {
+    return { metafield: { id: 3001, ...(parsedBody.metafield || {}) } };
+  }
+  if (/\/products\.json/.test(path) && lowerMethod === 'GET') {
+    return { products: [] };
+  }
+  if (/\/variants\.json/.test(path) && lowerMethod === 'GET') {
+    return { variants: [] };
+  }
+  if (/\/locations\.json/.test(path) && lowerMethod === 'GET') {
+    return { locations: [{ id: 1, name: 'Test Warehouse' }] };
+  }
+  if (/\/inventory_levels\/(set|adjust)\.json/.test(path) && lowerMethod === 'POST') {
+    return { inventory_level: { available: Number(parsedBody?.available ?? parsedBody?.available_adjustment ?? 0) } };
+  }
+  return { ok: true, testMode: true };
+}
+
+function mockShopifyFetch(pathname, options = {}) {
+  const method = options.method || 'GET';
+  const payload = buildMockShopifyPayload(pathname, method, options.body);
+  return new MockResponse(payload, { status: 200, headers: { 'x-shopify-shop-api-call-limit': '1/40' } });
+}
+
 let cachedToken = null;
 let tokenExpiresAtMs = 0;
 const SHOPIFY_MAX_RETRIES = 3;
@@ -174,11 +274,15 @@ async function fetchNewShopifyAdminToken() {
 }
 
 export async function getShopifyAdminToken() {
+  if (config.TEST_MODE) return "test-mode-shopify-token";
   if (cachedToken && Date.now() < tokenExpiresAtMs) return cachedToken;
   return fetchNewShopifyAdminToken();
 }
 
 export async function shopifyFetch(pathname, { method = "GET", headers = {}, body } = {}) {
+  if (config.TEST_MODE) {
+    return mockShopifyFetch(pathname, { method, headers, body });
+  }
   const url = `https://${config.SHOPIFY_STORE}.myshopify.com${pathname}`;
   const metric = {
     queueWaitMs: 0,
