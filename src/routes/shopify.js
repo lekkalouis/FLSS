@@ -3533,6 +3533,72 @@ router.post("/shopify/orders/tag", async (req, res) => {
   }
 });
 
+router.post("/shopify/orders/delivery-qr-payload", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+    const { orderId, orderNo, confirmUrl } = req.body || {};
+    if (!orderId) return badRequest(res, "Missing orderId");
+
+    const { normalizedOrderNo, code, pin } = buildDeliveryCredentials(orderNo);
+    const fallbackOrigin = String(config.FRONTEND_ORIGIN || "").split(",").map((part) => part.trim()).find(Boolean);
+    const resolvedConfirmBase = String(confirmUrl || fallbackOrigin || "").trim();
+    if (!resolvedConfirmBase) {
+      return badRequest(res, "Missing confirmUrl and FRONTEND_ORIGIN is not configured");
+    }
+
+    let confirmTarget;
+    try {
+      const baseUrl = new URL(resolvedConfirmBase);
+      baseUrl.pathname = "/deliver";
+      baseUrl.search = "";
+      baseUrl.hash = "";
+      confirmTarget = `${baseUrl.toString()}?code=${encodeURIComponent(code)}`;
+    } catch {
+      return badRequest(res, "Invalid confirmUrl");
+    }
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const orderResp = await shopifyFetch(`${base}/orders/${orderId}.json?fields=id,note_attributes`, {
+      method: "GET"
+    });
+    const orderData = await orderResp.json().catch(() => ({}));
+    if (!orderResp.ok || !orderData?.order?.id) {
+      return res.status(orderResp.status || 502).json({
+        error: "ORDER_LOOKUP_FAILED",
+        message: "Unable to load order for delivery QR payload update.",
+        body: orderData
+      });
+    }
+
+    const existingAttrs = Array.isArray(orderData.order.note_attributes)
+      ? orderData.order.note_attributes.filter((attr) => attr && attr.name)
+      : [];
+    const attrMap = new Map(existingAttrs.map((attr) => [String(attr.name), String(attr.value || "")]));
+    attrMap.set("Delivery QR Payload", code);
+    attrMap.set("Delivery QR PIN", pin);
+    attrMap.set("Delivery Confirm URL", confirmTarget);
+
+    const noteAttributes = Array.from(attrMap.entries()).map(([name, value]) => ({ name, value }));
+    const updateResp = await shopifyFetch(`${base}/orders/${orderId}.json`, {
+      method: "PUT",
+      body: JSON.stringify({ order: { id: orderId, note_attributes: noteAttributes } })
+    });
+    const updateBody = await updateResp.text();
+    if (!updateResp.ok) {
+      return res.status(updateResp.status || 502).json({
+        error: "ORDER_UPDATE_FAILED",
+        statusText: updateResp.statusText,
+        body: updateBody
+      });
+    }
+
+    return res.json({ ok: true, orderNo: normalizedOrderNo, code, pin, confirmUrl: confirmTarget, noteAttributes });
+  } catch (err) {
+    console.error("Delivery QR payload update error:", err);
+    return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 router.post("/shopify/collection/fulfill-from-code", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;

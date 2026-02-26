@@ -173,35 +173,7 @@ async function buildDeliveryNotePdfBase64(deliveryNote = {}) {
     { align: "center" }
   );
 
-  const deliveryCode = String(deliveryNote.deliveryCode || "").trim();
-  const deliveryConfirmUrl = String(deliveryNote.deliveryConfirmUrl || "").trim();
-  if (deliveryCode && deliveryConfirmUrl) {
-    const qrValue = `${deliveryConfirmUrl}${deliveryConfirmUrl.includes("?") ? "&" : "?"}code=${encodeURIComponent(deliveryCode)}`;
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrValue)}`;
-    try {
-      const qrResp = await fetchWithTimeout(
-        qrImageUrl,
-        { method: "GET" },
-        10_000,
-        { upstream: "qrserver", route: "buildDeliveryNotePdfBase64", target: qrImageUrl }
-      );
-      if (qrResp.ok) {
-        const qrBuffer = Buffer.from(await qrResp.arrayBuffer());
-        doc.moveDown(1.2);
-        doc.font("Helvetica-Bold").fontSize(10).text("Delivery confirmation QR", { align: "left" });
-        const qrX = doc.page.margins.left;
-        const qrY = doc.y + 6;
-        doc.image(qrBuffer, qrX, qrY, { fit: [120, 120] });
-        doc.font("Helvetica").fontSize(8).text("Scan on delivery to auto-confirm and close page.", qrX + 130, qrY + 24, {
-          width: 260
-        });
-        doc.fontSize(8).text(qrValue, qrX + 130, qrY + 48, { width: 360 });
-        doc.y = qrY + 124;
-      }
-    } catch {
-      // skip QR if external service is unavailable
-    }
-  }
+
 
   return await new Promise((resolve, reject) => {
     doc.on("end", () => resolve(Buffer.concat(chunks).toString("base64")));

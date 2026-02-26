@@ -2712,16 +2712,6 @@ async function startOrder(orderNo) {
   }
 
 
-  function buildDeliveryQrCode(orderNo) {
-    const normalizedOrderNo = String(orderNo || "").replace(/[^0-9A-Za-z]/g, "").toUpperCase();
-    let hash = 7;
-    for (let i = 0; i < normalizedOrderNo.length; i += 1) {
-      hash = (hash * 31 + normalizedOrderNo.charCodeAt(i)) % 10000;
-    }
-    const pin = String(hash).padStart(4, "0");
-    return `FLSS-DELIVERY-${normalizedOrderNo}-${pin}`;
-  }
-
   async function handleDeliveryScan(code) {
     try {
       const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/delivery/complete-from-code`, {
@@ -4711,43 +4701,26 @@ async function startOrder(orderNo) {
   async function printDeliveryNote(order) {
     if (!order) return false;
     const orderNo = String(order.name || "").replace("#", "").trim();
-    const deliveryCode = buildDeliveryQrCode(orderNo);
-    const deliveryConfirmUrl = `${window.location.origin}/deliver`;
-    const deliveryNote = {
-      orderNo,
-      invoiceDate: new Date().toISOString().slice(0, 10),
-      billing: order.billing_address || order.customer || {},
-      shipping: order.shipping_address || {},
-      lineItems: Array.isArray(order.line_items)
-        ? order.line_items.map((item) => ({
-            sku: item.sku || "",
-            title: item.name || item.title || "",
-            quantity: Number(item.quantity || 0)
-          }))
-        : [],
-      deliveryCode,
-      deliveryConfirmUrl
-    };
 
     try {
-      const res = await fetch(`${API_BASE}/printnode/print-delivery-note`, {
+      const payloadRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/delivery-qr-payload`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          deliveryNote,
-          title: `Delivery Note ${order.name || `#${orderNo}`}`
+          orderId: order.id,
+          orderNo,
+          confirmUrl: window.location.origin
         })
       });
-      if (!res.ok) {
-        const text = await res.text();
-        appendDebug(`PrintNode delivery note failed for ${orderNo}: ${text}`);
-        return false;
+      if (!payloadRes.ok) {
+        const text = await payloadRes.text();
+        appendDebug(`Delivery QR payload update failed for ${orderNo}: ${text}`);
       }
-      return true;
     } catch (err) {
-      appendDebug(`PrintNode delivery note error for ${orderNo}: ${String(err)}`);
-      return false;
+      appendDebug(`Delivery QR payload update error for ${orderNo}: ${String(err)}`);
     }
+
+    return printShopifyTemplate(order, "deliveryNote");
   }
 
   async function printDocs(order) {
