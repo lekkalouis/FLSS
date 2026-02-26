@@ -4,19 +4,21 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Flippen Lekka Scan Station — v5 (cleaned + 100×150 print lock)</title>
+<link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
+<script src="/vendor/oneui/js/setTheme.js"></script>
 <style>
   :root{
-    --bg:#f5f7fb;
-    --panel:#ffffff;
-    --panel-muted:#f1f5f9;
-    --panel-strong:#e2e8f0;
-    --text:#0b1324;
-    --text-muted:#5b6b7f;
-    --accent:#6366f1;
-    --accent-strong:#22d3ee;
+    --bg:var(--bs-body-bg);
+    --panel:var(--bs-body-bg);
+    --panel-muted:var(--bs-body-bg-dark);
+    --panel-strong:var(--bs-border-color);
+    --text:var(--bs-body-color);
+    --text-muted:var(--bs-body-color-dark);
+    --accent:var(--bs-primary);
+    --accent-strong:var(--bs-info);
     --accent-2:#f97316;
     --accent-3:#a855f7;
-    --accent-soft:rgba(99,102,241,.12);
+    --accent-soft:rgba(var(--bs-primary-rgb), .12);
     --radius-lg:1rem;
     --radius-md:.7rem;
     --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
@@ -2712,7 +2714,7 @@
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
 </head>
- <body>
+ <body class="bg-body-extra-light side-scroll page-header-fixed page-header-dark main-content-boxed">
   <div class="flApp">
     <div class="flLayout">
       <aside class="flSide">
