@@ -32,6 +32,7 @@
     font-family:var(--sans);
     min-height:100dvh;
     margin:0;
+    overflow-x:hidden;
   }
   .flApp{
     min-height:100dvh;
@@ -172,6 +173,7 @@
     flex-direction:column;
     gap:.7rem;
     padding:.7rem 1rem 1rem;
+    min-width:0;
   }
   .flFooterNav{
     display:flex;
@@ -250,10 +252,95 @@
     }
     .flNavGroup{
       width:100%;
+      overflow:auto;
+      flex-wrap:nowrap;
+      padding-bottom:.25rem;
+      scrollbar-width:thin;
     }
-    .flNavBtn{ flex:1; }
+    .flNavBtn{
+      flex:0 0 auto;
+      min-width:max-content;
+      justify-content:center;
+    }
     .flNavStatus{ align-items:stretch; }
     .flNavScanInputWrap{ width:100%; }
+  }
+  @media (max-width:640px){
+    .flLayout{
+      min-height:auto;
+    }
+    .flSide{
+      position:sticky;
+      top:0;
+      z-index:50;
+      border-left:0;
+      border-right:0;
+      border-top:0;
+      border-radius:0;
+      box-shadow:0 8px 24px rgba(15,23,42,.08);
+    }
+    .flSideHeader{
+      gap:.45rem;
+    }
+    .flNavTitle{
+      font-size:.82rem;
+    }
+    .flMain{
+      padding:.55rem .55rem 5.25rem;
+      gap:.55rem;
+    }
+    .dispatchTopBar,
+    #dispatchBoardContainer,
+    .dispatchBoardPanel,
+    .docsShell,
+    .dashboardShell{
+      padding:.75rem;
+      border-radius:.8rem;
+    }
+    .dispatchSelectionFloat{
+      left:.55rem;
+      right:.55rem;
+      width:auto;
+      bottom:calc(env(safe-area-inset-bottom, 0px) + .35rem);
+      z-index:45;
+    }
+    .dispatchSelectionPanel{
+      border-radius:.75rem;
+      padding:.5rem;
+      box-shadow:0 10px 20px rgba(15,23,42,.16);
+    }
+    .dispatchSelectionMeta{
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:.35rem;
+    }
+    .dispatchSelectionBody{
+      font-size:.64rem;
+    }
+    .docsContent{
+      padding:.85rem;
+      min-width:0;
+    }
+    .shell{
+      min-height:auto;
+      border-radius:.85rem;
+    }
+    .leftPane,
+    .rightPane{
+      padding:.9rem;
+      min-width:0;
+    }
+    .flNavSummary{
+      width:100%;
+      font-size:.72rem;
+      overflow-wrap:anywhere;
+    }
+    #scanInput{
+      font-size:1rem;
+    }
+    .podBox{
+      width:100%;
+      max-width:300px;
+    }
   }
   .actionFlash{
     font-size:.72rem;
