@@ -1,16 +1,16 @@
-# FLSS Build & Run Guide (Current State)
+# FLSS Build, Run, and Deployment Guide
 
-This guide documents how to run, test, and package the current FLSS app.
+This guide reflects the current app architecture: a Node.js runtime server that serves both API routes and static frontend assets.
 
-## 1) Prerequisites
+## 1) Runtime prerequisites
 
-- Node.js 20+ (Node.js 18+ can run the app, but 20+ is recommended for parity with modern tooling).
-- npm 10+.
-- Access credentials for integrations you plan to use:
-  - Shopify Admin API (OAuth client credentials)
-  - ParcelPerfect API token/account
-  - PrintNode API key + printer id
-  - SMTP relay details
+- Node.js **20+** recommended (18+ generally works).
+- npm **10+** recommended.
+- Environment variables for integrations you intend to use:
+  - Shopify Admin API credentials
+  - ParcelPerfect credentials/token
+  - PrintNode API key/printer IDs
+  - SMTP host/user/pass/sender for email features
 
 ## 2) Install dependencies
 
@@ -18,17 +18,15 @@ This guide documents how to run, test, and package the current FLSS app.
 npm install
 ```
 
-For CI and reproducible production installs:
+For CI and reproducible installs:
 
 ```bash
 npm ci
 ```
 
-## 3) Configure environment
+## 3) Configure `.env`
 
-Create a `.env` file in the project root (or provide env vars through your runtime).
-
-Minimal local boot:
+Minimum boot values:
 
 ```bash
 PORT=3000
@@ -37,20 +35,19 @@ NODE_ENV=development
 FRONTEND_ORIGIN=http://localhost:3000
 ```
 
-Integration variables are documented in `README.md`.
+For full integration values and UI tuning variables, use the environment section in `README.md`.
 
-## 4) Run locally
+## 4) Start in development
 
 ```bash
 npm run dev
 ```
 
-Open:
+The app serves:
 
-- `http://localhost:3000` (Scan Station + main SPA)
-- `http://localhost:3000/flocs`
-- `http://localhost:3000/stock`
-- `http://localhost:3000/price-manager`
+- SPA shell at `http://localhost:3000`
+- API at `http://localhost:3000/api/v1`
+- static tools at `/shipping-matrix.html`, `/traceability.html`, etc.
 
 ## 5) Run tests
 
@@ -58,27 +55,41 @@ Open:
 npm test
 ```
 
-Covers:
+Tests currently cover unit helpers and route-level behavior for key paths.
 
-- numeric config parsing helper behavior
-- app health and config API smoke checks
-
-## 6) Production run
+## 6) Production start
 
 ```bash
 NODE_ENV=production npm start
 ```
 
-The production command starts the same Express server with production middleware mode.
+There is no bundling/transpile build stage in this repo; deployment runs source directly.
 
-## 7) Build/Release notes for current architecture
-
-FLSS currently ships as a runtime Node app (no transpile/bundle build step).
-
-A typical deployment pipeline is:
+## 7) Suggested deployment pipeline
 
 1. `npm ci`
 2. `npm test`
-3. `NODE_ENV=production npm start`
+3. Inject runtime secrets/config
+4. `NODE_ENV=production npm start`
 
-If containerizing, expose port `3000` (or your configured `PORT`) and mount/inject env vars securely.
+## 8) Optional operational scripts
+
+- Generate purchase-order catalog JSON:
+
+```bash
+npm run po:catalog:generate
+```
+
+- Generate traceability sample workbook:
+
+```bash
+npm run traceability:template:generate
+```
+
+## 9) Common startup issues
+
+- **CORS blocked:** check `FRONTEND_ORIGIN` list and origin host.
+- **Shopify calls fail:** validate `SHOPIFY_*` env values and API app permissions.
+- **ParcelPerfect requests fail:** verify base URL, token requirement, and account/place IDs.
+- **Print jobs fail:** confirm API key and printer IDs.
+- **Email endpoints fail:** ensure SMTP host/from credentials are set.
