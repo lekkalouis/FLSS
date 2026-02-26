@@ -2134,7 +2134,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
   }
 
   async function doBookingNow(opts = {}) {
-    const bundleOrders = getBundleOrders();
+    const bundleOrders = Array.isArray(opts.bundleOrders) && opts.bundleOrders.length ? opts.bundleOrders : getBundleOrders();
     if (!bundleOrders.length || armedForBooking) return;
 
     const bundledOrderNos = bundleOrders.map((order) => order.orderNo);
@@ -2148,6 +2148,11 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     const manual = !!opts.manual;
     const overrideCount = Number(opts.parcelCount || 0);
     const totalScanned = getTotalScannedCount();
+    const keepOnBoard = !!opts.keepOnBoard;
+    const selectedLineItemsByOrder = opts.selectedLineItemsByOrder && typeof opts.selectedLineItemsByOrder === "object"
+      ? opts.selectedLineItemsByOrder
+      : null;
+    const bookingWeightKg = Number(opts.weightKg || 0) > 0 ? Number(opts.weightKg || 0) : null;
     let totalExpected = 0;
 
     if (manual) {
@@ -2162,7 +2167,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
           details.manualParcelCount = scanned;
         }
       });
-      totalExpected = getTotalExpectedCount() || totalScanned;
+      totalExpected = overrideCount || getTotalExpectedCount() || totalScanned;
       renderSessionUI();
     } else {
       for (const { orderNo, details } of bundleOrders) {
@@ -2202,7 +2207,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       if (!orderDetails[k]) missing.push(k);
     });
 
-    const payload = buildParcelPerfectPayload(orderDetails, totalExpected);
+    const bookingDetails = bookingWeightKg ? { ...orderDetails, totalWeightKg: bookingWeightKg } : orderDetails;
+    const payload = buildParcelPerfectPayload(bookingDetails, totalExpected);
     if (!payload.details.destplace) missing.push("destplace (place code)");
 
     if (missing.length) {
@@ -2376,11 +2382,18 @@ ${JSON.stringify(cr, null, 2)}`;
 
     let fulfillFailures = 0;
     for (const { orderNo, details } of bundleOrders) {
-      const fulfillOk = await fulfillOnShopify(details, waybillNo);
+      const selectedLineItems = selectedLineItemsByOrder && Array.isArray(selectedLineItemsByOrder[orderNo])
+        ? selectedLineItemsByOrder[orderNo]
+        : null;
+      const fulfillOk = await fulfillOnShopify(details, waybillNo, selectedLineItems);
       if (!fulfillOk) fulfillFailures += 1;
-      markBooked(orderNo);
+      if (!keepOnBoard && !selectedLineItems) {
+        markBooked(orderNo);
+      }
     }
-    removeBookedOrdersFromBoard(bundledOrderNos);
+    if (!keepOnBoard) {
+      removeBookedOrdersFromBoard(bundledOrderNos);
+    }
     if (!fulfillFailures) {
       await stepDispatchProgress(6, `Notified • ${waybillNo}`);
       logDispatchEvent(`Customer notified with tracking ${waybillNo}.`);
@@ -2391,6 +2404,11 @@ ${JSON.stringify(cr, null, 2)}`;
 
     updateDailyParcelCount(totalExpected);
     setBookingOverlayVisible(false);
+    if (keepOnBoard) {
+      armedForBooking = false;
+      await loadDispatchBoard();
+      return;
+    }
     resetSession();
   }
 
@@ -2810,9 +2828,6 @@ async function startOrder(orderNo) {
           (Number.isFinite(inventoryAvailableQty) && inventoryAvailableQty < requestedQty);
         const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
         const rightMeta = [
-          packedCount > 0
-            ? `<span class="dispatchLinePackedQty">${packedCount}/${totalCount}</span>`
-            : "",
           isShortOrUnavailable
             ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
             : ""
@@ -2861,6 +2876,38 @@ async function startOrder(orderNo) {
 
   function getOppDocLabel(docType) {
     return OPP_DOCUMENTS.find((doc) => doc.type === docType)?.label || "OPP document";
+  }
+
+  function getLineItemWeightKg(lineItem, quantity) {
+    const qty = Math.max(0, Number(quantity) || 0);
+    if (!qty) return 0;
+    const gramsPerUnit = Number(lineItem?.grams || 0);
+    if (Number.isFinite(gramsPerUnit) && gramsPerUnit > 0) {
+      return (gramsPerUnit * qty) / 1000;
+    }
+    return 0;
+  }
+
+  function getSelectedFulfillmentWeightKg(order, selectedLineItems) {
+    if (!order || !Array.isArray(selectedLineItems) || !selectedLineItems.length) return null;
+    const byId = new Map((order.line_items || []).map((li) => [String(li.id), li]));
+    let totalKg = 0;
+    selectedLineItems.forEach((entry) => {
+      const li = byId.get(String(entry?.id));
+      totalKg += getLineItemWeightKg(li, entry?.quantity);
+    });
+    if (totalKg > 0) return Number(totalKg.toFixed(3));
+    return null;
+  }
+
+  function getShippedItemCount(order) {
+    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    return lineItems.reduce((sum, lineItem) => {
+      const ordered = Math.max(0, Number(lineItem?.quantity) || 0);
+      if (!ordered) return sum;
+      const remaining = getRemainingLineItemQty(lineItem);
+      return sum + Math.max(0, ordered - remaining);
+    }, 0);
   }
 
   function getPackedFulfillmentSelection(order, packingState) {
@@ -4215,6 +4262,7 @@ async function startOrder(orderNo) {
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
       const missingSeverity = getMissingSeverity(o, packingState);
+      const shippedItemCount = getShippedItemCount(o);
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
@@ -4234,6 +4282,13 @@ async function startOrder(orderNo) {
             }
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
+          ${
+            shippedItemCount > 0
+              ? `<div class="dispatchCardMeta dispatchCardMeta--shipment">📦 ${shippedItemCount} item${
+                  shippedItemCount === 1 ? "" : "s"
+                } already fulfilled/shipped</div>`
+              : ""
+          }
           <div class="dispatchCardParcel">
             <label class="dispatchParcelLabel" for="dispatchParcel-${orderNo}">Boxes</label>
             <button class="dispatchParcelAdjustBtn" type="button" data-action="decrease-box" data-order-no="${orderNo}" aria-label="Decrease box count for order ${orderNo}">−</button>
@@ -5458,29 +5513,45 @@ async function startOrder(orderNo) {
         return true;
       }
 
-      if (!fulfillmentState.allRemainingPacked) {
+      const isSplitFulfillment = !fulfillmentState.allRemainingPacked;
+      if (isSplitFulfillment) {
         const proceed = window.confirm(
           `Not all line items are marked packed for order ${orderNo}. Continuing will create a split fulfillment for only the packed items. Continue?`
         );
         if (!proceed) return true;
       }
 
-      const details = { raw: { id: order.id, line_items: order.line_items || [] } };
-      const selectedLineItems = fulfillmentState.allRemainingPacked
-        ? null
-        : fulfillmentState.selectedLineItems;
-      const ok = await fulfillOnShopify(details, "", selectedLineItems);
-      if (ok) {
-        statusExplain(
-          fulfillmentState.allRemainingPacked
-            ? `Fulfillment completed for ${orderNo}.`
-            : `Split fulfillment completed for ${orderNo} (packed items only).`,
-          "ok"
-        );
-        await loadDispatchBoard();
-      } else {
-        statusExplain(`Fulfillment failed for ${orderNo}.`, "warn");
+      const parcelCountFromMeta =
+        typeof order?.parcel_count_from_meta === "number" && order.parcel_count_from_meta > 0
+          ? order.parcel_count_from_meta
+          : typeof order?.parcel_count === "number" && order.parcel_count > 0
+          ? order.parcel_count
+          : null;
+      const parcelCountFromPacking = getPackingParcelCount(packingState);
+      const parcelCountFromItems = getAutoParcelCountForOrder(order?.line_items || []);
+      const bookingParcelCount = parcelCountFromMeta || parcelCountFromPacking || parcelCountFromItems || null;
+
+      if (!bookingParcelCount) {
+        statusExplain(`Parcel count is required to book shipment for ${orderNo}.`, "warn");
+        logDispatchEvent(`Booking blocked for ${orderNo}: parcel count missing.`);
+        return true;
       }
+
+      const selectedWeightKg = isSplitFulfillment
+        ? getSelectedFulfillmentWeightKg(order, fulfillmentState.selectedLineItems)
+        : null;
+
+      await startOrder(orderNo);
+      orderDetails.manualParcelCount = bookingParcelCount;
+      renderSessionUI();
+      await doBookingNow({
+        manual: true,
+        parcelCount: bookingParcelCount,
+        keepOnBoard: isSplitFulfillment,
+        weightKg: selectedWeightKg,
+        bundleOrders: [{ orderNo, details: orderDetails }],
+        selectedLineItemsByOrder: isSplitFulfillment ? { [orderNo]: fulfillmentState.selectedLineItems } : null
+      });
       return true;
     }
     if (actionType === "prepare-delivery") {
