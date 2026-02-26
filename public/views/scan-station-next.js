@@ -68,6 +68,21 @@ const safeJsonParse = (value, fallback) => {
 
 const now = () => Date.now();
 
+const readText = (id, fallback = "—") => {
+  const el = document.getElementById(id);
+  if (!el) return fallback;
+  const text = dedupeText(el.textContent || "");
+  return text || fallback;
+};
+
+const readActiveOrderSnapshot = () => ({
+  orderNo: readText("uiOrderNo"),
+  customer: readText("uiCustomerName"),
+  weight: readText("uiOrderWeight"),
+  parcelCount: readText("uiParcelCount"),
+  expectedCount: readText("uiExpectedCount")
+});
+
 const createEmitter = () => {
   const listeners = new Map();
 
@@ -288,7 +303,7 @@ const createCommandRegistry = (ctx) => {
     description: "Show available scan station commands",
     usage: ":help",
     run: () => {
-      const lines = ["Commands:"];
+      const lines = ["Commands:", "Open inspector: press F2 or run :inspector"];
       for (const [name, def] of registry.entries()) {
         lines.push(`• ${def.usage} — ${def.description}`);
       }
@@ -386,6 +401,15 @@ const createCommandRegistry = (ctx) => {
     }
   });
 
+  register("inspector", {
+    description: "Open scan inspector panel",
+    usage: ":inspector",
+    run: () => {
+      ctx.toggleInspector(true);
+      return { ok: true, message: "Scan inspector opened." };
+    }
+  });
+
   const run = (command) => {
     const entry = registry.get(command.action);
     if (!entry) {
@@ -442,6 +466,7 @@ const createInspector = (ctx) => {
     const state = ctx.getState();
     const metrics = ctx.computeMetrics();
     const recent = state.stagedBarcodes.slice(-8).reverse();
+    const activeOrder = readActiveOrderSnapshot();
 
     el.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;">
@@ -459,7 +484,25 @@ const createInspector = (ctx) => {
         </div>
       </div>
       <div style="font-size:.8rem;margin-bottom:.7rem;color:#cbd5e1;">
-        Mode <strong>${state.mode}</strong> · Active order <strong>${state.activeOrderId || "—"}</strong>
+        Mode <strong>${state.mode}</strong> · Active order <strong>${activeOrder.orderNo !== "—" ? activeOrder.orderNo : (state.activeOrderId || "—")}</strong>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem;margin-bottom:.75rem;">
+        <div style="padding:.5rem;border:1px solid rgba(148,163,184,.25);border-radius:.55rem;">
+          <div style="font-size:.72rem;color:#94a3b8;">Customer</div>
+          <div style="font-size:.82rem;font-weight:600;">${activeOrder.customer}</div>
+        </div>
+        <div style="padding:.5rem;border:1px solid rgba(148,163,184,.25);border-radius:.55rem;">
+          <div style="font-size:.72rem;color:#94a3b8;">Order weight</div>
+          <div style="font-size:.82rem;font-weight:600;">${activeOrder.weight}</div>
+        </div>
+        <div style="padding:.5rem;border:1px solid rgba(148,163,184,.25);border-radius:.55rem;">
+          <div style="font-size:.72rem;color:#94a3b8;">Parcels scanned</div>
+          <div style="font-size:.82rem;font-weight:600;">${activeOrder.parcelCount}</div>
+        </div>
+        <div style="padding:.5rem;border:1px solid rgba(148,163,184,.25);border-radius:.55rem;">
+          <div style="font-size:.72rem;color:#94a3b8;">Expected parcels</div>
+          <div style="font-size:.82rem;font-weight:600;">${activeOrder.expectedCount}</div>
+        </div>
       </div>
       <div style="margin-bottom:.7rem;">
         <div style="font-size:.75rem;color:#94a3b8;margin-bottom:.45rem;">Top barcodes</div>
@@ -520,6 +563,28 @@ const createIdleWatcher = (ctx) => {
   };
 
   return { start, stop };
+};
+
+const mountInspectorLauncher = (ctx, scanInput) => {
+  const parent = scanInput.parentElement;
+  if (!parent) return null;
+  if (parent.querySelector('[data-scan-inspector-launcher="1"]')) return null;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.dataset.scanInspectorLauncher = "1";
+  btn.textContent = "Inspector";
+  btn.title = "Open scan inspector (F2)";
+  btn.style.marginTop = "0.45rem";
+  btn.style.width = "100%";
+  btn.style.padding = "0.45rem 0.6rem";
+  btn.style.borderRadius = "0.55rem";
+  btn.style.border = "1px solid rgba(148,163,184,.45)";
+  btn.style.background = "rgba(15,23,42,.85)";
+  btn.style.color = "#e2e8f0";
+  btn.style.cursor = "pointer";
+  btn.addEventListener("click", () => ctx.toggleInspector(true));
+  parent.appendChild(btn);
+  return btn;
 };
 
 const createHotkeys = (ctx) => {
@@ -768,10 +833,13 @@ export const initScanStationNext = (options = {}) => {
 
   const onScanInputKeydown = (event) => {
     if (event.key !== "Enter") return;
-    event.preventDefault();
     const raw = scanInput.value;
+    const command = scanParsers.parseCommand(raw, preferences.commandPrefix);
+    if (!command) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
     scanInput.value = "";
-    ingestScan(raw);
+    runCommand(command);
   };
 
   const onWindowBlur = () => {
@@ -795,10 +863,11 @@ export const initScanStationNext = (options = {}) => {
   document.addEventListener("visibilitychange", onVisibilityChange);
   hotkeys.mount();
   idleWatcher.start();
+  const inspectorLauncher = mountInspectorLauncher(context, scanInput);
 
   const unsubscribe = emitter.on("state:changed", onStateChange);
 
-  notify("Scan station enhancements ready.", "success");
+  notify("Scan station enhancements ready. Press F2 for inspector.", "success");
 
   const destroy = () => {
     unsubscribe();
@@ -807,6 +876,7 @@ export const initScanStationNext = (options = {}) => {
     scanInput.removeEventListener("keydown", onScanInputKeydown);
     window.removeEventListener("blur", onWindowBlur);
     document.removeEventListener("visibilitychange", onVisibilityChange);
+    inspectorLauncher?.remove();
   };
 
   return {
