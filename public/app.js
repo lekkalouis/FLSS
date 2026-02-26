@@ -1,6 +1,7 @@
 import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
+import { initScanStationNext } from "./views/scan-station-next.js";
 
 (() => {
   "use strict";
@@ -6042,6 +6043,8 @@ async function startOrder(orderNo) {
     }
   });
 
+
+  let scanStationNext = null;
   const boot = async () => {
     try {
       await loadConfig();
@@ -6073,6 +6076,7 @@ async function startOrder(orderNo) {
     setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
     renderModuleDashboard();
     renderRoute(window.location.pathname);
+    scanStationNext = initScanStationNext({ scanInput });
 
     window.addEventListener("popstate", () => {
       renderRoute(window.location.pathname);
