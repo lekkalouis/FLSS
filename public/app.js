@@ -355,9 +355,12 @@ import { initPriceManagerView } from "./views/price-manager.js";
   let dispatchShipmentsLatest = [];
   let dispatchModalOrderNo = null;
   let dispatchModalShipmentId = null;
+  let dispatchKnownOrderNos = new Set();
+  let dispatchVoicePrimed = false;
   const DISPATCH_PRIORITY_KEY = "fl_dispatch_priority_v1";
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
+  const VOICE_SETTINGS_KEY = "fl_voice_settings_v1";
   const DISPATCH_LINE_HOLD_MS = 1500;
   let dailyParcelCount = 0;
   let truckBooked = false;
@@ -854,18 +857,109 @@ import { initPriceManagerView } from "./views/price-manager.js";
     refreshDispatchViews(parsed.orderNo);
   }
 
-  function announceBookingSuccess() {
+  function loadVoiceSettings() {
+    const defaults = {
+      enabled: true,
+      voiceName: "",
+      rate: 1,
+      pitch: 1,
+      volume: 0.95,
+      announceIncomingOrders: true,
+      maxLineItems: 4
+    };
     try {
+      const raw = localStorage.getItem(VOICE_SETTINGS_KEY);
+      if (!raw) return defaults;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return defaults;
+      return {
+        ...defaults,
+        ...parsed,
+        rate: Number(parsed.rate) || defaults.rate,
+        pitch: Number(parsed.pitch) || defaults.pitch,
+        volume: Number(parsed.volume) || defaults.volume,
+        maxLineItems: Math.max(1, Math.min(8, Number(parsed.maxLineItems) || defaults.maxLineItems))
+      };
+    } catch (_err) {
+      return defaults;
+    }
+  }
+
+  const voiceSettings = loadVoiceSettings();
+
+  function pickBestVoice(voiceName) {
+    if (!("speechSynthesis" in window)) return null;
+    const voices = window.speechSynthesis.getVoices() || [];
+    if (!voices.length) return null;
+
+    if (voiceName) {
+      const exact = voices.find((voice) => voice.name === voiceName);
+      if (exact) return exact;
+    }
+
+    const preferred = [
+      /Google.*(US|UK|English)/i,
+      /Microsoft.*(Aria|Jenny|Guy|Natasha|Ryan|Sonia|Ava)/i,
+      /Samantha/i,
+      /Daniel/i
+    ];
+
+    for (const matcher of preferred) {
+      const matched = voices.find((voice) => matcher.test(voice.name || ""));
+      if (matched) return matched;
+    }
+
+    return voices.find((voice) => /en/i.test(voice.lang || "")) || voices[0] || null;
+  }
+
+  function speakAnnouncement(message, opts = {}) {
+    try {
+      if (!voiceSettings.enabled) return;
       if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") return;
-      const utterance = new SpeechSynthesisUtterance("That order was successfully booked.");
-      utterance.rate = 1;
-      utterance.pitch = 1.02;
-      utterance.volume = 0.9;
-      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(String(message || ""));
+      const chosenVoice = pickBestVoice(opts.voiceName || voiceSettings.voiceName);
+      if (chosenVoice) utterance.voice = chosenVoice;
+      utterance.rate = Number.isFinite(Number(opts.rate)) ? Number(opts.rate) : voiceSettings.rate;
+      utterance.pitch = Number.isFinite(Number(opts.pitch)) ? Number(opts.pitch) : voiceSettings.pitch;
+      utterance.volume = Number.isFinite(Number(opts.volume)) ? Number(opts.volume) : voiceSettings.volume;
+      if (opts.cancelCurrent !== false) window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     } catch (e) {
-      appendDebug("Booking voice blocked: " + String(e));
+      appendDebug("Voice announcement blocked: " + String(e));
     }
+  }
+
+  function buildOrderLineItemsAnnouncement(order, maxLineItems = 4) {
+    const items = Array.isArray(order?.line_items) ? order.line_items : [];
+    if (!items.length) return "";
+    const spoken = items.slice(0, maxLineItems).map((item) => {
+      const qty = Math.max(1, Number(item?.quantity) || 1);
+      const rawName = String(item?.name || item?.title || "item").trim();
+      const cleanedName = rawName
+        .replace(/[()]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return `${qty} × ${cleanedName}`;
+    });
+    if (items.length > maxLineItems) spoken.push(`plus ${items.length - maxLineItems} more item${items.length - maxLineItems === 1 ? "" : "s"}`);
+    return spoken.join(", ");
+  }
+
+  function announceBookingSuccess(orderNo) {
+    const suffix = orderNo ? ` for order ${orderNo}` : "";
+    speakAnnouncement(`Great news. Booking successful${suffix}.`);
+  }
+
+  function announceIncomingOrder(order) {
+    if (!voiceSettings.announceIncomingOrders) return;
+    const orderNo = String(order?.name || "").replace("#", "").trim();
+    const customer = String(order?.customer_name || order?.shipping_name || "Customer").trim();
+    const itemsText = buildOrderLineItemsAnnouncement(order, voiceSettings.maxLineItems);
+    const base = orderNo
+      ? `New incoming order ${orderNo} for ${customer}.`
+      : `New incoming order for ${customer}.`;
+    const fullMessage = itemsText ? `${base} Items: ${itemsText}.` : base;
+    speakAnnouncement(fullMessage, { cancelCurrent: false });
   }
 
   const dispatchProgressTargets = [
@@ -2365,7 +2459,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     logDispatchEvent(`Booking complete. Waybill ${waybillNo}.`);
     triggerBookedFlash();
     confirmBookingFeedback("success");
-    announceBookingSuccess();
+    announceBookingSuccess(activeOrderNo);
     if (statusChip) statusChip.textContent = "Booked";
     if (bookingSummary) {
       bookingSummary.textContent = `WAYBILL: ${waybillNo}
@@ -4741,6 +4835,19 @@ async function startOrder(orderNo) {
         ? data.orders
         : [];
       dispatchShipmentsLatest = shipmentsData.shipments || [];
+
+      const incomingOrders = [];
+      const nextKnownOrderNos = new Set();
+      dispatchOrdersLatest.forEach((order) => {
+        const orderNo = String(order?.name || "").replace("#", "").trim();
+        if (!orderNo) return;
+        nextKnownOrderNos.add(orderNo);
+        if (!dispatchKnownOrderNos.has(orderNo)) incomingOrders.push(order);
+      });
+      dispatchKnownOrderNos = nextKnownOrderNos;
+      if (dispatchVoicePrimed) incomingOrders.slice(0, 3).forEach((order) => announceIncomingOrder(order));
+      dispatchVoicePrimed = true;
+
       renderDispatchBoard(dispatchOrdersLatest);
       updateDashboardKpis();
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
