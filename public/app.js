@@ -4771,7 +4771,7 @@ async function startOrder(orderNo) {
       title: `${templateLabel} ${orderName || `#${orderNo}`}`,
       invoiceUrl,
       usePdfUri: true,
-      source: "Shopify Flow"
+      source: "Scan Station"
     };
 
     try {
