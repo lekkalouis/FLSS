@@ -1404,6 +1404,16 @@
     line-height: 1.3;
     word-break:break-word;
   }
+  .dispatchCardFulfillments{
+    margin-top:.25rem;
+    display:flex;
+    flex-direction:column;
+    gap:.15rem;
+  }
+  .dispatchCardFulfillmentMeta{
+    font-size:.62rem;
+    color:#475569;
+  }
   .dispatchLineItem{
     display:flex;
     align-items:center;
@@ -1439,7 +1449,8 @@
     text-decoration-color:#94a3b8;
   }
   .dispatchLineItem.is-complete .dispatchLineText,
-  .dispatchLineItem.is-partial .dispatchLineText{
+  .dispatchLineItem.is-partial .dispatchLineText,
+  .dispatchLineItem.is-fulfilled .dispatchLineText{
     text-decoration-line:line-through;
   }
   .dispatchLineItem.is-partial .dispatchLineText{
@@ -1451,6 +1462,12 @@
   @keyframes dispatchStrikeIn{
     from{ text-decoration-thickness:0; opacity:.75; }
     to{ text-decoration-thickness:2px; opacity:1; }
+  }
+
+  .dispatchLineFulfilledPart{
+    font-size:.62rem;
+    color:#64748b;
+    text-decoration:none;
   }
   .dispatchLineMeta{
     display:inline-flex;
@@ -1665,6 +1682,13 @@
   .dispatchFulfillBtn:disabled{
     opacity:.5;
     cursor:not-allowed;
+  }
+  .dispatchFulfillBtn--secondary{
+    border-color:rgba(100,116,139,.45);
+    background:rgba(148,163,184,.15);
+    color:#334155;
+    font-size:.64rem;
+    padding:.26rem .46rem;
   }
 
   .dispatchBoxBtn{
