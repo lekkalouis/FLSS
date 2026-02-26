@@ -2505,11 +2505,16 @@ router.get("/shopify/orders/open", async (req, res) => {
 
     const filteredOrders = ordersRaw.filter((o) => !o.cancelled_at);
     const getQuantityRemaining = (lineItem = {}) => {
+      const fulfillableQuantity = Number(lineItem.fulfillable_quantity);
+      if (Number.isFinite(fulfillableQuantity)) {
+        return Math.max(0, fulfillableQuantity);
+      }
+
       const quantityRemainingRaw = Number(lineItem.current_quantity ?? lineItem.quantity ?? 0) - Number(lineItem.fulfilled_quantity ?? 0);
       if (Number.isFinite(quantityRemainingRaw)) {
         return Math.max(0, quantityRemainingRaw);
       }
-      return Math.max(0, Number(lineItem.fulfillable_quantity ?? lineItem.quantity ?? 0));
+      return Math.max(0, Number(lineItem.quantity ?? 0));
     };
 
     const openVariantIds = Array.from(
