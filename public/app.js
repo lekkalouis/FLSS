@@ -5463,24 +5463,37 @@ async function startOrder(orderNo) {
           `Not all line items are marked packed for order ${orderNo}. Continuing will create a split fulfillment for only the packed items. Continue?`
         );
         if (!proceed) return true;
+        const details = { raw: { id: order.id, line_items: order.line_items || [] } };
+        const ok = await fulfillOnShopify(details, "", fulfillmentState.selectedLineItems);
+        if (ok) {
+          statusExplain(`Split fulfillment completed for ${orderNo} (packed items only).`, "ok");
+          await loadDispatchBoard();
+        } else {
+          statusExplain(`Fulfillment failed for ${orderNo}.`, "warn");
+        }
+        return true;
       }
 
-      const details = { raw: { id: order.id, line_items: order.line_items || [] } };
-      const selectedLineItems = fulfillmentState.allRemainingPacked
-        ? null
-        : fulfillmentState.selectedLineItems;
-      const ok = await fulfillOnShopify(details, "", selectedLineItems);
-      if (ok) {
-        statusExplain(
-          fulfillmentState.allRemainingPacked
-            ? `Fulfillment completed for ${orderNo}.`
-            : `Split fulfillment completed for ${orderNo} (packed items only).`,
-          "ok"
-        );
-        await loadDispatchBoard();
-      } else {
-        statusExplain(`Fulfillment failed for ${orderNo}.`, "warn");
+      const parcelCountFromMeta =
+        typeof order?.parcel_count_from_meta === "number" && order.parcel_count_from_meta > 0
+          ? order.parcel_count_from_meta
+          : typeof order?.parcel_count === "number" && order.parcel_count > 0
+          ? order.parcel_count
+          : null;
+      const parcelCountFromPacking = getPackingParcelCount(packingState);
+      const parcelCountFromItems = getAutoParcelCountForOrder(order?.line_items || []);
+      const bookingParcelCount = parcelCountFromMeta || parcelCountFromPacking || parcelCountFromItems || null;
+
+      if (!bookingParcelCount) {
+        statusExplain(`Parcel count is required to book shipment for ${orderNo}.`, "warn");
+        logDispatchEvent(`Booking blocked for ${orderNo}: parcel count missing.`);
+        return true;
       }
+
+      await startOrder(orderNo);
+      orderDetails.manualParcelCount = bookingParcelCount;
+      renderSessionUI();
+      await doBookingNow({ manual: true, parcelCount: bookingParcelCount });
       return true;
     }
     if (actionType === "prepare-delivery") {
