@@ -42,6 +42,9 @@ const els = {
   shippingTotal: $("shipping-total"),
   vatTotal: $("vat-total"),
   grandTotal: $("grand-total"),
+  carrierPanel: $("carrier-panel"),
+  carrierOptions: $("carrier-options"),
+  carrierWarning: $("carrier-warning"),
 
   submitOrder: $("submit-order"),
   submitDraftOrder: $("submit-draft-order"),
@@ -91,6 +94,8 @@ const state = {
   customerLoadMode: "all",
   shippingQuote: null,
   shippingQuotePending: false,
+  shippingQuotesByCarrier: null,
+  selectedCarrier: "SWE",
   deliveryTypeOverride: "",
   spaceTapTimes: [],
   preloadingCustomers: false,
@@ -230,6 +235,44 @@ function money(v) {
   return Number.isFinite(n) ? `R${n.toFixed(2)}` : "R0.00";
 }
 
+function normalizeCarrier(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  if (raw === "TCG") return "TCG";
+  if (raw === "SWE") return "SWE";
+  return "NOT_SET";
+}
+
+function preferredCarrierForCustomer(customer) {
+  return normalizeCarrier(customer?.preferred_carrier || customer?.preferredCarrier || customer?.metafields?.preferred_carrier);
+}
+
+function bestCarrierFromQuotes() {
+  const quotes = state.shippingQuotesByCarrier || {};
+  const candidates = ["SWE", "TCG"].map((carrier) => ({ carrier, total: Number(quotes?.[carrier]?.total) })).filter((q) => Number.isFinite(q.total) && q.total > 0);
+  candidates.sort((a,b)=>a.total-b.total);
+  return candidates[0]?.carrier || "SWE";
+}
+
+function renderCarrierOptions() {
+  if (!els.carrierPanel || !els.carrierOptions) return;
+  const quotes = state.shippingQuotesByCarrier || {};
+  const hasAny = Number.isFinite(Number(quotes?.SWE?.total)) || Number.isFinite(Number(quotes?.TCG?.total));
+  els.carrierPanel.hidden = !hasAny || currentDeliveryType() !== "shipping";
+  if (els.carrierPanel.hidden) return;
+  const preferred = preferredCarrierForCustomer(state.selectedCustomer);
+  const cheapest = bestCarrierFromQuotes();
+  els.carrierOptions.innerHTML = ["SWE","TCG"].map((carrier)=>{
+    const amount = Number(quotes?.[carrier]?.total);
+    const service = quotes?.[carrier]?.service || carrier;
+    const checked = state.selectedCarrier === carrier ? "checked" : "";
+    return `<label class="carrierOption"><input type="radio" name="carrier-choice" value="${carrier}" ${checked}/> <strong>${carrier}</strong><span>${Number.isFinite(amount) ? money(amount) : "No quote"} • ${service}</span></label>`;
+  }).join("");
+  const warn = preferred !== "NOT_SET" && preferred !== cheapest
+    ? `Preferred carrier is ${preferred} but ${cheapest} is cheaper. Confirm before creating draft order.`
+    : "";
+  if (els.carrierWarning) els.carrierWarning.textContent = warn;
+}
+
 function setStatus(el, message, tone = "") {
   if (!el) return;
   el.className = `status${tone ? ` ${tone}` : ""}`;
@@ -314,72 +357,52 @@ function scheduleShippingQuote() {
   const deliveryType = currentDeliveryType();
   if (!lineItems.length || deliveryType !== "shipping") {
     state.shippingQuote = null;
+    state.shippingQuotesByCarrier = null;
     renderSummary();
+    renderCarrierOptions();
     return;
   }
   const addr = shippingAddressPayload();
   if (!addr.city || !addr.zip || !addr.address1) {
     state.shippingQuote = null;
+    state.shippingQuotesByCarrier = null;
+    renderCarrierOptions();
     return;
   }
   state.shippingQuotePending = true;
-  setStatus(els.orderStatus, "Calculating ParcelPerfect shipping…");
-  const details = {
-    origpers: "Flippen Lekka Holdings (Pty) Ltd",
-    origperadd1: "7 Papawer Street",
-    origperadd2: "Blomtuin, Bellville",
-    origperadd3: "Cape Town, Western Cape",
-    origperadd4: "ZA",
-    origperpcode: "7530",
-    origtown: "Cape Town",
-    origplace: 4663,
-    origpercontact: "Louis",
-    origperphone: "0730451885",
-    origpercell: "0730451885",
-    notifyorigpers: 1,
-    origperemail: "admin@flippenlekkaspices.co.za",
-    notes: "Custom order quote",
-    destpers: addr.name || state.selectedCustomer?.name || "Customer",
-    destperadd1: addr.address1 || "",
-    destperadd2: addr.address2 || "",
-    destperadd3: addr.city || "",
-    destperadd4: addr.province || "",
-    destperpcode: addr.zip || "",
-    desttown: addr.city || "",
-    destplace: 4663,
-    destpercontact: addr.name || "",
-    destperphone: addr.phone || "",
-    destpercell: addr.phone || "",
-    destperemail: state.selectedCustomer?.email || "",
-    notifydestpers: 1
-  };
+  setStatus(els.orderStatus, "Calculating shipping (SWE + TCG)…");
   const weightKg = Math.max(1, lineItems.reduce((sum, line) => sum + Number(line.quantity || 0) * 0.2, 0));
-  fetch("/api/v1/pp", {
+  fetch("/api/v1/shipping/quotes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      method: "requestQuote",
-      classVal: "Quote",
-      params: {
-        details,
-        contents: [{ item: 1, pieces: 1, dim1: 40, dim2: 40, dim3: 30, actmass: Number(weightKg.toFixed(2)) }]
-      }
+      address: addr,
+      customer: { name: state.selectedCustomer?.name || "Customer", email: state.selectedCustomer?.email || "" },
+      weightKg: Number(weightKg.toFixed(2))
     })
   })
     .then((res) => res.json().catch(() => ({})))
     .then((data) => {
-      const rates = Array.isArray(data?.results?.[0]?.rates) ? data.results[0].rates : Array.isArray(data?.rates) ? data.rates : [];
-      const pick = rates.find((r) => ["RFX", "ECO", "RDF"].includes(String(r?.service || "").toUpperCase())) || rates[0];
-      const total = Number(pick?.subtotal ?? pick?.total ?? pick?.charge ?? 0);
-      state.shippingQuote = Number.isFinite(total) ? { total, service: pick?.service || null } : null;
-      if (state.shippingQuote) setStatus(els.orderStatus, `Shipping updated (${state.shippingQuote.service || "SWE"}).`, "ok");
+      const quotes = data?.quotes || {};
+      state.shippingQuotesByCarrier = quotes;
+      const preferred = preferredCarrierForCustomer(state.selectedCustomer);
+      const selected = preferred !== "NOT_SET" ? preferred : bestCarrierFromQuotes();
+      state.selectedCarrier = selected || "SWE";
+      const active = quotes?.[state.selectedCarrier] || quotes?.[bestCarrierFromQuotes()] || null;
+      state.shippingQuote = active && Number.isFinite(Number(active.total))
+        ? { total: Number(active.total), service: active.service || state.selectedCarrier, carrier: active.carrier || state.selectedCarrier }
+        : null;
+      setStatus(els.orderStatus, state.shippingQuote ? `Shipping updated (${state.shippingQuote.carrier}).` : "Shipping quote unavailable; using fallback estimate.", state.shippingQuote ? "ok" : "warn");
       renderSummary();
+      renderCarrierOptions();
     })
     .catch((error) => {
-      console.warn("ParcelPerfect quote failed", error);
+      console.warn("Shipping quote failed", error);
       state.shippingQuote = null;
+      state.shippingQuotesByCarrier = null;
       setStatus(els.orderStatus, "Shipping quote unavailable; using fallback estimate.", "warn");
       renderSummary();
+      renderCarrierOptions();
     })
     .finally(() => {
       state.shippingQuotePending = false;
@@ -501,6 +524,9 @@ function applyAddressFields(customer) {
   if (els.customerTier) {
     els.customerTier.value = inferCustomerTier(customer) || "public";
   }
+  const preferredCarrier = preferredCarrierForCustomer(customer);
+  state.selectedCarrier = preferredCarrier !== "NOT_SET" ? preferredCarrier : "SWE";
+  renderCarrierOptions();
 }
 
 function resetForm({ keepCustomerSearch = true } = {}) {
@@ -508,6 +534,8 @@ function resetForm({ keepCustomerSearch = true } = {}) {
   state.qtyBySku.clear();
   state.shippingQuote = null;
   state.deliveryTypeOverride = "";
+  state.shippingQuotesByCarrier = null;
+  state.selectedCarrier = "SWE";
   if (els.customerTier) els.customerTier.value = "public";
   if (els.deliveryTypeSelect) els.deliveryTypeSelect.value = "";
   if (els.poNumber) els.poNumber.value = "";
@@ -900,7 +928,8 @@ function resolveShippingMethodForCustomer(customer) {
 
 function getOrderPayload(customer, lineItems) {
   const shippingRounded = quotedShippingRounded();
-  const shippingService = state.shippingQuote?.service || "Courier";
+  const shippingService = state.shippingQuote?.service || state.selectedCarrier || "Courier";
+  const selectedCarrier = state.selectedCarrier || "SWE";
   const estimatedParcels = computeEstimatedParcels(lineItems);
 
   const payload = {
@@ -912,6 +941,8 @@ function getOrderPayload(customer, lineItems) {
     shippingPrice: shippingRounded,
     shippingBaseTotal: shippingRounded,
     shippingService,
+    selectedCarrier,
+    shippingQuotesByCarrier: state.shippingQuotesByCarrier || undefined,
     estimatedParcels,
     billingAddress: billingAddressPayload(),
     shippingAddress: shippingAddressPayload(),
@@ -944,6 +975,14 @@ async function submitLiveOrDraft(kind = "live") {
   try {
     const customer = await createCustomerForOrderIfNeeded();
     const payload = getOrderPayload(customer, lineItems);
+    if (isDraft) {
+      const preferred = preferredCarrierForCustomer(customer);
+      const cheapest = bestCarrierFromQuotes();
+      if (preferred !== "NOT_SET" && preferred !== cheapest) {
+        const proceed = window.confirm(`Preferred carrier is ${preferred}, but ${cheapest} is cheaper. Continue with ${payload.selectedCarrier}?`);
+        if (!proceed) return;
+      }
+    }
     const endpoint = isDraft ? `${API_BASE}/draft-orders` : `${API_BASE}/orders`;
     const response = await fetch(endpoint, {
       method: "POST",
@@ -994,6 +1033,15 @@ function wireEvents() {
   });
 
   els.customerSearchBtn?.addEventListener("click", searchCustomers);
+  els.carrierOptions?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.name !== "carrier-choice") return;
+    state.selectedCarrier = String(target.value || "SWE").toUpperCase() === "TCG" ? "TCG" : "SWE";
+    const quote = state.shippingQuotesByCarrier?.[state.selectedCarrier];
+    state.shippingQuote = quote ? { total: Number(quote.total || 0), service: quote.service || state.selectedCarrier, carrier: state.selectedCarrier } : null;
+    renderSummary();
+    renderCarrierOptions();
+  });
   els.deliveryTypeSelect?.addEventListener("change", () => {
     state.deliveryTypeOverride = els.deliveryTypeSelect.value || "";
     state.shippingQuote = null;

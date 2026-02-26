@@ -119,6 +119,114 @@ async function requestQuote({ details, weightKg, signal }) {
   };
 }
 
+async function requestSweQuote({ address, customer, weightKg }) {
+  const details = {
+    origpers: config.UI_ORIGIN_PERSON || "Flippen Lekka Holdings (Pty) Ltd",
+    origperadd1: config.UI_ORIGIN_ADDR1 || "7 Papawer Street",
+    origperadd2: config.UI_ORIGIN_ADDR2 || "Blomtuin, Bellville",
+    origperadd3: config.UI_ORIGIN_ADDR3 || "Cape Town, Western Cape",
+    origperadd4: config.UI_ORIGIN_ADDR4 || "ZA",
+    origperpcode: config.UI_ORIGIN_POSTCODE || "7530",
+    origtown: config.UI_ORIGIN_TOWN || "Cape Town",
+    origplace: resolvePlaceId(config.UI_ORIGIN_PLACE_ID, config.PP_PLACE_ID, 4663),
+    origpercontact: config.UI_ORIGIN_CONTACT || "Operations",
+    origperphone: config.UI_ORIGIN_PHONE || "",
+    origpercell: config.UI_ORIGIN_CELL || "",
+    notifyorigpers: Number(config.UI_ORIGIN_NOTIFY || 1),
+    origperemail: config.UI_ORIGIN_EMAIL || "admin@flippenlekkaspices.co.za",
+    notes: "Shipping quote",
+    destpers: address?.name || customer?.name || "Customer",
+    destperadd1: address?.address1 || "",
+    destperadd2: address?.address2 || "",
+    destperadd3: address?.city || "",
+    destperadd4: address?.province || "",
+    destperpcode: address?.zip || "",
+    desttown: address?.city || "",
+    destplace: resolvePlaceId(config.UI_ORIGIN_PLACE_ID, config.PP_PLACE_ID, 4663),
+    destpercontact: address?.name || customer?.name || "",
+    destperphone: address?.phone || "",
+    destpercell: address?.phone || "",
+    destperemail: customer?.email || "",
+    notifydestpers: 1
+  };
+  const quote = await requestQuote({ details, weightKg });
+  return {
+    carrier: "SWE",
+    total: quote.amount,
+    service: quote.service || "SWE",
+    quoteno: quote.quoteno || null,
+    ok: quote.ok
+  };
+}
+
+async function requestTcgQuote({ address, customer, weightKg }) {
+  if (!config.TCG_API_URL || !config.TCG_API_KEY) {
+    return { carrier: "TCG", total: null, service: null, ok: false, error: "TCG not configured" };
+  }
+  const payload = {
+    destination: {
+      name: address?.name || customer?.name || "Customer",
+      address1: address?.address1 || "",
+      address2: address?.address2 || "",
+      city: address?.city || "",
+      province: address?.province || "",
+      postal_code: address?.zip || "",
+      phone: address?.phone || "",
+      email: customer?.email || ""
+    },
+    parcels: [{ weight_kg: Number(weightKg || 1) }]
+  };
+  const upstream = await fetchWithTimeout(
+    config.TCG_API_URL,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.TCG_API_KEY}`,
+        "X-API-Key": config.TCG_API_KEY
+      },
+      body: JSON.stringify(payload)
+    },
+    config.TCG_TIMEOUT_MS,
+    { upstream: "tcg", route: "POST /shipping/quotes", target: config.TCG_API_URL }
+  );
+  const text = await upstream.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = {}; }
+  const total = Number(data?.total ?? data?.amount ?? data?.quote?.total ?? data?.data?.total ?? NaN);
+  const service = data?.service || data?.service_name || data?.quote?.service || "TCG";
+  return {
+    carrier: "TCG",
+    total: Number.isFinite(total) ? total : null,
+    service,
+    quoteno: data?.quote_no || data?.id || null,
+    ok: upstream.ok && Number.isFinite(total)
+  };
+}
+
+router.post("/shipping/quotes", async (req, res) => {
+  try {
+    const { address, customer, weightKg } = req.body || {};
+    if (!address?.address1 || !address?.city || !address?.zip) {
+      return badRequest(res, "Missing destination address fields");
+    }
+    const mass = Math.max(0.5, Number(weightKg || 1));
+    const [swe, tcg] = await Promise.allSettled([
+      requestSweQuote({ address, customer, weightKg: mass }),
+      requestTcgQuote({ address, customer, weightKg: mass })
+    ]);
+    const sweVal = swe.status === "fulfilled" ? swe.value : { carrier: "SWE", total: null, service: null, ok: false };
+    const tcgVal = tcg.status === "fulfilled" ? tcg.value : { carrier: "TCG", total: null, service: null, ok: false };
+    return res.json({
+      ok: Boolean(sweVal.ok || tcgVal.ok),
+      quotes: { SWE: sweVal, TCG: tcgVal }
+    });
+  } catch (err) {
+    if (isUpstreamTimeoutError(err)) return sendTimeoutResponse(res, err);
+    return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 router.post("/pp", async (req, res) => {
   try {
     const { method, classVal, class: classNameRaw, params } = req.body || {};

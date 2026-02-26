@@ -16,6 +16,10 @@ export const config = {
   PP_PLACE_ID: process.env.PP_PLACE_ID,
   PP_TIMEOUT_MS: numberOrDefault(process.env.PP_TIMEOUT_MS, 10000, { min: 1 }),
 
+  TCG_API_URL: process.env.TCG_API_URL || "",
+  TCG_API_KEY: process.env.TCG_API_KEY || "",
+  TCG_TIMEOUT_MS: numberOrDefault(process.env.TCG_TIMEOUT_MS, 10000, { min: 1 }),
+
   SHOPIFY_STORE: process.env.SHOPIFY_STORE,
   SHOPIFY_CLIENT_ID: process.env.SHOPIFY_CLIENT_ID,
   SHOPIFY_CLIENT_SECRET: process.env.SHOPIFY_CLIENT_SECRET,
