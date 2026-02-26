@@ -5197,7 +5197,6 @@ async function startOrder(orderNo) {
 
   const ADMIN_UNLOCKED_KEY = "fl_admin_unlocked";
   const applyAdminMenuVisibility = (visible) => {
-    if (navDocs) navDocs.hidden = !visible;
     if (navFlowcharts) navFlowcharts.hidden = !visible;
     if (navPriceManager) navPriceManager.hidden = !visible;
     if (navDispatchSettings) navDispatchSettings.hidden = !visible;

@@ -31,6 +31,10 @@ FLSS is a Node + Express operations platform for order capture, dispatch workflo
 - `/notification-templates.html` — notification template CRUD + preview
 - `/traceability.html` — batch traceability report generator
 
+## Docs access in the app
+
+The **Documentation** route is available from the **footer navigation** alongside **Admin** and **Changelog**. It loads all markdown files from `docs/` plus `README.md` via `/api/v1/docs`.
+
 ---
 
 ## Architecture
@@ -240,7 +244,7 @@ npm run traceability:template:generate
 Some nav entries are hidden by default and can be toggled in-browser:
 
 - **Shortcut:** `Shift + Alt + A`
-- Toggles visibility for docs/flowcharts/price-manager/dispatch-settings/logs menus.
+- Toggles visibility for flowcharts/price-manager/dispatch-settings/logs menus.
 - Uses `localStorage` key `fl_admin_unlocked`.
 
 ---
@@ -248,6 +252,8 @@ Some nav entries are hidden by default and can be toggled in-browser:
 ## Documentation map
 
 - Build/run and deployment: `docs/build-guide.md`
+- Operator manual: `docs/operator-manual.md`
+- Configuration deep reference: `docs/config-reference.md`
 - Endpoints and payload guide: `docs/api-reference.md`
 - Feature + data model: `docs/data-model.md`
 - Traceability workflow details: `docs/traceability-workflow.md`
