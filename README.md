@@ -22,6 +22,8 @@ FLSS is a single-page operations console for Flippen Lekka that runs on a Node/E
 
 - **Build & run guide**: see `docs/build-guide.md`.
 - **Core features, add-ons, and data model**: see `docs/data-model.md`.
+- **System mind map + process flow chart**: see `docs/system-mind-map-and-process-flow.md`.
+- **Professional frontend/backend user manual**: see `docs/full-user-manual-front-and-backend.md`.
 - **Automated tests**: run `npm test`.
 - **Expose local app on your Cloudflare domain**: see `docs/cloudflare-tunnel.md`.
 
