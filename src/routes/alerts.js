@@ -18,6 +18,21 @@ function requireTruckEmailConfigured(res) {
 }
 
 router.post("/alerts/book-truck", async (req, res) => {
+  if (config.TEST_MODE) {
+    const { parcelCount, reason = "auto" } = req.body || {};
+    const count = Number(parcelCount || 0);
+    if (!count || Number.isNaN(count)) {
+      return badRequest(res, "parcelCount is required");
+    }
+    return res.json({
+      ok: true,
+      mode: "test",
+      subject: `Truck collection request - ${count} parcels`,
+      to: String(config.TRUCK_EMAIL_TO || "test@local.invalid").split(",").map((item) => item.trim()).filter(Boolean),
+      reason
+    });
+  }
+
   if (!requireTruckEmailConfigured(res)) return;
   const { parcelCount, reason = "auto" } = req.body || {};
   const count = Number(parcelCount || 0);

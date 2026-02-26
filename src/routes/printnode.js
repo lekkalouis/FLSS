@@ -18,12 +18,18 @@ function parsePrinterIdList(rawValue) {
 }
 
 function resolveDefaultPrinterId() {
-  const value = Number(config.PRINTNODE_PRINTER_ID);
+  const preferredPrinterId = config.TEST_MODE
+    ? config.TEST_PRINTNODE_PRINTER_ID || config.PRINTNODE_PRINTER_ID
+    : config.PRINTNODE_PRINTER_ID;
+  const value = Number(preferredPrinterId);
   return Number.isInteger(value) && value > 0 ? value : null;
 }
 
 function resolveDeliveryNotePrinterIds() {
-  const list = parsePrinterIdList(config.PRINTNODE_DELIVERY_NOTE_PRINTER_IDS);
+  const rawList = config.TEST_MODE
+    ? config.TEST_PRINTNODE_DELIVERY_NOTE_PRINTER_IDS || config.PRINTNODE_DELIVERY_NOTE_PRINTER_IDS
+    : config.PRINTNODE_DELIVERY_NOTE_PRINTER_IDS;
+  const list = parsePrinterIdList(rawList);
   const single = Number(config.PRINTNODE_DELIVERY_NOTE_PRINTER_ID);
   if (Number.isInteger(single) && single > 0) {
     list.push(single);
@@ -259,12 +265,32 @@ async function sendPrintNodeJob({
   return { ok: true, data };
 }
 
+
+function buildTestPrintResponse({ title, printerId, source, route }) {
+  return {
+    ok: true,
+    mode: "test",
+    printJob: {
+      id: Date.now(),
+      title: title || "Test print",
+      printerId: Number(printerId) || resolveDefaultPrinterId(),
+      source: source || "FLSS Test Mode",
+      route,
+      simulated: true
+    }
+  };
+}
+
 router.post("/printnode/print", async (req, res) => {
   try {
     const { pdfBase64, title } = req.body || {};
 
     if (!pdfBase64) {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Missing pdfBase64" });
+    }
+
+    if (config.TEST_MODE) {
+      return res.json(buildTestPrintResponse({ title, route: "POST /printnode/print" }));
     }
 
     if (!requirePrintNodeConfigured(res)) return;
@@ -299,6 +325,14 @@ router.post("/printnode/print-delivery-note", async (req, res) => {
 
     if (!deliveryNote || typeof deliveryNote !== "object") {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Missing deliveryNote" });
+    }
+
+    if (config.TEST_MODE) {
+      return res.json(buildTestPrintResponse({
+        title: title || `Delivery Note ${deliveryNote.orderNo || ""}`,
+        printerId: printerId || selectDeliveryNotePrinterId(deliveryNote.orderNo),
+        route: "POST /printnode/print-delivery-note"
+      }));
     }
 
     if (!requirePrintNodeConfigured(res, { allowDeliveryPrinterFallback: true })) return;
@@ -345,6 +379,15 @@ router.post("/printnode/print-url", async (req, res) => {
 
     if (!invoiceUrl) {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Missing invoiceUrl" });
+    }
+
+    if (config.TEST_MODE) {
+      return res.json(buildTestPrintResponse({
+        title,
+        printerId,
+        source: source || "Flippen Lekka Scan Station",
+        route: "POST /printnode/print-url"
+      }));
     }
 
     if (!requirePrintNodeConfigured(res)) return;

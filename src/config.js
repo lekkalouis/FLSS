@@ -4,14 +4,23 @@ import { numberOrDefault } from "./utils/number.js";
 
 dotenv.config();
 
+function envFlag(value, fallback = false) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return !["0", "false", "no", "off"].includes(String(value).trim().toLowerCase());
+}
+
 export const config = {
   PORT: process.env.PORT || 3000,
   HOST: process.env.HOST || "0.0.0.0",
   NODE_ENV: process.env.NODE_ENV || "development",
+  TEST_MODE: envFlag(process.env.TEST_MODE, false),
 
   PP_BASE_URL: process.env.PP_BASE_URL || "",
   PP_TOKEN: process.env.PP_TOKEN || "",
   PP_REQUIRE_TOKEN: process.env.PP_REQUIRE_TOKEN || "true",
+  TEST_PP_BASE_URL: process.env.TEST_PP_BASE_URL || "",
+  TEST_PP_TOKEN: process.env.TEST_PP_TOKEN || "",
+  TEST_PP_REQUIRE_TOKEN: process.env.TEST_PP_REQUIRE_TOKEN || process.env.PP_REQUIRE_TOKEN || "true",
   PP_ACCNUM: process.env.PP_ACCNUM,
   PP_PLACE_ID: process.env.PP_PLACE_ID,
   PP_TIMEOUT_MS: numberOrDefault(process.env.PP_TIMEOUT_MS, 10000, { min: 1 }),
@@ -39,8 +48,10 @@ export const config = {
 
   PRINTNODE_API_KEY: process.env.PRINTNODE_API_KEY,
   PRINTNODE_PRINTER_ID: process.env.PRINTNODE_PRINTER_ID,
+  TEST_PRINTNODE_PRINTER_ID: process.env.TEST_PRINTNODE_PRINTER_ID,
   PRINTNODE_DELIVERY_NOTE_PRINTER_ID: process.env.PRINTNODE_DELIVERY_NOTE_PRINTER_ID,
   PRINTNODE_DELIVERY_NOTE_PRINTER_IDS: process.env.PRINTNODE_DELIVERY_NOTE_PRINTER_IDS || "",
+  TEST_PRINTNODE_DELIVERY_NOTE_PRINTER_IDS: process.env.TEST_PRINTNODE_DELIVERY_NOTE_PRINTER_IDS || "",
   PRINTNODE_TIMEOUT_MS: numberOrDefault(process.env.PRINTNODE_TIMEOUT_MS, 10000, { min: 1 }),
 
   SMTP_HOST: process.env.SMTP_HOST,

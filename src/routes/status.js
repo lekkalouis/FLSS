@@ -10,8 +10,21 @@ router.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 router.get("/statusz", async (_req, res) => {
   const services = {
-    server: buildServiceStatus(true, "Online")
+    server: buildServiceStatus(true, "Online"),
+    testMode: buildServiceStatus(config.TEST_MODE, config.TEST_MODE ? "Enabled" : "Disabled")
   };
+
+  if (config.TEST_MODE) {
+    const hasTestParcelPerfectAccount = Boolean(config.TEST_PP_BASE_URL && config.TEST_PP_BASE_URL.startsWith("http"));
+    services.parcelPerfect = buildServiceStatus(
+      true,
+      hasTestParcelPerfectAccount ? "Test account configured" : "Simulated (test mode)"
+    );
+    services.printNode = buildServiceStatus(true, "Simulated (test mode)");
+    services.email = buildServiceStatus(true, "Simulated (test mode)");
+    services.shopify = buildServiceStatus(true, "Simulated (test mode)");
+    return res.json({ ok: true, checkedAt: new Date().toISOString(), services });
+  }
 
   const ppTokenRequired = String(config.PP_REQUIRE_TOKEN).toLowerCase() !== "false";
   const ppConfigured = Boolean(config.PP_BASE_URL) && (!ppTokenRequired || Boolean(config.PP_TOKEN));
