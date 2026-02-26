@@ -2784,6 +2784,7 @@ async function startOrder(orderNo) {
 
   function renderDispatchLineItems(order, packingState) {
     const orderNo = String(order?.name || "").replace("#", "").trim();
+    const { fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(order);
     const lineEntries = (order.line_items || [])
       .map((item, index) => ({ ...item, __index: index }))
       .sort((a, b) => {
@@ -2798,8 +2799,12 @@ async function startOrder(orderNo) {
         });
       })
       .map((li) => {
+        const orderedQty = Math.max(0, Number(li?.quantity) || 0);
         const requestedQty = getRemainingLineItemQty(li);
-        if (requestedQty <= 0) return null;
+        const lineItemIdKey = li?.id != null ? String(li.id) : null;
+        const fulfilledQtyRaw = lineItemIdKey ? Number(fulfilledQtyByLineItemId.get(lineItemIdKey) || 0) : 0;
+        const fulfilledQty = Math.max(0, Math.min(orderedQty, fulfilledQtyRaw));
+        if (orderedQty <= 0 || requestedQty <= 0 && fulfilledQty <= 0) return null;
         const baseTitle = li.title || "";
         const variantTitle = (li.variant_title || "").trim();
         const hasVariant = variantTitle && variantTitle.toLowerCase() !== "default title";
@@ -2826,7 +2831,12 @@ async function startOrder(orderNo) {
         const isShortOrUnavailable =
           (Number.isFinite(fulfillableQty) && fulfillableQty < requestedQty) ||
           (Number.isFinite(inventoryAvailableQty) && inventoryAvailableQty < requestedQty);
-        const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
+        const openQtyLabel = requestedQty > 0 ? formatDispatchQtyLabel(requestedQty, shortLabel, order) : "";
+        const fulfilledQtyLabel = fulfilledQty > 0 ? formatDispatchQtyLabel(fulfilledQty, shortLabel, order) : "";
+        const qtyLabel = fulfilledQty > 0 && openQtyLabel
+          ? `${openQtyLabel} <span class="dispatchLineFulfilledPart">+ ${fulfilledQtyLabel}</span>`
+          : openQtyLabel || fulfilledQtyLabel;
+        const shouldStrike = fulfilledQty > 0 || isComplete || isPartial;
         const rightMeta = [
           isShortOrUnavailable
             ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
@@ -2837,7 +2847,7 @@ async function startOrder(orderNo) {
 
         return {
           isComplete,
-          html: `<div class="dispatchLineItem ${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${qtyLabel}</span><span class="dispatchLineMeta">${rightMeta}</span></div>`
+          html: `<div class="dispatchLineItem ${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""} ${shouldStrike ? "is-fulfilled" : ""}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${qtyLabel}</span><span class="dispatchLineMeta">${rightMeta}</span></div>`
         };
       })
       .filter(Boolean);
@@ -2910,6 +2920,42 @@ async function startOrder(orderNo) {
     }, 0);
   }
 
+  function getOrderFulfillmentSummary(order) {
+    const fulfillmentRows = [];
+    const fulfilledQtyByLineItemId = new Map();
+    const fulfillments = Array.isArray(order?.fulfillments) ? order.fulfillments : [];
+    fulfillments.forEach((fulfillment, index) => {
+      const lineItems = Array.isArray(fulfillment?.line_items) ? fulfillment.line_items : [];
+      let fulfillmentQty = 0;
+      lineItems.forEach((lineItem) => {
+        const quantity = Math.max(0, Number(lineItem?.quantity) || 0);
+        if (!quantity) return;
+        const rawId = lineItem?.line_item_id ?? lineItem?.id;
+        if (rawId == null) return;
+        const key = String(rawId);
+        fulfillmentQty += quantity;
+        fulfilledQtyByLineItemId.set(key, (fulfilledQtyByLineItemId.get(key) || 0) + quantity);
+      });
+      const trackingNumbers = Array.isArray(fulfillment?.tracking_numbers)
+        ? fulfillment.tracking_numbers.map((tracking) => String(tracking || "").trim()).filter(Boolean)
+        : [];
+      const fallbackTracking = String(fulfillment?.tracking_number || "").trim();
+      if (!trackingNumbers.length && fallbackTracking) trackingNumbers.push(fallbackTracking);
+      const fulfillmentLabel = String(fulfillment?.name || `F${index + 1}`).trim();
+      fulfillmentRows.push({
+        id: fulfillment?.id || `f-${index + 1}`,
+        label: fulfillmentLabel || `F${index + 1}`,
+        trackingText: trackingNumbers.length ? trackingNumbers.join(", ") : "—",
+        quantity: fulfillmentQty
+      });
+    });
+
+    return {
+      fulfilledQtyByLineItemId,
+      fulfillmentRows
+    };
+  }
+
   function getPackedFulfillmentSelection(order, packingState) {
     const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
     const selectedLineItems = [];
@@ -2942,7 +2988,7 @@ async function startOrder(orderNo) {
     };
   }
 
-  function renderDispatchActions(order, laneId, orderNo, packingState) {
+  function renderDispatchActions(order, laneId, orderNo, packingState, options = {}) {
     const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
     const disabled = orderNo ? "" : "disabled";
     const docsDropdown = `
@@ -2987,14 +3033,17 @@ async function startOrder(orderNo) {
     }
 
     const fulfillmentState = getPackedFulfillmentSelection(order, packingState);
+    const hasUnfulfilledItems = Boolean(options.hasUnfulfilledItems ?? fulfillmentState.hasRemainingItems);
     const showFulfill = fulfillmentState.anyPacked;
+    const fulfillLabel = hasUnfulfilledItems ? "Fulfill" : "Create fulfillment";
+    const fulfillClass = hasUnfulfilledItems ? "dispatchFulfillBtn" : "dispatchFulfillBtn dispatchFulfillBtn--secondary";
     return `
       ${docsDropdown}
       ${
         showFulfill
-          ? `<button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping" data-order-no="${
+          ? `<button class="${fulfillClass}" type="button" data-action="fulfill-shipping" data-order-no="${
               orderNo || ""
-            }" ${disabled}>Fulfill</button>`
+            }" ${disabled}>${fulfillLabel}</button>`
           : ""
       }
     `;
@@ -4238,6 +4287,7 @@ async function startOrder(orderNo) {
       const orderNo = String(o.name || "").replace("#", "").trim();
       const packingState = getPackingState(o);
       if (orderNo) activeOrders.add(orderNo);
+      const { fulfillmentRows, fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(o);
       const lines = renderDispatchLineItems(o, packingState);
       const exportCartonSummary = getExportCartonSummary(o);
       const addr1 = o.shipping_address1 || "";
@@ -4263,6 +4313,12 @@ async function startOrder(orderNo) {
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
       const missingSeverity = getMissingSeverity(o, packingState);
       const shippedItemCount = getShippedItemCount(o);
+      const hasUnfulfilledItems = (o.line_items || []).some((item) => {
+        const orderedQty = Math.max(0, Number(item?.quantity) || 0);
+        const itemId = item?.id != null ? String(item.id) : "";
+        const fulfilledQty = itemId ? Number(fulfilledQtyByLineItemId.get(itemId) || 0) : 0;
+        return Math.max(0, orderedQty - fulfilledQty) > 0;
+      });
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
@@ -4287,6 +4343,15 @@ async function startOrder(orderNo) {
               ? `<div class="dispatchCardMeta dispatchCardMeta--shipment">📦 ${shippedItemCount} item${
                   shippedItemCount === 1 ? "" : "s"
                 } already fulfilled/shipped</div>`
+              : ""
+          }
+          ${
+            fulfillmentRows.length
+              ? `<div class="dispatchCardFulfillments">${fulfillmentRows
+                  .map(
+                    (entry) => `<div class="dispatchCardFulfillmentMeta">${entry.label} · Tracking: ${entry.trackingText}</div>`
+                  )
+                  .join("")}</div>`
               : ""
           }
           <div class="dispatchCardParcel">
@@ -4314,7 +4379,7 @@ async function startOrder(orderNo) {
           }
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
-            ${renderDispatchActions(o, laneId, orderNo, packingState)}
+            ${renderDispatchActions(o, laneId, orderNo, packingState, { hasUnfulfilledItems })}
           </div>
         </div>`;
     };

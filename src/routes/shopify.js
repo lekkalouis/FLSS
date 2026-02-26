@@ -2572,6 +2572,29 @@ router.get("/shopify/orders/open", async (req, res) => {
 
         const parcelCountFromMeta = parcelCountMap.get(String(o.id)) ?? null;
 
+        const fulfillments = (o.fulfillments || []).map((fulfillment, index) => {
+          const trackingNumbers = Array.isArray(fulfillment?.tracking_numbers)
+            ? fulfillment.tracking_numbers.filter(Boolean)
+            : [];
+          if (!trackingNumbers.length && fulfillment?.tracking_number) {
+            trackingNumbers.push(fulfillment.tracking_number);
+          }
+          const lineItems = Array.isArray(fulfillment?.line_items)
+            ? fulfillment.line_items.map((li) => ({
+                id: li.id,
+                line_item_id: li.line_item_id,
+                quantity: Number(li.quantity) || 0
+              }))
+            : [];
+          return {
+            id: fulfillment?.id,
+            name: fulfillment?.name || `F${index + 1}`,
+            tracking_numbers: trackingNumbers,
+            created_at: fulfillment?.created_at || null,
+            line_items: lineItems
+          };
+        });
+
         return {
           id: o.id,
           name: o.name,
@@ -2597,6 +2620,7 @@ router.get("/shopify/orders/open", async (req, res) => {
           parcel_count: parcelCountFromMeta ?? parcelCountFromTag,
           parcel_count_from_meta: parcelCountFromMeta,
           parcel_count_from_tag: parcelCountFromTag,
+          fulfillments,
           line_items: (o.line_items || [])
             .map((li) => {
               const quantityRemaining = getQuantityRemaining(li);
@@ -2611,11 +2635,11 @@ router.get("/shopify/orders/open", async (req, res) => {
                 variant_title: li.variant_title,
                 quantity: li.quantity,
                 fulfillable_quantity: li.fulfillable_quantity,
+                fulfilled_quantity: li.fulfilled_quantity,
                 quantity_remaining: quantityRemaining,
                 inventory_available: inventoryAvailable
               };
             })
-            .filter((li) => (Number(li.quantity_remaining) || 0) > 0)
         };
       });
 
