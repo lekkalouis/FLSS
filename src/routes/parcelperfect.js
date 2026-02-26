@@ -119,6 +119,236 @@ async function requestQuote({ details, weightKg, signal }) {
   };
 }
 
+async function requestSweQuote({ address, customer, weightKg }) {
+  const details = {
+    origpers: config.UI_ORIGIN_PERSON || "Flippen Lekka Holdings (Pty) Ltd",
+    origperadd1: config.UI_ORIGIN_ADDR1 || "7 Papawer Street",
+    origperadd2: config.UI_ORIGIN_ADDR2 || "Blomtuin, Bellville",
+    origperadd3: config.UI_ORIGIN_ADDR3 || "Cape Town, Western Cape",
+    origperadd4: config.UI_ORIGIN_ADDR4 || "ZA",
+    origperpcode: config.UI_ORIGIN_POSTCODE || "7530",
+    origtown: config.UI_ORIGIN_TOWN || "Cape Town",
+    origplace: resolvePlaceId(config.UI_ORIGIN_PLACE_ID, config.PP_PLACE_ID, 4663),
+    origpercontact: config.UI_ORIGIN_CONTACT || "Operations",
+    origperphone: config.UI_ORIGIN_PHONE || "",
+    origpercell: config.UI_ORIGIN_CELL || "",
+    notifyorigpers: Number(config.UI_ORIGIN_NOTIFY || 1),
+    origperemail: config.UI_ORIGIN_EMAIL || "admin@flippenlekkaspices.co.za",
+    notes: "Shipping quote",
+    destpers: address?.name || customer?.name || "Customer",
+    destperadd1: address?.address1 || "",
+    destperadd2: address?.address2 || "",
+    destperadd3: address?.city || "",
+    destperadd4: address?.province || "",
+    destperpcode: address?.zip || "",
+    desttown: address?.city || "",
+    destplace: resolvePlaceId(config.UI_ORIGIN_PLACE_ID, config.PP_PLACE_ID, 4663),
+    destpercontact: address?.name || customer?.name || "",
+    destperphone: address?.phone || "",
+    destpercell: address?.phone || "",
+    destperemail: customer?.email || "",
+    notifydestpers: 1
+  };
+  const quote = await requestQuote({ details, weightKg });
+  return {
+    carrier: "SWE",
+    total: quote.amount,
+    service: quote.service || "SWE",
+    quoteno: quote.quoteno || null,
+    ok: quote.ok,
+    status: quote.status,
+    error: quote.error || null,
+    raw: quote.raw || null
+  };
+}
+
+const tcgTokenCache = {
+  token: null,
+  expiresAt: 0
+};
+
+function parseTcgMoney(data = {}) {
+  const candidates = [
+    data?.total,
+    data?.amount,
+    data?.quote?.total,
+    data?.quote?.amount,
+    data?.data?.total,
+    data?.data?.amount,
+    data?.rates?.[0]?.total,
+    data?.rates?.[0]?.amount,
+    data?.results?.[0]?.total,
+    data?.results?.[0]?.amount
+  ];
+  for (const value of candidates) {
+    const num = Number(value);
+    if (Number.isFinite(num)) return num;
+  }
+  return null;
+}
+
+function parseTcgService(data = {}) {
+  return (
+    data?.service ||
+    data?.service_name ||
+    data?.quote?.service ||
+    data?.rates?.[0]?.service ||
+    data?.results?.[0]?.service ||
+    "TCG"
+  );
+}
+
+function parseTcgQuoteNumber(data = {}) {
+  return data?.quote_no || data?.quoteNumber || data?.quote?.id || data?.id || null;
+}
+
+function buildTcgPayload({ address, customer, weightKg }) {
+  return {
+    collection_address: {
+      company: config.UI_ORIGIN_PERSON || "Flippen Lekka Holdings (Pty) Ltd",
+      line_1: config.UI_ORIGIN_ADDR1 || "7 Papawer Street",
+      line_2: config.UI_ORIGIN_ADDR2 || "Blomtuin, Bellville",
+      city: config.UI_ORIGIN_TOWN || "Cape Town",
+      postal_code: config.UI_ORIGIN_POSTCODE || "7530",
+      country: "ZA"
+    },
+    delivery_address: {
+      company: address?.company || "",
+      name: address?.name || customer?.name || "Customer",
+      line_1: address?.address1 || "",
+      line_2: address?.address2 || "",
+      city: address?.city || "",
+      province: address?.province || "",
+      postal_code: address?.zip || "",
+      country: "ZA",
+      phone: address?.phone || "",
+      email: customer?.email || ""
+    },
+    parcels: [
+      {
+        mass: Number(weightKg || 1),
+        quantity: 1
+      }
+    ],
+    options: {
+      account_code: config.TCG_ACCOUNT_CODE || undefined
+    }
+  };
+}
+
+async function getShipLogicAccessToken() {
+  if (tcgTokenCache.token && tcgTokenCache.expiresAt > Date.now() + 15000) {
+    return tcgTokenCache.token;
+  }
+  if (!config.TCG_AUTH_URL || !config.TCG_CLIENT_ID || !config.TCG_CLIENT_SECRET) {
+    throw new Error("TCG ShipLogic auth config missing (TCG_AUTH_URL/TCG_CLIENT_ID/TCG_CLIENT_SECRET)");
+  }
+  const authResp = await fetchWithTimeout(
+    config.TCG_AUTH_URL,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: config.TCG_CLIENT_ID,
+        client_secret: config.TCG_CLIENT_SECRET,
+        grant_type: "client_credentials"
+      })
+    },
+    config.TCG_TIMEOUT_MS,
+    { upstream: "shiplogic", route: "POST /oauth/token", target: config.TCG_AUTH_URL }
+  );
+
+  const text = await authResp.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = {}; }
+
+  if (!authResp.ok) {
+    throw new Error(`TCG auth failed (HTTP ${authResp.status})`);
+  }
+
+  const token = data?.access_token || data?.token || null;
+  if (!token) throw new Error("TCG auth response missing access token");
+
+  const expiresInSec = Number(data?.expires_in || 3600);
+  tcgTokenCache.token = token;
+  tcgTokenCache.expiresAt = Date.now() + Math.max(60, expiresInSec) * 1000;
+  return token;
+}
+
+async function requestTcgQuote({ address, customer, weightKg }) {
+  const provider = String(config.TCG_PROVIDER || "generic").toLowerCase();
+  if (!config.TCG_QUOTE_URL) {
+    return { carrier: "TCG", total: null, service: null, ok: false, error: "TCG quote URL not configured" };
+  }
+
+  const payload = buildTcgPayload({ address, customer, weightKg });
+  const headers = { "Content-Type": "application/json" };
+
+  if (provider === "shiplogic") {
+    const accessToken = await getShipLogicAccessToken();
+    headers.Authorization = `Bearer ${accessToken}`;
+  } else {
+    if (!config.TCG_API_KEY) {
+      return { carrier: "TCG", total: null, service: null, ok: false, error: "TCG API key not configured" };
+    }
+    headers.Authorization = `Bearer ${config.TCG_API_KEY}`;
+    headers["X-API-Key"] = config.TCG_API_KEY;
+  }
+
+  const upstream = await fetchWithTimeout(
+    config.TCG_QUOTE_URL,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload)
+    },
+    config.TCG_TIMEOUT_MS,
+    { upstream: "tcg", route: "POST /shipping/quotes", target: config.TCG_QUOTE_URL }
+  );
+
+  const text = await upstream.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = {}; }
+
+  const total = parseTcgMoney(data);
+  const service = parseTcgService(data);
+  const quoteno = parseTcgQuoteNumber(data);
+
+  return {
+    carrier: "TCG",
+    total,
+    service,
+    quoteno,
+    ok: upstream.ok && Number.isFinite(total),
+    status: upstream.status,
+    error: upstream.ok ? null : data?.error || data?.message || `HTTP ${upstream.status}`,
+    raw: data
+  };
+}
+
+router.post("/shipping/quotes", async (req, res) => {
+  try {
+    const { address, customer, weightKg } = req.body || {};
+    if (!address?.address1 || !address?.city || !address?.zip) {
+      return badRequest(res, "Missing destination address fields");
+    }
+    const mass = Math.max(0.5, Number(weightKg || 1));
+    const [swe, tcg] = await Promise.allSettled([
+      requestSweQuote({ address, customer, weightKg: mass }),
+      requestTcgQuote({ address, customer, weightKg: mass })
+    ]);
+    const sweVal = swe.status === "fulfilled" ? swe.value : { carrier: "SWE", total: null, service: null, ok: false };
+    const tcgVal = tcg.status === "fulfilled" ? tcg.value : { carrier: "TCG", total: null, service: null, ok: false };
+    return res.json({
+      ok: Boolean(sweVal.ok || tcgVal.ok),
+      quotes: { SWE: sweVal, TCG: tcgVal }
+    });
+  } catch (err) {
+    if (isUpstreamTimeoutError(err)) return sendTimeoutResponse(res, err);
+    return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
+  }
+});
+
 router.post("/pp", async (req, res) => {
   try {
     const { method, classVal, class: classNameRaw, params } = req.body || {};

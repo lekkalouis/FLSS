@@ -229,7 +229,8 @@ function normalizeCustomerMetafields(metafields = []) {
     delivery_instructions: getValue("delivery_instructions"),
     company_name: getValue("company_name"),
     vat_number: getValue("vat_number"),
-    payment_terms: getValue("payment_terms")
+    payment_terms: getValue("payment_terms"),
+    preferred_carrier: getValue("preferred_carrier")
   };
 }
 
@@ -630,6 +631,8 @@ function normalizeCustomer(customer, metafields = {}, options = {}) {
     companyName: metafields.company_name || null,
     vatNumber: metafields.vat_number || null,
     paymentTerms: metafields.payment_terms || null,
+    preferred_carrier: String(metafields.preferred_carrier || "").toUpperCase() || null,
+    preferredCarrier: String(metafields.preferred_carrier || "").toUpperCase() || null,
     customFieldsLoaded: Boolean(options.customFieldsLoaded)
   };
 }
@@ -846,6 +849,7 @@ router.post("/shopify/customers", async (req, res) => {
       paymentTerms,
       deliveryInstructions,
       deliveryMethod,
+      preferredCarrier,
       address
     } =
       req.body || {};
@@ -920,6 +924,17 @@ router.post("/shopify/customers", async (req, res) => {
         value: String(paymentTerms)
       });
     }
+    const normalizedPreferredCarrier = ["SWE", "TCG"].includes(String(preferredCarrier || "").toUpperCase())
+      ? String(preferredCarrier).toUpperCase()
+      : null;
+    if (normalizedPreferredCarrier) {
+      metafields.push({
+        namespace: "custom",
+        key: "preferred_carrier",
+        type: "single_line_text_field",
+        value: normalizedPreferredCarrier
+      });
+    }
 
     const payload = {
       customer: {
@@ -978,6 +993,7 @@ router.post("/shopify/customers", async (req, res) => {
         company_name: company || null,
         vat_number: vatNumber || null,
         payment_terms: paymentTerms || null,
+        preferred_carrier: normalizedPreferredCarrier || null,
         tier: tier || null
       },
       { customFieldsLoaded: true }
@@ -1503,6 +1519,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
       shippingPrice,
       shippingBaseTotal,
       shippingService,
+      selectedCarrier,
+      shippingQuotesByCarrier,
       estimatedParcels,
       deliveryDate,
       customerTags
@@ -1651,6 +1669,9 @@ router.post("/shopify/draft-orders", async (req, res) => {
       });
     }
     const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
+    const selectedCarrierCode = ["SWE", "TCG"].includes(String(selectedCarrier || "").toUpperCase())
+      ? String(selectedCarrier).toUpperCase()
+      : (String(customerMetafields?.preferred_carrier || "").toUpperCase() || "SWE");
     if (Number.isFinite(shippingAmount)) {
       draftMetafields.push({
         namespace: "custom",
@@ -1660,6 +1681,9 @@ router.post("/shopify/draft-orders", async (req, res) => {
       });
     }
     const estimatedParcelsValue = Number(estimatedParcels);
+    if (selectedCarrierCode) {
+      draftMetafields.push({ namespace: "custom", key: "preferred_carrier", type: "single_line_text_field", value: selectedCarrierCode });
+    }
     if (Number.isFinite(estimatedParcelsValue)) {
       draftMetafields.push({
         namespace: "custom",
@@ -1679,6 +1703,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
           { name: "price_tier", value: tier || "public" },
           { name: "source", value: "FLSS" },
+          { name: "preferred_carrier", value: selectedCarrierCode },
+          ...(shippingQuotesByCarrier ? [{ name: "shipping_quotes", value: JSON.stringify(shippingQuotesByCarrier).slice(0, 255) }] : []),
           { name: "flss_pricing_hash", value: pricingHash }
         ],
         metafields: draftMetafields.length ? draftMetafields : undefined
@@ -1687,7 +1713,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
 
     if (Number.isFinite(shippingAmount) && shippingMethod === "shipping") {
       payload.draft_order.shipping_line = {
-        title: shippingService || "Courier",
+        title: shippingService || selectedCarrierCode || "Courier",
         price: String(shippingAmount)
       };
     }
@@ -2078,6 +2104,8 @@ router.post("/shopify/orders", async (req, res) => {
       shippingPrice,
       shippingBaseTotal,
       shippingService,
+      selectedCarrier,
+      shippingQuotesByCarrier,
       shippingQuoteNo,
       estimatedParcels,
       vatNumber,
@@ -2152,6 +2180,9 @@ router.post("/shopify/orders", async (req, res) => {
       });
     }
     const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
+    const selectedCarrierCode = ["SWE", "TCG"].includes(String(selectedCarrier || "").toUpperCase())
+      ? String(selectedCarrier).toUpperCase()
+      : (String(customerMetafields?.preferred_carrier || "").toUpperCase() || "SWE");
     if (Number.isFinite(shippingAmount)) {
       metafields.push({
         namespace: "custom",
@@ -2161,6 +2192,9 @@ router.post("/shopify/orders", async (req, res) => {
       });
     }
     const estimatedParcelsValue = Number(estimatedParcels);
+    if (selectedCarrierCode) {
+      metafields.push({ namespace: "custom", key: "preferred_carrier", type: "single_line_text_field", value: selectedCarrierCode });
+    }
     if (Number.isFinite(estimatedParcelsValue)) {
       metafields.push({
         namespace: "custom",
@@ -2196,7 +2230,9 @@ router.post("/shopify/orders", async (req, res) => {
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : []),
           { name: "price_tier", value: tier || "public" },
-          { name: "source", value: "FLSS" }
+          { name: "source", value: "FLSS" },
+          { name: "preferred_carrier", value: selectedCarrierCode },
+          ...(shippingQuotesByCarrier ? [{ name: "shipping_quotes", value: JSON.stringify(shippingQuotesByCarrier).slice(0, 255) }] : [])
         ],
         metafields: metafields.length ? metafields : undefined,
         financial_status: "pending"
@@ -2215,7 +2251,7 @@ router.post("/shopify/orders", async (req, res) => {
     if (shippingPrice != null && shippingMethod === "shipping") {
       orderPayload.order.shipping_lines = [
         {
-          title: shippingService || "Courier",
+          title: shippingService || selectedCarrierCode || "Courier",
           price: String(shippingPrice)
         }
       ];

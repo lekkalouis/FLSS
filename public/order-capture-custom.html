@@ -81,6 +81,13 @@
     .pickerTools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.45rem}
     .pickerTools select,.pickerTools input{width:100%;padding:.4rem .45rem;border:1px solid var(--line-strong);border-radius:6px}
     .receipt{display:none}
+    .carrierPanel{border:1px solid var(--line);border-radius:6px;padding:.55rem;background:#fff5f5;margin-top:.45rem;display:grid;gap:.4rem}
+    .carrierTitle{font-size:.82rem;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:.04em}
+    .carrierOptions{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}
+    .carrierOption{border:1px solid #fecaca;border-radius:6px;padding:.45rem;background:#fff}
+    .carrierOption strong{display:block}
+    .carrierWarn{font-size:.8rem;color:#92400e;min-height:1rem}
+
     [hidden]{display:none !important}
 
     @media(max-width:980px){
@@ -213,6 +220,13 @@
         <div class="row"><span>VAT (15%)</span><strong id="vat-total">R0.00</strong></div>
         <div class="row grand"><span>Pro forma estimate total</span><strong id="grand-total">R0.00</strong></div>
       </div>
+
+      <div class="carrierPanel" id="carrier-panel" hidden>
+        <div class="carrierTitle">Choose courier before draft creation</div>
+        <div class="carrierOptions" id="carrier-options"></div>
+        <div class="carrierWarn" id="carrier-warning"></div>
+      </div>
+
       <div class="bottomBar">
         <div class="actions" style="align-items:center">
           <div id="order-status" class="status"></div>

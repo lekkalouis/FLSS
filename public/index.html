@@ -1657,6 +1657,13 @@
     padding:1rem;
     box-shadow:0 20px 40px rgba(15,23,42,.35);
   }
+  .dispatchBookingOverlaySubtotal{
+    margin:.2rem 0 .65rem;
+    text-align:center;
+    color:#b91c1c;
+    font-weight:800;
+    font-size:1.35rem;
+  }
 
   .dispatchCardActions{
     display:flex;
@@ -2726,6 +2733,7 @@
       </div>
       <div id="dispatchBookingOverlay" class="dispatchBookingOverlay" hidden aria-live="polite" aria-label="Booking progress overlay">
         <div class="dispatchBookingOverlayCard">
+          <div id="dispatchOverlaySubtotal" class="dispatchBookingOverlaySubtotal">Shipping subtotal: R0.00</div>
           <div class="dispatchStatusPanel dispatchStatusPanel--compact">
             <div class="dispatchStatusHeader">
               <h3>Booking progress</h3>

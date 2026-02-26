@@ -2070,6 +2070,16 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     return { details, contents };
   }
 
+
+  function getOrderSubtotal(details) {
+    const lines = Array.isArray(details?.raw?.line_items) ? details.raw.line_items : [];
+    return lines.reduce((sum, li) => {
+      const qty = Number(li?.quantity || 0);
+      const price = Number(li?.price || 0);
+      return sum + qty * price;
+    }, 0);
+  }
+
   function buildShipmentReference() {
     const orders = getBundleOrderNos();
     if (!orders.length) return `Order ${activeOrderNo || ""}`.trim();
@@ -2095,7 +2105,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
           lineItems,
           trackingNumber: waybillNo,
           trackingUrl: "",
-          trackingCompany: "SWE / ParcelPerfect"
+          trackingCompany: details?.preferredCarrier || "SWE / ParcelPerfect"
         })
       });
 
@@ -2198,6 +2208,11 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
 
     armedForBooking = true;
     setBookingOverlayVisible(true);
+    const overlaySubtotal = $("dispatchOverlaySubtotal");
+    if (overlaySubtotal) {
+      const subtotal = bundleOrders.reduce((sum, entry) => sum + getOrderSubtotal(entry.details), 0);
+      overlaySubtotal.textContent = `Shipping subtotal: ${money(subtotal)}`;
+    }
     appendDebug("Booking orders " + bundledOrderNos.join(", ") + " parcels=" + parcelIndexes.join(", "));
     await stepDispatchProgress(0, `Booking ${bundledOrderNos.join(", ")}`);
     logDispatchEvent(`Booking started for orders ${bundledOrderNos.join(", ")}.`);
@@ -2644,7 +2659,11 @@ async function startOrder(orderNo) {
         parcelCountFromTag,
         parcelCountFromMeta,
         manualParcelCount:
-          parcelCountFromMeta == null && autoParcelCount != null ? autoParcelCount : null
+          parcelCountFromMeta == null && autoParcelCount != null ? autoParcelCount : null,
+        preferredCarrier:
+          o?.note_attributes?.find?.((n) => String(n?.name || "").toLowerCase() === "preferred_carrier")?.value ||
+          o?.shipping_lines?.[0]?.title ||
+          "SWE"
       };
 
       if (!placeCodeFromMeta) {
