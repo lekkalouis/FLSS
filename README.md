@@ -433,6 +433,21 @@ PP_TOKEN=your-parcelperfect-token
 PP_ACCNUM=account-number
 PP_PLACE_ID=origin-place-id
 
+# The Courier Guy (TCG) quoting
+# Provider: "generic" (Bearer/API key) or "shiplogic" (OAuth client credentials)
+TCG_PROVIDER=shiplogic
+TCG_QUOTE_URL=https://api.shiplogic.com/v2/rates/quote
+TCG_TIMEOUT_MS=10000
+
+# Generic mode
+TCG_API_KEY=your-tcg-api-key
+
+# ShipLogic mode
+TCG_AUTH_URL=https://api.shiplogic.com/oauth/token
+TCG_CLIENT_ID=your-shiplogic-client-id
+TCG_CLIENT_SECRET=your-shiplogic-client-secret
+TCG_ACCOUNT_CODE=optional-account-code
+
 # Shopify Dev Dashboard OAuth
 SHOPIFY_STORE=your-store-subdomain
 SHOPIFY_CLIENT_ID=your-client-id

@@ -155,52 +155,174 @@ async function requestSweQuote({ address, customer, weightKg }) {
     total: quote.amount,
     service: quote.service || "SWE",
     quoteno: quote.quoteno || null,
-    ok: quote.ok
+    ok: quote.ok,
+    status: quote.status,
+    error: quote.error || null,
+    raw: quote.raw || null
   };
 }
 
-async function requestTcgQuote({ address, customer, weightKg }) {
-  if (!config.TCG_API_URL || !config.TCG_API_KEY) {
-    return { carrier: "TCG", total: null, service: null, ok: false, error: "TCG not configured" };
+const tcgTokenCache = {
+  token: null,
+  expiresAt: 0
+};
+
+function parseTcgMoney(data = {}) {
+  const candidates = [
+    data?.total,
+    data?.amount,
+    data?.quote?.total,
+    data?.quote?.amount,
+    data?.data?.total,
+    data?.data?.amount,
+    data?.rates?.[0]?.total,
+    data?.rates?.[0]?.amount,
+    data?.results?.[0]?.total,
+    data?.results?.[0]?.amount
+  ];
+  for (const value of candidates) {
+    const num = Number(value);
+    if (Number.isFinite(num)) return num;
   }
-  const payload = {
-    destination: {
+  return null;
+}
+
+function parseTcgService(data = {}) {
+  return (
+    data?.service ||
+    data?.service_name ||
+    data?.quote?.service ||
+    data?.rates?.[0]?.service ||
+    data?.results?.[0]?.service ||
+    "TCG"
+  );
+}
+
+function parseTcgQuoteNumber(data = {}) {
+  return data?.quote_no || data?.quoteNumber || data?.quote?.id || data?.id || null;
+}
+
+function buildTcgPayload({ address, customer, weightKg }) {
+  return {
+    collection_address: {
+      company: config.UI_ORIGIN_PERSON || "Flippen Lekka Holdings (Pty) Ltd",
+      line_1: config.UI_ORIGIN_ADDR1 || "7 Papawer Street",
+      line_2: config.UI_ORIGIN_ADDR2 || "Blomtuin, Bellville",
+      city: config.UI_ORIGIN_TOWN || "Cape Town",
+      postal_code: config.UI_ORIGIN_POSTCODE || "7530",
+      country: "ZA"
+    },
+    delivery_address: {
+      company: address?.company || "",
       name: address?.name || customer?.name || "Customer",
-      address1: address?.address1 || "",
-      address2: address?.address2 || "",
+      line_1: address?.address1 || "",
+      line_2: address?.address2 || "",
       city: address?.city || "",
       province: address?.province || "",
       postal_code: address?.zip || "",
+      country: "ZA",
       phone: address?.phone || "",
       email: customer?.email || ""
     },
-    parcels: [{ weight_kg: Number(weightKg || 1) }]
+    parcels: [
+      {
+        mass: Number(weightKg || 1),
+        quantity: 1
+      }
+    ],
+    options: {
+      account_code: config.TCG_ACCOUNT_CODE || undefined
+    }
   };
-  const upstream = await fetchWithTimeout(
-    config.TCG_API_URL,
+}
+
+async function getShipLogicAccessToken() {
+  if (tcgTokenCache.token && tcgTokenCache.expiresAt > Date.now() + 15000) {
+    return tcgTokenCache.token;
+  }
+  if (!config.TCG_AUTH_URL || !config.TCG_CLIENT_ID || !config.TCG_CLIENT_SECRET) {
+    throw new Error("TCG ShipLogic auth config missing (TCG_AUTH_URL/TCG_CLIENT_ID/TCG_CLIENT_SECRET)");
+  }
+  const authResp = await fetchWithTimeout(
+    config.TCG_AUTH_URL,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.TCG_API_KEY}`,
-        "X-API-Key": config.TCG_API_KEY
-      },
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: config.TCG_CLIENT_ID,
+        client_secret: config.TCG_CLIENT_SECRET,
+        grant_type: "client_credentials"
+      })
+    },
+    config.TCG_TIMEOUT_MS,
+    { upstream: "shiplogic", route: "POST /oauth/token", target: config.TCG_AUTH_URL }
+  );
+
+  const text = await authResp.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = {}; }
+
+  if (!authResp.ok) {
+    throw new Error(`TCG auth failed (HTTP ${authResp.status})`);
+  }
+
+  const token = data?.access_token || data?.token || null;
+  if (!token) throw new Error("TCG auth response missing access token");
+
+  const expiresInSec = Number(data?.expires_in || 3600);
+  tcgTokenCache.token = token;
+  tcgTokenCache.expiresAt = Date.now() + Math.max(60, expiresInSec) * 1000;
+  return token;
+}
+
+async function requestTcgQuote({ address, customer, weightKg }) {
+  const provider = String(config.TCG_PROVIDER || "generic").toLowerCase();
+  if (!config.TCG_QUOTE_URL) {
+    return { carrier: "TCG", total: null, service: null, ok: false, error: "TCG quote URL not configured" };
+  }
+
+  const payload = buildTcgPayload({ address, customer, weightKg });
+  const headers = { "Content-Type": "application/json" };
+
+  if (provider === "shiplogic") {
+    const accessToken = await getShipLogicAccessToken();
+    headers.Authorization = `Bearer ${accessToken}`;
+  } else {
+    if (!config.TCG_API_KEY) {
+      return { carrier: "TCG", total: null, service: null, ok: false, error: "TCG API key not configured" };
+    }
+    headers.Authorization = `Bearer ${config.TCG_API_KEY}`;
+    headers["X-API-Key"] = config.TCG_API_KEY;
+  }
+
+  const upstream = await fetchWithTimeout(
+    config.TCG_QUOTE_URL,
+    {
+      method: "POST",
+      headers,
       body: JSON.stringify(payload)
     },
     config.TCG_TIMEOUT_MS,
-    { upstream: "tcg", route: "POST /shipping/quotes", target: config.TCG_API_URL }
+    { upstream: "tcg", route: "POST /shipping/quotes", target: config.TCG_QUOTE_URL }
   );
+
   const text = await upstream.text();
   let data;
   try { data = JSON.parse(text); } catch { data = {}; }
-  const total = Number(data?.total ?? data?.amount ?? data?.quote?.total ?? data?.data?.total ?? NaN);
-  const service = data?.service || data?.service_name || data?.quote?.service || "TCG";
+
+  const total = parseTcgMoney(data);
+  const service = parseTcgService(data);
+  const quoteno = parseTcgQuoteNumber(data);
+
   return {
     carrier: "TCG",
-    total: Number.isFinite(total) ? total : null,
+    total,
     service,
-    quoteno: data?.quote_no || data?.id || null,
-    ok: upstream.ok && Number.isFinite(total)
+    quoteno,
+    ok: upstream.ok && Number.isFinite(total),
+    status: upstream.status,
+    error: upstream.ok ? null : data?.error || data?.message || `HTTP ${upstream.status}`,
+    raw: data
   };
 }
 
