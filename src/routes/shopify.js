@@ -80,6 +80,17 @@ function buildCollectionCredentials(orderNo) {
   return { normalizedOrderNo, pin, barcodeValue };
 }
 
+function buildDeliveryCredentials(orderNo) {
+  const normalizedOrderNo = normalizeOrderNo(orderNo);
+  let hash = 7;
+  for (let i = 0; i < normalizedOrderNo.length; i += 1) {
+    hash = (hash * 31 + normalizedOrderNo.charCodeAt(i)) % 10000;
+  }
+  const pin = String(hash).padStart(4, "0");
+  const code = `FLSS-DELIVERY-${normalizedOrderNo}-${pin}`;
+  return { normalizedOrderNo, pin, code };
+}
+
 function parseCollectionCode(rawCode = "") {
   const cleaned = String(rawCode || "").trim().toUpperCase();
   const codeMatch = cleaned.match(/^FLSS-PICKUP-([0-9A-Z]+)-(\d{3})$/);
@@ -87,6 +98,19 @@ function parseCollectionCode(rawCode = "") {
     return { orderNo: codeMatch[1], pin: codeMatch[2] };
   }
   const compactMatch = cleaned.match(/^([0-9A-Z]+)[-: ]?(\d{3})$/);
+  if (compactMatch) {
+    return { orderNo: compactMatch[1], pin: compactMatch[2] };
+  }
+  return null;
+}
+
+function parseDeliveryCode(rawCode = "") {
+  const cleaned = String(rawCode || "").trim().toUpperCase();
+  const codeMatch = cleaned.match(/^FLSS-DELIVERY-([0-9A-Z]+)-(\d{4})$/);
+  if (codeMatch) {
+    return { orderNo: codeMatch[1], pin: codeMatch[2] };
+  }
+  const compactMatch = cleaned.match(/^([0-9A-Z]+)[-: ]?(\d{4})$/);
   if (compactMatch) {
     return { orderNo: compactMatch[1], pin: compactMatch[2] };
   }
@@ -3546,6 +3570,50 @@ router.post("/shopify/collection/fulfill-from-code", async (req, res) => {
     return res.json({ ok: true, orderId: order.id, orderNo: parsed.orderNo, fulfillment: fulfillResult.fulfillment });
   } catch (err) {
     console.error("Collection fulfill-from-code error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.post("/shopify/delivery/complete-from-code", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const { code, orderNo, pin } = req.body || {};
+    const parsed = parseDeliveryCode(code) || parseDeliveryCode(`${orderNo || ""}${pin || ""}`);
+    if (!parsed) return badRequest(res, "Invalid delivery QR payload.");
+
+    const expected = buildDeliveryCredentials(parsed.orderNo);
+    if (parsed.pin !== expected.pin) {
+      return res.status(401).json({ error: "INVALID_PIN", message: "Delivery PIN mismatch." });
+    }
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const orderLookup = await shopifyFetch(
+      `${base}/orders.json?status=open&name=${encodeURIComponent(`#${parsed.orderNo}`)}&limit=1&fields=id,name`,
+      { method: "GET" }
+    );
+    const lookupData = await orderLookup.json().catch(() => ({}));
+    const order = Array.isArray(lookupData.orders) ? lookupData.orders[0] : null;
+    if (!order?.id) {
+      return res.status(404).json({ error: "ORDER_NOT_FOUND", message: "No open order found for delivery code." });
+    }
+
+    const fulfillResult = await fulfillOrderByOrderId(base, order.id, "Delivered to customer (QR scan confirmation).");
+    if (!fulfillResult.ok) {
+      return res.status(fulfillResult.status || 502).json({
+        error: "FULFILL_FAILED",
+        statusText: fulfillResult.statusText,
+        body: fulfillResult.body
+      });
+    }
+
+    await appendOrderTag(base, order.id, "stat:delivered");
+    return res.json({ ok: true, orderId: order.id, orderNo: parsed.orderNo, fulfillment: fulfillResult.fulfillment });
+  } catch (err) {
+    console.error("Delivery complete-from-code error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)

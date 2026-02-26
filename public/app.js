@@ -2711,6 +2711,42 @@ async function startOrder(orderNo) {
     }
   }
 
+
+  function buildDeliveryQrCode(orderNo) {
+    const normalizedOrderNo = String(orderNo || "").replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+    let hash = 7;
+    for (let i = 0; i < normalizedOrderNo.length; i += 1) {
+      hash = (hash * 31 + normalizedOrderNo.charCodeAt(i)) % 10000;
+    }
+    const pin = String(hash).padStart(4, "0");
+    return `FLSS-DELIVERY-${normalizedOrderNo}-${pin}`;
+  }
+
+  async function handleDeliveryScan(code) {
+    try {
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/delivery/complete-from-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        statusExplain("Delivery scan failed.", "warn");
+        logDispatchEvent(`Delivery scan failed: ${text}`);
+        return false;
+      }
+      const payload = await res.json();
+      statusExplain(`Delivery completed for order ${payload.orderNo}.`, "ok");
+      logDispatchEvent(`Delivery completed from code for order ${payload.orderNo}.`);
+      return true;
+    } catch (err) {
+      statusExplain("Delivery scan failed.", "warn");
+      logDispatchEvent(`Delivery scan failed: ${String(err)}`);
+      return false;
+    }
+  }
+
+
   function laneFromOrder(order) {
     const tags = String(order?.tags || "").toLowerCase();
     if (/(^|[\s,])delivery_pickup([\s,]|$)/.test(tags)) return "pickup";
@@ -3007,9 +3043,10 @@ async function startOrder(orderNo) {
       </div>`;
 
     if (normalizedLane === "delivery") {
-      const isPrepared = orderNo ? printedDeliveryNotes.has(orderNo) : false;
+      const tags = String(order?.tags || "").toLowerCase();
+      const isPrepared = orderNo ? printedDeliveryNotes.has(orderNo) || /(^|[\s,])delivery_prepared([\s,]|$)/.test(tags) : false;
       const actionType = isPrepared ? "deliver-delivery" : "prepare-delivery";
-      const actionLabel = isPrepared ? "Deliver" : "Prepare delivery";
+      const actionLabel = isPrepared ? "🚚" : "Prepare delivery";
       return `
         ${docsDropdown}
         <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${actionLabel}</button>
@@ -4123,31 +4160,23 @@ async function startOrder(orderNo) {
     const order = dispatchOrderCache.get(orderNo);
     if (!order) return;
     try {
-      setDispatchProgress(6, `Marking ${orderNo} ready for delivery`);
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
+      setDispatchProgress(6, `Marking ${orderNo} out for delivery`);
+      await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/tag`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: order.id,
-          trackingNumber: "",
-          trackingUrl: "",
-          trackingCompany: "Local delivery",
-          message: "Ready for delivery."
-        })
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        statusExplain("Ready-for-delivery failed.", "warn");
-        logDispatchEvent(`Ready-for-delivery failed for order ${orderNo}: ${text}`);
-        return;
-      }
-      statusExplain(`Order ${orderNo} marked ready for delivery.`, "ok");
-      logDispatchEvent(`Order ${orderNo} marked ready for delivery.`);
+        body: JSON.stringify({ orderId: order.id, tag: "delivery_prepared" })
+      }).catch(() => null);
+      const cached = dispatchOrderCache.get(orderNo);
+      if (cached) cached.tags = `${cached.tags || ""}, delivery_prepared`;
+      statusExplain(`Order ${orderNo} marked out for delivery.`, "ok");
+      logDispatchEvent(`Order ${orderNo} marked out for delivery.`);
+      refreshDispatchViews(orderNo);
     } catch (err) {
-      statusExplain("Ready-for-delivery failed.", "warn");
-      logDispatchEvent(`Ready-for-delivery failed for order ${orderNo}: ${String(err)}`);
+      statusExplain("Delivery mark failed.", "warn");
+      logDispatchEvent(`Delivery mark failed for order ${orderNo}: ${String(err)}`);
     }
   }
+
 
   function refreshDispatchViews(orderNo) {
     renderDispatchBoard(dispatchOrdersLatest);
@@ -4680,7 +4709,45 @@ async function startOrder(orderNo) {
   }
 
   async function printDeliveryNote(order) {
-    return printShopifyTemplate(order, "deliveryNote");
+    if (!order) return false;
+    const orderNo = String(order.name || "").replace("#", "").trim();
+    const deliveryCode = buildDeliveryQrCode(orderNo);
+    const deliveryConfirmUrl = `${window.location.origin}/deliver`;
+    const deliveryNote = {
+      orderNo,
+      invoiceDate: new Date().toISOString().slice(0, 10),
+      billing: order.billing_address || order.customer || {},
+      shipping: order.shipping_address || {},
+      lineItems: Array.isArray(order.line_items)
+        ? order.line_items.map((item) => ({
+            sku: item.sku || "",
+            title: item.name || item.title || "",
+            quantity: Number(item.quantity || 0)
+          }))
+        : [],
+      deliveryCode,
+      deliveryConfirmUrl
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/printnode/print-delivery-note`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deliveryNote,
+          title: `Delivery Note ${order.name || `#${orderNo}`}`
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        appendDebug(`PrintNode delivery note failed for ${orderNo}: ${text}`);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      appendDebug(`PrintNode delivery note error for ${orderNo}: ${String(err)}`);
+      return false;
+    }
   }
 
   async function printDocs(order) {
@@ -4903,6 +4970,7 @@ async function startOrder(orderNo) {
   const ROUTE_VIEW_MAP = new Map([
     ["/", "scan"],
     ["/scan", "scan"],
+    ["/deliver", "scan"],
     ["/ops", "scan"],
     ["/docs", "docs"],
     ["/flowcharts", "flowcharts"],
@@ -5635,6 +5703,13 @@ async function startOrder(orderNo) {
         return true;
       }
       printedDeliveryNotes.add(orderNo);
+      await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/tag`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, tag: "delivery_prepared" })
+      }).catch(() => null);
+      const cached = dispatchOrderCache.get(orderNo);
+      if (cached) cached.tags = `${cached.tags || ""}, delivery_prepared`;
       statusExplain(`Delivery prepared for ${orderNo}.`, "ok");
       logDispatchEvent(`Delivery prepared for order ${orderNo}.`);
       refreshDispatchViews(orderNo);
@@ -6072,6 +6147,23 @@ async function startOrder(orderNo) {
     refreshServerStatus();
     setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
     renderModuleDashboard();
+
+    const currentPath = normalizePath(window.location.pathname);
+    if (currentPath === "/deliver") {
+      const params = new URLSearchParams(window.location.search || "");
+      const code = params.get("code") || "";
+      if (code) {
+        const ok = await handleDeliveryScan(code);
+        if (ok) {
+          document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">✅ Delivery confirmed. You can close this page.</div>';
+          setTimeout(() => window.close(), 1200);
+          return;
+        }
+      }
+      document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">⚠️ Delivery confirmation failed.</div>';
+      return;
+    }
+
     renderRoute(window.location.pathname);
 
     window.addEventListener("popstate", () => {
