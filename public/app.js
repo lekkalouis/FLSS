@@ -384,6 +384,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let truckBookingInFlight = false;
   let dispatchLineHoldTimer = null;
   let dispatchLineHoldTriggered = false;
+  let dispatchRotaryFocusIndex = -1;
+  let dispatchRotaryFocusKey = "";
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -4826,6 +4828,74 @@ async function startOrder(orderNo) {
     });
     applyDispatchMobileLaneFilter();
     updateDispatchSelectionSummary();
+    syncDispatchRotaryFocus();
+  }
+
+  function getDispatchRotaryRows() {
+    if (!dispatchBoard) return [];
+    return Array.from(dispatchBoard.querySelectorAll(".dispatchPackingRow")).filter((row) => {
+      const btn = row.querySelector(".dispatchPackAllBtn");
+      return Boolean(btn && !btn.disabled);
+    });
+  }
+
+  function dispatchRotaryKeyForRow(row) {
+    const orderNo = row?.querySelector(".dispatchPackAllBtn")?.dataset?.orderNo || "";
+    const itemKey = row?.dataset?.itemKey || "";
+    if (!orderNo || !itemKey) return "";
+    return `${orderNo}:${itemKey}`;
+  }
+
+  function syncDispatchRotaryFocus({ keepKey = true, scroll = false } = {}) {
+    const rows = getDispatchRotaryRows();
+    if (!rows.length) {
+      dispatchRotaryFocusIndex = -1;
+      dispatchRotaryFocusKey = "";
+      return;
+    }
+
+    let index = dispatchRotaryFocusIndex;
+    if (keepKey && dispatchRotaryFocusKey) {
+      const byKey = rows.findIndex((row) => dispatchRotaryKeyForRow(row) === dispatchRotaryFocusKey);
+      if (byKey >= 0) index = byKey;
+    }
+
+    if (!Number.isFinite(index) || index < 0 || index >= rows.length) index = 0;
+
+    rows.forEach((row) => row.classList.remove("is-rotary-focus"));
+    const activeRow = rows[index];
+    activeRow.classList.add("is-rotary-focus");
+    dispatchRotaryFocusIndex = index;
+    dispatchRotaryFocusKey = dispatchRotaryKeyForRow(activeRow);
+
+    if (scroll) {
+      activeRow.scrollIntoView({ block: "nearest", behavior: "auto" });
+    }
+  }
+
+  function moveDispatchRotaryFocus(step) {
+    const rows = getDispatchRotaryRows();
+    if (!rows.length) return;
+    const total = rows.length;
+    const safeStep = step > 0 ? 1 : -1;
+    let nextIndex = Number.isFinite(dispatchRotaryFocusIndex) ? dispatchRotaryFocusIndex + safeStep : 0;
+    if (nextIndex < 0) nextIndex = total - 1;
+    if (nextIndex >= total) nextIndex = 0;
+    dispatchRotaryFocusIndex = nextIndex;
+    dispatchRotaryFocusKey = dispatchRotaryKeyForRow(rows[nextIndex]);
+    syncDispatchRotaryFocus({ keepKey: true, scroll: true });
+  }
+
+  async function activateDispatchRotaryFocus() {
+    syncDispatchRotaryFocus({ keepKey: true, scroll: true });
+    const rows = getDispatchRotaryRows();
+    if (!rows.length) return false;
+    const row = rows[dispatchRotaryFocusIndex] || rows[0];
+    const btn = row?.querySelector(".dispatchPackAllBtn");
+    if (!btn || btn.disabled) return false;
+    dispatchRotaryFocusKey = dispatchRotaryKeyForRow(row);
+    await handleDispatchAction(btn);
+    return true;
   }
 
   async function updateDispatchParcelCount({ orderId, orderNo, value }) {
@@ -5647,7 +5717,35 @@ async function startOrder(orderNo) {
   };
   applyAdminMenuVisibility(localStorage.getItem(ADMIN_UNLOCKED_KEY) === "true");
 
-  document.addEventListener("keydown", (e) => {
+  document.addEventListener("keydown", async (e) => {
+    const key = String(e.key || "");
+    const activeView = document.querySelector(".flView.flView--active")?.id;
+    const target = e.target;
+    const targetTag = String(target?.tagName || "").toLowerCase();
+    const inEditable =
+      targetTag === "input" ||
+      targetTag === "textarea" ||
+      targetTag === "select" ||
+      Boolean(target?.isContentEditable);
+
+    if (activeView === "viewScan" && !inEditable) {
+      if (key === "ArrowDown") {
+        e.preventDefault();
+        moveDispatchRotaryFocus(1);
+        return;
+      }
+      if (key === "ArrowUp") {
+        e.preventDefault();
+        moveDispatchRotaryFocus(-1);
+        return;
+      }
+      if (key === "Enter") {
+        e.preventDefault();
+        await activateDispatchRotaryFocus();
+        return;
+      }
+    }
+
     if (e.shiftKey && e.altKey && String(e.key || "").toLowerCase() === "a") {
       const nowVisible = navDispatchSettings?.hidden !== true;
       const next = !nowVisible;
