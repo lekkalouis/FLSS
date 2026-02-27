@@ -1371,6 +1371,7 @@
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
   position:relative;
+  --marker-color:#0f172a;
 }
 .dispatchCard--green{
   border-color:var(--panel-strong);
@@ -1397,7 +1398,9 @@
 .dispatchCardTitle {
   font-weight: 600;
   font-size: 0.85rem;
-  color: var(--text);
+  color: var(--marker-color);
+  font-family: "Segoe Print","Bradley Hand","Comic Sans MS","Marker Felt",cursive;
+  letter-spacing: .01em;
   margin-bottom: 0.2rem;
   display:flex;
   align-items:flex-start;
