@@ -10,11 +10,16 @@ sudo apt install -y python3-pip
 pip3 install gpiozero requests
 ```
 
-## 2) Wire the encoder (default BCM pins)
+## 2) Wire the controls + RGB LED (default BCM pins)
 
 - `CLK` -> `GPIO17`
 - `DT` -> `GPIO27`
 - `SW` -> `GPIO22`
+- `Action push button` -> `GPIO5`
+- `Back/Close push button` -> `GPIO6`
+- `RGB LED R` -> `GPIO18`
+- `RGB LED G` -> `GPIO23`
+- `RGB LED B` -> `GPIO24`
 - `+` -> `3V3`
 - `GND` -> `GND`
 
@@ -32,6 +37,12 @@ Optional tuning:
 export ROTARY_CLK_PIN=17
 export ROTARY_DT_PIN=27
 export ROTARY_SW_PIN=22
+export ROTARY_ACTION_BTN_PIN=5
+export ROTARY_BACK_BTN_PIN=6
+export ROTARY_RGB_RED_PIN=18
+export ROTARY_RGB_GREEN_PIN=23
+export ROTARY_RGB_BLUE_PIN=24
+export ROTARY_LED_FEEDBACK_S=0.25
 export ROTARY_MIN_ACTION_GAP_S=0.05
 export ROTARY_HTTP_TIMEOUT_S=2.5
 ```
@@ -53,3 +64,5 @@ python3 scripts/rotary-pi-wired.py
 
 - If direction feels inverted, either swap `CLK` and `DT` wires or swap action mapping in script.
 - Server already debounces burst input (`ROTARY_DEBOUNCE_MS`); script also has a small client-side action gap.
+- Button mapping: `Action` sends `confirm`, `Back/Close` sends `prev`.
+- RGB feedback: green on HTTP 200, blue on HTTP 409 state conflict, red on network/auth/other errors.
