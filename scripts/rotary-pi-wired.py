@@ -43,8 +43,8 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    base_url = os.getenv("FLSS_BASE_URL", "http://127.0.0.1:3000/api/v1").rstrip("/")
-    rotary_token = os.getenv("ROTARY_TOKEN", "")
+    base_url = os.getenv("FLSS_BASE_URL", "http://flss.flippenlekka.work:3000/api/v1").rstrip("/")
+    rotary_token = os.getenv("ROTARY_TOKEN", "3cbcac9e620ca8e5970605658cf70bc0c24be8598d9285e62d53914ff898c082")
     source = os.getenv("ROTARY_SOURCE", "rotary_pi")
     request_timeout_s = float(os.getenv("ROTARY_HTTP_TIMEOUT_S", "2.5"))
 
