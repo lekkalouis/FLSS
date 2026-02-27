@@ -26,6 +26,10 @@ const els = {
   clearForm: $("clear-form"),
   customerStatus: $("customer-status"),
   customerResults: $("customer-results"),
+  quickProduct: $("quick-product"),
+  quickQty: $("quick-qty"),
+  quickAdd: $("quick-add"),
+  quickOrderStatus: $("quick-order-status"),
 
   quickPicker: $("quick-picker"),
   quickPickerClose: $("quick-picker-close"),
@@ -237,7 +241,7 @@ function setStatus(el, message, tone = "") {
 }
 
 function buildProductTable() {
-  const products = PRODUCT_LIST.filter((product) => product.variantId && product.prices?.retail != null);
+  const products = orderableProducts();
   els.productBody.innerHTML = products
     .map(
       (product) => `<tr>
@@ -249,6 +253,43 @@ function buildProductTable() {
     </tr>`
     )
     .join("");
+}
+
+function orderableProducts() {
+  return PRODUCT_LIST.filter((product) => product.variantId && product.prices?.retail != null);
+}
+
+function renderQuickProductOptions() {
+  if (!els.quickProduct) return;
+  const products = orderableProducts();
+  const current = els.quickProduct.value;
+  els.quickProduct.innerHTML = products
+    .map((product) => `<option value="${product.sku}">${product.title} (${product.sku})</option>`)
+    .join("");
+  if (current && products.some((product) => product.sku === current)) {
+    els.quickProduct.value = current;
+  }
+}
+
+function setQuickOrderStatus(message) {
+  if (els.quickOrderStatus) els.quickOrderStatus.textContent = message;
+}
+
+function addQuickQuantity(quantity) {
+  const sku = String(els.quickProduct?.value || "").trim();
+  const qty = Math.max(1, Math.floor(Number(quantity || 0)));
+  if (!sku || !Number.isFinite(qty)) {
+    setQuickOrderStatus("Choose a product and quantity first.");
+    return;
+  }
+  const current = Number(state.qtyBySku.get(sku) || 0);
+  state.qtyBySku.set(sku, current + qty);
+  const product = PRODUCT_LIST.find((entry) => entry.sku === sku);
+  const productInput = document.querySelector(`.qty[data-sku="${sku}"]`);
+  if (productInput instanceof HTMLInputElement) productInput.value = String(current + qty);
+  renderSummary();
+  scheduleShippingQuote();
+  setQuickOrderStatus(`Added ${qty} × ${product?.title || sku}. Total for this item: ${current + qty}.`);
 }
 
 function selectedLineItems() {
@@ -1089,7 +1130,22 @@ function wireEvents() {
   els.clearForm?.addEventListener("click", () => resetForm({ keepCustomerSearch: false }));
   els.customerTier?.addEventListener("change", () => {
     buildProductTable();
+    renderQuickProductOptions();
     renderSummary();
+  });
+  els.quickAdd?.addEventListener("click", () => addQuickQuantity(els.quickQty?.value));
+  els.quickQty?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addQuickQuantity(els.quickQty?.value);
+    }
+  });
+  document.querySelectorAll("[data-quick-qty]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const amount = Number(button.getAttribute("data-quick-qty") || 0);
+      if (els.quickQty) els.quickQty.value = String(amount);
+      addQuickQuantity(amount);
+    });
   });
   els.printForm.addEventListener("click", () => window.print());
 }
@@ -1100,6 +1156,7 @@ async function boot() {
     today.getDate()
   ).padStart(2, "0")}`;
   buildProductTable();
+  renderQuickProductOptions();
   renderSummary();
   renderSegmentControls();
   enforceModeUI();

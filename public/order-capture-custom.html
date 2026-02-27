@@ -46,6 +46,17 @@
     .searchRow{display:grid;grid-template-columns:1fr auto auto;gap:.5rem;margin:.65rem 0}
     .searchRow input{padding:.45rem .55rem;border:1px solid var(--line-strong);border-radius:6px}
     .searchHint{font-size:.78rem;color:var(--muted)}
+    .quickOrder{margin-top:.55rem;padding:.75rem;border:1px solid #c4b67f;border-radius:12px;background:linear-gradient(165deg,#fffdf5,#f8f4e6)}
+    .quickOrder h3{margin:0 0 .35rem;font-size:1rem;color:#5b4a15}
+    .quickOrder p{margin:.1rem 0 .55rem;font-size:.82rem;color:#6b7280}
+    .quickOrderGrid{display:grid;grid-template-columns:2fr 1fr auto;gap:.55rem;align-items:end}
+    .quickOrder label{display:grid;gap:.2rem;font-size:.75rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.03em}
+    .quickOrder select,.quickOrder input{width:100%;padding:.52rem;border:1px solid #b9bec7;border-radius:8px;background:#fff}
+    .chipRow{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.5rem}
+    .chip{border:1px solid #b8bec7;border-radius:999px;padding:.34rem .68rem;background:#fff;font-weight:700}
+    .chip:hover,.chip:focus-visible{border-color:#0f766e;outline:none;box-shadow:0 0 0 2px rgba(15,118,110,.2)}
+    .quickOrderAction{height:42px;padding:.4rem .9rem;border-radius:8px;border:1px solid #0f766e;background:#0f766e;color:#fff;font-weight:700}
+    .quickOrderAction:hover,.quickOrderAction:focus-visible{filter:brightness(.95);outline:none;box-shadow:0 0 0 2px rgba(15,118,110,.2)}
 
     .addrWrap{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.4rem}
     .panel{border:1px solid var(--line);background:#fafafa}
@@ -136,6 +147,28 @@
       </div>
       <div id="customer-status" class="searchHint">Select a Shopify customer to capture an order.</div>
       <select id="customer-results"></select>
+
+      <section class="quickOrder" aria-label="Fast order entry">
+        <h3>Quick order flow</h3>
+        <p>Select a product, type a quantity or tap a quick quantity button, then add it.</p>
+        <div class="quickOrderGrid">
+          <label>Product
+            <select id="quick-product"></select>
+          </label>
+          <label>Quantity
+            <input id="quick-qty" type="number" min="1" step="1" value="1" inputmode="numeric" />
+          </label>
+          <button id="quick-add" class="quickOrderAction" type="button">Add to order</button>
+        </div>
+        <div class="chipRow" role="group" aria-label="Quick quantity presets">
+          <button class="chip" type="button" data-quick-qty="1">+1</button>
+          <button class="chip" type="button" data-quick-qty="2">+2</button>
+          <button class="chip" type="button" data-quick-qty="5">+5</button>
+          <button class="chip" type="button" data-quick-qty="10">+10</button>
+          <button class="chip" type="button" data-quick-qty="25">+25</button>
+        </div>
+        <div id="quick-order-status" class="searchHint" aria-live="polite"></div>
+      </section>
 
       <div class="addrWrap">
         <section class="panel">
