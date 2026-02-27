@@ -183,6 +183,9 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const dispatchOverlayProgressFill = $("dispatchOverlayProgressFill");
   const dispatchOverlayProgressSteps = $("dispatchOverlayProgressSteps");
   const dispatchOverlayProgressLabel = $("dispatchOverlayProgressLabel");
+  const dispatchMobileControls = $("dispatchMobileControls");
+  const dispatchMobileLaneTabs = $("dispatchMobileLaneTabs");
+  const dispatchMobileLaneLabel = $("dispatchMobileLaneLabel");
 
   const navScan = $("navScan");
   const navOps = $("navOps");
@@ -352,6 +355,16 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
   const dispatchSelectedOrders = new Set();
+  const dispatchMobileLaneOptions = [
+    { id: "all", label: "All" },
+    { id: "shippingAgent", label: "Agent" },
+    { id: "shippingA", label: "Ship A" },
+    { id: "shippingB", label: "Ship B" },
+    { id: "export", label: "Export" },
+    { id: "pickup", label: "Pickup" },
+    { id: "delivery", label: "Delivery" }
+  ];
+  let dispatchMobileLane = "all";
   const dispatchPriorityState = new Map();
   let dispatchOrdersLatest = [];
   let dispatchShipmentsLatest = [];
@@ -3970,6 +3983,44 @@ async function startOrder(orderNo) {
     };
   }
 
+  function isMobileDispatchViewport() {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+    return window.matchMedia("(max-width: 900px)").matches;
+  }
+
+  function renderDispatchMobileLaneControls() {
+    if (!dispatchMobileControls || !dispatchMobileLaneTabs || !dispatchMobileLaneLabel) return;
+    const activeOption =
+      dispatchMobileLaneOptions.find((option) => option.id === dispatchMobileLane) ||
+      dispatchMobileLaneOptions[0];
+    dispatchMobileLaneLabel.textContent = activeOption ? `${activeOption.label} lanes` : "All lanes";
+    dispatchMobileLaneTabs.innerHTML = dispatchMobileLaneOptions
+      .map((option) => {
+        const isActive = option.id === dispatchMobileLane;
+        return `<button class="btn ${isActive ? "btn-primary" : "btn-alt-secondary"}" type="button" data-mobile-lane="${option.id}" aria-pressed="${
+          isActive ? "true" : "false"
+        }">${option.label}</button>`;
+      })
+      .join("");
+  }
+
+  function applyDispatchMobileLaneFilter() {
+    if (!dispatchBoard) return;
+    const isMobile = isMobileDispatchViewport();
+    const columns = dispatchBoard.querySelectorAll(".dispatchCol");
+    columns.forEach((col) => {
+      if (!isMobile || dispatchMobileLane === "all") {
+        col.classList.remove("dispatchCol--mobile-hidden");
+        return;
+      }
+      const laneId = col.dataset.laneId;
+      col.classList.toggle("dispatchCol--mobile-hidden", laneId !== dispatchMobileLane);
+    });
+    if (dispatchMobileControls) {
+      dispatchMobileControls.hidden = !isMobile;
+    }
+  }
+
   function updateDispatchSelectionSummary() {
     if (!dispatchSelectionPanel) return;
     const totals = aggregateDispatchSelection();
@@ -4625,6 +4676,8 @@ async function startOrder(orderNo) {
       return chunks.join("");
     }
 
+    renderDispatchMobileLaneControls();
+
     dispatchBoard.innerHTML = cols
       .map((col) => {
         const laneOrders =
@@ -4641,7 +4694,7 @@ async function startOrder(orderNo) {
           renderLaneCards(laneOrders, col.id) ||
           `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
         return `
-          <div class="dispatchCol">
+          <div class="dispatchCol" data-lane-id="${col.id}">
             <div class="dispatchColHeader">
               <span>${col.label}</span>
               <label class="dispatchLaneSelectAll"><input type="checkbox" class="dispatchLaneSelectAllInput" data-lane-id="${col.id}"/>All</label>
@@ -4666,6 +4719,7 @@ async function startOrder(orderNo) {
         selectionPruned = true;
       }
     });
+    applyDispatchMobileLaneFilter();
     updateDispatchSelectionSummary();
   }
 
@@ -6282,6 +6336,20 @@ async function startOrder(orderNo) {
 
   dispatchSelectionClear?.addEventListener("click", () => {
     clearDispatchSelection();
+  });
+
+  dispatchMobileLaneTabs?.addEventListener("click", (e) => {
+    const button = e.target.closest("button[data-mobile-lane]");
+    if (!button) return;
+    const lane = button.dataset.mobileLane;
+    if (!lane || dispatchMobileLane === lane) return;
+    dispatchMobileLane = lane;
+    renderDispatchMobileLaneControls();
+    applyDispatchMobileLaneFilter();
+  });
+
+  window.addEventListener("resize", () => {
+    applyDispatchMobileLaneFilter();
   });
 
   dispatchBoard?.addEventListener("focusout", async (e) => {

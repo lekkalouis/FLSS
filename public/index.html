@@ -2489,6 +2489,10 @@
   padding: 0.35rem 0.1rem;
 }
 
+.dispatchMobileControls{
+  display:none;
+}
+
   .dispatchStamp{
   font-size:.7rem;
   color:var(--text-muted);
@@ -2591,6 +2595,47 @@
   @media (max-width:1000px){
     .docsModule{ grid-template-columns:minmax(200px,240px) minmax(0,1fr); }
     .docsSubnav{ display:none; }
+  }
+  @media (max-width:900px){
+    #dispatchBoardGrid{
+      grid-template-columns:1fr;
+      gap:.6rem;
+      overflow:visible;
+      min-height:auto;
+    }
+    .dispatchCol--mobile-hidden{
+      display:none;
+    }
+    .dispatchMobileControls{
+      display:block;
+      margin:.2rem 0 .6rem;
+    }
+    .dispatchMobileControls .btn-group{
+      width:100%;
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:.35rem;
+    }
+    .dispatchMobileControls .btn{
+      border-radius:.5rem !important;
+      font-size:.66rem;
+      padding:.4rem .35rem;
+      line-height:1.2;
+      min-height:38px;
+    }
+    .dispatchCardActions{
+      justify-content:stretch;
+      gap:.4rem;
+    }
+    .dispatchCardActions > button,
+    .dispatchCardActions > .dispatchDocsDropdown{
+      flex:1 1 calc(50% - .2rem);
+    }
+    .dispatchCardActions .dispatchDocsDropdown .dispatchBoxBtn,
+    .dispatchCardActions > button{
+      width:100%;
+      min-height:38px;
+    }
   }
   @media (max-width:760px){
     .docsModule{ grid-template-columns:1fr; }
@@ -2832,6 +2877,13 @@
             <div class="dispatchBoardPanel">
               <div class="sectionTitle" style="margin-top:.4rem">
                 <span id="dispatchStamp" class="dispatchStamp">–</span>
+              </div>
+              <div id="dispatchMobileControls" class="dispatchMobileControls" aria-label="Dispatch lane controls">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <strong class="fs-sm text-muted text-uppercase">Mobile lanes</strong>
+                  <span id="dispatchMobileLaneLabel" class="badge bg-primary-subtle text-primary-emphasis">All lanes</span>
+                </div>
+                <div id="dispatchMobileLaneTabs" class="btn-group" role="tablist" aria-label="Filter dispatch lanes"></div>
               </div>
               <div class="dispatchBoard" id="dispatchBoardGrid">
                 <div class="dispatchBoardEmpty">Loading open orders…</div>
