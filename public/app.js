@@ -346,6 +346,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let linkedOrders = new Map();
   const combinedShipments = new Map();
   const combinedOrderToGroup = new Map();
+  const combinedShipmentDisabled = new Set();
   const printedDeliveryNotes = new Set();
   const dispatchOrderCache = new Map();
   const dispatchShipmentCache = new Map();
@@ -611,6 +612,10 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     return combinedShipments.get(groupId) || null;
   }
 
+  function isCombinedShipmentEnabled(group) {
+    return Boolean(group?.id) && !combinedShipmentDisabled.has(group.id);
+  }
+
   function rebuildAutomaticCombinedShipments(orders = []) {
     combinedShipments.clear();
     combinedOrderToGroup.clear();
@@ -642,6 +647,10 @@ import { initScanStationNext } from "./views/scan-station-next.js";
         combinedShipments.set(groupId, group);
         entry.orderNos.forEach((orderNo) => combinedOrderToGroup.set(orderNo, groupId));
       });
+
+    Array.from(combinedShipmentDisabled).forEach((groupId) => {
+      if (!combinedShipments.has(groupId)) combinedShipmentDisabled.delete(groupId);
+    });
   }
 
   function getParcelCountForDispatchOrder(order, packingState) {
@@ -2626,7 +2635,7 @@ async function startOrder(orderNo) {
     if (!activeOrderNo) {
       await startOrder(parsed.orderNo);
       const initialGroup = getCombinedGroupForOrder(parsed.orderNo);
-      if (initialGroup && initialGroup.orderNos.includes(parsed.orderNo)) {
+      if (isCombinedShipmentEnabled(initialGroup) && initialGroup.orderNos.includes(parsed.orderNo)) {
         for (const orderNo of initialGroup.orderNos) {
           if (orderNo === parsed.orderNo) continue;
           const details = await fetchShopifyOrder(orderNo);
@@ -2644,7 +2653,7 @@ async function startOrder(orderNo) {
     } else if (parsed.orderNo !== activeOrderNo && !linkedOrders.has(parsed.orderNo)) {
       cancelAutoBookTimer();
       const group = getCombinedGroupForOrder(parsed.orderNo);
-      if (!group || !group.orderNos.includes(activeOrderNo)) {
+      if (!isCombinedShipmentEnabled(group) || !group.orderNos.includes(activeOrderNo)) {
         statusExplain(`Different order scanned (${parsed.orderNo}). Create Combined Shipment first.`, "warn");
         confirmScanFeedback("warn");
         return;
@@ -4498,7 +4507,7 @@ async function startOrder(orderNo) {
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
           ${
             combinedGroup
-              ? `<div class="dispatchCardMeta dispatchCardMeta--combined"><span class="dispatchCombinedDot" aria-hidden="true"></span> Combined Shipment · ${combinedGroup.orderNos.length} orders</div>`
+              ? `<div class="dispatchCardMeta dispatchCardMeta--combined"><span class="dispatchCombinedDot" aria-hidden="true"></span> Combined Shipment${isCombinedShipmentEnabled(combinedGroup) ? "" : " (Unlocked)"} · ${combinedGroup.orderNos.length} orders</div>`
               : ""
           }
           ${
@@ -4544,7 +4553,7 @@ async function startOrder(orderNo) {
           <div class="dispatchCardActions">
             ${renderDispatchActions(o, laneId, orderNo, packingState, {
               hasUnfulfilledItems,
-              suppressFulfillAction: Boolean(combinedGroup && laneId !== "delivery" && laneId !== "pickup")
+              suppressFulfillAction: Boolean(combinedGroup && isCombinedShipmentEnabled(combinedGroup) && laneId !== "delivery" && laneId !== "pickup")
             })}
           </div>
         </div>`;
@@ -4593,10 +4602,18 @@ async function startOrder(orderNo) {
         }
 
         const meta = getCombinedGroupFulfillmentMeta(groupedOrders);
+        const combinedEnabled = isCombinedShipmentEnabled(combinedGroup);
         const connectorButton = `
           <div class="dispatchCombinedConnector" style="--combined-color:${combinedGroup.color}">
             <div class="dispatchCombinedConnectorLine" aria-hidden="true"></div>
-            <button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping-combined" data-group-id="${combinedGroup.id}" ${meta.anyPacked ? "" : "disabled"}>Fulfill Combined Shipment</button>
+            <div class="dispatchCombinedConnectorActions">
+              ${
+                combinedEnabled
+                  ? `<button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping-combined" data-group-id="${combinedGroup.id}" ${meta.anyPacked ? "" : "disabled"}>Fulfill Combined Shipment</button>`
+                  : `<span class="dispatchCombinedStateTag">Combined disabled</span>`
+              }
+              <button class="dispatchBoxBtn dispatchCombinedToggleBtn" type="button" data-action="toggle-combined-shipment" data-group-id="${combinedGroup.id}" aria-label="${combinedEnabled ? "Disable combined shipment" : "Enable combined shipment"}" title="${combinedEnabled ? "Disable combined shipment" : "Enable combined shipment"}">${combinedEnabled ? "🔒" : "🔓"}</button>
+            </div>
           </div>`;
 
         const groupCards = groupedOrders
@@ -5822,10 +5839,25 @@ async function startOrder(orderNo) {
       }
       return true;
     }
+    if (actionType === "toggle-combined-shipment") {
+      const groupId = action.dataset.groupId;
+      const group = groupId ? combinedShipments.get(groupId) : null;
+      if (!group?.id) return true;
+      if (combinedShipmentDisabled.has(group.id)) {
+        combinedShipmentDisabled.delete(group.id);
+        statusExplain(`Combined shipment enabled for ${group.orderNos.length} orders.`, "ok");
+      } else {
+        combinedShipmentDisabled.add(group.id);
+        statusExplain(`Combined shipment disabled for ${group.orderNos.length} orders.`, "warn");
+      }
+      renderDispatchBoard(dispatchOrdersLatest);
+      return true;
+    }
+
     if (actionType === "fulfill-shipping-combined") {
       const groupId = action.dataset.groupId;
       const group = groupId ? combinedShipments.get(groupId) : null;
-      if (!group?.orderNos?.length) {
+      if (!group?.orderNos?.length || !isCombinedShipmentEnabled(group)) {
         statusExplain("Combined shipment group unavailable.", "warn");
         return true;
       }
@@ -5891,7 +5923,7 @@ async function startOrder(orderNo) {
       }
 
       const combinedGroup = getCombinedGroupForOrder(orderNo);
-      const groupedOrderNos = combinedGroup?.orderNos?.length
+      const groupedOrderNos = isCombinedShipmentEnabled(combinedGroup) && combinedGroup?.orderNos?.length
         ? combinedGroup.orderNos.filter((candidate) => {
             const candidateOrder = dispatchOrderCache.get(candidate);
             return candidateOrder && laneFromOrder(candidateOrder) !== "pickup";
