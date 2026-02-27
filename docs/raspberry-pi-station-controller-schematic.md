@@ -42,3 +42,16 @@ Pin 14  (GND)  <------------------------ LED Cathode (-)
 ## Integration note
 
 If you implement this, map rotary/button actions to browser shortcuts or a small local controller service that interacts with FLSS UI actions.
+
+## HTTP endpoint format (important)
+
+If your Pi-side controller calls FLSS dispatch endpoints with Python `requests`, always include the URL scheme:
+
+- ✅ `http://192.168.101.171:3000/api/v1/dispatch/next`
+- ❌ `192.168.101.171:3000/api/v1/dispatch/next`
+
+Without `http://` (or `https://`), `requests` raises:
+
+`No connection adapters were found for '192.168.101.171:3000/api/v1/dispatch/next'`
+
+If this happens, fix the configured base URL first, then retry.
