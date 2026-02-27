@@ -99,6 +99,11 @@
 </head>
 <body>
   <div class="shell">
+    <div id="page-loader" class="modal" aria-live="polite">
+      <div class="modalCard" style="width:min(360px,100%);text-align:center">
+        <div class="loader" style="justify-content:center"><span class="loaderDot"></span><span>Loading data…</span></div>
+      </div>
+    </div>
     <section class="form-page">
       <header class="head">
         <div class="brand">
@@ -127,10 +132,10 @@
       </div>
 
       <div class="searchRow">
-        <input id="customer-search" type="text" placeholder="Search customer by name, company, email, or phone" autocomplete="off" hidden />
+        <input id="customer-search" type="text" placeholder="Search customer by name, company, email, or phone" autocomplete="off" hidden disabled />
         <span class="searchHint">Start typing anywhere to search customers and open quick picker. Double-tap spacebar to clear form.</span>
         <div class="actions" style="justify-content:flex-end">
-          <button id="quick-picker-btn" type="button">Quick picker</button>
+          <button id="quick-picker-btn" type="button" disabled>Quick picker</button>
           <button id="clear-form" class="danger" type="button">Clear form</button>
         </div>
       </div>
@@ -174,6 +179,7 @@
                 <option value="local">Local</option>
               </select>
             </label>
+            <label class="span-2">Custom Tags<input id="custom-tags" type="text" placeholder="tag1, tag2" /></label>
           </div>
         </section>
 

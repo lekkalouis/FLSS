@@ -39,7 +39,8 @@ router.get("/config", (_req, res) => {
     FEATURE_FLAGS: {
       MULTI_SHIP: config.UI_FEATURE_MULTI_SHIP
         ? String(config.UI_FEATURE_MULTI_SHIP).toLowerCase() !== "false"
-        : true
+        : true,
+      TRACEABILITY: false
     }
   };
 

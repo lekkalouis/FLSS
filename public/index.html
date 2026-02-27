@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Flippen Lekka Scan Station — v5 (cleaned + 100×150 print lock)</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/img/logo.png" />
+<meta name="theme-color" content="#0f766e" />
 <link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
 <script src="/vendor/oneui/js/setTheme.js"></script>
 <style>
@@ -2709,6 +2712,11 @@
     text-align: left;
   }
 
+  .loader{display:inline-flex;align-items:center;gap:.4rem;font-size:.9rem;color:#374151}
+  .loaderDot{width:12px;height:12px;border:2px solid #d1d5db;border-top-color:#0f766e;border-radius:999px;animation:spin 1s linear infinite}
+  .modal{position:fixed;inset:0;background:rgba(17,24,39,.55);display:flex;align-items:center;justify-content:center;padding:1rem;z-index:9999}
+  .modalCard{width:min(980px,100%);max-height:78vh;overflow:auto;background:#fff;border-radius:10px;padding:.8rem;display:grid;gap:.5rem}
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
@@ -2729,8 +2737,6 @@
             <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">📦</span><span class="flNavBtnText">Orders</span></button>
                         <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
-            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
-            <a class="flNavBtn" href="/traceability.html"><span class="flNavBtnIcon" aria-hidden="true">🧪</span><span class="flNavBtnText">Traceability</span></a>
          
           </div>
           <div class="flNavStatus">
@@ -3239,7 +3245,7 @@
       <div class="pm-shell">
           <header class="pm-header">
             <div class="pm-titleBlock">
-              <div class="pm-title">Price Manager</div>
+              <div class="pm-title">Pricelists</div>
               <div class="pm-sub">Manage tier pricing per SKU and sync to Shopify metafields + storefront.</div>
             </div>
           </header>
@@ -3282,14 +3288,14 @@
         <p>Central management area for operations, pricing, templates, logs, and system controls.</p>
         <div class="flAdminGrid">
           <article class="flAdminCard">
-            <h3>Price Manager</h3>
+            <h3>Pricelists</h3>
             <p>Maintain pricing tiers and sync product prices.</p>
-            <button type="button" data-route="/price-manager">Open price manager</button>
+            <button type="button" data-route="/admin/pricelists">Open pricelists</button>
           </article>
           <article class="flAdminCard">
-            <h3>Notification templates</h3>
-            <p>Manage the customer notification templates and message variants.</p>
-            <a href="/notification-templates.html">Open notification templates</a>
+            <h3>Notifications</h3>
+            <p>Manage system notification templates, toggles, subjects, body, BCC and previews.</p>
+            <a href="/notification-templates.html">Open /admin/notifications</a>
           </article>
           <article class="flAdminCard">
             <h3>Liquid C templates</h3>
@@ -3306,11 +3312,6 @@
             <p>Configure print defaults, formats, and station-specific printer options.</p>
             <button type="button" disabled>Coming soon</button>
           </article>
-          <article class="flAdminCard">
-            <h3>Traceability</h3>
-            <p>Open the traceability console for lot and order tracking.</p>
-            <a href="/traceability.html">Open traceability</a>
-          </article>
         </div>
       </div>
     </div>
@@ -3319,11 +3320,7 @@
       <div class="flChangelogShell">
         <h2>Changelog</h2>
         <p>Recent improvements to the Flippen Lekka operations app.</p>
-        <ul class="flChangelogList">
-          <li><strong>Admin hub:</strong> Added a centralized admin view with quick links to pricing and template tools.</li>
-          <li><strong>Footer menu:</strong> Added footer entry points for Admin and Changelog pages.</li>
-          <li><strong>Template workflow:</strong> Included direct access to notification templates and Liquid C editors from Admin.</li>
-        </ul>
+        <ul class="flChangelogList" id="flChangelogList"></ul>
       </div>
     </div>
 
@@ -3353,6 +3350,12 @@
         <button class="slotEgg__spin" id="slotSpinBtn" type="button">Spin</button>
         <div class="slotEgg__result" id="slotResult">Match all three for a “house blend” win.</div>
       </div>
+    </div>
+  </div>
+
+  <div id="appLoader" class="modal" aria-live="polite" hidden>
+    <div class="modalCard" style="width:min(340px,100%);text-align:center">
+      <div class="loader" style="justify-content:center"><span class="loaderDot"></span><span>Loading data…</span></div>
     </div>
   </div>
 
