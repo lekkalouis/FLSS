@@ -173,6 +173,8 @@ async function buildDeliveryNotePdfBase64(deliveryNote = {}) {
     { align: "center" }
   );
 
+
+
   return await new Promise((resolve, reject) => {
     doc.on("end", () => resolve(Buffer.concat(chunks).toString("base64")));
     doc.on("error", reject);

@@ -1,24 +1,16 @@
 import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
-import { initTraceabilityView } from "./views/traceability.js";
-import { initModuleDashboard } from "./views/dashboard.js";
-import { initContactsView } from "./views/contacts.js";
-import { initFulfillmentHistoryView } from "./views/fulfillment-history.js";
-import { initStockistsView } from "./views/stockists.js";
-import { initYearPlannerView } from "./views/year-planner.js";
-import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
+import { initScanStationNext } from "./views/scan-station-next.js";
 
 (() => {
   "use strict";
 
-  // Runtime UI config seeded from defaults and enriched by `/api/v1/config` on boot.
   const CONFIG = {
     PROGRESS_STEP_DELAY_MS: 450,
     DISPATCH_POLL_INTERVAL_MS: 60000,
     SERVER_STATUS_POLL_INTERVAL_MS: 45000
   };
-  // Single API root used across all SPA modules.
   const API_BASE = "/api/v1";
   const FLAVOUR_COLORS = {
     "hot & spicy": "#DA291C",
@@ -165,20 +157,13 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
   const dispatchSelectionCount = $("dispatchSelectionCount");
   const dispatchSelectionUnits = $("dispatchSelectionUnits");
   const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
-  const dispatchSelectionBoxesReadonly = $("dispatchSelectionBoxesReadonly");
   const dispatchSelectionWeight = $("dispatchSelectionWeight");
   const dispatchSelectionTime = $("dispatchSelectionTime");
   const dispatchSelectionMixes = $("dispatchSelectionMixes");
   const dispatchSelectionClear = $("dispatchSelectionClear");
-<<<<<<< HEAD
-  const dispatchPrintDocs = $("dispatchPrintDocs");
-  const dispatchDeliverSelected = $("dispatchDeliverSelected");
-  const dispatchMarkDelivered = $("dispatchMarkDelivered");
-=======
   const dispatchPrepareDeliveriesContainer = $("dispatchPrepareDeliveriesContainer");
   const dispatchPrepareDeliveries = $("dispatchPrepareDeliveries");
   const dispatchShipmentsSidebar = $("dispatchShipmentsSidebar");
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   const dispatchOrderModal = $("dispatchOrderModal");
   const dispatchOrderModalBody = $("dispatchOrderModalBody");
   const dispatchOrderModalTitle = $("dispatchOrderModalTitle");
@@ -200,27 +185,18 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
   const dispatchOverlayProgressLabel = $("dispatchOverlayProgressLabel");
 
   const navScan = $("navScan");
-  const navFulfillmentHistory = $("navFulfillmentHistory");
-  const navContacts = $("navContacts");
   const navOps = $("navOps");
   const navDocs = $("navDocs");
   const navFlowcharts = $("navFlowcharts");
   const navFlocs = $("navFlocs");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
-<<<<<<< HEAD
-  const navPrintStation = $("navPrintStation");
-  const navTraceability = $("navTraceability");
-  const navStockists = $("navStockists");
-  const navYearPlanner = $("navYearPlanner");
-=======
   const navDispatchSettings = $("navDispatchSettings");
   const navLogs = $("navLogs");
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+  const navFooterAdmin = $("navFooterAdmin");
+  const navFooterChangelog = $("navFooterChangelog");
   const navToggle = $("navToggle");
   const viewScan = $("viewScan");
-  const viewFulfillmentHistory = $("viewFulfillmentHistory");
-  const viewContacts = $("viewContacts");
   const viewOps = $("viewOps");
   const viewDocs = $("viewDocs");
   const docsTopics = $("docsTopics");
@@ -230,19 +206,14 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
   const viewFlocs = $("viewFlocs");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
-<<<<<<< HEAD
-  const viewPrintStation = $("viewPrintStation");
-  const viewTraceability = $("viewTraceability");
-  const viewStockists = $("viewStockists");
-  const viewYearPlanner = $("viewYearPlanner");
-=======
   const viewDispatchSettings = $("viewDispatchSettings");
   const viewLogs = $("viewLogs");
+  const viewAdmin = $("viewAdmin");
+  const viewChangelog = $("viewChangelog");
   const dispatchNotesBar = $("dispatchNotesBar");
   const dispatchNotesInput = $("dispatchNotesInput");
   const dispatchNotesClose = $("dispatchNotesClose");
   const adminLogsPreview = $("adminLogsPreview");
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
 
@@ -255,31 +226,7 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
   const kpiMode = $("kpiMode");
   const kpiTruckStatus = $("kpiTruckStatus");
   const kpiLastScan = $("kpiLastScan");
-  const dailyTodoWidget = $("dailyTodoWidget");
-  const dailyTodoList = $("dailyTodoList");
-  const dailyTodoMeta = $("dailyTodoMeta");
-  const dailyTodoClose = $("dailyTodoClose");
-  const fulfillmentHistorySearch = $("fulfillmentHistorySearch");
-  const fulfillmentHistoryMeta = $("fulfillmentHistoryMeta");
-  const fulfillmentHistoryStatusFilter = $("fulfillmentHistoryStatusFilter");
-  const fulfillmentHistoryList = $("fulfillmentHistoryList");
-  const fulfillmentHistoryShipped = $("fulfillmentHistoryShipped");
-  const fulfillmentHistoryDelivered = $("fulfillmentHistoryDelivered");
-  const fulfillmentHistoryCollected = $("fulfillmentHistoryCollected");
-  const fulfillmentHistoryPickup = $("fulfillmentHistoryPickup");
-  const fulfillmentHistoryShippedPager = $("fulfillmentHistoryShippedPager");
-  const fulfillmentHistoryDeliveredPager = $("fulfillmentHistoryDeliveredPager");
-  const fulfillmentHistoryPickupPager = $("fulfillmentHistoryPickupPager");
-  const fulfillmentHistoryCollectedPager = $("fulfillmentHistoryCollectedPager");
-  const contactsSearch = $("contactsSearch");
-  const contactsTierFilter = $("contactsTierFilter");
-  const contactsProvinceFilter = $("contactsProvinceFilter");
-  const contactsMeta = $("contactsMeta");
-  const contactsList = $("contactsList");
 
-<<<<<<< HEAD
-  // Scan-session state (current order, linked orders, and scanned parcels).
-=======
   const MAX_ORDER_AGE_HOURS = 180;
 
   const MODULES = [
@@ -384,7 +331,6 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
     }
   ];
 
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   let activeOrderNo = null;
   let orderDetails = null;
   let parcelsByOrder = new Map();
@@ -405,78 +351,25 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
   const dispatchSelectedOrders = new Set();
-<<<<<<< HEAD
-  let activeDispatchOrderNo = null;
-=======
   const dispatchPriorityState = new Map();
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   let dispatchOrdersLatest = [];
-  // Lightweight per-view state containers keep modules decoupled without adding a framework.
-  const fulfillmentHistoryState = {
-    query: "",
-    statusFilter: "all",
-    streams: {
-      shipped: [],
-      delivered: [],
-      pickup: [],
-      collected: []
-    }
-  };
-  const contactsState = {
-    query: "",
-    tier: "",
-    province: "",
-    customers: [],
-    loaded: false,
-    retryTimer: null
-  };
-  const SA_PROVINCES = [
-    "Eastern Cape",
-    "Free State",
-    "Gauteng",
-    "KwaZulu-Natal",
-    "Limpopo",
-    "Mpumalanga",
-    "North West",
-    "Northern Cape",
-    "Western Cape"
-  ];
+  let dispatchShipmentsLatest = [];
   let dispatchModalOrderNo = null;
   let dispatchModalShipmentId = null;
-<<<<<<< HEAD
-  let fulfillmentHistoryRefreshTimer = null;
-  let serverStatusRefreshTimer = null;
-  const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
-  const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
-  const DAILY_TODO_KEY = "fl_daily_todo_v1";
-=======
+  let dispatchKnownOrderNos = new Set();
+  let dispatchVoicePrimed = false;
   const DISPATCH_PRIORITY_KEY = "fl_dispatch_priority_v1";
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
+  const VOICE_SETTINGS_KEY = "fl_voice_settings_v1";
   const DISPATCH_LINE_HOLD_MS = 1500;
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   let dailyParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
   let truckBookedBy = null;
   let truckBookingInFlight = false;
-<<<<<<< HEAD
-  let dailyTodoDismissed = false;
-  const DAILY_TODO_SHORTCUT = "Alt+Shift+T";
-  // Operations checklist shown on dashboard; persisted per-browser in localStorage.
-  const DAILY_TODO_ITEMS = [
-    "Inventory count",
-    "Production planning",
-    "Receive stock",
-    "Dispatch checks",
-    "Warehouse housekeeping"
-  ];
-  let dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
-  // Shared dispatch progress timeline used in scan and board views.
-=======
   let dispatchLineHoldTimer = null;
   let dispatchLineHoldTriggered = false;
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -559,8 +452,19 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
 
-  const statusExplain = (msg, tone = "info") => {
+  const statusExplain = (msg, tone = "info", opts = {}) => {
     if (statusChip) statusChip.textContent = msg;
+    const wantsModal =
+      typeof opts.modal === "boolean"
+        ? opts.modal
+        : tone === "warn" || tone === "err";
+    if (wantsModal && msg) {
+      showSiteAlert({
+        title: opts.title || (tone === "err" ? "Action failed" : tone === "warn" ? "Attention" : "Update"),
+        tone,
+        message: msg
+      });
+    }
   };
 
   function showSiteAlert({ title = "Notice", message = "", tone = "info" } = {}) {
@@ -599,7 +503,6 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
     debugLog.scrollTop = debugLog.scrollHeight;
   };
 
-  // Human-friendly service names for status chips and diagnostics.
   const SERVICE_LABELS = {
     server: "FL Server",
     shopify: "Shopify API",
@@ -793,29 +696,20 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
   }
 
   async function refreshServerStatus() {
-    if (!serverStatusBar) return false;
+    if (!serverStatusBar) return;
     try {
       const res = await fetch(`${API_BASE}/statusz`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Status error");
       renderServerStatusBar(data);
-      return true;
     } catch (err) {
       appendDebug("Status refresh failed: " + String(err));
       renderServerStatusBar(null);
-      return false;
     }
   }
 
-  function scheduleServerStatusRefresh(delayMs = 20000) {
-    if (serverStatusRefreshTimer) clearTimeout(serverStatusRefreshTimer);
-    serverStatusRefreshTimer = setTimeout(async () => {
-      const ok = await refreshServerStatus();
-      scheduleServerStatusRefresh(ok ? 20000 : 60000);
-    }, delayMs);
-  }
-
   let dispatchAudioCtx = null;
+  let lastUiClickToneAt = 0;
 
   function playDispatchTone(freq = 740, duration = 0.12) {
     try {
@@ -879,6 +773,13 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
     }
   }
 
+  function playUiClickTone() {
+    const now = Date.now();
+    if (now - lastUiClickToneAt < 45) return;
+    lastUiClickToneAt = now;
+    playDispatchTone(620, 0.04);
+  }
+
   function triggerScreenFlash(type = "success") {
     if (!screenFlash) return;
     screenFlash.classList.remove("screenFlash--success", "screenFlash--failure", "screenFlash--warn");
@@ -902,18 +803,164 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
     triggerScreenFlash(type);
   }
 
-  function announceBookingSuccess() {
+  function handlePackingParcelProgress(parsed, rawCode) {
+    if (!parsed?.orderNo) return;
+    const order =
+      dispatchOrderCache.get(parsed.orderNo) ||
+      dispatchOrdersLatest.find((entry) => String(entry?.name || "").replace("#", "").trim() === parsed.orderNo);
+    if (!order) return;
+    const state = getPackingState(order);
+    if (!state) return;
+
+    if (!state.startTime) state.startTime = new Date().toISOString();
+    state.active = true;
+
+    if (!Array.isArray(state.boxes) || !state.boxes.length) {
+      addPackingBox(state, { seedPacked: true });
+    }
+
+    const targetIndex = Math.max(0, Number(parsed.parcelSeq || 1) - 1);
+    while (state.boxes.length <= targetIndex) {
+      addPackingBox(state, { seedPacked: true });
+    }
+
+    const activeBox = state.boxes[targetIndex];
+    if (activeBox) {
+      activeBox.parcelCode = String(rawCode || "").trim();
+    }
+
+    const remainingItems = state.items.reduce(
+      (sum, item) => sum + Math.max(0, (Number(item.quantity) || 0) - (Number(item.packed) || 0)),
+      0
+    );
+
+    if (remainingItems > 0) {
+      const nextIndex = targetIndex + 1;
+      while (state.boxes.length <= nextIndex) {
+        addPackingBox(state, { seedPacked: true });
+      }
+      state.activeBoxIndex = nextIndex;
+      statusExplain(
+        `Parcel ${parsed.parcelSeq} scanned for order ${parsed.orderNo}. ${remainingItems} item(s) still need packing; waiting for the next parcel scan.`,
+        "ok",
+        { modal: true, title: "Parcel scanned" }
+      );
+    } else {
+      state.activeBoxIndex = targetIndex;
+      finalizePacking(state);
+      statusExplain(`Parcel ${parsed.parcelSeq} scanned and packing is complete for order ${parsed.orderNo}.`, "ok", {
+        modal: true,
+        title: "Packing complete"
+      });
+    }
+
+    savePackingState();
+    refreshDispatchViews(parsed.orderNo);
+  }
+
+  function loadVoiceSettings() {
+    const defaults = {
+      enabled: true,
+      voiceName: "",
+      rate: 1,
+      pitch: 1,
+      volume: 0.95,
+      announceIncomingOrders: true,
+      maxLineItems: 4
+    };
     try {
+      const raw = localStorage.getItem(VOICE_SETTINGS_KEY);
+      if (!raw) return defaults;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return defaults;
+      return {
+        ...defaults,
+        ...parsed,
+        rate: Number(parsed.rate) || defaults.rate,
+        pitch: Number(parsed.pitch) || defaults.pitch,
+        volume: Number(parsed.volume) || defaults.volume,
+        maxLineItems: Math.max(1, Math.min(8, Number(parsed.maxLineItems) || defaults.maxLineItems))
+      };
+    } catch (_err) {
+      return defaults;
+    }
+  }
+
+  const voiceSettings = loadVoiceSettings();
+
+  function pickBestVoice(voiceName) {
+    if (!("speechSynthesis" in window)) return null;
+    const voices = window.speechSynthesis.getVoices() || [];
+    if (!voices.length) return null;
+
+    if (voiceName) {
+      const exact = voices.find((voice) => voice.name === voiceName);
+      if (exact) return exact;
+    }
+
+    const preferred = [
+      /Google.*(US|UK|English)/i,
+      /Microsoft.*(Aria|Jenny|Guy|Natasha|Ryan|Sonia|Ava)/i,
+      /Samantha/i,
+      /Daniel/i
+    ];
+
+    for (const matcher of preferred) {
+      const matched = voices.find((voice) => matcher.test(voice.name || ""));
+      if (matched) return matched;
+    }
+
+    return voices.find((voice) => /en/i.test(voice.lang || "")) || voices[0] || null;
+  }
+
+  function speakAnnouncement(message, opts = {}) {
+    try {
+      if (!voiceSettings.enabled) return;
       if (!("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") return;
-      const utterance = new SpeechSynthesisUtterance("That order was successfully booked.");
-      utterance.rate = 1;
-      utterance.pitch = 1.02;
-      utterance.volume = 0.9;
-      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(String(message || ""));
+      const chosenVoice = pickBestVoice(opts.voiceName || voiceSettings.voiceName);
+      if (chosenVoice) utterance.voice = chosenVoice;
+      utterance.rate = Number.isFinite(Number(opts.rate)) ? Number(opts.rate) : voiceSettings.rate;
+      utterance.pitch = Number.isFinite(Number(opts.pitch)) ? Number(opts.pitch) : voiceSettings.pitch;
+      utterance.volume = Number.isFinite(Number(opts.volume)) ? Number(opts.volume) : voiceSettings.volume;
+      if (opts.cancelCurrent !== false) window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     } catch (e) {
-      appendDebug("Booking voice blocked: " + String(e));
+      appendDebug("Voice announcement blocked: " + String(e));
     }
+  }
+
+  function buildOrderLineItemsAnnouncement(order, maxLineItems = 4) {
+    const items = Array.isArray(order?.line_items) ? order.line_items : [];
+    if (!items.length) return "";
+    const spoken = items.slice(0, maxLineItems).map((item) => {
+      const qty = Math.max(1, Number(item?.quantity) || 1);
+      const rawName = String(item?.name || item?.title || "item").trim();
+      const cleanedName = rawName
+        .replace(/[()]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return `${qty} × ${cleanedName}`;
+    });
+    if (items.length > maxLineItems) spoken.push(`plus ${items.length - maxLineItems} more item${items.length - maxLineItems === 1 ? "" : "s"}`);
+    return spoken.join(", ");
+  }
+
+  function announceBookingSuccess(orderNo) {
+    const suffix = orderNo ? ` for order ${orderNo}` : "";
+    speakAnnouncement(`Great news. Booking successful${suffix}.`);
+  }
+
+  function announceIncomingOrder(order) {
+    if (!voiceSettings.announceIncomingOrders) return;
+    const orderNo = String(order?.name || "").replace("#", "").trim();
+    const customer = String(order?.customer_name || order?.shipping_name || "Customer").trim();
+    const itemsText = buildOrderLineItemsAnnouncement(order, voiceSettings.maxLineItems);
+    const base = orderNo
+      ? `New incoming order ${orderNo} for ${customer}.`
+      : `New incoming order for ${customer}.`;
+    const fullMessage = itemsText ? `${base} Items: ${itemsText}.` : base;
+    speakAnnouncement(fullMessage, { cancelCurrent: false });
   }
 
   const dispatchProgressTargets = [
@@ -1313,105 +1360,6 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
     return new Date().toISOString().slice(0, 10);
   }
 
-  function normalizeDailyTodoState(raw) {
-    if (!Array.isArray(raw)) return DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
-    return DAILY_TODO_ITEMS.map((label, index) => {
-      const item = raw[index];
-      return {
-        label,
-        done: Boolean(item && item.done)
-      };
-    });
-  }
-
-  function saveDailyTodoState() {
-    try {
-      localStorage.setItem(
-        DAILY_TODO_KEY,
-        JSON.stringify({
-          date: todayKey(),
-          dismissed: dailyTodoDismissed,
-          items: dailyTodoState
-        })
-      );
-    } catch {}
-  }
-
-  function updateDailyTodoVisibility() {
-    if (!dailyTodoWidget) return;
-    const completed = dailyTodoState.filter((item) => item.done).length;
-    const allDone = completed === dailyTodoState.length;
-    const shouldShow = !allDone && !dailyTodoDismissed;
-    dailyTodoWidget.hidden = !shouldShow;
-    dailyTodoWidget.setAttribute("aria-hidden", shouldShow ? "false" : "true");
-  }
-
-  function renderDailyTodo() {
-    if (!dailyTodoList || !dailyTodoMeta) return;
-    dailyTodoList.innerHTML = "";
-    dailyTodoState.forEach((item, index) => {
-      const row = document.createElement("label");
-      row.className = "todoWidgetItem";
-      row.classList.toggle("is-done", item.done);
-
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = item.done;
-      checkbox.dataset.todoIndex = String(index);
-
-      const text = document.createElement("span");
-      text.textContent = item.label;
-
-      row.appendChild(checkbox);
-      row.appendChild(text);
-      dailyTodoList.appendChild(row);
-    });
-    const completed = dailyTodoState.filter((item) => item.done).length;
-    dailyTodoMeta.textContent = `${completed} of ${dailyTodoState.length} complete · Shortcut: ${DAILY_TODO_SHORTCUT}`;
-    updateDailyTodoVisibility();
-  }
-
-  function loadDailyTodoState() {
-    try {
-      const stored = JSON.parse(localStorage.getItem(DAILY_TODO_KEY) || "{}");
-      if (stored.date === todayKey()) {
-        dailyTodoDismissed = Boolean(stored.dismissed);
-        dailyTodoState = normalizeDailyTodoState(stored.items);
-      } else {
-        dailyTodoDismissed = false;
-        dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
-      }
-    } catch {
-      dailyTodoDismissed = false;
-      dailyTodoState = DAILY_TODO_ITEMS.map((label) => ({ label, done: false }));
-    }
-    saveDailyTodoState();
-    renderDailyTodo();
-  }
-
-  function handleDailyTodoToggle(index, done) {
-    if (!Number.isInteger(index) || !dailyTodoState[index]) return;
-    dailyTodoState[index].done = done;
-    dailyTodoDismissed = false;
-    saveDailyTodoState();
-    renderDailyTodo();
-  }
-
-  function closeDailyTodoWidget() {
-    dailyTodoDismissed = true;
-    saveDailyTodoState();
-    updateDailyTodoVisibility();
-    statusExplain(`Daily to-do hidden. Press ${DAILY_TODO_SHORTCUT} to reopen.`, "info");
-  }
-
-  function toggleDailyTodoWidget() {
-    const completed = dailyTodoState.filter((item) => item.done).length;
-    if (completed === dailyTodoState.length) return;
-    dailyTodoDismissed = !dailyTodoDismissed;
-    saveDailyTodoState();
-    updateDailyTodoVisibility();
-  }
-
   function loadDailyParcelCount() {
     try {
       const stored = JSON.parse(localStorage.getItem(DAILY_PARCEL_KEY) || "{}");
@@ -1483,9 +1431,7 @@ import { initWholesaleAutomationView } from "./views/wholesale-automation.js";
   function updateDashboardKpis() {
     if (kpiParcels) kpiParcels.textContent = String(dailyParcelCount || 0);
     if (kpiOpenOrders) kpiOpenOrders.textContent = String(dispatchOrdersLatest.length || 0);
-    if (kpiRecentShipments) {
-      kpiRecentShipments.textContent = String(fulfillmentHistoryState.streams.shipped.length || 0);
-    }
+    if (kpiRecentShipments) kpiRecentShipments.textContent = String(dispatchShipmentsLatest.length || 0);
     if (kpiMode) kpiMode.textContent = isAutoMode ? "Auto" : "Manual";
     if (kpiTruckStatus) kpiTruckStatus.textContent = truckBooked ? "Booked" : "Not booked";
     if (kpiLastScan) {
@@ -2283,7 +2229,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
   }
 
   async function doBookingNow(opts = {}) {
-    const bundleOrders = getBundleOrders();
+    const bundleOrders = Array.isArray(opts.bundleOrders) && opts.bundleOrders.length ? opts.bundleOrders : getBundleOrders();
     if (!bundleOrders.length || armedForBooking) return;
 
     const bundledOrderNos = bundleOrders.map((order) => order.orderNo);
@@ -2297,6 +2243,11 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     const manual = !!opts.manual;
     const overrideCount = Number(opts.parcelCount || 0);
     const totalScanned = getTotalScannedCount();
+    const keepOnBoard = !!opts.keepOnBoard;
+    const selectedLineItemsByOrder = opts.selectedLineItemsByOrder && typeof opts.selectedLineItemsByOrder === "object"
+      ? opts.selectedLineItemsByOrder
+      : null;
+    const bookingWeightKg = Number(opts.weightKg || 0) > 0 ? Number(opts.weightKg || 0) : null;
     let totalExpected = 0;
 
     if (manual) {
@@ -2311,7 +2262,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
           details.manualParcelCount = scanned;
         }
       });
-      totalExpected = getTotalExpectedCount() || totalScanned;
+      totalExpected = overrideCount || getTotalExpectedCount() || totalScanned;
       renderSessionUI();
     } else {
       for (const { orderNo, details } of bundleOrders) {
@@ -2351,7 +2302,8 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       if (!orderDetails[k]) missing.push(k);
     });
 
-    const payload = buildParcelPerfectPayload(orderDetails, totalExpected);
+    const bookingDetails = bookingWeightKg ? { ...orderDetails, totalWeightKg: bookingWeightKg } : orderDetails;
+    const payload = buildParcelPerfectPayload(bookingDetails, totalExpected);
     if (!payload.details.destplace) missing.push("destplace (place code)");
 
     if (missing.length) {
@@ -2508,7 +2460,7 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
     logDispatchEvent(`Booking complete. Waybill ${waybillNo}.`);
     triggerBookedFlash();
     confirmBookingFeedback("success");
-    announceBookingSuccess();
+    announceBookingSuccess(activeOrderNo);
     if (statusChip) statusChip.textContent = "Booked";
     if (bookingSummary) {
       bookingSummary.textContent = `WAYBILL: ${waybillNo}
@@ -2525,11 +2477,18 @@ ${JSON.stringify(cr, null, 2)}`;
 
     let fulfillFailures = 0;
     for (const { orderNo, details } of bundleOrders) {
-      const fulfillOk = await fulfillOnShopify(details, waybillNo);
+      const selectedLineItems = selectedLineItemsByOrder && Array.isArray(selectedLineItemsByOrder[orderNo])
+        ? selectedLineItemsByOrder[orderNo]
+        : null;
+      const fulfillOk = await fulfillOnShopify(details, waybillNo, selectedLineItems);
       if (!fulfillOk) fulfillFailures += 1;
-      markBooked(orderNo);
+      if (!keepOnBoard && !selectedLineItems) {
+        markBooked(orderNo);
+      }
     }
-    removeBookedOrdersFromBoard(bundledOrderNos);
+    if (!keepOnBoard) {
+      removeBookedOrdersFromBoard(bundledOrderNos);
+    }
     if (!fulfillFailures) {
       await stepDispatchProgress(6, `Notified • ${waybillNo}`);
       logDispatchEvent(`Customer notified with tracking ${waybillNo}.`);
@@ -2540,6 +2499,11 @@ ${JSON.stringify(cr, null, 2)}`;
 
     updateDailyParcelCount(totalExpected);
     setBookingOverlayVisible(false);
+    if (keepOnBoard) {
+      armedForBooking = false;
+      await loadDispatchBoard();
+      return;
+    }
     resetSession();
   }
 
@@ -2661,6 +2625,7 @@ async function startOrder(orderNo) {
 
     const parcelSet = getParcelSet(parsed.orderNo);
     parcelSet.add(parsed.parcelSeq);
+    handlePackingParcelProgress(parsed, code);
     lastScanAt = Date.now();
     lastScanCode = code;
     armedForBooking = false;
@@ -2841,54 +2806,45 @@ async function startOrder(orderNo) {
     }
   }
 
-  function laneFromOrder(order) {
-    const assignedLane = String(order?.assigned_lane || "").trim().toLowerCase();
-    if (assignedLane === "delivery" || assignedLane === "pickup" || assignedLane === "shipping") {
-      return assignedLane;
-    }
-    if (assignedLane === "unassigned") {
-      return "unassigned";
-    }
 
+  async function handleDeliveryScan(code) {
+    try {
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/delivery/complete-from-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        statusExplain("Delivery scan failed.", "warn");
+        logDispatchEvent(`Delivery scan failed: ${text}`);
+        return false;
+      }
+      const payload = await res.json();
+      statusExplain(`Delivery completed for order ${payload.orderNo}.`, "ok");
+      logDispatchEvent(`Delivery completed from code for order ${payload.orderNo}.`);
+      return true;
+    } catch (err) {
+      statusExplain("Delivery scan failed.", "warn");
+      logDispatchEvent(`Delivery scan failed: ${String(err)}`);
+      return false;
+    }
+  }
+
+
+  function laneFromOrder(order) {
     const tags = String(order?.tags || "").toLowerCase();
-<<<<<<< HEAD
-    const urgentFlag = Boolean(order?.urgent || order?.is_urgent || order?.rush_order);
-    const slaHours = Number(order?.sla_hours ?? order?.slaHours ?? order?.sla_target_hours);
-    const financialStatus = String(order?.financial_status || "").toLowerCase();
-    const fulfillmentStatus = String(order?.fulfillment_status || "").toLowerCase();
-=======
     if (/(^|[\s,])delivery_pickup([\s,]|$)/.test(tags)) return "pickup";
     if (/(^|[\s,])delivery_deliver([\s,]|$)/.test(tags)) return "delivery";
     if (/(^|[\s,])delivery_ship([\s,]|$)/.test(tags)) return "shipping";
 
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     const shippingTitles = (order?.shipping_lines || [])
       .map((line) => String(line.title || "").toLowerCase())
       .join(" ");
     const combined = `${tags} ${shippingTitles}`.trim();
-<<<<<<< HEAD
-
-    const unpaidStatuses = new Set(["pending", "authorized", "partially_paid", "unpaid"]);
-    const isUnpaid = unpaidStatuses.has(financialStatus);
-    if (isUnpaid) return "shipping_awaiting_payment";
-
-    const isPriorityTag = /(priority|urgent|rush)/.test(tags);
-    const isPrioritySla = Number.isFinite(slaHours) && slaHours > 0 && slaHours <= 24;
-    if (isPriorityTag || urgentFlag || isPrioritySla) return "shipping_priority";
-
-    if (/(warehouse|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
-    if (/(same\s*day|delivery)/.test(combined)) return "delivery_local";
-
-    const isPaid = financialStatus === "paid";
-    const isUnfulfilled = !fulfillmentStatus || fulfillmentStatus === "unfulfilled";
-    if (isPaid && isUnfulfilled) return "shipping_medium";
-
-    return "shipping_medium";
-=======
     if (/(warehouse|pickup|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
     if (/(same\s*day|delivery)/.test(combined)) return "delivery";
     return "shipping";
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   }
 
   function isAgentOrder(order) {
@@ -2949,6 +2905,7 @@ async function startOrder(orderNo) {
 
   function renderDispatchLineItems(order, packingState) {
     const orderNo = String(order?.name || "").replace("#", "").trim();
+    const { fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(order);
     const lineEntries = (order.line_items || [])
       .map((item, index) => ({ ...item, __index: index }))
       .sort((a, b) => {
@@ -2963,8 +2920,12 @@ async function startOrder(orderNo) {
         });
       })
       .map((li) => {
+        const orderedQty = Math.max(0, Number(li?.quantity) || 0);
         const requestedQty = getRemainingLineItemQty(li);
-        if (requestedQty <= 0) return null;
+        const lineItemIdKey = li?.id != null ? String(li.id) : null;
+        const fulfilledQtyRaw = lineItemIdKey ? Number(fulfilledQtyByLineItemId.get(lineItemIdKey) || 0) : 0;
+        const fulfilledQty = Math.max(0, Math.min(orderedQty, fulfilledQtyRaw));
+        if (orderedQty <= 0 || requestedQty <= 0 && fulfilledQty <= 0) return null;
         const baseTitle = li.title || "";
         const variantTitle = (li.variant_title || "").trim();
         const hasVariant = variantTitle && variantTitle.toLowerCase() !== "default title";
@@ -2991,11 +2952,13 @@ async function startOrder(orderNo) {
         const isShortOrUnavailable =
           (Number.isFinite(fulfillableQty) && fulfillableQty < requestedQty) ||
           (Number.isFinite(inventoryAvailableQty) && inventoryAvailableQty < requestedQty);
-        const qtyLabel = formatDispatchQtyLabel(requestedQty, shortLabel, order);
+        const openQtyLabel = requestedQty > 0 ? formatDispatchQtyLabel(requestedQty, shortLabel, order) : "";
+        const fulfilledQtyLabel = fulfilledQty > 0 ? formatDispatchQtyLabel(fulfilledQty, shortLabel, order) : "";
+        const qtyLabel = fulfilledQty > 0 && openQtyLabel
+          ? `${openQtyLabel} <span class="dispatchLineFulfilledPart">+ ${fulfilledQtyLabel}</span>`
+          : openQtyLabel || fulfilledQtyLabel;
+        const shouldStrike = fulfilledQty > 0 || isComplete || isPartial;
         const rightMeta = [
-          packedCount > 0
-            ? `<span class="dispatchLinePackedQty">${packedCount}/${totalCount}</span>`
-            : "",
           isShortOrUnavailable
             ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
             : ""
@@ -3005,7 +2968,7 @@ async function startOrder(orderNo) {
 
         return {
           isComplete,
-          html: `<div class="dispatchLineItem ${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${qtyLabel}</span><span class="dispatchLineMeta">${rightMeta}</span></div>`
+          html: `<div class="dispatchLineItem ${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""} ${shouldStrike ? "is-fulfilled" : ""}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${qtyLabel}</span><span class="dispatchLineMeta">${rightMeta}</span></div>`
         };
       })
       .filter(Boolean);
@@ -3046,13 +3009,74 @@ async function startOrder(orderNo) {
     return OPP_DOCUMENTS.find((doc) => doc.type === docType)?.label || "OPP document";
   }
 
-<<<<<<< HEAD
-  function renderDispatchActions(order, laneId, orderNo) {
-    const normalizedLane = laneId === "delivery_local" || laneId === "pickup" ? laneId : "shipping";
-    const disabled = orderNo ? "" : "disabled";
-    if (normalizedLane === "delivery_local") {
-      const printed = orderNo && printedDeliveryNotes.has(orderNo);
-=======
+  function getLineItemWeightKg(lineItem, quantity) {
+    const qty = Math.max(0, Number(quantity) || 0);
+    if (!qty) return 0;
+    const gramsPerUnit = Number(lineItem?.grams || 0);
+    if (Number.isFinite(gramsPerUnit) && gramsPerUnit > 0) {
+      return (gramsPerUnit * qty) / 1000;
+    }
+    return 0;
+  }
+
+  function getSelectedFulfillmentWeightKg(order, selectedLineItems) {
+    if (!order || !Array.isArray(selectedLineItems) || !selectedLineItems.length) return null;
+    const byId = new Map((order.line_items || []).map((li) => [String(li.id), li]));
+    let totalKg = 0;
+    selectedLineItems.forEach((entry) => {
+      const li = byId.get(String(entry?.id));
+      totalKg += getLineItemWeightKg(li, entry?.quantity);
+    });
+    if (totalKg > 0) return Number(totalKg.toFixed(3));
+    return null;
+  }
+
+  function getShippedItemCount(order) {
+    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    return lineItems.reduce((sum, lineItem) => {
+      const ordered = Math.max(0, Number(lineItem?.quantity) || 0);
+      if (!ordered) return sum;
+      const remaining = getRemainingLineItemQty(lineItem);
+      return sum + Math.max(0, ordered - remaining);
+    }, 0);
+  }
+
+  function getOrderFulfillmentSummary(order) {
+    const fulfillmentRows = [];
+    const fulfilledQtyByLineItemId = new Map();
+    const fulfillments = Array.isArray(order?.fulfillments) ? order.fulfillments : [];
+    fulfillments.forEach((fulfillment, index) => {
+      const lineItems = Array.isArray(fulfillment?.line_items) ? fulfillment.line_items : [];
+      let fulfillmentQty = 0;
+      lineItems.forEach((lineItem) => {
+        const quantity = Math.max(0, Number(lineItem?.quantity) || 0);
+        if (!quantity) return;
+        const rawId = lineItem?.line_item_id ?? lineItem?.id;
+        if (rawId == null) return;
+        const key = String(rawId);
+        fulfillmentQty += quantity;
+        fulfilledQtyByLineItemId.set(key, (fulfilledQtyByLineItemId.get(key) || 0) + quantity);
+      });
+      const trackingNumbers = Array.isArray(fulfillment?.tracking_numbers)
+        ? fulfillment.tracking_numbers.map((tracking) => String(tracking || "").trim()).filter(Boolean)
+        : [];
+      const fallbackTracking = String(fulfillment?.tracking_number || "").trim();
+      if (!trackingNumbers.length && fallbackTracking) trackingNumbers.push(fallbackTracking);
+      const fulfillmentLabel = String(fulfillment?.name || `F${index + 1}`).trim();
+      fulfillmentRows.push({
+        id: fulfillment?.id || `f-${index + 1}`,
+        label: fulfillmentLabel || `F${index + 1}`,
+        trackingText: trackingNumbers.length ? trackingNumbers.join(", ") : "—",
+        quantity: fulfillmentQty
+      });
+    });
+
+    return {
+      fulfilledQtyByLineItemId,
+      fulfillmentRows
+    };
+  }
+
   function getPackedFulfillmentSelection(order, packingState) {
     const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
     const selectedLineItems = [];
@@ -3085,7 +3109,7 @@ async function startOrder(orderNo) {
     };
   }
 
-  function renderDispatchActions(order, laneId, orderNo, packingState) {
+  function renderDispatchActions(order, laneId, orderNo, packingState, options = {}) {
     const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
     const disabled = orderNo ? "" : "disabled";
     const docsDropdown = `
@@ -3104,10 +3128,10 @@ async function startOrder(orderNo) {
       </div>`;
 
     if (normalizedLane === "delivery") {
-      const isPrepared = orderNo ? printedDeliveryNotes.has(orderNo) : false;
+      const tags = String(order?.tags || "").toLowerCase();
+      const isPrepared = orderNo ? printedDeliveryNotes.has(orderNo) || /(^|[\s,])delivery_prepared([\s,]|$)/.test(tags) : false;
       const actionType = isPrepared ? "deliver-delivery" : "prepare-delivery";
-      const actionLabel = isPrepared ? "Deliver" : "Prepare delivery";
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+      const actionLabel = isPrepared ? "🚚" : "Prepare delivery";
       return `
         ${docsDropdown}
         <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${actionLabel}</button>
@@ -3131,14 +3155,17 @@ async function startOrder(orderNo) {
     }
 
     const fulfillmentState = getPackedFulfillmentSelection(order, packingState);
+    const hasUnfulfilledItems = Boolean(options.hasUnfulfilledItems ?? fulfillmentState.hasRemainingItems);
     const showFulfill = fulfillmentState.anyPacked;
+    const fulfillLabel = hasUnfulfilledItems ? "Fulfill" : "Create fulfillment";
+    const fulfillClass = hasUnfulfilledItems ? "dispatchFulfillBtn" : "dispatchFulfillBtn dispatchFulfillBtn--secondary";
     return `
       ${docsDropdown}
       ${
         showFulfill
-          ? `<button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping" data-order-no="${
+          ? `<button class="${fulfillClass}" type="button" data-action="fulfill-shipping" data-order-no="${
               orderNo || ""
-            }" ${disabled}>Fulfill</button>`
+            }" ${disabled}>${fulfillLabel}</button>`
           : ""
       }
     `;
@@ -3904,9 +3931,6 @@ async function startOrder(orderNo) {
     if (dispatchSelectionBoxes) {
       dispatchSelectionBoxes.textContent = String(totals.totalBoxes || 0);
     }
-    if (dispatchSelectionBoxesReadonly) {
-      dispatchSelectionBoxesReadonly.textContent = String(totals.totalBoxes || 0);
-    }
     if (dispatchSelectionWeight) {
       dispatchSelectionWeight.textContent =
         totals.totalWeightKg > 0 ? `${totals.totalWeightKg.toFixed(2)} kg` : "—";
@@ -4221,31 +4245,23 @@ async function startOrder(orderNo) {
     const order = dispatchOrderCache.get(orderNo);
     if (!order) return;
     try {
-      setDispatchProgress(6, `Marking ${orderNo} ready for delivery`);
-      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
+      setDispatchProgress(6, `Marking ${orderNo} out for delivery`);
+      await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/tag`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: order.id,
-          trackingNumber: "",
-          trackingUrl: "",
-          trackingCompany: "Local delivery",
-          message: "Ready for delivery."
-        })
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        statusExplain("Ready-for-delivery failed.", "warn");
-        logDispatchEvent(`Ready-for-delivery failed for order ${orderNo}: ${text}`);
-        return;
-      }
-      statusExplain(`Order ${orderNo} marked ready for delivery.`, "ok");
-      logDispatchEvent(`Order ${orderNo} marked ready for delivery.`);
+        body: JSON.stringify({ orderId: order.id, tag: "delivery_prepared" })
+      }).catch(() => null);
+      const cached = dispatchOrderCache.get(orderNo);
+      if (cached) cached.tags = `${cached.tags || ""}, delivery_prepared`;
+      statusExplain(`Order ${orderNo} marked out for delivery.`, "ok");
+      logDispatchEvent(`Order ${orderNo} marked out for delivery.`);
+      refreshDispatchViews(orderNo);
     } catch (err) {
-      statusExplain("Ready-for-delivery failed.", "warn");
-      logDispatchEvent(`Ready-for-delivery failed for order ${orderNo}: ${String(err)}`);
+      statusExplain("Delivery mark failed.", "warn");
+      logDispatchEvent(`Delivery mark failed for order ${orderNo}: ${String(err)}`);
     }
   }
+
 
   function refreshDispatchViews(orderNo) {
     renderDispatchBoard(dispatchOrdersLatest);
@@ -4280,7 +4296,7 @@ async function startOrder(orderNo) {
     return `${base}${tracking}`;
   }
 
-  function renderShipmentList(shipments, emptyLabel = "No recent shipments found.") {
+  function renderShipmentList(shipments) {
     const rows = shipments
       .map((shipment) => {
         const key = shipmentKey(shipment);
@@ -4288,16 +4304,11 @@ async function startOrder(orderNo) {
         const name = shipment.customer_name || shipment.order_name || "Unknown";
         const tracking = shipment.tracking_number || "—";
         const status = formatShipmentStatus(shipment.shipment_status);
-        const trackingUrl = shipment.tracking_url || "";
         return `
           <div class="dispatchShipmentRow" data-shipment-key="${key}">
             <div class="dispatchShipmentCell dispatchShipmentCell--name">${name}</div>
             <div class="dispatchShipmentCell dispatchShipmentCell--tracking">${tracking}</div>
             <div class="dispatchShipmentCell dispatchShipmentCell--status">${status}</div>
-            <div class="dispatchShipmentCell dispatchShipmentCell--actions">
-              <button class="dispatchShipmentActionBtn" type="button" data-action="view-shipment" data-shipment-key="${key}">Details</button>
-              ${trackingUrl ? `<a class="dispatchShipmentActionBtn dispatchShipmentActionBtn--link" href="${trackingUrl}" target="_blank" rel="noopener noreferrer">Track</a>` : ""}
-            </div>
           </div>
         `;
       })
@@ -4309,40 +4320,24 @@ async function startOrder(orderNo) {
           <div class="dispatchShipmentCell dispatchShipmentCell--name">Customer</div>
           <div class="dispatchShipmentCell dispatchShipmentCell--tracking">Tracking #</div>
           <div class="dispatchShipmentCell dispatchShipmentCell--status">Latest event</div>
-          <div class="dispatchShipmentCell dispatchShipmentCell--actions">Actions</div>
         </div>
-        ${rows || `<div class="dispatchShipmentEmpty">${emptyLabel}</div>`}
+        ${rows || `<div class="dispatchShipmentEmpty">No recent shipments awaiting delivery.</div>`}
       </div>
     `;
-  }
-
-  function scheduleFulfillmentHistoryRefresh(delayMs = 30000) {
-    if (fulfillmentHistoryRefreshTimer) clearTimeout(fulfillmentHistoryRefreshTimer);
-    fulfillmentHistoryRefreshTimer = setTimeout(async () => {
-      try {
-        const ok = await fulfillmentHistoryView.refreshFulfillmentHistory();
-        scheduleFulfillmentHistoryRefresh(ok ? 30000 : 60000);
-      } catch (err) {
-        appendDebug("Fulfillment history refresh failed: " + String(err));
-        if (fulfillmentHistoryMeta) fulfillmentHistoryMeta.textContent = "History unavailable.";
-        scheduleFulfillmentHistoryRefresh(60000);
-      }
-    }, delayMs);
   }
 
   function renderDispatchBoard(orders) {
     if (!dispatchBoard) return;
 
+    const now = Date.now();
+    const maxAgeMs = MAX_ORDER_AGE_HOURS * 60 * 60 * 1000;
     dispatchOrderCache.clear();
+    dispatchShipmentCache.clear();
     const activeOrders = new Set();
 
-<<<<<<< HEAD
-    const list = Array.isArray(orders) ? [...orders] : [];
-    list.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-=======
     const filtered = (orders || []).filter((o) => {
       const fs = (o.fulfillment_status || "").toLowerCase();
-      if (fs && fs !== "unfulfilled" && fs !== "in_progress") return false;
+      if (fs && fs !== "unfulfilled" && fs !== "in_progress" && fs !=="partial") return false;
       if (!o.created_at) return true;
       const createdMs = new Date(o.created_at).getTime();
       if (!Number.isFinite(createdMs)) return true;
@@ -4351,29 +4346,14 @@ async function startOrder(orderNo) {
 
     filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     const list = filtered;
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     if (!list.length) {
-      dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open dispatch orders right now.</div>`;
+      dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
       dispatchSelectedOrders.clear();
       updateDispatchSelectionSummary();
       return;
     }
 
     const cols = [
-<<<<<<< HEAD
-      { id: "shipping_priority", label: "Shipping · Priority", type: "cards" },
-      { id: "shipping_medium", label: "Shipping · Standard", type: "cards" },
-      { id: "shipping_awaiting_payment", label: "Shipping · Awaiting payment", type: "cards" },
-      { id: "pickup", label: "Pickup / Collection", type: "cards" },
-      { id: "delivery_local", label: "Delivery", type: "cards" }
-    ];
-    const lanes = {
-      shipping_priority: [],
-      shipping_medium: [],
-      shipping_awaiting_payment: [],
-      pickup: [],
-      delivery_local: []
-=======
       { id: "shippingAgent", label: "Shipping (Agent)", type: "cards" },
       { id: "shippingA", label: "Shipping", type: "cards" },
       { id: "shippingB", label: "Shipping", type: "cards" },
@@ -4387,7 +4367,6 @@ async function startOrder(orderNo) {
       shippingNonAgent: [],
       export: [],
       pickup: []
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     };
 
     list.forEach((o) => {
@@ -4396,11 +4375,6 @@ async function startOrder(orderNo) {
         return;
       }
       const laneId = laneFromOrder(o);
-<<<<<<< HEAD
-      (lanes[laneId] || lanes.shipping_medium).push(o);
-    });
-
-=======
       if (laneId === "shipping") {
         if (isAgentOrder(o)) {
           lanes.shippingAgent.push(o);
@@ -4419,7 +4393,6 @@ async function startOrder(orderNo) {
     });
     const [shippingA, shippingB] = shippingChunks;
 
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
       const city = o.shipping_city || "";
@@ -4428,24 +4401,13 @@ async function startOrder(orderNo) {
       const orderNo = String(o.name || "").replace("#", "").trim();
       const packingState = getPackingState(o);
       if (orderNo) activeOrders.add(orderNo);
+      const { fulfillmentRows, fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(o);
       const lines = renderDispatchLineItems(o, packingState);
       const exportCartonSummary = getExportCartonSummary(o);
       const addr1 = o.shipping_address1 || "";
       const addr2 = o.shipping_address2 || "";
       const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
       const fallbackParcelCount = getAutoParcelCountForOrder(o.line_items);
-<<<<<<< HEAD
-      const actualParcelCountValue =
-        typeof o.parcel_count === "number" && o.parcel_count >= 0 ? o.parcel_count : "";
-      const estimatedParcelCountValue =
-        typeof o.estimated_parcels === "number" && o.estimated_parcels >= 0
-          ? o.estimated_parcels
-          : fallbackParcelCount ?? "";
-      const parcelCountPlaceholder =
-        actualParcelCountValue === "" && estimatedParcelCountValue !== ""
-          ? `Est: ${estimatedParcelCountValue}`
-          : "--";
-=======
       const tagParcelCount =
         typeof o.parcel_count_from_tag === "number" && o.parcel_count_from_tag >= 0
           ? o.parcel_count_from_tag
@@ -4460,11 +4422,17 @@ async function startOrder(orderNo) {
         parcelCountFromMeta != null
           ? parcelCountFromMeta
           : tagParcelCount ?? fallbackParcelCount ?? "";
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
       const missingSeverity = getMissingSeverity(o, packingState);
+      const shippedItemCount = getShippedItemCount(o);
+      const hasUnfulfilledItems = (o.line_items || []).some((item) => {
+        const orderedQty = Math.max(0, Number(item?.quantity) || 0);
+        const itemId = item?.id != null ? String(item.id) : "";
+        const fulfilledQty = itemId ? Number(fulfilledQtyByLineItemId.get(itemId) || 0) : 0;
+        return Math.max(0, orderedQty - fulfilledQty) > 0;
+      });
 
       if (orderNo) {
         dispatchOrderCache.set(orderNo, o);
@@ -4484,7 +4452,22 @@ async function startOrder(orderNo) {
             }
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
-          ${String(o.assigned_lane || "").trim().toLowerCase() === "unassigned" ? '<div class="dispatchCardMeta" style="color:#b91c1c;font-weight:700;">⚠️ Lane unresolved (UNASSIGNED)</div>' : ""}
+          ${
+            shippedItemCount > 0
+              ? `<div class="dispatchCardMeta dispatchCardMeta--shipment">📦 ${shippedItemCount} item${
+                  shippedItemCount === 1 ? "" : "s"
+                } already fulfilled/shipped</div>`
+              : ""
+          }
+          ${
+            fulfillmentRows.length
+              ? `<div class="dispatchCardFulfillments">${fulfillmentRows
+                  .map(
+                    (entry) => `<div class="dispatchCardFulfillmentMeta">${entry.label} · Tracking: ${entry.trackingText}</div>`
+                  )
+                  .join("")}</div>`
+              : ""
+          }
           <div class="dispatchCardParcel">
             <label class="dispatchParcelLabel" for="dispatchParcel-${orderNo}">Boxes</label>
             <button class="dispatchParcelAdjustBtn" type="button" data-action="decrease-box" data-order-no="${orderNo}" aria-label="Decrease box count for order ${orderNo}">−</button>
@@ -4497,10 +4480,9 @@ async function startOrder(orderNo) {
               inputmode="numeric"
               data-order-no="${orderNo}"
               data-order-id="${o.id || ""}"
-              data-last-value="${actualParcelCountValue}"
-              data-estimated-value="${estimatedParcelCountValue}"
-              value="${actualParcelCountValue}"
-              placeholder="${parcelCountPlaceholder}"
+              data-last-value="${parcelCountValue}"
+              value="${parcelCountValue}"
+              placeholder="--"
             />
             <button class="dispatchParcelAdjustBtn" type="button" data-action="increase-box" data-order-no="${orderNo}" aria-label="Increase box count for order ${orderNo}">+</button>
           </div>
@@ -4511,16 +4493,13 @@ async function startOrder(orderNo) {
           }
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
-            ${renderDispatchActions(o, laneId, orderNo, packingState)}
+            ${renderDispatchActions(o, laneId, orderNo, packingState, { hasUnfulfilledItems })}
           </div>
         </div>`;
     };
 
     dispatchBoard.innerHTML = cols
       .map((col) => {
-<<<<<<< HEAD
-        const laneOrders = lanes[col.id] || [];
-=======
         const laneOrders =
           col.id === "shippingA"
             ? shippingA
@@ -4531,7 +4510,6 @@ async function startOrder(orderNo) {
             : col.id === "shippingAgent"
             ? lanes.shippingAgent
             : lanes[col.id] || [];
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
         const cards =
           laneOrders.map((order) => cardHTML(order, col.id)).join("") ||
           `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
@@ -4561,10 +4539,6 @@ async function startOrder(orderNo) {
         selectionPruned = true;
       }
     });
-    if (activeDispatchOrderNo && !activeOrders.has(activeDispatchOrderNo)) {
-      activeDispatchOrderNo = null;
-    }
-    setActiveDispatchCard(activeDispatchOrderNo);
     updateDispatchSelectionSummary();
   }
 
@@ -4597,17 +4571,6 @@ async function startOrder(orderNo) {
       appendDebug(`Parcel count update failed: ${String(err)}`);
       return false;
     }
-  }
-
-  function getDispatchParcelCountInputValue(orderNo) {
-    if (!orderNo) return null;
-    const input = dispatchBoard?.querySelector(`.dispatchParcelCountInput[data-order-no="${orderNo}"]`);
-    if (!input) return null;
-    const raw = String(input.value || "").trim();
-    if (!raw) return null;
-    const parsed = Number(raw);
-    if (!Number.isInteger(parsed) || parsed <= 0) return null;
-    return parsed;
   }
 
   function printOppDocument(order, docType) {
@@ -4809,7 +4772,7 @@ async function startOrder(orderNo) {
       title: `${templateLabel} ${orderName || `#${orderNo}`}`,
       invoiceUrl,
       usePdfUri: true,
-      source: "Shopify Flow"
+      source: "Scan Station"
     };
 
     try {
@@ -4831,6 +4794,27 @@ async function startOrder(orderNo) {
   }
 
   async function printDeliveryNote(order) {
+    if (!order) return false;
+    const orderNo = String(order.name || "").replace("#", "").trim();
+
+    try {
+      const payloadRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/delivery-qr-payload`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          orderNo,
+          confirmUrl: window.location.origin
+        })
+      });
+      if (!payloadRes.ok) {
+        const text = await payloadRes.text();
+        appendDebug(`Delivery QR payload update failed for ${orderNo}: ${text}`);
+      }
+    } catch (err) {
+      appendDebug(`Delivery QR payload update error for ${orderNo}: ${String(err)}`);
+    }
+
     return printShopifyTemplate(order, "deliveryNote");
   }
 
@@ -4840,11 +4824,11 @@ async function startOrder(orderNo) {
 
   async function refreshDispatchData() {
     try {
-      const ordersRes = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`);
+      const [ordersRes, shipmentsRes] = await Promise.all([
+        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`),
+        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/shipments/recent`)
+      ]);
       const data = ordersRes.ok ? await ordersRes.json() : { orders: [] };
-<<<<<<< HEAD
-      dispatchOrdersLatest = data.orders || [];
-=======
       const shipmentsData = shipmentsRes.ok ? await shipmentsRes.json() : { shipments: [] };
       dispatchOrdersLatest = Array.isArray(data)
         ? data
@@ -4852,7 +4836,19 @@ async function startOrder(orderNo) {
         ? data.orders
         : [];
       dispatchShipmentsLatest = shipmentsData.shipments || [];
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+
+      const incomingOrders = [];
+      const nextKnownOrderNos = new Set();
+      dispatchOrdersLatest.forEach((order) => {
+        const orderNo = String(order?.name || "").replace("#", "").trim();
+        if (!orderNo) return;
+        nextKnownOrderNos.add(orderNo);
+        if (!dispatchKnownOrderNos.has(orderNo)) incomingOrders.push(order);
+      });
+      dispatchKnownOrderNos = nextKnownOrderNos;
+      if (dispatchVoicePrimed) incomingOrders.slice(0, 3).forEach((order) => announceIncomingOrder(order));
+      dispatchVoicePrimed = true;
+
       renderDispatchBoard(dispatchOrdersLatest);
       updateDashboardKpis();
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
@@ -4863,38 +4859,102 @@ async function startOrder(orderNo) {
     }
   }
 
-  // Centralized SPA view switch so nav states, URL, and section visibility remain consistent.
+  function renderModuleDashboard() {
+    if (!moduleGrid) return;
+    moduleGrid.innerHTML = "";
+
+    MODULES.forEach((module) => {
+      const card = document.createElement("article");
+      card.className = "moduleCard";
+      card.dataset.moduleId = module.id;
+
+      const header = document.createElement("div");
+      header.className = "moduleCardHeader";
+
+      const title = document.createElement("h3");
+      title.className = "moduleCardTitle";
+      title.textContent = module.title;
+
+      const tag = document.createElement("span");
+      tag.className = "moduleCardTag";
+      tag.textContent = module.tag || "Module";
+
+      header.appendChild(title);
+      header.appendChild(tag);
+
+      const desc = document.createElement("p");
+      desc.className = "moduleCardDesc";
+      desc.textContent = module.description || "";
+
+      const actions = document.createElement("div");
+      actions.className = "moduleCardActions";
+
+      const meta = document.createElement("span");
+      meta.className = "moduleMeta";
+      meta.textContent = module.meta || module.target || "Module";
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "moduleOpenBtn";
+      button.textContent = "Open module";
+      button.dataset.moduleId = module.id;
+
+      actions.appendChild(meta);
+      actions.appendChild(button);
+
+      card.appendChild(header);
+      card.appendChild(desc);
+      card.appendChild(actions);
+
+      moduleGrid.appendChild(card);
+    });
+  }
+
+  function openModuleById(moduleId) {
+    const module = MODULES.find((entry) => entry.id === moduleId);
+    if (!module) return;
+
+    if (module.type === "view") {
+      navigateTo(routeForView(module.target));
+      return;
+    }
+
+    if (module.type === "route" && module.target) {
+      navigateTo(module.target);
+      return;
+    }
+
+    if (module.type === "link" && module.target) {
+      window.location.href = module.target;
+    }
+  }
+
+  moduleGrid?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-module-id]");
+    if (!button) return;
+    const moduleId = button.dataset.moduleId;
+    if (!moduleId) return;
+    openModuleById(moduleId);
+  });
+
   function switchMainView(view) {
     const showScan = view === "scan";
-    const showFulfillmentHistory = view === "fulfillment-history";
-    const showContacts = view === "contacts";
     const showOps = view === "ops";
     const showDocs = view === "docs";
     const showFlowcharts = view === "flowcharts";
     const showFlocs = view === "flocs";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
-<<<<<<< HEAD
-    const showPrintStation = view === "print-station";
-    const showTraceability = view === "traceability";
-    const showStockists = view === "stockists";
-    const showYearPlanner = view === "year-planner";
-=======
     const showDispatchSettings = view === "dispatch-settings";
     const showLogs = view === "logs";
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+    const showAdmin = view === "admin";
+    const showChangelog = view === "changelog";
 
     if (viewScan) {
       viewScan.hidden = !showScan;
       viewScan.classList.toggle("flView--active", showScan);
-    }
-    if (viewFulfillmentHistory) {
-      viewFulfillmentHistory.hidden = !showFulfillmentHistory;
-      viewFulfillmentHistory.classList.toggle("flView--active", showFulfillmentHistory);
-    }
-    if (viewContacts) {
-      viewContacts.hidden = !showContacts;
-      viewContacts.classList.toggle("flView--active", showContacts);
     }
     if (viewOps) {
       viewOps.hidden = !showOps;
@@ -4920,23 +4980,6 @@ async function startOrder(orderNo) {
       viewPriceManager.hidden = !showPriceManager;
       viewPriceManager.classList.toggle("flView--active", showPriceManager);
     }
-<<<<<<< HEAD
-    if (viewPrintStation) {
-      viewPrintStation.hidden = !showPrintStation;
-      viewPrintStation.classList.toggle("flView--active", showPrintStation);
-    }
-    if (viewTraceability) {
-      viewTraceability.hidden = !showTraceability;
-      viewTraceability.classList.toggle("flView--active", showTraceability);
-    }
-    if (viewStockists) {
-      viewStockists.hidden = !showStockists;
-      viewStockists.classList.toggle("flView--active", showStockists);
-    }
-    if (viewYearPlanner) {
-      viewYearPlanner.hidden = !showYearPlanner;
-      viewYearPlanner.classList.toggle("flView--active", showYearPlanner);
-=======
     if (viewDispatchSettings) {
       viewDispatchSettings.hidden = !showDispatchSettings;
       viewDispatchSettings.classList.toggle("flView--active", showDispatchSettings);
@@ -4944,84 +4987,60 @@ async function startOrder(orderNo) {
     if (viewLogs) {
       viewLogs.hidden = !showLogs;
       viewLogs.classList.toggle("flView--active", showLogs);
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+    }
+    if (viewAdmin) {
+      viewAdmin.hidden = !showAdmin;
+      viewAdmin.classList.toggle("flView--active", showAdmin);
+    }
+    if (viewChangelog) {
+      viewChangelog.hidden = !showChangelog;
+      viewChangelog.classList.toggle("flView--active", showChangelog);
     }
 
     navScan?.classList.toggle("flNavBtn--active", showScan);
-    navFulfillmentHistory?.classList.toggle("flNavBtn--active", showFulfillmentHistory);
-    navContacts?.classList.toggle("flNavBtn--active", showContacts);
     navOps?.classList.toggle("flNavBtn--active", showOps);
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navFlowcharts?.classList.toggle("flNavBtn--active", showFlowcharts);
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
-<<<<<<< HEAD
-    navPrintStation?.classList.toggle("flNavBtn--active", showPrintStation);
-    navTraceability?.classList.toggle("flNavBtn--active", showTraceability);
-    navStockists?.classList.toggle("flNavBtn--active", showStockists);
-    navYearPlanner?.classList.toggle("flNavBtn--active", showYearPlanner);
-    navDashboard?.setAttribute("aria-selected", showDashboard ? "true" : "false");
-=======
     navDispatchSettings?.classList.toggle("flNavBtn--active", showDispatchSettings);
     navLogs?.classList.toggle("flNavBtn--active", showLogs);
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+    navFooterAdmin?.classList.toggle("flNavBtn--active", showAdmin);
+    navFooterChangelog?.classList.toggle("flNavBtn--active", showChangelog);
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
-    navFulfillmentHistory?.setAttribute("aria-selected", showFulfillmentHistory ? "true" : "false");
-    navContacts?.setAttribute("aria-selected", showContacts ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
     navFlowcharts?.setAttribute("aria-selected", showFlowcharts ? "true" : "false");
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
-<<<<<<< HEAD
-    navPrintStation?.setAttribute("aria-selected", showPrintStation ? "true" : "false");
-    navTraceability?.setAttribute("aria-selected", showTraceability ? "true" : "false");
-    navStockists?.setAttribute("aria-selected", showStockists ? "true" : "false");
-    navYearPlanner?.setAttribute("aria-selected", showYearPlanner ? "true" : "false");
-=======
     navDispatchSettings?.setAttribute("aria-selected", showDispatchSettings ? "true" : "false");
     navLogs?.setAttribute("aria-selected", showLogs ? "true" : "false");
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+    navFooterAdmin?.setAttribute("aria-selected", showAdmin ? "true" : "false");
+    navFooterChangelog?.setAttribute("aria-selected", showChangelog ? "true" : "false");
 
     if (showScan) {
       statusExplain("Orders view ready.", "info");
       scanInput?.focus();
-    } else if (showFulfillmentHistory) {
-      statusExplain("Viewing fulfillment timeline.", "info");
-    } else if (showContacts) {
-      statusExplain("Viewing customer directory.", "info");
-      if (!contactsState.loaded || !contactsState.customers.length) contactsView.refreshContacts().catch((err) => {
-        appendDebug("Contacts refresh failed: " + String(err));
-        if (contactsMeta) contactsMeta.textContent = "Contacts unavailable. Retrying in 30s…";
-      });
     } else if (showDocs) {
-      statusExplain("Knowledge Hub ready.", "info");
+      statusExplain("Viewing operator documentation", "info");
     } else if (showFlocs) {
-      statusExplain("Sales order workbench ready.", "info");
+      statusExplain("Order capture ready.", "info");
     } else if (showFlowcharts) {
-      statusExplain("Process blueprints loaded.", "info");
+      statusExplain("Flowchart logic reference loaded.", "info");
     } else if (showStock) {
-      statusExplain("Inventory control ready.", "info");
+      statusExplain("Stock take ready.", "info");
     } else if (showPriceManager) {
-<<<<<<< HEAD
-      statusExplain("Pricing control center ready.", "info");
-    } else if (showPrintStation) {
-      statusExplain("Print station ready.", "info");
-    } else if (showTraceability) {
-      statusExplain("Traceability tools ready.", "info");
-    } else if (showStockists) {
-      statusExplain("Distribution network ready.", "info");
-    } else if (showYearPlanner) {
-      statusExplain("Year planner ready.", "info");
-=======
       statusExplain("Price manager ready.", "info");
     } else if (showDispatchSettings) {
       statusExplain("Dispatch settings loaded.", "info");
     } else if (showLogs) {
       statusExplain("Logs view loaded.", "info");
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+    } else if (showAdmin) {
+      statusExplain("Admin workspace loaded.", "info");
+    } else if (showChangelog) {
+      statusExplain("Changelog opened.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
@@ -5032,50 +5051,31 @@ async function startOrder(orderNo) {
   const ROUTE_VIEW_MAP = new Map([
     ["/", "scan"],
     ["/scan", "scan"],
-    ["/fulfillment-history", "fulfillment-history"],
-    ["/contacts", "contacts"],
+    ["/deliver", "scan"],
     ["/ops", "scan"],
     ["/docs", "docs"],
     ["/flowcharts", "flowcharts"],
     ["/flocs", "flocs"],
     ["/stock", "stock"],
     ["/price-manager", "price-manager"],
-<<<<<<< HEAD
-    ["/print-station", "print-station"],
-    ["/traceability", "traceability"],
-    ["/stockists", "stockists"],
-    ["/year-planner", "year-planner"]
-  ]);
-
-  const VIEW_ROUTE_MAP = {
-    dashboard: "/",
-    scan: "/scan",
-    "fulfillment-history": "/fulfillment-history",
-    contacts: "/contacts",
-    ops: "/scan",
-=======
     ["/dispatch-settings", "dispatch-settings"],
-    ["/logs", "logs"]
+    ["/logs", "logs"],
+    ["/admin", "admin"],
+    ["/changelog", "changelog"]
   ]);
 
   const VIEW_ROUTE_MAP = {
     scan: "/",
     ops: "/",
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     docs: "/docs",
     flowcharts: "/flowcharts",
     flocs: "/flocs",
     stock: "/stock",
     "price-manager": "/price-manager",
-<<<<<<< HEAD
-    "print-station": "/print-station",
-    traceability: "/traceability",
-    stockists: "/stockists",
-    "year-planner": "/year-planner"
-=======
     "dispatch-settings": "/dispatch-settings",
-    logs: "/logs"
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+    logs: "/logs",
+    admin: "/admin",
+    changelog: "/changelog"
   };
 
   const docsState = {
@@ -5267,55 +5267,9 @@ async function startOrder(orderNo) {
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
-<<<<<<< HEAD
-    "price-manager": initPriceManagerView,
-    "print-station": initWholesaleAutomationView,
-    traceability: initTraceabilityView,
-    stockists: initStockistsView,
-    "year-planner": initYearPlannerView
-=======
     docs: initDocsView,
     "price-manager": initPriceManagerView
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   };
-  const contactsView = initContactsView({
-    state: contactsState,
-    elements: {
-      contactsSearch,
-      contactsTierFilter,
-      contactsProvinceFilter,
-      contactsMeta,
-      contactsList
-    },
-    getProxyBase: () => CONFIG.SHOPIFY.PROXY_BASE,
-    fetchImpl: fetch,
-    provinces: SA_PROVINCES,
-    appendDebug
-  });
-
-  const fulfillmentHistoryView = initFulfillmentHistoryView({
-    state: fulfillmentHistoryState,
-    elements: {
-      fulfillmentHistorySearch,
-      fulfillmentHistoryMeta,
-      fulfillmentHistoryStatusFilter,
-      fulfillmentHistoryList,
-      fulfillmentHistoryShipped,
-      fulfillmentHistoryDelivered,
-      fulfillmentHistoryPickup,
-      fulfillmentHistoryCollected,
-      fulfillmentHistoryShippedPager,
-      fulfillmentHistoryDeliveredPager,
-      fulfillmentHistoryPickupPager,
-      fulfillmentHistoryCollectedPager
-    },
-    getProxyBase: () => CONFIG.SHOPIFY.PROXY_BASE,
-    fetchImpl: fetch,
-    renderShipmentList,
-    updateDashboardKpis,
-    appendDebug
-  });
-
 
   function normalizePath(path) {
     if (!path) return "/";
@@ -5343,7 +5297,6 @@ async function startOrder(orderNo) {
     initViewIfNeeded(view);
   }
 
-  // Router entrypoint used by nav buttons and deep links.
   function navigateTo(path, { replace = false } = {}) {
     const next = normalizePath(path);
     if (replace) {
@@ -5384,31 +5337,6 @@ async function startOrder(orderNo) {
     }
   }
 
-  function setActiveDispatchCard(orderNo, { scrollIntoViewIfNeeded = false } = {}) {
-    activeDispatchOrderNo = orderNo || null;
-    if (!dispatchBoard) return;
-    let activeCard = null;
-    dispatchBoard.querySelectorAll(".dispatchCard").forEach((card) => {
-      const isActive = !!orderNo && card.dataset.orderNo === orderNo;
-      card.classList.toggle("is-active-card", isActive);
-      if (isActive) activeCard = card;
-    });
-    if (!scrollIntoViewIfNeeded || !activeCard) return;
-    const rect = activeCard.getBoundingClientRect();
-    const viewportHeight =
-      window.innerHeight || document.documentElement?.clientHeight || rect.height || 0;
-    const isVisible = rect.top >= 0 && rect.bottom <= viewportHeight;
-    if (!isVisible) {
-      activeCard.scrollIntoView({ block: "center", behavior: "smooth" });
-    }
-  }
-
-  function afterDomUpdate() {
-    return new Promise((resolve) => {
-      window.requestAnimationFrame(() => resolve());
-    });
-  }
-
   if (dispatchExpandToggle) {
     setDispatchExpanded(false);
     dispatchExpandToggle.addEventListener("click", () => {
@@ -5418,7 +5346,6 @@ async function startOrder(orderNo) {
 
   const ADMIN_UNLOCKED_KEY = "fl_admin_unlocked";
   const applyAdminMenuVisibility = (visible) => {
-    if (navDocs) navDocs.hidden = !visible;
     if (navFlowcharts) navFlowcharts.hidden = !visible;
     if (navPriceManager) navPriceManager.hidden = !visible;
     if (navDispatchSettings) navDispatchSettings.hidden = !visible;
@@ -5552,6 +5479,14 @@ async function startOrder(orderNo) {
     navigateTo(route);
   });
 
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const clickable = target.closest('button, [role="button"], a, input[type="checkbox"], input[type="radio"], .btn');
+    if (!clickable) return;
+    playUiClickTone();
+  }, { capture: true });
+
   modeToggle?.addEventListener("click", () => {
     isAutoMode = !isAutoMode;
     cancelAutoBookTimer();
@@ -5621,34 +5556,14 @@ async function startOrder(orderNo) {
     refreshDispatchViews();
     clearDispatchSelection();
 
-<<<<<<< HEAD
-  dispatchDeliverSelected?.addEventListener("click", async () => {
-    const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
-      const order = dispatchOrderCache.get(orderNo);
-      return laneFromOrder(order) === "delivery_local";
-    });
-    for (const orderNo of selected) {
-      await markDeliveryReady(orderNo);
-=======
     if (!prepared) {
       statusExplain("Prepare deliveries failed. Some docs did not print.", "warn");
       return;
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     }
 
-<<<<<<< HEAD
-  dispatchMarkDelivered?.addEventListener("click", async () => {
-    const selected = Array.from(dispatchSelectedOrders).filter((orderNo) => {
-      const order = dispatchOrderCache.get(orderNo);
-      return laneFromOrder(order) === "delivery_local";
-    });
-    for (const orderNo of selected) {
-      await markDeliveryReady(orderNo);
-=======
     if (failed) {
       statusExplain(`Prepared ${prepared} delivery orders (${failed} failed).`, "warn");
       return;
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     }
 
     statusExplain(`Prepared ${prepared} delivery orders.`, "ok");
@@ -5804,65 +5719,52 @@ async function startOrder(orderNo) {
         statusExplain("Fulfill unavailable for this order.", "warn");
         return true;
       }
-<<<<<<< HEAD
-      const order = dispatchOrderCache.get(orderNo);
-      const parcelCountFromInput = getDispatchParcelCountInputValue(orderNo);
-      const presetCount =
-        parcelCountFromInput ||
-        (typeof order?.parcel_count === "number" && order.parcel_count > 0
-          ? order.parcel_count
-          : typeof order?.estimated_parcels === "number" && order.estimated_parcels > 0
-          ? order.estimated_parcels
-          : getAutoParcelCountForOrder(order?.line_items));
-      setDispatchExpanded(true);
-      setActiveDispatchCard(orderNo, { scrollIntoViewIfNeeded: true });
-      await afterDomUpdate();
-      await startOrder(orderNo);
-      let parcelCount = getExpectedParcelCount(orderDetails);
-      if (!parcelCount && presetCount) {
-        parcelCount = presetCount;
-=======
       const packingState = getPackingState(order);
       const fulfillmentState = getPackedFulfillmentSelection(order, packingState);
       if (!fulfillmentState.anyPacked || !fulfillmentState.selectedLineItems.length) {
         statusExplain("Mark at least one packed line item before fulfilling.", "warn");
         return true;
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
       }
 
-      if (!fulfillmentState.allRemainingPacked) {
+      const isSplitFulfillment = !fulfillmentState.allRemainingPacked;
+      if (isSplitFulfillment) {
         const proceed = window.confirm(
           `Not all line items are marked packed for order ${orderNo}. Continuing will create a split fulfillment for only the packed items. Continue?`
         );
         if (!proceed) return true;
       }
 
-      const details = { raw: { id: order.id, line_items: order.line_items || [] } };
-      const selectedLineItems = fulfillmentState.allRemainingPacked
-        ? null
-        : fulfillmentState.selectedLineItems;
-      const ok = await fulfillOnShopify(details, "", selectedLineItems);
-      if (ok) {
-        statusExplain(
-          fulfillmentState.allRemainingPacked
-            ? `Fulfillment completed for ${orderNo}.`
-            : `Split fulfillment completed for ${orderNo} (packed items only).`,
-          "ok"
-        );
-        await loadDispatchBoard();
-      } else {
-        statusExplain(`Fulfillment failed for ${orderNo}.`, "warn");
+      const parcelCountFromMeta =
+        typeof order?.parcel_count_from_meta === "number" && order.parcel_count_from_meta > 0
+          ? order.parcel_count_from_meta
+          : typeof order?.parcel_count === "number" && order.parcel_count > 0
+          ? order.parcel_count
+          : null;
+      const parcelCountFromPacking = getPackingParcelCount(packingState);
+      const parcelCountFromItems = getAutoParcelCountForOrder(order?.line_items || []);
+      const bookingParcelCount = parcelCountFromMeta || parcelCountFromPacking || parcelCountFromItems || null;
+
+      if (!bookingParcelCount) {
+        statusExplain(`Parcel count is required to book shipment for ${orderNo}.`, "warn");
+        logDispatchEvent(`Booking blocked for ${orderNo}: parcel count missing.`);
+        return true;
       }
-<<<<<<< HEAD
-      orderDetails.manualParcelCount = parcelCount;
+
+      const selectedWeightKg = isSplitFulfillment
+        ? getSelectedFulfillmentWeightKg(order, fulfillmentState.selectedLineItems)
+        : null;
+
+      await startOrder(orderNo);
+      orderDetails.manualParcelCount = bookingParcelCount;
       renderSessionUI();
-      navigateTo("/scan", { replace: true });
-      await afterDomUpdate();
-      scanInput?.focus();
-      statusExplain(`Booking order ${orderNo} (${parcelCount} parcels).`, "info");
-      await doBookingNow({ manual: true, parcelCount });
-=======
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+      await doBookingNow({
+        manual: true,
+        parcelCount: bookingParcelCount,
+        keepOnBoard: isSplitFulfillment,
+        weightKg: selectedWeightKg,
+        bundleOrders: [{ orderNo, details: orderDetails }],
+        selectedLineItemsByOrder: isSplitFulfillment ? { [orderNo]: fulfillmentState.selectedLineItems } : null
+      });
       return true;
     }
     if (actionType === "prepare-delivery") {
@@ -5881,6 +5783,13 @@ async function startOrder(orderNo) {
         return true;
       }
       printedDeliveryNotes.add(orderNo);
+      await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/tag`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, tag: "delivery_prepared" })
+      }).catch(() => null);
+      const cached = dispatchOrderCache.get(orderNo);
+      if (cached) cached.tags = `${cached.tags || ""}, delivery_prepared`;
       statusExplain(`Delivery prepared for ${orderNo}.`, "ok");
       logDispatchEvent(`Delivery prepared for order ${orderNo}.`);
       refreshDispatchViews(orderNo);
@@ -5994,15 +5903,7 @@ async function startOrder(orderNo) {
         statusExplain(`Order ${orderNo} already booked — blocked.`, "warn");
         return true;
       }
-      const order = dispatchOrderCache.get(orderNo);
-      const presetCount =
-        getDispatchParcelCountInputValue(orderNo) ||
-        (typeof order?.parcel_count === "number" && order.parcel_count > 0
-          ? order.parcel_count
-          : typeof order?.estimated_parcels === "number" && order.estimated_parcels > 0
-          ? order.estimated_parcels
-          : getAutoParcelCountForOrder(order?.line_items));
-      const count = presetCount || promptManualParcelCount(orderNo);
+      const count = promptManualParcelCount(orderNo);
       if (!count) {
         statusExplain("Parcel count required (cancelled).", "warn");
         return true;
@@ -6095,12 +5996,6 @@ async function startOrder(orderNo) {
       const handled = await handleDispatchAction(action);
       if (handled) return;
     }
-<<<<<<< HEAD
-    const card = e.target.closest(".dispatchCard");
-    if (card && !e.target.closest("button") && !e.target.closest("input")) {
-      const orderNo = card.dataset.orderNo;
-      if (orderNo) openDispatchOrderModal(orderNo);
-=======
     const shipmentRow = e.target.closest(".dispatchShipmentRow");
     if (shipmentRow && !shipmentRow.classList.contains("dispatchShipmentRow--header")) {
       const shipmentKeyId = shipmentRow.dataset.shipmentKey;
@@ -6120,7 +6015,6 @@ async function startOrder(orderNo) {
       const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
       toggleDispatchLineItemPacked(orderNo, itemKey);
       return;
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
     }
 
     const card = e.target.closest(".dispatchCard");
@@ -6188,18 +6082,10 @@ async function startOrder(orderNo) {
     await saveDispatchParcelInput(input);
   });
 
-<<<<<<< HEAD
-  viewFulfillmentHistory?.addEventListener("click", async (e) => {
-    if (e.target.closest("a.dispatchShipmentActionBtn--link")) return;
-    const actionBtn = e.target.closest("[data-action=\"view-shipment\"]");
-    if (actionBtn?.dataset?.shipmentKey) {
-      await openDispatchShipmentModal(actionBtn.dataset.shipmentKey);
-=======
   dispatchShipmentsSidebar?.addEventListener("click", async (e) => {
     const priorityButton = e.target.closest('[data-action="set-priority"]');
     if (priorityButton) {
       await handleDispatchAction(priorityButton);
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
       return;
     }
     const shipmentRow = e.target.closest(".dispatchShipmentRow");
@@ -6293,40 +6179,7 @@ async function startOrder(orderNo) {
   slotSpinBtn?.addEventListener("click", spinSlots);
   slotCloseButtons.forEach((btn) => btn.addEventListener("click", closeSlotEgg));
 
-<<<<<<< HEAD
-  dispatchOrderModal?.addEventListener("change", (e) => {
-    const input = e.target.closest(".dispatchBoxParcelInput");
-    if (!input) return;
-    const orderNo = input.dataset.orderNo;
-    const boxIndex = Number(input.dataset.boxIndex);
-    if (!orderNo || !Number.isInteger(boxIndex)) return;
-    const state = dispatchPackingState.get(orderNo);
-    if (!state || !Array.isArray(state.boxes) || !state.boxes[boxIndex]) return;
-    state.boxes[boxIndex].parcelCode = input.value.trim();
-    savePackingState();
-  });
-
-  dailyTodoList?.addEventListener("change", (e) => {
-    const target = e.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    if (target.type !== "checkbox") return;
-    const todoIndex = Number(target.dataset.todoIndex);
-    if (!Number.isInteger(todoIndex)) return;
-    handleDailyTodoToggle(todoIndex, target.checked);
-  });
-
-  dailyTodoClose?.addEventListener("click", () => {
-    closeDailyTodoWidget();
-  });
-
-=======
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
   document.addEventListener("keydown", (e) => {
-    if (e.altKey && e.shiftKey && e.key.toLowerCase() === "t") {
-      e.preventDefault();
-      toggleDailyTodoWidget();
-      return;
-    }
     if (e.key === "Escape") {
       closeDispatchOrderModal();
       closeDispatchShipmentModal();
@@ -6344,6 +6197,8 @@ async function startOrder(orderNo) {
     }
   });
 
+
+  let scanStationNext = null;
   const boot = async () => {
     try {
       await loadConfig();
@@ -6359,7 +6214,6 @@ async function startOrder(orderNo) {
     loadModePreference();
     loadDailyParcelCount();
     loadTruckBooking();
-    loadDailyTodoState();
     updateModeToggle();
     renderSessionUI();
     renderCountdown();
@@ -6370,19 +6224,30 @@ async function startOrder(orderNo) {
     initDispatchProgress();
     setDispatchProgress(0, "Idle", { silent: true });
     initAddressSearch();
-    scheduleFulfillmentHistoryRefresh(0);
     refreshDispatchData();
-<<<<<<< HEAD
-    setInterval(refreshDispatchData, 30000);
-    scheduleServerStatusRefresh(0);
-    initModuleDashboard({ moduleGrid, navigateTo, routeForView });
-=======
     setInterval(refreshDispatchData, CONFIG.DISPATCH_POLL_INTERVAL_MS);
     refreshServerStatus();
     setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
     renderModuleDashboard();
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+
+    const currentPath = normalizePath(window.location.pathname);
+    if (currentPath === "/deliver") {
+      const params = new URLSearchParams(window.location.search || "");
+      const code = params.get("code") || "";
+      if (code) {
+        const ok = await handleDeliveryScan(code);
+        if (ok) {
+          document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">✅ Delivery confirmed. You can close this page.</div>';
+          setTimeout(() => window.close(), 1200);
+          return;
+        }
+      }
+      document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">⚠️ Delivery confirmation failed.</div>';
+      return;
+    }
+
     renderRoute(window.location.pathname);
+    scanStationNext = initScanStationNext({ scanInput });
 
     window.addEventListener("popstate", () => {
       renderRoute(window.location.pathname);

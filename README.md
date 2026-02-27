@@ -1,312 +1,262 @@
 # Flippen Lekka Scan Station (FLSS)
 
-## Overview
+FLSS is a Node + Express operations platform for order capture, dispatch workflows, shipping bookings, label printing, inventory actions, pricing tiers, template management, and batch traceability.
 
-FLSS is an operations web app for warehouse dispatch, Shopify fulfillment, pricing support, stock control, and traceability workflows.
+- **Backend API base:** `/api/v1`
+- **Primary SPA shell:** `http://localhost:3000`
+- **Static utility pages:** served from `public/*.html`
 
-- **Backend:** Node.js + Express (`server.js`, `src/`)
-- **Frontend:** single-page app served from `public/index.html` + `public/app.js`
-- **API base path:** `/api/v1`
+## What is in the app today
 
-The repository has been trimmed to the current product scope. Legacy standalone page entrypoints (`/pos.html`, `/stock.html`, `/price-manager.html`) have been removed in favor of SPA routes only.
+### Internal SPA routes (single shell)
 
----
+- `/` — **Orders / Scan Station**
+- `/ops` — **Dispatch Board**
+- `/docs` — **Docs browser** (renders `README.md` + `docs/*.md`)
+- `/flowcharts` — **Dispatch and packing flow guidance**
+- `/flocs` — **Order Capture (FLOCS)**
+- `/stock` — **Stock tools**
+- `/price-manager` — **Price Manager**
+- `/dispatch-settings` — **Dispatch settings panel** (admin-unlocked)
+- `/logs` — **Ops logs panel** (admin-unlocked)
+- `/admin` and `/changelog` — internal utility views
 
-<<<<<<< HEAD
-## Current application scope
-=======
+### Static pages and tools
 
-## Quick project guide
+- `/shipping-matrix.html` — ParcelPerfect quote matrix simulator
+- `/order-capture-custom.html` — password-gated custom order capture page
+- `/customer-accounts.html` — customer self-service demo flows
+- `/purchase-orders.html` — create tagged purchase-order draft orders
+- `/liquid-templates.html` — template CRUD + preview
+- `/notification-templates.html` — notification template CRUD + preview
+- `/traceability.html` — batch traceability report generator
 
-- **Build & run guide**: see `docs/build-guide.md`.
-- **Core features, add-ons, and data model**: see `docs/data-model.md`.
-- **System mind map + process flow chart**: see `docs/system-mind-map-and-process-flow.md`.
-- **Professional frontend/backend user manual**: see `docs/full-user-manual-front-and-backend.md`.
-- **Automated tests**: run `npm test`.
-- **Expose local app on your Cloudflare domain**: see `docs/cloudflare-tunnel.md`.
+## Docs access in the app
+
+The **Documentation** route is available from the **footer navigation** alongside **Admin** and **Changelog**. It loads all markdown files from `docs/` plus `README.md` via `/api/v1/docs`.
 
 ---
 
 ## Architecture
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
 
-### SPA modules
+```mermaid
+flowchart LR
+  subgraph Browser
+    SPA[Main SPA routes]
+    Static[Standalone HTML tools]
+  end
 
-- **Dashboard (`/`)**
-  - Operations KPIs, module launch tiles, and checklist visibility.
-- **Dispatch Console (`/scan`)**
-  - Barcode parsing, order lookup, parcel accumulation, booking triggers, and label/fulfillment actions.
-- **Order Operations Board (`/ops`)**
-  - Open order triage, combined dispatch handling, document actions, and shipment-focused workflows.
-- **Fulfillment Timeline (`/fulfillment-history`)**
-  - Recently shipped/delivered/collected order streams.
-- **Customer Directory (`/contacts`)**
-  - Shopify customer listing and filter/search workflow.
-- **Knowledge Hub (`/docs`)**
-  - In-app documentation with links to operator/admin/developer bundles.
-- **Process Blueprints (`/flowcharts`)**
-  - Visual process guidance for operations.
-- **Sales Order Workbench (`/flocs`)**
-  - Customer + product lookup, draft order / order creation, and quote-assisted shipping lines.
-- **Inventory Control (`/stock`)**
-  - Inventory level lookup and stock adjustment workflows.
-- **Pricing Control Center (`/price-manager`)**
-  - Tier pricing read/write and optional public price synchronization.
-- **Traceability (`/traceability`)**
-  - Open PO/invoice capture, inspection lifecycle, COA registration, and finished-batch audit lookup.
+  subgraph Server[Express API + static server]
+    API[/api/v1 routers/]
+    Public[public/ static files]
+    Docs[docs loader]
+  end
 
----
+  subgraph Services
+    Shopify[(Shopify Admin API)]
+    ParcelPerfect[(ParcelPerfect)]
+    PrintNode[(PrintNode)]
+    SMTP[(SMTP)]
+  end
 
-
-## Documentation structure
-
-- `docs/operator-docs.md` — operator runbooks.
-- `docs/admin-docs.md` — platform governance and admin controls.
-- `docs/dev-docs.md` — engineering architecture and implementation notes.
-- `docs/database-and-remote-access.md` — PostgreSQL schema, deployment, and remote tunnel setup.
-- `docs/README.md` — index of all docs.
+  SPA --> API
+  Static --> API
+  Server --> Public
+  Server --> Docs
+  API --> Shopify
+  API --> ParcelPerfect
+  API --> PrintNode
+  API --> SMTP
+```
 
 ---
 
-## Backend responsibilities
+## API modules
 
-### App bootstrap and middleware
+All routes below are mounted at `/api/v1`.
 
-`src/app.js` composes the application with:
+### Core
 
-- Helmet security headers
-- JSON parsing
-- CORS origin policy
-- Global request rate limiting
-- Morgan request logging
-- API router mounting under `/api/v1`
-- Static hosting of `public/` and SPA catch-all routing
+- `GET /healthz` — liveness
+- `GET /statusz` — integration health/status summary
+- `GET /config` — UI/runtime config projection
 
-### Routers (`src/routes`)
+### Documentation
 
-- `status.js`: health and integration status
-- `config.js`: frontend runtime config
-- `parcelperfect.js`: courier quote/booking and place lookup proxy endpoints
-- `shopify.js` (+ nested files): customers, products, orders, fulfillments, inventory, notifications
-- `pricing.js`: pricing storage/domain endpoints
-- `printnode.js`: PDF print handoff
-- `alerts.js`: dispatch alert notifications
-- `traceability.js`: traceability datastore and audit chain endpoints
-
-### Services (`src/services`)
-
-<<<<<<< HEAD
-- Shopify API helper + token strategy
-- ParcelPerfect helper
-- SMTP email helper
-- Pricing store/domain support
-=======
-- `/api/v1/pp` sends booking/quote requests as form-encoded payloads.
-- `/api/v1/pp/place` performs place lookups by name or postcode.
-- `/api/v1/pp/matrix` builds a shipping cost matrix for provided weights and destination major/regional centres (or defaults to built-in South African major/regional centres).
-
-### PrintNode proxy
-
-- `/api/v1/printnode/print` submits base64-encoded PDF labels to PrintNode.
-
-### Email alerts
-
-- `/api/v1/alerts/book-truck` sends “book a truck” emails via SMTP when parcel thresholds are hit.
-- `/api/v1/shopify/notify-collection` emails customers when a courier collection is ready.
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
-
----
-
-## API overview
-
-Default local base URL: `http://localhost:3000/api/v1`
-
-<<<<<<< HEAD
-- **Status/config**
-  - `GET /healthz`
-  - `GET /statusz`
-  - `GET /config`
-- **ParcelPerfect**
-  - `POST /pp`
-  - `GET /pp/place?q=...`
-- **PrintNode**
-  - `POST /printnode/print`
-- **Shopify (selected groups)**
-  - customers, products, orders, draft orders, fulfillments, inventory, notifications
-- **Alerts**
-  - `POST /alerts/book-truck`
-- **Traceability**
-  - state snapshots, POs, invoices, captures, COAs, inspections, finished-batch mapping, lookup
-=======
-- Parses barcode scans into `{ orderNo, parcelSeq }`.
-- Fetches order details from Shopify and optionally resolves ParcelPerfect place codes.
-- Auto-books on `parcel_count` metafields or after a configurable idle timer.
-- Prints labels and fulfills orders via Shopify once booking succeeds.
-
-### Dispatch Board
-
-- Polls open orders and recent shipments to keep the board current.
-- Allows “Book Now” workflows and delivery note printing.
-- Tracks daily parcel counts and triggers truck booking email alerts.
-
-### FLOCS / Order Capture
-
-- Search and create customers (including delivery method metafields).
-- Search products or load collections, then build draft orders/orders.
-- Request ParcelPerfect quotes to populate shipping lines.
-- Includes `/order-capture-custom.html` for local-password-protected custom normal order entry (PBKDF2 hash stored in localStorage).
-
-### Stock Take
-
-- Loads Shopify inventory levels per variant and location.
-- Supports stock take (set) and stock received (adjust) modes.
-- Persists activity logs in `localStorage` for audit visibility.
-
-### Price Manager
-
-- Reads and writes `custom.price_tiers` variant metafields.
-- Optionally syncs pricing tiers into the Shopify variant `price` field.
-
----
-
-## API reference (server)
-
-All endpoints are available under `http://localhost:3000/api/v1` by default.
-
-### Status & config
-
-- `GET /healthz` — basic health check.
-- `GET /statusz` — full integration status (Shopify, ParcelPerfect, PrintNode, SMTP).
-- `GET /config` — UI configuration (box dims, booking timeout, origin details, feature flags).
+- `GET /docs` — docs topic index
+- `GET /docs/:slug` — markdown by slug
 
 ### ParcelPerfect
 
-- `POST /pp` — booking/quote proxy.
-- `GET /pp/place?q=...` — place lookup.
-- `POST /pp/matrix` — simulate quote matrix by weight and destination place (`centreType`: `all|major|regional`, defaults to `all`).
+- `POST /pp` — booking/quote proxy
+- `GET /pp/place?q=...` — place lookup
+- `POST /pp/matrix` — shipping matrix simulation
 
 ### PrintNode
 
-- `POST /printnode/print` — submit base64 PDF labels.
-
-### Shopify (selected endpoints)
-
-- Customers: `GET /shopify/customers/search`, `POST /shopify/customers`
-- Products: `GET /shopify/products/search`, `GET /shopify/products/collection`
-- Price tiers: `POST /shopify/variants/price-tiers`, `POST /shopify/variants/price-tiers/fetch`
-- Draft orders: `POST /shopify/draft-orders`, `POST /shopify/draft-orders/complete`
-- Orders: `POST /shopify/orders`, `POST /shopify/orders/cash`, `GET /shopify/orders/by-name/:name`, `GET /shopify/orders/open`, `GET /shopify/orders/list`
-- Parcel counts: `POST /shopify/orders/parcel-count`
-- Flow triggers: `POST /shopify/orders/run-flow`
-- Fulfillment: `POST /shopify/fulfill`, `POST /shopify/ready-for-pickup`, `GET /shopify/fulfillment-events`, `GET /shopify/shipments/recent`
-- Inventory: `GET /shopify/inventory-levels`, `POST /shopify/inventory-levels/set`, `POST /shopify/inventory-levels/transfer`, `GET /shopify/locations`
-- Email notifications: `POST /shopify/notify-collection`
+- `POST /printnode/print`
+- `POST /printnode/print-delivery-note`
+- `POST /printnode/print-url`
 
 ### Alerts
 
-- `POST /alerts/book-truck` — send truck booking email when parcel thresholds are reached.
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+- `POST /alerts/book-truck` — truck booking email
+
+### Customer accounts
+
+- `POST /customer-accounts/register`
+- `POST /customer-accounts/login`
+- `POST /customer-accounts/logout`
+- `GET /customer-accounts/me`
+- `PUT /customer-accounts/me`
+- `GET /customer-accounts/catalog`
+- `GET /customer-accounts/orders`
+- `POST /customer-accounts/orders`
+
+### Template management
+
+- Liquid templates:
+  - `GET /liquid-templates`
+  - `POST /liquid-templates`
+  - `DELETE /liquid-templates/:id`
+- Notification templates:
+  - `GET /notification-templates`
+  - `POST /notification-templates`
+  - `DELETE /notification-templates/:id`
+
+### Traceability
+
+- `GET /traceability/template.xlsx` — sample workbook template
+- `POST /traceability/report` — batch traceability report generation
+
+### Shopify proxy groups (high-level)
+
+- Customers, products, collections, payment term options
+- Tiered pricing + price tier metafield fetch/upsert
+- Draft order creation/completion + purchase-order helpers
+- Orders (create/list/open/by-name/cash/tag updates)
+- Fulfillment + recent shipments + fulfill-from-code collection flow
+- Inventory levels/locations/set/transfer
+- Pricing resolve and draft reconciliation endpoints
+- Customer notification endpoint for collection readiness
 
 ---
 
-## Configuration
+## Environment configuration
 
-Key environment variables:
+Create `.env` in project root.
 
 ```bash
 PORT=3000
 HOST=0.0.0.0
+NODE_ENV=development
 FRONTEND_ORIGIN=http://localhost:3000
 
 # ParcelPerfect
-PP_BASE_URL=...
+PP_BASE_URL=
+PP_TOKEN=
 PP_REQUIRE_TOKEN=true
-PP_TOKEN=...
-PP_ACCNUM=...
-PP_PLACE_ID=...
+PP_ACCNUM=
+PP_PLACE_ID=
+PP_TIMEOUT_MS=10000
 
 # Shopify
-SHOPIFY_STORE=...
-SHOPIFY_CLIENT_ID=...
-SHOPIFY_CLIENT_SECRET=...
+SHOPIFY_STORE=
+SHOPIFY_CLIENT_ID=
+SHOPIFY_CLIENT_SECRET=
 SHOPIFY_API_VERSION=2025-10
 SHOPIFY_FLOW_TAG=dispatch_flow
+SHOPIFY_TIMEOUT_MS=10000
+SHOPIFY_THROTTLE_MAX_CONCURRENCY=4
+SHOPIFY_THROTTLE_BASE_DELAY_MS=250
+SHOPIFY_THROTTLE_MAX_DELAY_MS=5000
+SHOPIFY_THROTTLE_CALL_LIMIT_RATIO=0.85
 
 # PrintNode
-<<<<<<< HEAD
-PRINTNODE_API_KEY=...
-PRINTNODE_PRINTER_ID=...
-=======
-PRINTNODE_API_KEY=your-printnode-api-key
-PRINTNODE_PRINTER_ID=123456
-# Optional delivery note override(s):
-PRINTNODE_DELIVERY_NOTE_PRINTER_ID=223344
-PRINTNODE_DELIVERY_NOTE_PRINTER_IDS=223344,223345,223346,223347
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+PRINTNODE_API_KEY=
+PRINTNODE_PRINTER_ID=
+PRINTNODE_DELIVERY_NOTE_PRINTER_ID=
+PRINTNODE_DELIVERY_NOTE_PRINTER_IDS=
+PRINTNODE_TIMEOUT_MS=10000
 
 # SMTP
-SMTP_HOST=...
+SMTP_HOST=
 SMTP_PORT=587
-SMTP_USER=...
-SMTP_PASS=...
-SMTP_FROM=ops@example.com
-TRUCK_EMAIL_TO=dispatch@example.com
+SMTP_USER=
+SMTP_PASS=
+SMTP_SECURE=false
+SMTP_FROM=
+TRUCK_EMAIL_TO=
 
 # UI tuning
 UI_BOOKING_IDLE_MS=6000
 UI_COST_ALERT_THRESHOLD=250
 UI_TRUCK_ALERT_THRESHOLD=25
+UI_BOX_DIM_1=40x30x20
+UI_BOX_DIM_2=45x35x25
+UI_BOX_DIM_3=50x40x30
+UI_BOX_MASS_KG=1
+UI_ORIGIN_PERSON=
+UI_ORIGIN_ADDR1=
+UI_ORIGIN_ADDR2=
+UI_ORIGIN_ADDR3=
+UI_ORIGIN_ADDR4=
+UI_ORIGIN_POSTCODE=
+UI_ORIGIN_TOWN=
+UI_ORIGIN_PLACE_ID=
+UI_ORIGIN_CONTACT=
+UI_ORIGIN_PHONE=
+UI_ORIGIN_CELL=
+UI_ORIGIN_NOTIFY=
+UI_ORIGIN_EMAIL=
+UI_ORIGIN_NOTES=
 UI_FEATURE_MULTI_SHIP=true
 ```
 
 ---
 
-## Run locally
+## Local development
 
 ```bash
 npm install
 npm run dev
 ```
 
-<<<<<<< HEAD
-Open `http://localhost:3000` and navigate modules via the sidebar.
-=======
-Open `http://localhost:3000` for the Scan Station/Dispatch/Docs SPA, `http://localhost:3000/flocs` for order capture, `http://localhost:3000/shipping-matrix.html` for shipping matrix simulation, `http://localhost:3000/order-capture-custom.html` for password-protected custom normal order capture, `http://localhost:3000/stock` for stock take, and `http://localhost:3000/price-manager` for price tier management.
+Open `http://localhost:3000`.
 
----
-
-## Testing
+### Test suite
 
 ```bash
 npm test
 ```
 
-The test suite includes utility unit tests and API smoke tests for core health/config routes.
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+### Utility scripts
+
+```bash
+npm run po:catalog:generate
+npm run traceability:template:generate
+```
 
 ---
 
-## Repository structure
+## Admin unlock shortcut (SPA)
 
-<<<<<<< HEAD
-- `server.js` — startup entrypoint
-- `src/app.js` — middleware + API mounting + static hosting
-- `src/config.js` — env-driven config
-- `src/routes/` — API routers
-- `src/services/` — integration services
-- `public/index.html` — SPA shell + views
-- `public/app.js` — SPA orchestration and route/state logic
-- `public/views/` — modular frontend feature logic/styles
-- `data/` — local JSON stores for pricing + traceability
-- `docs/` — audience-based documentation (operator/admin/dev) plus deep dives
-- `pi_station/` — Raspberry Pi helper scripts
-=======
-- `server.js` — entrypoint that boots the Express app.
-- `src/app.js` — middleware orchestration + static hosting bootstrap (uses route manifest).
-- `src/config.js` — environment configuration.
-- `src/routes/index.js` — centralized API router manifest (single place to add/remove backend route modules).
-- `src/routes/` — ParcelPerfect, Shopify, PrintNode, alerts, config, status route modules.
-- `src/services/` — Shopify token handling + SMTP helpers.
-- `public/` — SPA UI (HTML/CSS/JS), route entrypoints, and assets.
-```
->>>>>>> 2026-02-25/create-mind-map-and-process-flow-chart/11-55-51
+Some nav entries are hidden by default and can be toggled in-browser:
+
+- **Shortcut:** `Shift + Alt + A`
+- Toggles visibility for flowcharts/price-manager/dispatch-settings/logs menus.
+- Uses `localStorage` key `fl_admin_unlocked`.
+
+---
+
+## Documentation map
+
+- Build/run and deployment: `docs/build-guide.md`
+- Operator manual: `docs/operator-manual.md`
+- Configuration deep reference: `docs/config-reference.md`
+- Endpoints and payload guide: `docs/api-reference.md`
+- Feature + data model: `docs/data-model.md`
+- Traceability workflow details: `docs/traceability-workflow.md`
+- Cloudflare tunnel publishing: `docs/cloudflare-tunnel.md`
+- Shopify theme tier rendering approach: `docs/price-tiers-theme.md`
+- Raspberry Pi station controller concept: `docs/raspberry-pi-station-controller-schematic.md`

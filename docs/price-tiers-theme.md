@@ -1,23 +1,29 @@
-# Price tiers without an extra app (theme-only)
+# Shopify Theme Price Tier Rendering (No Extra App)
 
-This project already stores per-variant price tiers in the Shopify variant metafield `custom.price_tiers`. That metafield is saved as JSON and contains keys like `default`, `agent`, `retailer`, `export`, `private`, `fkb`, etc. The FLOCS tool reads this to show tiered pricing, but if you want to **apply pricing logic without an extra app**, you can render pricing directly in your theme using customer tags + the metafield.
+FLSS stores variant tier pricing in Shopify metafield `custom.price_tiers`.
 
-> ⚠️ **Important limitation**
-> Theme-only logic changes **displayed prices**. Shopify’s actual checkout price still comes from the variant `price` unless you also use Shopify’s native B2B price lists, Shopify Functions, or update the variant price itself.
+You can render customer-specific display pricing directly in the Shopify theme using this data.
 
----
+> Theme logic affects **displayed** prices only. Checkout pricing still follows Shopify checkout rules unless you also implement B2B price lists, Shopify Functions, or direct variant price updates.
 
-## 1) Add the pricing snippet
+## 1) Expected metafield shape
 
-Create a snippet in your theme (e.g., `snippets/price-tier.liquid`) and paste the following:
+`custom.price_tiers` is JSON containing tier keys such as:
+
+- `default`
+- `agent`
+- `retailer`
+- `export`
+- `private`
+- `fkb`
+- `d2c`
+- `b2b`
+
+## 2) Add resolver snippet
+
+Create `snippets/price-tier.liquid`:
 
 ```liquid
-{%- comment -%}
-  Price tier resolver
-  - Reads JSON from variant metafield: custom.price_tiers
-  - Resolves tier based on customer tags
-{%- endcomment -%}
-
 {%- assign variant = product.selected_or_first_available_variant -%}
 {%- assign tiers = variant.metafields.custom.price_tiers.value -%}
 {%- assign resolved_price = nil -%}
@@ -52,32 +58,12 @@ Create a snippet in your theme (e.g., `snippets/price-tier.liquid`) and paste th
 {%- endif -%}
 ```
 
----
-
-## 2) Use the snippet in product price templates
-
-Wherever the product price is shown, replace the normal price output with:
+## 3) Render snippet in theme price blocks
 
 ```liquid
 {% render 'price-tier', product: product %}
 ```
 
----
+## 4) Keep metafields current
 
-## 3) Optional: show a note for the active tier
-
-```liquid
-{%- if customer -%}
-  <p class="price-tier-note">
-    Pricing tier: {{ customer.tags }}
-  </p>
-{%- endif -%}
-```
-
----
-
-## 4) Keep your tiers in sync
-
-Continue using the existing **Price Manager** in this repo to edit and save tier prices into the variant metafield `custom.price_tiers`. This theme snippet reads that same data.
-
-If you decide to *also* update Shopify’s public price (variant `price`), you can use the “Sync public price” checkbox in the price manager — but that will change the price for **all** customers, not just tagged ones.
+Use FLSS Price Manager to maintain tier data. Optionally syncing public variant price affects all customers globally.

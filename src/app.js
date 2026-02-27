@@ -164,6 +164,8 @@ export function createApp() {
   mountApiRouters(app);
 
   const publicDir = path.join(__dirname, "..", "public");
+  const oneUiAssetsDir = path.join(__dirname, "..", "ONEUI", "OneUI by pixelcave", "OneUI 5.12", "01 OneUI Source (HTML)", "src", "assets");
+  app.use("/vendor/oneui", express.static(oneUiAssetsDir));
   app.use(express.static(publicDir));
   app.get("*", (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
 
