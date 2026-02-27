@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Traceability</title>
+  <link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
+  <script src="/vendor/oneui/js/setTheme.js"></script>
+  <link rel="stylesheet" href="/oneui-shell.css" />
   <style>
     body{font-family:Inter,system-ui,sans-serif;margin:0;background:#f5f7fb;color:#0f172a}
     .shell{max-width:1200px;margin:0 auto;padding:1.25rem;display:flex;flex-direction:column;gap:1rem}
@@ -28,7 +31,10 @@
     .status{font-size:.8rem;color:#1d4ed8}
   </style>
 </head>
-<body>
+<body class="flss-oneui-page" data-page="traceability">
+  <div class="flss-shell">
+    <aside class="flss-sidenav" id="flssSidenav"></aside>
+    <main class="flss-page">
   <div class="shell">
     <section class="card header">
       <div>
@@ -86,6 +92,10 @@
     </section>
   </div>
 
-  <script type="module" src="/traceability.js"></script>
+      </main>
+  </div>
+
+  <script src="/oneui-shell.js"></script>
+<script type="module" src="/traceability.js"></script>
 </body>
 </html>

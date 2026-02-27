@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Customer Accounts</title>
+  <link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
+  <script src="/vendor/oneui/js/setTheme.js"></script>
+  <link rel="stylesheet" href="/oneui-shell.css" />
   <style>
     :root { --ink:#142033; --muted:#4b5563; --bg:#eef2ff; --card:#fff; --line:#d4ddf5; --accent:#4f46e5; --ok:#166534; --err:#b91c1c; }
     * { box-sizing: border-box; }
@@ -53,7 +56,10 @@
     }
   </style>
 </head>
-<body>
+<body class="flss-oneui-page" data-page="customer-accounts">
+  <div class="flss-shell">
+    <aside class="flss-sidenav" id="flssSidenav"></aside>
+    <main class="flss-page">
   <div class="wrap">
     <div class="card">
       <h1>Customer Accounts</h1>
@@ -135,7 +141,11 @@
     </div>
   </div>
 
-  <script>
+      </main>
+  </div>
+
+  <script src="/oneui-shell.js"></script>
+<script>
     const API_BASE = '/api/v1/customer-accounts';
     const TOKEN_KEY = 'fl_customer_account_token';
 

@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <title>Price Manager — FLSS</title>
+  <link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
+  <script src="/vendor/oneui/js/setTheme.js"></script>
+  <link rel="stylesheet" href="/oneui-shell.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -214,7 +217,10 @@
     }
   </style>
 </head>
-<body>
+<body class="flss-oneui-page" data-page="price-manager">
+  <div class="flss-shell">
+    <aside class="flss-sidenav" id="flssSidenav"></aside>
+    <main class="flss-page">
   <div class="pm-shell">
     <header class="pm-header">
       <div class="pm-titleBlock">
@@ -253,6 +259,10 @@
     </section>
   </div>
   <div id="pmToast" class="pm-toast"></div>
-  <script src="/price-manager.js"></script>
+      </main>
+  </div>
+
+  <script src="/oneui-shell.js"></script>
+<script src="/price-manager.js"></script>
 </body>
 </html>

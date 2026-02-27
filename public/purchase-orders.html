@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Purchase Orders</title>
+  <link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
+  <script src="/vendor/oneui/js/setTheme.js"></script>
+  <link rel="stylesheet" href="/oneui-shell.css" />
   <style>
     :root{--bg:#f1f5f9;--card:#fff;--line:#dbe3ee;--text:#0f172a;--muted:#64748b;--accent:#0284c7;--accent-soft:#e0f2fe;--ok:#166534;--bad:#b91c1c}
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
@@ -29,7 +32,10 @@
     .status{min-height:1rem;font-size:.82rem;color:var(--muted)}.status.ok{color:var(--ok)}.status.err{color:var(--bad)}
   </style>
 </head>
-<body>
+<body class="flss-oneui-page" data-page="purchase-orders">
+  <div class="flss-shell">
+    <aside class="flss-sidenav" id="flssSidenav"></aside>
+    <main class="flss-page">
   <main class="shell">
     <section class="top">
       <div>
@@ -54,6 +60,10 @@
       <button class="btn primary" id="submitBtn">Create draft purchase order</button>
     </section>
   </main>
-  <script type="module" src="/purchase-orders.js"></script>
+      </main>
+  </div>
+
+  <script src="/oneui-shell.js"></script>
+<script type="module" src="/purchase-orders.js"></script>
 </body>
 </html>
