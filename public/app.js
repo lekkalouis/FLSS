@@ -4349,13 +4349,34 @@ async function startOrder(orderNo) {
     if (!order) return;
     try {
       setDispatchProgress(6, `Marking ${orderNo} out for delivery`);
+      const res = await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/fulfill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.id,
+          trackingNumber: "",
+          trackingUrl: "",
+          trackingCompany: "Delivery",
+          message: "Order delivered to customer."
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        statusExplain("Delivery mark failed.", "warn");
+        logDispatchEvent(`Delivery mark failed for order ${orderNo}: ${text}`);
+        return;
+      }
+
+      const cached = dispatchOrderCache.get(orderNo);
+      if (cached) {
+        cached.fulfillment_status = "fulfilled";
+        cached.tags = `${cached.tags || ""}, stat:delivered`;
+      }
       await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/tag`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: order.id, tag: "delivery_prepared" })
+        body: JSON.stringify({ orderId: order.id, tag: "stat:delivered" })
       }).catch(() => null);
-      const cached = dispatchOrderCache.get(orderNo);
-      if (cached) cached.tags = `${cached.tags || ""}, delivery_prepared`;
       statusExplain(`Order ${orderNo} marked out for delivery.`, "ok");
       logDispatchEvent(`Order ${orderNo} marked out for delivery.`);
       refreshDispatchViews(orderNo);
