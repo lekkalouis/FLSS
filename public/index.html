@@ -3061,20 +3061,26 @@
               <div class="flocs-title">Order Capture</div>
             </div>
             <div class="flocs-headerActions">
-              <button id="flocs-createDraftBtn" class="flocs-actionBtn" type="button">
+              <button id="flocs-createDraftBtn" class="flocs-actionBtn btn btn-alt-primary" type="button">
                 <span>📝</span>
                 <span>Create draft order</span>
               </button>
-              <button id="flocs-createOrderBtn" class="flocs-actionBtn" type="button">
+              <button id="flocs-createOrderBtn" class="flocs-actionBtn btn btn-primary" type="button">
                 <span>✅</span>
                 <span>Create live order</span>
               </button>
             </div>
           </header>
 
+          <nav class="flocs-mobileQuickNav" aria-label="Order capture quick navigation">
+            <button type="button" class="flocs-miniBtn btn btn-alt-secondary" data-flocs-scroll="#flocs-section-customer">1. Customer</button>
+            <button type="button" class="flocs-miniBtn btn btn-alt-secondary" data-flocs-scroll="#flocs-section-items">2. Items</button>
+            <button type="button" class="flocs-miniBtn btn btn-alt-secondary" data-flocs-scroll="#flocs-section-checkout">3. Checkout</button>
+          </nav>
+
           <main class="flocs-layout">
             <section class="flocs-panel form" id="flocs-formPanel">
-              <div class="flocs-formSection flocs-formSection--customer">
+              <div class="flocs-formSection flocs-formSection--customer" id="flocs-section-customer">
                 <div class="flocs-azBar" id="flocs-azBar">
                   <button type="button" data-letter="A">A</button><button type="button" data-letter="B">B</button><button type="button" data-letter="C">C</button><button type="button" data-letter="D">D</button><button type="button" data-letter="E">E</button><button type="button" data-letter="F">F</button><button type="button" data-letter="G">G</button><button type="button" data-letter="H">H</button><button type="button" data-letter="I">I</button><button type="button" data-letter="J">J</button><button type="button" data-letter="K">K</button><button type="button" data-letter="L">L</button><button type="button" data-letter="M">M</button><button type="button" data-letter="N">N</button><button type="button" data-letter="O">O</button><button type="button" data-letter="P">P</button><button type="button" data-letter="Q">Q</button><button type="button" data-letter="R">R</button><button type="button" data-letter="S">S</button><button type="button" data-letter="T">T</button><button type="button" data-letter="U">U</button><button type="button" data-letter="V">V</button><button type="button" data-letter="W">W</button><button type="button" data-letter="X">X</button><button type="button" data-letter="Y">Y</button><button type="button" data-letter="Z">Z</button>
                 </div>
@@ -3114,54 +3120,57 @@
                     <input id="flocs-customerEmail" class="flocs-input" type="email" placeholder="Email" />
                     <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
                   </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerAccountEmail" class="flocs-input" type="email" placeholder="Account email (optional)" />
-                    <input id="flocs-customerAccountContact" class="flocs-input" type="text" placeholder="Account contact (optional)" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <select id="flocs-customerTier" class="flocs-select">
-                      <option value="">Customer tier (optional)</option>
-                      <option value="agent">Agent</option>
-                      <option value="retailer">Retailer</option>
-                      <option value="export">Export</option>
-                      <option value="fkb">FKB</option>
-                      <option value="public">Public</option>
-                    </select>
-                    <div></div>
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
-                    <select id="flocs-customerDelivery" class="flocs-select">
-                      <option value="">Default delivery (optional)</option>
-                      <option value="shipping">Shipping</option>
-                      <option value="free_shipping">Free Shipping</option>
-                      <option value="pickup">Pickup</option>
-                      <option value="delivery">Delivery</option>
-                    </select>
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerVat" class="flocs-input" type="text" placeholder="VAT number (optional)" />
-                    <select id="flocs-customerPaymentTerms" class="flocs-select">
-                      <option value="">Payment terms (optional)</option>
-                      <option value="Due on delivery">Due on delivery</option>
-                      <option value="7 days">7 days</option>
-                      <option value="30 days">30 days</option>
-                      <option value="60 days">60 days</option>
-                      <option value="90 days">90 days</option>
-                    </select>
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1" />
-                    <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
-                    <input id="flocs-customerProvince" class="flocs-input" type="text" placeholder="Province" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />
-                    <input id="flocs-customerCountry" class="flocs-input" type="text" placeholder="Country" value="South Africa" />
-                  </div>
+                  <details class="flocs-optionalFields" style="margin-top:.4rem">
+                    <summary>Optional customer details</summary>
+                    <div class="flocs-row" style="margin-top:.4rem">
+                      <input id="flocs-customerAccountEmail" class="flocs-input" type="email" placeholder="Account email (optional)" />
+                      <input id="flocs-customerAccountContact" class="flocs-input" type="text" placeholder="Account contact (optional)" />
+                    </div>
+                    <div class="flocs-row" style="margin-top:.4rem">
+                      <select id="flocs-customerTier" class="flocs-select">
+                        <option value="">Customer tier (optional)</option>
+                        <option value="agent">Agent</option>
+                        <option value="retailer">Retailer</option>
+                        <option value="export">Export</option>
+                        <option value="fkb">FKB</option>
+                        <option value="public">Public</option>
+                      </select>
+                      <div></div>
+                    </div>
+                    <div class="flocs-row" style="margin-top:.4rem">
+                      <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
+                      <select id="flocs-customerDelivery" class="flocs-select">
+                        <option value="">Default delivery (optional)</option>
+                        <option value="shipping">Shipping</option>
+                        <option value="free_shipping">Free Shipping</option>
+                        <option value="pickup">Pickup</option>
+                        <option value="delivery">Delivery</option>
+                      </select>
+                    </div>
+                    <div class="flocs-row" style="margin-top:.4rem">
+                      <input id="flocs-customerVat" class="flocs-input" type="text" placeholder="VAT number (optional)" />
+                      <select id="flocs-customerPaymentTerms" class="flocs-select">
+                        <option value="">Payment terms (optional)</option>
+                        <option value="Due on delivery">Due on delivery</option>
+                        <option value="7 days">7 days</option>
+                        <option value="30 days">30 days</option>
+                        <option value="60 days">60 days</option>
+                        <option value="90 days">90 days</option>
+                      </select>
+                    </div>
+                    <div class="flocs-row" style="margin-top:.4rem">
+                      <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1" />
+                      <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
+                    </div>
+                    <div class="flocs-row" style="margin-top:.4rem">
+                      <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
+                      <input id="flocs-customerProvince" class="flocs-input" type="text" placeholder="Province" />
+                    </div>
+                    <div class="flocs-row" style="margin-top:.4rem">
+                      <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />
+                      <input id="flocs-customerCountry" class="flocs-input" type="text" placeholder="Country" value="South Africa" />
+                    </div>
+                  </details>
                   <div class="flocs-inlineActions" style="margin-top:.5rem">
                     <button id="flocs-customerCreateBtn" class="flocs-btn primary" type="button">Create customer</button>
                     <button id="flocs-customerResetBtn" class="flocs-miniBtn" type="button">Clear form</button>
@@ -3182,7 +3191,7 @@
                 </div>
               </div>
 
-              <div class="flocs-formSection">
+              <div class="flocs-formSection" id="flocs-section-items">
                 <div class="flocs-labelRow flocs-labelRow--items">
                   <span>Items</span>
                   <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
@@ -3196,6 +3205,7 @@
                     </label>
                   </div>
                 </div>
+                <div class="flocs-tableWrap">
                 <table class="flocs-productsTable">
                   <thead>
                     <tr id="flocs-productsHeadRow">
@@ -3207,11 +3217,12 @@
                   </thead>
                   <tbody id="flocs-productsBody"></tbody>
                 </table>
+                </div>
                 <div id="flocs-errors" class="flocs-errors"></div>
               </div>
             </section>
 
-            <aside class="flocs-panel flocs-previewPanel" aria-label="Invoice preview">
+            <aside class="flocs-panel flocs-previewPanel" aria-label="Invoice preview" id="flocs-section-checkout">
               <div class="flocs-previewHeader">
                 <div><div class="flocs-previewTitle">Invoice preview</div></div>
                 <div>

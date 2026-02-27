@@ -1094,3 +1094,57 @@
   color:#0f5132;
   background:var(--accent-soft);
 }
+
+#viewFlocs .flocs-mobileQuickNav{
+  display:none;
+  gap:.45rem;
+  margin:0 0 .75rem;
+  flex-wrap:wrap;
+}
+#viewFlocs .flocs-mobileQuickNav .flocs-miniBtn{
+  font-size:.72rem;
+}
+#viewFlocs .flocs-tableWrap{
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+}
+#viewFlocs .flocs-optionalFields{
+  border:1px dashed rgba(148,163,184,.55);
+  border-radius:.6rem;
+  padding:.5rem .6rem .65rem;
+  background:var(--panel-soft);
+}
+#viewFlocs .flocs-optionalFields summary{
+  cursor:pointer;
+  font-size:.75rem;
+  color:var(--muted);
+  font-weight:600;
+}
+
+@media (max-width:768px){
+  #viewFlocs .flocs-shell{padding:.75rem .55rem 5.5rem;}
+  #viewFlocs .flocs-headerActions{width:100%;display:grid;grid-template-columns:1fr 1fr;}
+  #viewFlocs .flocs-headerActions .flocs-actionBtn{justify-content:center;padding:.6rem .5rem;font-size:.72rem;}
+  #viewFlocs .flocs-mobileQuickNav{display:flex;position:sticky;top:.25rem;z-index:25;padding:.35rem;background:rgba(246,246,247,.95);border:1px solid var(--panel-strong);border-radius:.65rem;backdrop-filter:blur(4px);}
+  #viewFlocs .flocs-mobileQuickNav > *{flex:1 1 30%;}
+  #viewFlocs .flocs-panel{padding:.7rem;}
+  #viewFlocs .flocs-labelRow span{font-size:.72rem;}
+  #viewFlocs .flocs-hint{font-size:.66rem;}
+  #viewFlocs .flocs-searchRow--large .flocs-input{font-size:.95rem;padding:.62rem .68rem;}
+  #viewFlocs .flocs-input,
+  #viewFlocs .flocs-select{max-width:none;font-size:16px;padding:.62rem .65rem;}
+  #viewFlocs .flocs-row > *{max-width:none;}
+  #viewFlocs .flocs-azBar{grid-template-columns:repeat(7,minmax(0,1fr));}
+  #viewFlocs .flocs-azBar button{font-size:.82rem;padding:.35rem .12rem;}
+  #viewFlocs .flocs-customerResults{max-height:220px;gap:.3rem;padding:.3rem;}
+  #viewFlocs .flocs-customerItem{width:calc(50% - .2rem);font-size:.66rem;min-height:2rem;}
+  #viewFlocs .flocs-productsTable{min-width:680px;font-size:.7rem;}
+  #viewFlocs .flocs-productsTable th,#viewFlocs .flocs-productsTable td{padding:.2rem;}
+  #viewFlocs .flocs-previewPanel{position:static;height:auto;}
+  #viewFlocs .flocs-previewControls{display:grid;gap:.45rem;}
+  #viewFlocs .flocs-previewControls .flocs-formSection{margin-bottom:0;padding-bottom:.5rem;}
+  #viewFlocs .flocs-actionsRow{align-items:stretch;}
+  #viewFlocs .flocs-actionsRow .flocs-actionBtn{width:100%;justify-content:center;}
+  #viewFlocs .flocs-toast{right:.5rem;left:.5rem;max-width:none;bottom:.75rem;}
+}

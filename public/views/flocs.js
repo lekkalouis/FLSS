@@ -2356,6 +2356,16 @@ ${state.customer.email || ""}${
       });
     }
 
+    if (shell) {
+      shell.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-flocs-scroll]");
+        if (!btn) return;
+        const target = document.querySelector(btn.dataset.flocsScroll || "");
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
     if (calcShipBtn) {
       calcShipBtn.addEventListener("click", () => {
         requestShippingQuote();
