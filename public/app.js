@@ -2121,12 +2121,28 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
   async function lookupPlaceCodeFromPP(destDetails) {
     const suburb = (destDetails.suburb || destDetails.address2 || "").trim();
     const town = (destDetails.city || "").trim();
+    const postal = String(destDetails.postal || "").trim();
 
     const queries = [];
-    if (suburb) queries.push(suburb);
+    const seenQueries = new Set();
+    const pushQuery = (value) => {
+      const q = String(value || "").trim();
+      if (!q) return;
+      const key = q.toLowerCase();
+      if (seenQueries.has(key)) return;
+      seenQueries.add(key);
+      queries.push(q);
+    };
+
+    // Search by area first (town/city/suburb), then fall back to postal code.
+    pushQuery(suburb);
     if (town && town.toLowerCase() !== suburb.toLowerCase()) {
-      queries.push(town);
-      if (suburb) queries.push(`${suburb} ${town}`);
+      pushQuery(town);
+      if (suburb) pushQuery(`${suburb} ${town}`);
+    }
+
+    if (/^\d{4,}$/.test(postal)) {
+      pushQuery(postal);
     }
 
     if (!queries.length) return null;
