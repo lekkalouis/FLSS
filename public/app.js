@@ -3199,7 +3199,7 @@ async function startOrder(orderNo) {
 
     const fulfillmentState = getPackedFulfillmentSelection(order, packingState);
     const hasUnfulfilledItems = Boolean(options.hasUnfulfilledItems ?? fulfillmentState.hasRemainingItems);
-    const showFulfill = fulfillmentState.anyPacked;
+    const showFulfill = !options.suppressFulfillAction && fulfillmentState.anyPacked;
     const fulfillLabel = hasUnfulfilledItems ? "Fulfill" : "Create fulfillment";
     const fulfillClass = hasUnfulfilledItems ? "dispatchFulfillBtn" : "dispatchFulfillBtn dispatchFulfillBtn--secondary";
     return `
@@ -4542,10 +4542,71 @@ async function startOrder(orderNo) {
           }
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
-            ${renderDispatchActions(o, laneId, orderNo, packingState, { hasUnfulfilledItems })}
+            ${renderDispatchActions(o, laneId, orderNo, packingState, {
+              hasUnfulfilledItems,
+              suppressFulfillAction: Boolean(combinedGroup && laneId !== "delivery" && laneId !== "pickup")
+            })}
           </div>
         </div>`;
     };
+
+
+    function getCombinedGroupFulfillmentMeta(groupOrders = []) {
+      const summary = {
+        hasRemainingItems: false,
+        anyPacked: false
+      };
+      groupOrders.forEach((order) => {
+        if (!order) return;
+        const state = getPackingState(order);
+        const fulfillmentState = getPackedFulfillmentSelection(order, state);
+        if (fulfillmentState.hasRemainingItems) summary.hasRemainingItems = true;
+        if (fulfillmentState.anyPacked) summary.anyPacked = true;
+      });
+      return summary;
+    }
+
+    function renderLaneCards(laneOrders, laneId) {
+      if (!Array.isArray(laneOrders) || !laneOrders.length) return "";
+      const renderedGroups = new Set();
+      const chunks = [];
+
+      laneOrders.forEach((order) => {
+        const orderNo = orderNoFromName(order?.name);
+        const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
+        const isShippingLane = laneId !== "delivery" && laneId !== "pickup";
+        if (!combinedGroup || !isShippingLane) {
+          chunks.push(cardHTML(order, laneId));
+          return;
+        }
+        if (renderedGroups.has(combinedGroup.id)) return;
+        renderedGroups.add(combinedGroup.id);
+
+        const groupedOrders = laneOrders.filter((entry) => {
+          const entryNo = orderNoFromName(entry?.name);
+          const entryGroup = entryNo ? getCombinedGroupForOrder(entryNo) : null;
+          return entryGroup?.id === combinedGroup.id;
+        });
+        if (groupedOrders.length < 2) {
+          chunks.push(cardHTML(order, laneId));
+          return;
+        }
+
+        const meta = getCombinedGroupFulfillmentMeta(groupedOrders);
+        const connectorButton = `
+          <div class="dispatchCombinedConnector" style="--combined-color:${combinedGroup.color}">
+            <div class="dispatchCombinedConnectorLine" aria-hidden="true"></div>
+            <button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping-combined" data-group-id="${combinedGroup.id}" ${meta.anyPacked ? "" : "disabled"}>Fulfill Combined Shipment</button>
+          </div>`;
+
+        const groupCards = groupedOrders
+          .map((groupOrder, index) => `${index === 1 ? connectorButton : ""}${cardHTML(groupOrder, laneId)}`)
+          .join("");
+        chunks.push(`<div class="dispatchCombinedCluster">${groupCards}</div>`);
+      });
+
+      return chunks.join("");
+    }
 
     dispatchBoard.innerHTML = cols
       .map((col) => {
@@ -4560,7 +4621,7 @@ async function startOrder(orderNo) {
             ? lanes.shippingAgent
             : lanes[col.id] || [];
         const cards =
-          laneOrders.map((order) => cardHTML(order, col.id)).join("") ||
+          renderLaneCards(laneOrders, col.id) ||
           `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
         return `
           <div class="dispatchCol">
@@ -5759,6 +5820,52 @@ async function startOrder(orderNo) {
         statusExplain("Flow trigger failed.", "warn");
         logDispatchEvent(`Flow trigger failed for order ${orderNo}: ${String(err)}`);
       }
+      return true;
+    }
+    if (actionType === "fulfill-shipping-combined") {
+      const groupId = action.dataset.groupId;
+      const group = groupId ? combinedShipments.get(groupId) : null;
+      if (!group?.orderNos?.length) {
+        statusExplain("Combined shipment group unavailable.", "warn");
+        return true;
+      }
+      const groupOrders = group.orderNos
+        .map((candidate) => ({ orderNo: candidate, order: dispatchOrderCache.get(candidate) }))
+        .filter((entry) => entry.order?.id);
+      if (groupOrders.length < 2) {
+        statusExplain("Combined shipment group unavailable.", "warn");
+        return true;
+      }
+      const anyPacked = groupOrders.some((entry) => getPackedFulfillmentSelection(entry.order, getPackingState(entry.order)).anyPacked);
+      if (!anyPacked) {
+        statusExplain("Mark at least one packed line item before fulfilling.", "warn");
+        return true;
+      }
+      const bookingParcelCount = groupOrders.reduce((sum, entry) => {
+        const state = getPackingState(entry.order);
+        return sum + (getParcelCountForDispatchOrder(entry.order, state) || 0);
+      }, 0);
+      if (!bookingParcelCount) {
+        statusExplain("Parcel count is required to book combined shipment.", "warn");
+        return true;
+      }
+      const rootOrderNo = groupOrders[0].orderNo;
+      await startOrder(rootOrderNo);
+      orderDetails.manualParcelCount = bookingParcelCount;
+      groupOrders.slice(1).forEach((entry) => {
+        const details = mapOrderToDispatchDetails(entry.order);
+        details.manualParcelCount = getParcelCountForDispatchOrder(entry.order, getPackingState(entry.order));
+        linkedOrders.set(entry.orderNo, details);
+      });
+      renderSessionUI();
+      const bundleOrders = [{ orderNo: rootOrderNo, details: orderDetails }].concat(
+        groupOrders.slice(1).map((entry) => ({ orderNo: entry.orderNo, details: linkedOrders.get(entry.orderNo) }))
+      );
+      await doBookingNow({
+        manual: true,
+        parcelCount: bookingParcelCount,
+        bundleOrders
+      });
       return true;
     }
     if (actionType === "fulfill-shipping") {
