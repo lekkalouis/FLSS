@@ -1,6 +1,7 @@
 import alertsRouter from "./alerts.js";
 import configRouter from "./config.js";
 import customerAccountsRouter from "./customer-accounts.js";
+import dispatchControllerRouter from "./dispatch.controller.js";
 import docsRouter from "./docs.js";
 import liquidTemplatesRouter from "./liquidTemplates.js";
 import notificationTemplatesRouter from "./notificationTemplates.js";
@@ -14,6 +15,7 @@ export const apiRouters = [
   { name: "status", router: statusRouter },
   { name: "config", router: configRouter },
   { name: "customerAccounts", router: customerAccountsRouter },
+  { name: "dispatchController", router: dispatchControllerRouter },
   { name: "docs", router: docsRouter },
   { name: "liquidTemplates", router: liquidTemplatesRouter },
   { name: "notificationTemplates", router: notificationTemplatesRouter },

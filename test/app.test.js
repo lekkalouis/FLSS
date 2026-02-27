@@ -141,3 +141,61 @@ test('notification template endpoints provide defaults and CRUD updates', async 
     await fs.rm(notificationTemplatesFile, { force: true });
   }
 });
+
+test('dispatch controller endpoints support sync, next, prev and confirm flow', async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const syncResponse = await fetch(`${baseUrl}/api/v1/dispatch/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queueOrderIds: ['1001', '1002', '1003'], mode: 'dispatch' })
+    });
+    assert.equal(syncResponse.status, 200);
+    const syncBody = await syncResponse.json();
+    assert.equal(syncBody.ok, true);
+    assert.equal(syncBody.selectedOrderId, '1001');
+
+    const nextResponse = await fetch(`${baseUrl}/api/v1/dispatch/next`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(nextResponse.status, 200);
+    const nextBody = await nextResponse.json();
+    assert.equal(nextBody.ok, true);
+    assert.equal(nextBody.selectedOrderId, '1002');
+
+    await new Promise((resolve) => setTimeout(resolve, 45));
+
+    const prevResponse = await fetch(`${baseUrl}/api/v1/dispatch/prev`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(prevResponse.status, 200);
+    const prevBody = await prevResponse.json();
+    assert.equal(prevBody.ok, true);
+    assert.equal(prevBody.selectedOrderId, '1001');
+
+    await new Promise((resolve) => setTimeout(resolve, 45));
+
+    const confirmResponse = await fetch(`${baseUrl}/api/v1/dispatch/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(confirmResponse.status, 200);
+    const confirmBody = await confirmResponse.json();
+    assert.equal(confirmBody.ok, true);
+    assert.equal(confirmBody.selectedOrderId, '1001');
+
+    const stateResponse = await fetch(`${baseUrl}/api/v1/dispatch/state`);
+    assert.equal(stateResponse.status, 200);
+    const stateBody = await stateResponse.json();
+    assert.equal(stateBody.selectedOrderId, '1001');
+    assert.equal(stateBody.lastConfirmedOrderId, '1001');
+    assert.equal(Array.isArray(stateBody.queueOrderIds), true);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

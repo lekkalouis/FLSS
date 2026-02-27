@@ -53,6 +53,9 @@ export const config = {
 
   FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
 
+  ROTARY_TOKEN: process.env.ROTARY_TOKEN || "",
+  ROTARY_DEBOUNCE_MS: numberOrDefault(process.env.ROTARY_DEBOUNCE_MS, 40, { min: 1 }),
+
   UI_COST_ALERT_THRESHOLD: process.env.UI_COST_ALERT_THRESHOLD,
   UI_BOOKING_IDLE_MS: process.env.UI_BOOKING_IDLE_MS,
   UI_TRUCK_ALERT_THRESHOLD: process.env.UI_TRUCK_ALERT_THRESHOLD,

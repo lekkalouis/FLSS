@@ -372,6 +372,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let dispatchModalShipmentId = null;
   let dispatchKnownOrderNos = new Set();
   let dispatchVoicePrimed = false;
+  let dispatchControllerState = null;
+  let dispatchLastHandledConfirmAt = null;
   const DISPATCH_PRIORITY_KEY = "fl_dispatch_priority_v1";
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
@@ -5108,6 +5110,61 @@ async function startOrder(orderNo) {
     return printShopifyTemplate(order, "printDocs");
   }
 
+  function getDispatchQueueOrderIds() {
+    return (dispatchOrdersLatest || [])
+      .map((order) => String(order?.name || "").replace("#", "").trim())
+      .filter(Boolean);
+  }
+
+  async function syncDispatchControllerState(mode = "dispatch") {
+    try {
+      const response = await fetch(`${API_BASE}/dispatch/state`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ queueOrderIds: getDispatchQueueOrderIds(), mode })
+      });
+      if (!response.ok) return;
+      dispatchControllerState = await response.json();
+    } catch {
+      // best-effort sync only
+    }
+  }
+
+  async function loadDispatchControllerState() {
+    try {
+      const response = await fetch(`${API_BASE}/dispatch/state`, { headers: { Accept: "application/json" } });
+      if (!response.ok) return null;
+      const state = await response.json();
+      dispatchControllerState = state;
+      return state;
+    } catch {
+      return null;
+    }
+  }
+
+  function applyDispatchControllerState() {
+    if (!dispatchControllerState) return;
+    const selectedOrderId = String(dispatchControllerState.selectedOrderId || "").trim();
+    if (!selectedOrderId) {
+      dispatchSelectedOrders.clear();
+      return;
+    }
+
+    if (dispatchSelectedOrders.size !== 1 || !dispatchSelectedOrders.has(selectedOrderId)) {
+      dispatchSelectedOrders.clear();
+      dispatchSelectedOrders.add(selectedOrderId);
+    }
+
+    const confirmedAt = dispatchControllerState.lastConfirmedAt;
+    const confirmedOrderId = String(dispatchControllerState.lastConfirmedOrderId || "").trim();
+    if (confirmedAt && confirmedAt !== dispatchLastHandledConfirmAt && confirmedOrderId) {
+      dispatchLastHandledConfirmAt = confirmedAt;
+      if (dispatchOrderCache.has(confirmedOrderId)) {
+        openDispatchOrderModal(confirmedOrderId);
+      }
+    }
+  }
+
   async function refreshDispatchData() {
     try {
       const [ordersRes, shipmentsRes] = await Promise.all([
@@ -5135,7 +5192,12 @@ async function startOrder(orderNo) {
       if (dispatchVoicePrimed) incomingOrders.slice(0, 3).forEach((order) => announceIncomingOrder(order));
       dispatchVoicePrimed = true;
 
+      const isDispatchViewActive = document.querySelector(".flView.flView--active")?.id === "viewDispatch";
+      await syncDispatchControllerState(isDispatchViewActive ? "dispatch" : "idle");
+      await loadDispatchControllerState();
+      applyDispatchControllerState();
       renderDispatchBoard(dispatchOrdersLatest);
+      applyDispatchControllerState();
       updateDashboardKpis();
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
     } catch (e) {
