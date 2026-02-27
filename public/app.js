@@ -611,6 +611,49 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     return combinedShipments.get(groupId) || null;
   }
 
+  function rebuildAutomaticCombinedShipments(orders = []) {
+    combinedShipments.clear();
+    combinedOrderToGroup.clear();
+    const groupedByAddress = new Map();
+
+    (orders || []).forEach((order) => {
+      if (laneFromOrder(order) === "pickup") return;
+      const orderNo = orderNoFromName(order?.name);
+      const signature = addressSignatureFromOrder(order);
+      if (!orderNo || !signature) return;
+      if (!groupedByAddress.has(signature)) {
+        groupedByAddress.set(signature, { signature, address: getDispatchOrderAddress(order), orderNos: [] });
+      }
+      groupedByAddress.get(signature).orderNos.push(orderNo);
+    });
+
+    Array.from(groupedByAddress.values())
+      .filter((entry) => entry.orderNos.length > 1)
+      .forEach((entry) => {
+        const groupId = `combined-auto-${entry.signature}`;
+        const group = {
+          id: groupId,
+          orderNos: entry.orderNos,
+          addressSignature: entry.signature,
+          address: entry.address,
+          color: colorFromGroupId(groupId),
+          auto: true
+        };
+        combinedShipments.set(groupId, group);
+        entry.orderNos.forEach((orderNo) => combinedOrderToGroup.set(orderNo, groupId));
+      });
+  }
+
+  function getParcelCountForDispatchOrder(order, packingState) {
+    const fromMeta =
+      typeof order?.parcel_count_from_meta === "number" && order.parcel_count_from_meta > 0
+        ? order.parcel_count_from_meta
+        : typeof order?.parcel_count === "number" && order.parcel_count > 0
+        ? order.parcel_count
+        : null;
+    return fromMeta || getPackingParcelCount(packingState) || getAutoParcelCountForOrder(order?.line_items || []) || null;
+  }
+
   async function createCombinedShipmentFromSelection(orderNos = Array.from(dispatchSelectedOrders)) {
     const selected = [...new Set((orderNos || []).map((orderNo) => String(orderNo || "").trim()).filter(Boolean))];
     if (selected.length < 2) {
@@ -3156,7 +3199,7 @@ async function startOrder(orderNo) {
 
     const fulfillmentState = getPackedFulfillmentSelection(order, packingState);
     const hasUnfulfilledItems = Boolean(options.hasUnfulfilledItems ?? fulfillmentState.hasRemainingItems);
-    const showFulfill = fulfillmentState.anyPacked;
+    const showFulfill = !options.suppressFulfillAction && fulfillmentState.anyPacked;
     const fulfillLabel = hasUnfulfilledItems ? "Fulfill" : "Create fulfillment";
     const fulfillClass = hasUnfulfilledItems ? "dispatchFulfillBtn" : "dispatchFulfillBtn dispatchFulfillBtn--secondary";
     return `
@@ -4346,6 +4389,7 @@ async function startOrder(orderNo) {
 
     filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     const list = filtered;
+    rebuildAutomaticCombinedShipments(list);
     if (!list.length) {
       dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
       dispatchSelectedOrders.clear();
@@ -4453,6 +4497,11 @@ async function startOrder(orderNo) {
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
           ${
+            combinedGroup
+              ? `<div class="dispatchCardMeta dispatchCardMeta--combined"><span class="dispatchCombinedDot" aria-hidden="true"></span> Combined Shipment · ${combinedGroup.orderNos.length} orders</div>`
+              : ""
+          }
+          ${
             shippedItemCount > 0
               ? `<div class="dispatchCardMeta dispatchCardMeta--shipment">📦 ${shippedItemCount} item${
                   shippedItemCount === 1 ? "" : "s"
@@ -4493,10 +4542,71 @@ async function startOrder(orderNo) {
           }
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
-            ${renderDispatchActions(o, laneId, orderNo, packingState, { hasUnfulfilledItems })}
+            ${renderDispatchActions(o, laneId, orderNo, packingState, {
+              hasUnfulfilledItems,
+              suppressFulfillAction: Boolean(combinedGroup && laneId !== "delivery" && laneId !== "pickup")
+            })}
           </div>
         </div>`;
     };
+
+
+    function getCombinedGroupFulfillmentMeta(groupOrders = []) {
+      const summary = {
+        hasRemainingItems: false,
+        anyPacked: false
+      };
+      groupOrders.forEach((order) => {
+        if (!order) return;
+        const state = getPackingState(order);
+        const fulfillmentState = getPackedFulfillmentSelection(order, state);
+        if (fulfillmentState.hasRemainingItems) summary.hasRemainingItems = true;
+        if (fulfillmentState.anyPacked) summary.anyPacked = true;
+      });
+      return summary;
+    }
+
+    function renderLaneCards(laneOrders, laneId) {
+      if (!Array.isArray(laneOrders) || !laneOrders.length) return "";
+      const renderedGroups = new Set();
+      const chunks = [];
+
+      laneOrders.forEach((order) => {
+        const orderNo = orderNoFromName(order?.name);
+        const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
+        const isShippingLane = laneId !== "delivery" && laneId !== "pickup";
+        if (!combinedGroup || !isShippingLane) {
+          chunks.push(cardHTML(order, laneId));
+          return;
+        }
+        if (renderedGroups.has(combinedGroup.id)) return;
+        renderedGroups.add(combinedGroup.id);
+
+        const groupedOrders = laneOrders.filter((entry) => {
+          const entryNo = orderNoFromName(entry?.name);
+          const entryGroup = entryNo ? getCombinedGroupForOrder(entryNo) : null;
+          return entryGroup?.id === combinedGroup.id;
+        });
+        if (groupedOrders.length < 2) {
+          chunks.push(cardHTML(order, laneId));
+          return;
+        }
+
+        const meta = getCombinedGroupFulfillmentMeta(groupedOrders);
+        const connectorButton = `
+          <div class="dispatchCombinedConnector" style="--combined-color:${combinedGroup.color}">
+            <div class="dispatchCombinedConnectorLine" aria-hidden="true"></div>
+            <button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping-combined" data-group-id="${combinedGroup.id}" ${meta.anyPacked ? "" : "disabled"}>Fulfill Combined Shipment</button>
+          </div>`;
+
+        const groupCards = groupedOrders
+          .map((groupOrder, index) => `${index === 1 ? connectorButton : ""}${cardHTML(groupOrder, laneId)}`)
+          .join("");
+        chunks.push(`<div class="dispatchCombinedCluster">${groupCards}</div>`);
+      });
+
+      return chunks.join("");
+    }
 
     dispatchBoard.innerHTML = cols
       .map((col) => {
@@ -4511,7 +4621,7 @@ async function startOrder(orderNo) {
             ? lanes.shippingAgent
             : lanes[col.id] || [];
         const cards =
-          laneOrders.map((order) => cardHTML(order, col.id)).join("") ||
+          renderLaneCards(laneOrders, col.id) ||
           `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
         return `
           <div class="dispatchCol">
@@ -5712,6 +5822,52 @@ async function startOrder(orderNo) {
       }
       return true;
     }
+    if (actionType === "fulfill-shipping-combined") {
+      const groupId = action.dataset.groupId;
+      const group = groupId ? combinedShipments.get(groupId) : null;
+      if (!group?.orderNos?.length) {
+        statusExplain("Combined shipment group unavailable.", "warn");
+        return true;
+      }
+      const groupOrders = group.orderNos
+        .map((candidate) => ({ orderNo: candidate, order: dispatchOrderCache.get(candidate) }))
+        .filter((entry) => entry.order?.id);
+      if (groupOrders.length < 2) {
+        statusExplain("Combined shipment group unavailable.", "warn");
+        return true;
+      }
+      const anyPacked = groupOrders.some((entry) => getPackedFulfillmentSelection(entry.order, getPackingState(entry.order)).anyPacked);
+      if (!anyPacked) {
+        statusExplain("Mark at least one packed line item before fulfilling.", "warn");
+        return true;
+      }
+      const bookingParcelCount = groupOrders.reduce((sum, entry) => {
+        const state = getPackingState(entry.order);
+        return sum + (getParcelCountForDispatchOrder(entry.order, state) || 0);
+      }, 0);
+      if (!bookingParcelCount) {
+        statusExplain("Parcel count is required to book combined shipment.", "warn");
+        return true;
+      }
+      const rootOrderNo = groupOrders[0].orderNo;
+      await startOrder(rootOrderNo);
+      orderDetails.manualParcelCount = bookingParcelCount;
+      groupOrders.slice(1).forEach((entry) => {
+        const details = mapOrderToDispatchDetails(entry.order);
+        details.manualParcelCount = getParcelCountForDispatchOrder(entry.order, getPackingState(entry.order));
+        linkedOrders.set(entry.orderNo, details);
+      });
+      renderSessionUI();
+      const bundleOrders = [{ orderNo: rootOrderNo, details: orderDetails }].concat(
+        groupOrders.slice(1).map((entry) => ({ orderNo: entry.orderNo, details: linkedOrders.get(entry.orderNo) }))
+      );
+      await doBookingNow({
+        manual: true,
+        parcelCount: bookingParcelCount,
+        bundleOrders
+      });
+      return true;
+    }
     if (actionType === "fulfill-shipping") {
       if (!orderNo) return true;
       const order = dispatchOrderCache.get(orderNo);
@@ -5734,15 +5890,26 @@ async function startOrder(orderNo) {
         if (!proceed) return true;
       }
 
-      const parcelCountFromMeta =
-        typeof order?.parcel_count_from_meta === "number" && order.parcel_count_from_meta > 0
-          ? order.parcel_count_from_meta
-          : typeof order?.parcel_count === "number" && order.parcel_count > 0
-          ? order.parcel_count
-          : null;
-      const parcelCountFromPacking = getPackingParcelCount(packingState);
-      const parcelCountFromItems = getAutoParcelCountForOrder(order?.line_items || []);
-      const bookingParcelCount = parcelCountFromMeta || parcelCountFromPacking || parcelCountFromItems || null;
+      const combinedGroup = getCombinedGroupForOrder(orderNo);
+      const groupedOrderNos = combinedGroup?.orderNos?.length
+        ? combinedGroup.orderNos.filter((candidate) => {
+            const candidateOrder = dispatchOrderCache.get(candidate);
+            return candidateOrder && laneFromOrder(candidateOrder) !== "pickup";
+          })
+        : [orderNo];
+      const targetOrderNos = groupedOrderNos.length ? groupedOrderNos : [orderNo];
+      const targetOrders = targetOrderNos
+        .map((candidate) => ({ orderNo: candidate, order: dispatchOrderCache.get(candidate) }))
+        .filter((entry) => entry.order?.id);
+      if (!targetOrders.length) {
+        statusExplain("Fulfill unavailable for this order.", "warn");
+        return true;
+      }
+
+      const bookingParcelCount = targetOrders.reduce((sum, entry) => {
+        const state = getPackingState(entry.order);
+        return sum + (getParcelCountForDispatchOrder(entry.order, state) || 0);
+      }, 0);
 
       if (!bookingParcelCount) {
         statusExplain(`Parcel count is required to book shipment for ${orderNo}.`, "warn");
@@ -5754,15 +5921,24 @@ async function startOrder(orderNo) {
         ? getSelectedFulfillmentWeightKg(order, fulfillmentState.selectedLineItems)
         : null;
 
-      await startOrder(orderNo);
+      const rootOrderNo = targetOrders[0].orderNo;
+      await startOrder(rootOrderNo);
       orderDetails.manualParcelCount = bookingParcelCount;
+      targetOrders.slice(1).forEach((entry) => {
+        const details = mapOrderToDispatchDetails(entry.order);
+        details.manualParcelCount = getParcelCountForDispatchOrder(entry.order, getPackingState(entry.order));
+        linkedOrders.set(entry.orderNo, details);
+      });
       renderSessionUI();
+      const bundleOrders = [{ orderNo: rootOrderNo, details: orderDetails }].concat(
+        targetOrders.slice(1).map((entry) => ({ orderNo: entry.orderNo, details: linkedOrders.get(entry.orderNo) }))
+      );
       await doBookingNow({
         manual: true,
         parcelCount: bookingParcelCount,
         keepOnBoard: isSplitFulfillment,
         weightKg: selectedWeightKg,
-        bundleOrders: [{ orderNo, details: orderDetails }],
+        bundleOrders,
         selectedLineItemsByOrder: isSplitFulfillment ? { [orderNo]: fulfillmentState.selectedLineItems } : null
       });
       return true;
