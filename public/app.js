@@ -2121,12 +2121,28 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
   async function lookupPlaceCodeFromPP(destDetails) {
     const suburb = (destDetails.suburb || destDetails.address2 || "").trim();
     const town = (destDetails.city || "").trim();
+    const postal = String(destDetails.postal || "").trim();
 
     const queries = [];
-    if (suburb) queries.push(suburb);
+    const seenQueries = new Set();
+    const pushQuery = (value) => {
+      const q = String(value || "").trim();
+      if (!q) return;
+      const key = q.toLowerCase();
+      if (seenQueries.has(key)) return;
+      seenQueries.add(key);
+      queries.push(q);
+    };
+
+    // Search by area first (town/city/suburb), then fall back to postal code.
+    pushQuery(suburb);
     if (town && town.toLowerCase() !== suburb.toLowerCase()) {
-      queries.push(town);
-      if (suburb) queries.push(`${suburb} ${town}`);
+      pushQuery(town);
+      if (suburb) pushQuery(`${suburb} ${town}`);
+    }
+
+    if (/^\d{4,}$/.test(postal)) {
+      pushQuery(postal);
     }
 
     if (!queries.length) return null;
@@ -2367,7 +2383,25 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       if (!orderDetails[k]) missing.push(k);
     });
 
-    const bookingDetails = bookingWeightKg ? { ...orderDetails, totalWeightKg: bookingWeightKg } : orderDetails;
+    const combinedWeightKg = bundleOrders.reduce((sum, entry) => {
+      const value = Number(entry?.details?.totalWeightKg || 0);
+      return Number.isFinite(value) && value > 0 ? sum + value : sum;
+    }, 0);
+    const bundlePlaceCode = bundleOrders.reduce((found, entry) => {
+      if (found != null) return found;
+      return entry?.details?.placeCode != null ? entry.details.placeCode : null;
+    }, null);
+
+    const bookingDetailsBase = {
+      ...orderDetails,
+      placeCode: bundlePlaceCode != null ? bundlePlaceCode : orderDetails.placeCode
+    };
+
+    if (combinedWeightKg > 0) {
+      bookingDetailsBase.totalWeightKg = combinedWeightKg;
+    }
+
+    const bookingDetails = bookingWeightKg ? { ...bookingDetailsBase, totalWeightKg: bookingWeightKg } : bookingDetailsBase;
     const payload = buildParcelPerfectPayload(bookingDetails, totalExpected);
     if (!payload.details.destplace) missing.push("destplace (place code)");
 
