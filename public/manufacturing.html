@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FLSS Manufacturing Setup</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; max-width: 900px; }
+    .row { display:flex; gap:.5rem; margin-bottom: 1rem; }
+    button { padding:.6rem 1rem; cursor:pointer; }
+    pre { background:#111827; color:#e5e7eb; padding:1rem; border-radius:8px; overflow:auto; }
+    .muted { color:#555; }
+    code { background:#f3f4f6; padding:.15rem .35rem; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <h1>Manufacturing Phase 1 Setup</h1>
+  <p class="muted">
+    This UI calls <code>/api/v1/manufacturing/setup/phase1</code>.
+  </p>
+  <div class="row">
+    <button id="btnDryRun">Dry run (no changes)</button>
+    <button id="btnApply">Apply (create missing defs)</button>
+  </div>
+  <pre id="out">Click a button to run Phase 1 setup.</pre>
+
+  <script src="/manufacturing.js" defer></script>
+
+</body>
+</html>

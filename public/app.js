@@ -328,6 +328,15 @@ import { initScanStationNext } from "./views/scan-station-next.js";
       target: "/purchase-orders.html",
       meta: "Materials ordering",
       tag: "Module"
+    },
+    {
+      id: "manufacturing-setup",
+      title: "Manufacturing Setup",
+      description: "Run Phase 1 FLSS metafield/metaobject setup in dry-run or apply mode.",
+      type: "link",
+      target: "/manufacturing.html",
+      meta: "Manufacturing tools",
+      tag: "Module"
     }
   ];
 
