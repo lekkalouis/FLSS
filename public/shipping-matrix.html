@@ -11,7 +11,7 @@
       .card { background: #fff; border-radius: 12px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 1rem; }
       h1 { margin: 0 0 .5rem; font-size: 1.4rem; }
       .muted { color: #64748b; margin: 0; }
-      .controls { display: grid; grid-template-columns: 1fr 220px auto; gap: .75rem; align-items: end; }
+      .controls { display: grid; grid-template-columns: 1fr 220px 1fr auto; gap: .75rem; align-items: end; }
       label { display: grid; gap: .25rem; font-size: .85rem; }
       input, select, button { padding: .6rem .7rem; border-radius: 8px; border: 1px solid #cbd5e1; font-size: .95rem; }
       button { border: 0; background: #0f766e; color: #fff; font-weight: 600; cursor: pointer; }
@@ -29,7 +29,7 @@
     <div class="wrap">
       <div class="card">
         <h1>South Africa Shipping Matrix</h1>
-        <p class="muted">Run ParcelPerfect quote simulations by weight across major/regional centres.</p>
+        <p class="muted">Run ParcelPerfect quote simulations by weight across major/regional/outlying centres.</p>
       </div>
 
       <div class="card">
@@ -44,7 +44,13 @@
               <option value="all">All centres</option>
               <option value="major">Major only</option>
               <option value="regional">Regional only</option>
+              <option value="outlying">Outlying only</option>
+              <option value="regional_outlying">Regional + outlying</option>
             </select>
+          </label>
+          <label>
+            Town filter (comma separated, optional)
+            <input id="townFilter" placeholder="e.g. Mthatha, Springbok" />
           </label>
           <button id="runBtn">Generate matrix</button>
         </div>

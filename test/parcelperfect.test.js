@@ -21,7 +21,8 @@ test('normalizeMatrixDestinations filters invalid destinations and normalizes ty
     normalizeMatrixDestinations([
       { place: 1234, town: 'Cape Town', type: 'major' },
       { place: '5678', name: 'Mthatha', type: 'regional' },
-      { place: null, town: 'Invalid' }
+      { place: null, town: 'Invalid' },
+      { place: 9911, town: 'Springbok', type: 'outlying' }
     ]),
     [
       {
@@ -37,6 +38,14 @@ test('normalizeMatrixDestinations filters invalid destinations and normalizes ty
         town: 'Mthatha',
         name: 'Mthatha',
         type: 'regional',
+        postcode: null,
+        province: null
+      },
+      {
+        place: 9911,
+        town: 'Springbok',
+        name: 'Springbok',
+        type: 'outlying',
         postcode: null,
         province: null
       }
@@ -71,10 +80,23 @@ test('selectMatrixDestinations falls back to built-in South African centres', ()
 test('selectMatrixDestinations filters by major or regional centre type', () => {
   const majorOnly = selectMatrixDestinations([], 'major');
   const regionalOnly = selectMatrixDestinations([], 'regional');
+  const outlyingOnly = selectMatrixDestinations([], 'outlying');
   assert.ok(majorOnly.length > 0);
   assert.ok(regionalOnly.length > 0);
+  assert.ok(outlyingOnly.length > 0);
   assert.ok(majorOnly.every((item) => item.type === 'major'));
   assert.ok(regionalOnly.every((item) => item.type === 'regional'));
+  assert.ok(outlyingOnly.every((item) => item.type === 'outlying'));
+});
+
+test('selectMatrixDestinations supports regional + outlying and town filters', () => {
+  const filtered = selectMatrixDestinations([], 'regional_outlying', ['Mthatha', 'Springbok']);
+  assert.ok(filtered.length >= 2);
+  assert.ok(filtered.every((item) => item.type === 'regional' || item.type === 'outlying'));
+  assert.deepEqual(
+    filtered.map((item) => item.town).sort(),
+    ['Mthatha', 'Springbok']
+  );
 });
 
 

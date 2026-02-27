@@ -2,6 +2,7 @@ const API_BASE = `${location.origin}/api/v1`;
 
 const weightsInput = document.getElementById('weights');
 const centreTypeInput = document.getElementById('centreType');
+const townFilterInput = document.getElementById('townFilter');
 const runBtn = document.getElementById('runBtn');
 const statusEl = document.getElementById('status');
 const metaEl = document.getElementById('meta');
@@ -12,6 +13,13 @@ function parseWeights(input) {
     .split(',')
     .map((v) => Number(v.trim()))
     .filter((v) => Number.isFinite(v) && v > 0);
+}
+
+function parseTownFilter(input) {
+  return String(input || '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
 }
 
 function money(value) {
@@ -52,6 +60,7 @@ function renderMeta(payload) {
   const entries = [
     `Generated: ${payload.generatedAt || '—'}`,
     `Centre type: ${payload.centreType || 'all'}`,
+    `Town filter: ${(payload.townFilter || []).join(', ') || 'None'}`,
     `Destinations: ${payload.destinationCount ?? payload.matrix?.length ?? 0}`,
     `Quote attempts: ${payload.quoteAttempts ?? 0}`,
     `Successful: ${payload.successCount ?? 0}`
@@ -71,6 +80,7 @@ function renderTable(payload) {
       <tr>
         <th>Centre</th>
         <th>Type</th>
+        <th>Province</th>
         ${weights.map((w) => `<th>${w} kg</th>`).join('')}
       </tr>
     </thead>`;
@@ -84,7 +94,7 @@ function renderTable(payload) {
         }
         return `<td><span class="ok">${money(details.amount)}</span><br><small>${details.service || 'Service'} · ${details.quoteno || ''}</small></td>`;
       });
-      return `<tr><td>${row.destination?.town || row.destination?.name || 'Unknown'}</td><td>${row.destination?.type || '—'}</td>${cells.join('')}</tr>`;
+      return `<tr><td>${row.destination?.town || row.destination?.name || 'Unknown'}</td><td>${row.destination?.type || '—'}</td><td>${row.destination?.province || '—'}</td>${cells.join('')}</tr>`;
     })
     .join('');
 
@@ -93,6 +103,7 @@ function renderTable(payload) {
 
 async function runMatrix() {
   const weights = parseWeights(weightsInput.value);
+  const towns = parseTownFilter(townFilterInput?.value);
   if (!weights.length) {
     setStatus('Enter at least one valid weight.', true);
     return;
@@ -107,7 +118,8 @@ async function runMatrix() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         weights,
-        centreType: centreTypeInput.value
+        centreType: centreTypeInput.value,
+        towns
       })
     });
 

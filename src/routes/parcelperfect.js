@@ -265,7 +265,8 @@ router.post("/pp/matrix", async (req, res) => {
 
     const weights = normalizeWeights(req.body?.weights || DEFAULT_MATRIX_WEIGHTS_KG);
     const centreType = String(req.body?.centreType || req.body?.centerType || "all").toLowerCase();
-    const destinations = selectMatrixDestinations(req.body?.destinations || [], centreType);
+    const townFilter = req.body?.towns || req.body?.townFilter || [];
+    const destinations = selectMatrixDestinations(req.body?.destinations || [], centreType, townFilter);
     if (!weights.length) {
       return badRequest(res, "Provide at least one positive weight in body.weights");
     }
@@ -309,6 +310,7 @@ router.post("/pp/matrix", async (req, res) => {
       generatedAt: new Date().toISOString(),
       originPlace: resolvePlaceId(config.UI_ORIGIN_PLACE_ID, config.PP_PLACE_ID, 4663),
       centreType,
+      townFilter: Array.isArray(townFilter) ? townFilter : [],
       destinationCount: destinations.length,
       quoteAttempts: destinations.length * weights.length,
       successCount,

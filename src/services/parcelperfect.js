@@ -56,7 +56,11 @@ export const SOUTH_AFRICA_MATRIX_CENTRES = [
   { place: 6956, town: "East London", type: "regional", province: "Eastern Cape" },
   { place: 2278, town: "George", type: "regional", province: "Western Cape" },
   { place: 2627, town: "Rustenburg", type: "regional", province: "North West" },
-  { place: 1794, town: "Mthatha", type: "regional", province: "Eastern Cape" }
+  { place: 1794, town: "Mthatha", type: "regional", province: "Eastern Cape" },
+  { place: 3518, town: "Upington", type: "outlying", province: "Northern Cape" },
+  { place: 5689, town: "Springbok", type: "outlying", province: "Northern Cape" },
+  { place: 3434, town: "Kokstad", type: "outlying", province: "KwaZulu-Natal" },
+  { place: 4966, town: "Vryburg", type: "outlying", province: "North West" }
 ];
 
 export function parseWeightKg(value) {
@@ -79,11 +83,13 @@ export function normalizeMatrixDestinations(destinations = []) {
       if (!Number.isFinite(place) || place <= 0) return null;
       const town = String(destination.town || destination.name || "").trim();
       const type = String(destination.type || "major").trim().toLowerCase();
+      const normalizedType =
+        type === "regional" || type === "outlying" ? type : "major";
       return {
         place,
         town,
         name: String(destination.name || town || `Place ${place}`).trim(),
-        type: type === "regional" ? "regional" : "major",
+        type: normalizedType,
         postcode: String(destination.postcode || "").trim() || null,
         province: String(destination.province || "").trim() || null
       };
@@ -91,15 +97,34 @@ export function normalizeMatrixDestinations(destinations = []) {
     .filter((value) => value !== null);
 }
 
-export function selectMatrixDestinations(destinations = [], centreType = "all") {
+export function selectMatrixDestinations(destinations = [], centreType = "all", townFilter = []) {
   const normalized = normalizeMatrixDestinations(destinations);
   const fallback = normalizeMatrixDestinations(SOUTH_AFRICA_MATRIX_CENTRES);
   const source = normalized.length ? normalized : fallback;
   const type = String(centreType || "all").trim().toLowerCase();
-  if (type === "major" || type === "regional") {
-    return source.filter((item) => item.type === type);
+
+  let filteredByType = source;
+  if (type === "major" || type === "regional" || type === "outlying") {
+    filteredByType = source.filter((item) => item.type === type);
+  } else if (type === "regional_outlying") {
+    filteredByType = source.filter((item) => item.type === "regional" || item.type === "outlying");
   }
-  return source;
+
+  const towns = Array.isArray(townFilter)
+    ? townFilter
+        .map((value) => String(value || "").trim().toLowerCase())
+        .filter(Boolean)
+    : [];
+
+  if (!towns.length) {
+    return filteredByType;
+  }
+
+  const townSet = new Set(towns);
+  return filteredByType.filter((item) => {
+    const town = String(item.town || item.name || "").trim().toLowerCase();
+    return townSet.has(town);
+  });
 }
 
 export function extractQuoteFromV28(shape) {
