@@ -603,6 +603,56 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     };
   }
 
+  function mapOrderToDispatchDetails(order) {
+    const shipping = order?.shipping_address || {};
+    const customer = order?.customer || {};
+    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+
+    let totalGrams = 0;
+    lineItems.forEach((lineItem) => {
+      const gramsPerUnit = Number(lineItem?.grams || 0);
+      const qty = Number(lineItem?.quantity || 1);
+      if (Number.isFinite(gramsPerUnit) && Number.isFinite(qty)) {
+        totalGrams += gramsPerUnit * qty;
+      }
+    });
+
+    const parcelCountFromMeta =
+      typeof order?.parcel_count_from_meta === "number" && order.parcel_count_from_meta > 0
+        ? order.parcel_count_from_meta
+        : typeof order?.parcel_count === "number" && order.parcel_count > 0
+        ? order.parcel_count
+        : null;
+
+    return {
+      raw: order || null,
+      name: order?.customer_name || shipping?.name || order?.name || "",
+      phone: shipping?.phone || customer?.phone || order?.phone || "",
+      email: order?.email || customer?.email || "",
+      address1: order?.shipping_address1 || shipping?.address1 || "",
+      address2: order?.shipping_address2 || shipping?.address2 || "",
+      city: order?.shipping_city || shipping?.city || "",
+      province: order?.shipping_province || shipping?.province || "",
+      postal: order?.shipping_postal || shipping?.zip || "",
+      suburb: order?.shipping_address2 || shipping?.address2 || "",
+      line_items: lineItems,
+      totalWeightKg: totalGrams > 0 ? totalGrams / 1000 : CONFIG.BOX_DIM.massKg,
+      placeCode:
+        order?.customer_place_code != null
+          ? order.customer_place_code
+          : order?.place_code != null
+          ? order.place_code
+          : null,
+      placeLabel: null,
+      parcelCountFromTag:
+        typeof order?.parcel_count_from_tag === "number" && order.parcel_count_from_tag > 0
+          ? order.parcel_count_from_tag
+          : null,
+      parcelCountFromMeta,
+      manualParcelCount: null
+    };
+  }
+
   function addressSignatureFromOrder(order) {
     const addr = getDispatchOrderAddress(order);
     if (!addr) return "";
