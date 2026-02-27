@@ -2367,7 +2367,25 @@ admin@flippenlekkaspices.co.za`.replace(/\n/g, "<br>");
       if (!orderDetails[k]) missing.push(k);
     });
 
-    const bookingDetails = bookingWeightKg ? { ...orderDetails, totalWeightKg: bookingWeightKg } : orderDetails;
+    const combinedWeightKg = bundleOrders.reduce((sum, entry) => {
+      const value = Number(entry?.details?.totalWeightKg || 0);
+      return Number.isFinite(value) && value > 0 ? sum + value : sum;
+    }, 0);
+    const bundlePlaceCode = bundleOrders.reduce((found, entry) => {
+      if (found != null) return found;
+      return entry?.details?.placeCode != null ? entry.details.placeCode : null;
+    }, null);
+
+    const bookingDetailsBase = {
+      ...orderDetails,
+      placeCode: bundlePlaceCode != null ? bundlePlaceCode : orderDetails.placeCode
+    };
+
+    if (combinedWeightKg > 0) {
+      bookingDetailsBase.totalWeightKg = combinedWeightKg;
+    }
+
+    const bookingDetails = bookingWeightKg ? { ...bookingDetailsBase, totalWeightKg: bookingWeightKg } : bookingDetailsBase;
     const payload = buildParcelPerfectPayload(bookingDetails, totalExpected);
     if (!payload.details.destplace) missing.push("destplace (place code)");
 
