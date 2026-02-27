@@ -50,7 +50,7 @@ class Settings:
 
 def load_settings() -> Settings:
     base_url = os.getenv("FLSS_BASE_URL", "http://flss.flippenlekka.work:3000/api/v1").rstrip("/")
-    rotary_token = os.getenv("ROTARY_TOKEN", "3cbcac9e620ca8e5970605658cf70bc0c24be8598d9285e62d53914ff898c082")
+    rotary_token = os.getenv("ROTARY_TOKEN", "").strip()
     source = os.getenv("ROTARY_SOURCE", "rotary_pi")
     request_timeout_s = float(os.getenv("ROTARY_HTTP_TIMEOUT_S", "2.5"))
 
@@ -110,6 +110,34 @@ class RotaryFlssClient:
             headers["Authorization"] = f"Bearer {self.settings.rotary_token}"
         return headers
 
+
+    def probe_auth(self) -> bool:
+        """Check auth config early so Unauthorized errors are obvious before button presses."""
+        url = f"{self.settings.base_url}/dispatch/state"
+        try:
+            response = self.session.get(url, headers=self._headers(), timeout=self.settings.request_timeout_s)
+        except requests.RequestException as exc:
+            print(f"[NET] auth probe failed: {exc}")
+            self._flash_led((1.0, 0.0, 0.0), duration_s=0.5)
+            return False
+
+        if response.status_code == 200:
+            print("[OK] Auth probe passed.")
+            self._flash_led((0.0, 1.0, 0.0), duration_s=0.15)
+            return True
+
+        if response.status_code in (401, 403):
+            print(
+                "[AUTH] Auth probe failed with "
+                f"HTTP {response.status_code}. Set ROTARY_TOKEN to the same value as FLSS ROTARY_TOKEN."
+            )
+            self._flash_led((1.0, 0.0, 0.0), duration_s=0.6)
+            return False
+
+        print(f"[WARN] Auth probe got HTTP {response.status_code}; continuing anyway.")
+        self._flash_led((0.0, 0.0, 1.0), duration_s=0.4)
+        return True
+
     def send_action(self, action: str) -> None:
         now = time.monotonic()
         with self.lock:
@@ -167,6 +195,10 @@ def main() -> int:
     led.off()
 
     client = RotaryFlssClient(settings, led)
+
+
+    if not client.probe_auth():
+        print("Hint: export ROTARY_TOKEN=\"<same-token-as-server>\" before running this script.")
 
     # pull_up=True assumes switch/encoder outputs pull to GND when active.
     clk = Button(settings.cw_pin, pull_up=True, bounce_time=0.002)

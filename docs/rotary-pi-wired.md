@@ -27,7 +27,7 @@ pip3 install gpiozero requests
 
 ```bash
 export FLSS_BASE_URL="http://<flss-host>:3000/api/v1"
-export ROTARY_TOKEN="<same-token-as-FLSS-ROTARY_TOKEN>"
+export ROTARY_TOKEN="<same-token-as-FLSS-ROTARY_TOKEN>"  # required when server ROTARY_TOKEN is set
 export ROTARY_SOURCE="rotary_pi"
 ```
 
@@ -66,3 +66,10 @@ python3 scripts/rotary-pi-wired.py
 - Server already debounces burst input (`ROTARY_DEBOUNCE_MS`); script also has a small client-side action gap.
 - Button mapping: `Action` sends `confirm`, `Back/Close` sends `prev`.
 - RGB feedback: green on HTTP 200, blue on HTTP 409 state conflict, red on network/auth/other errors.
+
+
+## Troubleshooting
+
+- If you see `{ "ok": false, "error": "Unauthorized" }`, your Pi token does not match the server token.
+- Set `ROTARY_TOKEN` on the Pi to exactly the same value configured on the FLSS server and restart the script.
+- The script now runs an auth probe at startup and prints a clear `[AUTH]` message if token validation fails.
