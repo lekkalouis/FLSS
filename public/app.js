@@ -374,6 +374,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let dispatchVoicePrimed = false;
   let dispatchControllerState = null;
   let dispatchLastHandledConfirmAt = null;
+  let dispatchControllerPollInFlight = false;
   const DISPATCH_PRIORITY_KEY = "fl_dispatch_priority_v1";
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
@@ -5235,6 +5236,43 @@ async function startOrder(orderNo) {
     }
   }
 
+  function syncDispatchSelectionUI() {
+    if (!dispatchBoard) return;
+
+    dispatchBoard.querySelectorAll(".dispatchCardSelectInput").forEach((checkbox) => {
+      const orderNo = String(checkbox.dataset.orderNo || "").trim();
+      const checked = Boolean(orderNo && dispatchSelectedOrders.has(orderNo));
+      checkbox.checked = checked;
+      checkbox.closest(".dispatchCard")?.classList.toggle("is-selected", checked);
+    });
+
+    dispatchBoard.querySelectorAll(".dispatchLaneSelectAllInput").forEach((laneInput) => {
+      const lane = laneInput.closest(".dispatchCol");
+      if (!lane) return;
+      const laneCheckboxes = Array.from(lane.querySelectorAll(".dispatchCardSelectInput"));
+      laneInput.checked = laneCheckboxes.length > 0 && laneCheckboxes.every((checkbox) => checkbox.checked);
+    });
+
+    updateDispatchSelectionSummary();
+  }
+
+  async function pollDispatchControllerSelection() {
+    if (dispatchControllerPollInFlight) return;
+    if (document.hidden) return;
+    const isDispatchViewActive = document.querySelector(".flView.flView--active")?.id === "viewDispatch";
+    if (!isDispatchViewActive) return;
+
+    dispatchControllerPollInFlight = true;
+    try {
+      const state = await loadDispatchControllerState();
+      if (!state) return;
+      applyDispatchControllerState();
+      syncDispatchSelectionUI();
+    } finally {
+      dispatchControllerPollInFlight = false;
+    }
+  }
+
   async function refreshDispatchData() {
     try {
       const [ordersRes, shipmentsRes] = await Promise.all([
@@ -5268,6 +5306,7 @@ async function startOrder(orderNo) {
       applyDispatchControllerState();
       renderDispatchBoard(dispatchOrdersLatest);
       applyDispatchControllerState();
+      syncDispatchSelectionUI();
       updateDashboardKpis();
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
     } catch (e) {
@@ -6767,6 +6806,7 @@ async function startOrder(orderNo) {
     initAddressSearch();
     refreshDispatchData();
     setInterval(refreshDispatchData, CONFIG.DISPATCH_POLL_INTERVAL_MS);
+    setInterval(pollDispatchControllerSelection, 250);
     refreshServerStatus();
     setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
     renderModuleDashboard();
