@@ -611,6 +611,49 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     return combinedShipments.get(groupId) || null;
   }
 
+  function rebuildAutomaticCombinedShipments(orders = []) {
+    combinedShipments.clear();
+    combinedOrderToGroup.clear();
+    const groupedByAddress = new Map();
+
+    (orders || []).forEach((order) => {
+      if (laneFromOrder(order) === "pickup") return;
+      const orderNo = orderNoFromName(order?.name);
+      const signature = addressSignatureFromOrder(order);
+      if (!orderNo || !signature) return;
+      if (!groupedByAddress.has(signature)) {
+        groupedByAddress.set(signature, { signature, address: getDispatchOrderAddress(order), orderNos: [] });
+      }
+      groupedByAddress.get(signature).orderNos.push(orderNo);
+    });
+
+    Array.from(groupedByAddress.values())
+      .filter((entry) => entry.orderNos.length > 1)
+      .forEach((entry) => {
+        const groupId = `combined-auto-${entry.signature}`;
+        const group = {
+          id: groupId,
+          orderNos: entry.orderNos,
+          addressSignature: entry.signature,
+          address: entry.address,
+          color: colorFromGroupId(groupId),
+          auto: true
+        };
+        combinedShipments.set(groupId, group);
+        entry.orderNos.forEach((orderNo) => combinedOrderToGroup.set(orderNo, groupId));
+      });
+  }
+
+  function getParcelCountForDispatchOrder(order, packingState) {
+    const fromMeta =
+      typeof order?.parcel_count_from_meta === "number" && order.parcel_count_from_meta > 0
+        ? order.parcel_count_from_meta
+        : typeof order?.parcel_count === "number" && order.parcel_count > 0
+        ? order.parcel_count
+        : null;
+    return fromMeta || getPackingParcelCount(packingState) || getAutoParcelCountForOrder(order?.line_items || []) || null;
+  }
+
   async function createCombinedShipmentFromSelection(orderNos = Array.from(dispatchSelectedOrders)) {
     const selected = [...new Set((orderNos || []).map((orderNo) => String(orderNo || "").trim()).filter(Boolean))];
     if (selected.length < 2) {
@@ -4346,6 +4389,7 @@ async function startOrder(orderNo) {
 
     filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
     const list = filtered;
+    rebuildAutomaticCombinedShipments(list);
     if (!list.length) {
       dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
       dispatchSelectedOrders.clear();
@@ -4452,6 +4496,11 @@ async function startOrder(orderNo) {
             }
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
+          ${
+            combinedGroup
+              ? `<div class="dispatchCardMeta dispatchCardMeta--combined"><span class="dispatchCombinedDot" aria-hidden="true"></span> Combined Shipment · ${combinedGroup.orderNos.length} orders</div>`
+              : ""
+          }
           ${
             shippedItemCount > 0
               ? `<div class="dispatchCardMeta dispatchCardMeta--shipment">📦 ${shippedItemCount} item${
@@ -5734,15 +5783,26 @@ async function startOrder(orderNo) {
         if (!proceed) return true;
       }
 
-      const parcelCountFromMeta =
-        typeof order?.parcel_count_from_meta === "number" && order.parcel_count_from_meta > 0
-          ? order.parcel_count_from_meta
-          : typeof order?.parcel_count === "number" && order.parcel_count > 0
-          ? order.parcel_count
-          : null;
-      const parcelCountFromPacking = getPackingParcelCount(packingState);
-      const parcelCountFromItems = getAutoParcelCountForOrder(order?.line_items || []);
-      const bookingParcelCount = parcelCountFromMeta || parcelCountFromPacking || parcelCountFromItems || null;
+      const combinedGroup = getCombinedGroupForOrder(orderNo);
+      const groupedOrderNos = combinedGroup?.orderNos?.length
+        ? combinedGroup.orderNos.filter((candidate) => {
+            const candidateOrder = dispatchOrderCache.get(candidate);
+            return candidateOrder && laneFromOrder(candidateOrder) !== "pickup";
+          })
+        : [orderNo];
+      const targetOrderNos = groupedOrderNos.length ? groupedOrderNos : [orderNo];
+      const targetOrders = targetOrderNos
+        .map((candidate) => ({ orderNo: candidate, order: dispatchOrderCache.get(candidate) }))
+        .filter((entry) => entry.order?.id);
+      if (!targetOrders.length) {
+        statusExplain("Fulfill unavailable for this order.", "warn");
+        return true;
+      }
+
+      const bookingParcelCount = targetOrders.reduce((sum, entry) => {
+        const state = getPackingState(entry.order);
+        return sum + (getParcelCountForDispatchOrder(entry.order, state) || 0);
+      }, 0);
 
       if (!bookingParcelCount) {
         statusExplain(`Parcel count is required to book shipment for ${orderNo}.`, "warn");
@@ -5754,15 +5814,24 @@ async function startOrder(orderNo) {
         ? getSelectedFulfillmentWeightKg(order, fulfillmentState.selectedLineItems)
         : null;
 
-      await startOrder(orderNo);
+      const rootOrderNo = targetOrders[0].orderNo;
+      await startOrder(rootOrderNo);
       orderDetails.manualParcelCount = bookingParcelCount;
+      targetOrders.slice(1).forEach((entry) => {
+        const details = mapOrderToDispatchDetails(entry.order);
+        details.manualParcelCount = getParcelCountForDispatchOrder(entry.order, getPackingState(entry.order));
+        linkedOrders.set(entry.orderNo, details);
+      });
       renderSessionUI();
+      const bundleOrders = [{ orderNo: rootOrderNo, details: orderDetails }].concat(
+        targetOrders.slice(1).map((entry) => ({ orderNo: entry.orderNo, details: linkedOrders.get(entry.orderNo) }))
+      );
       await doBookingNow({
         manual: true,
         parcelCount: bookingParcelCount,
         keepOnBoard: isSplitFulfillment,
         weightKg: selectedWeightKg,
-        bundleOrders: [{ orderNo, details: orderDetails }],
+        bundleOrders,
         selectedLineItemsByOrder: isSplitFulfillment ? { [orderNo]: fulfillmentState.selectedLineItems } : null
       });
       return true;
