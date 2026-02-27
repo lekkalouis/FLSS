@@ -565,28 +565,6 @@ const createIdleWatcher = (ctx) => {
   return { start, stop };
 };
 
-const mountInspectorLauncher = (ctx, scanInput) => {
-  const parent = scanInput.parentElement;
-  if (!parent) return null;
-  if (parent.querySelector('[data-scan-inspector-launcher="1"]')) return null;
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.dataset.scanInspectorLauncher = "1";
-  btn.textContent = "Inspector";
-  btn.title = "Open scan inspector (F2)";
-  btn.style.marginTop = "0.45rem";
-  btn.style.width = "100%";
-  btn.style.padding = "0.45rem 0.6rem";
-  btn.style.borderRadius = "0.55rem";
-  btn.style.border = "1px solid rgba(148,163,184,.45)";
-  btn.style.background = "rgba(15,23,42,.85)";
-  btn.style.color = "#e2e8f0";
-  btn.style.cursor = "pointer";
-  btn.addEventListener("click", () => ctx.toggleInspector(true));
-  parent.appendChild(btn);
-  return btn;
-};
-
 const createHotkeys = (ctx) => {
   const onKeydown = (event) => {
     if (!ctx.getPreferences().hotkeysEnabled) return;
@@ -863,8 +841,6 @@ export const initScanStationNext = (options = {}) => {
   document.addEventListener("visibilitychange", onVisibilityChange);
   hotkeys.mount();
   idleWatcher.start();
-  const inspectorLauncher = mountInspectorLauncher(context, scanInput);
-
   const unsubscribe = emitter.on("state:changed", onStateChange);
 
   notify("Scan station enhancements ready. Press F2 for inspector.", "success");
@@ -876,7 +852,6 @@ export const initScanStationNext = (options = {}) => {
     scanInput.removeEventListener("keydown", onScanInputKeydown);
     window.removeEventListener("blur", onWindowBlur);
     document.removeEventListener("visibilitychange", onVisibilityChange);
-    inspectorLauncher?.remove();
   };
 
   return {
