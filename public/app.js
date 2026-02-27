@@ -216,6 +216,11 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const adminLogsPreview = $("adminLogsPreview");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
+  const appLoader = $("appLoader");
+
+  function setGlobalLoading(isLoading) {
+    if (appLoader) appLoader.hidden = !isLoading;
+  }
 
   const btnBookNow = $("btnBookNow");
   const modeToggle = $("modeToggle");
@@ -286,10 +291,10 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     },
     {
       id: "price-manager",
-      title: "Price Manager",
+      title: "Pricelists",
       description: "Update tier pricing and sync to Shopify metafields.",
       type: "route",
-      target: "/price-manager",
+      target: "/admin/pricelists",
       meta: "Pricing module",
       tag: "Module"
     },
@@ -4249,13 +4254,18 @@ async function startOrder(orderNo) {
       await fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/tag`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: order.id, tag: "delivery_prepared" })
+        body: JSON.stringify({ orderId: order.id, tag: "stat:delivered" })
       }).catch(() => null);
       const cached = dispatchOrderCache.get(orderNo);
-      if (cached) cached.tags = `${cached.tags || ""}, delivery_prepared`;
-      statusExplain(`Order ${orderNo} marked out for delivery.`, "ok");
-      logDispatchEvent(`Order ${orderNo} marked out for delivery.`);
-      refreshDispatchViews(orderNo);
+      if (cached) {
+        cached.tags = `${cached.tags || ""}, stat:delivered`;
+        cached.fulfillment_status = "fulfilled";
+      }
+      dispatchOrdersLatest = dispatchOrdersLatest.filter((entry) => String(entry?.name || "").replace("#", "").trim() !== orderNo);
+      statusExplain("Order delivered", "ok");
+      logDispatchEvent(`Order ${orderNo} delivered via manual dispatch action.`);
+      showSiteAlert({ title: "Order delivered", tone: "ok", message: `Order ${orderNo} delivered.` });
+      refreshDispatchViews();
     } catch (err) {
       statusExplain("Delivery mark failed.", "warn");
       logDispatchEvent(`Delivery mark failed for order ${orderNo}: ${String(err)}`);
@@ -4353,17 +4363,26 @@ async function startOrder(orderNo) {
       return;
     }
 
-    const cols = [
-      { id: "shippingAgent", label: "Shipping (Agent)", type: "cards" },
-      { id: "shippingA", label: "Shipping", type: "cards" },
-      { id: "shippingB", label: "Shipping", type: "cards" },
-      { id: "export", label: "Export", type: "cards" },
-      { id: "pickup", label: "Pickup / Collection", type: "cards" },
-      { id: "delivery", label: "Delivery", type: "cards" }
-    ];
+    const isDesktop = window.matchMedia("(min-width: 1200px)").matches;
+    const cols = isDesktop
+      ? [
+          { id: "priority", label: "Priority", type: "cards" },
+          { id: "shippingA", label: "Shipping", type: "cards" },
+          { id: "shippingB", label: "Shipping Expanded", type: "cards" },
+          { id: "pickup", label: "Pickup / Collection", type: "cards" },
+          { id: "delivery", label: "Delivery", type: "cards" },
+          { id: "export", label: "Export / Pickup", type: "cards" }
+        ]
+      : [
+          { id: "priority", label: "Priority", type: "cards" },
+          { id: "shippingA", label: "Shipping", type: "cards" },
+          { id: "shippingB", label: "Shipping", type: "cards" },
+          { id: "pickup", label: "Pickup / Collection", type: "cards" },
+          { id: "delivery", label: "Delivery", type: "cards" }
+        ];
     const lanes = {
       delivery: [],
-      shippingAgent: [],
+      priority: [],
       shippingNonAgent: [],
       export: [],
       pickup: []
@@ -4377,7 +4396,7 @@ async function startOrder(orderNo) {
       const laneId = laneFromOrder(o);
       if (laneId === "shipping") {
         if (isAgentOrder(o)) {
-          lanes.shippingAgent.push(o);
+          lanes.priority.push(o);
         } else {
           lanes.shippingNonAgent.push(o);
         }
@@ -4386,7 +4405,7 @@ async function startOrder(orderNo) {
       (lanes[laneId] || lanes.shippingNonAgent).push(o);
     });
 
-    const shippingLaneCount = 2;
+    const shippingLaneCount = isDesktop ? 2 : 2;
     const shippingChunks = Array.from({ length: shippingLaneCount }, () => []);
     lanes.shippingNonAgent.forEach((order, index) => {
       shippingChunks[index % shippingLaneCount].push(order);
@@ -4507,8 +4526,8 @@ async function startOrder(orderNo) {
             ? shippingB
             : col.id === "export"
             ? lanes.export
-            : col.id === "shippingAgent"
-            ? lanes.shippingAgent
+            : col.id === "priority"
+            ? lanes.priority
             : lanes[col.id] || [];
         const cards =
           laneOrders.map((order) => cardHTML(order, col.id)).join("") ||
@@ -4823,6 +4842,7 @@ async function startOrder(orderNo) {
   }
 
   async function refreshDispatchData() {
+    setGlobalLoading(true);
     try {
       const [ordersRes, shipmentsRes] = await Promise.all([
         fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`),
@@ -4856,6 +4876,22 @@ async function startOrder(orderNo) {
       appendDebug("Dispatch refresh failed: " + String(e));
       if (dispatchBoard) dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">Error loading orders.</div>`;
       if (dispatchStamp) dispatchStamp.textContent = "Dispatch: error";
+    } finally {
+      setGlobalLoading(false);
+    }
+  }
+
+  async function loadChangelog() {
+    const list = document.getElementById("flChangelogList");
+    if (!list) return;
+    try {
+      const res = await fetch("/CHANGELOG.md", { cache: "no-cache" });
+      if (!res.ok) throw new Error("Missing changelog");
+      const text = await res.text();
+      const lines = text.split("\n").filter((line) => /^[-*]\s+/.test(line)).slice(0, 20);
+      list.innerHTML = lines.map((line) => `<li>${line.replace(/^[-*]\s+/, "")}</li>`).join("") || "<li>No changelog entries yet.</li>";
+    } catch (_err) {
+      list.innerHTML = "<li>No changelog entries yet.</li>";
     }
   }
 
@@ -5347,7 +5383,6 @@ async function startOrder(orderNo) {
   const ADMIN_UNLOCKED_KEY = "fl_admin_unlocked";
   const applyAdminMenuVisibility = (visible) => {
     if (navFlowcharts) navFlowcharts.hidden = !visible;
-    if (navPriceManager) navPriceManager.hidden = !visible;
     if (navDispatchSettings) navDispatchSettings.hidden = !visible;
     if (navLogs) navLogs.hidden = !visible;
 
@@ -5543,9 +5578,8 @@ async function startOrder(orderNo) {
     let failed = 0;
     for (const order of orders) {
       const orderNo = orderNoFromName(order.name);
-      const docsPrinted = await printDocs(order);
       const notePrinted = await printDeliveryNote(order);
-      if (docsPrinted && notePrinted) {
+      if (notePrinted) {
         prepared += 1;
         printedDeliveryNotes.add(orderNo);
       } else {
@@ -5775,9 +5809,8 @@ async function startOrder(orderNo) {
       }
       setDispatchProgress(4, `Preparing delivery ${orderNo}`);
       logDispatchEvent(`Preparing delivery docs for order ${orderNo}.`);
-      const docsPrinted = await printDocs(order);
       const notePrinted = await printDeliveryNote(order);
-      if (!docsPrinted || !notePrinted) {
+      if (!notePrinted) {
         statusExplain("Prepare delivery failed. Some docs did not print.", "warn");
         logDispatchEvent(`Prepare delivery failed for order ${orderNo}.`);
         return true;
@@ -6225,6 +6258,10 @@ async function startOrder(orderNo) {
     setDispatchProgress(0, "Idle", { silent: true });
     initAddressSearch();
     refreshDispatchData();
+  loadChangelog();
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => null));
+  }
     setInterval(refreshDispatchData, CONFIG.DISPATCH_POLL_INTERVAL_MS);
     refreshServerStatus();
     setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);

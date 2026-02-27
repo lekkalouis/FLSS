@@ -863,11 +863,11 @@ export const initScanStationNext = (options = {}) => {
   document.addEventListener("visibilitychange", onVisibilityChange);
   hotkeys.mount();
   idleWatcher.start();
-  const inspectorLauncher = mountInspectorLauncher(context, scanInput);
+  const inspectorLauncher = null;
 
   const unsubscribe = emitter.on("state:changed", onStateChange);
 
-  notify("Scan station enhancements ready. Press F2 for inspector.", "success");
+  notify("Scan station enhancements ready.", "success");
 
   const destroy = () => {
     unsubscribe();

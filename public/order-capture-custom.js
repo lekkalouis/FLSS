@@ -19,8 +19,8 @@ const els = {
   customerAccessLoad: $("customer-access-load"),
 
   customerSearch: $("customer-search"),
-  customerSearchBtn: $("customer-search-btn"),
   quickPickerBtn: $("quick-picker-btn"),
+  pageLoader: $("page-loader"),
   deliveryTypeSelect: $("delivery-type-select"),
   customerTier: $("customer-tier"),
   clearForm: $("clear-form"),
@@ -74,7 +74,8 @@ const els = {
   shipProvince: $("ship-province"),
   shipZip: $("ship-zip"),
   shipPhone: $("ship-phone"),
-  shipNotes: $("ship-notes")
+  shipNotes: $("ship-notes"),
+  customTags: $("custom-tags")
 };
 
 const state = {
@@ -97,6 +98,12 @@ const state = {
   paymentTermOptions: [...DEFAULT_PAYMENT_TERMS],
   accessLockedCustomerId: null
 };
+
+function setDataReady(ready) {
+  if (els.pageLoader) els.pageLoader.hidden = Boolean(ready);
+  if (els.customerSearch) els.customerSearch.disabled = !ready;
+  if (els.quickPickerBtn) els.quickPickerBtn.disabled = !ready;
+}
 
 function parseTags(rawTags) {
   if (!rawTags) return [];
@@ -813,8 +820,10 @@ function mergeCustomers(existing = [], incoming = []) {
 }
 
 async function preloadCustomers() {
+  setDataReady(false);
   if (PAGE_MODE === "standalone") {
     setStatus(els.customerStatus, "Enter your access code to load your profile.");
+    setDataReady(true);
     return;
   }
   state.preloadingCustomers = true;
@@ -849,6 +858,7 @@ async function preloadCustomers() {
   } finally {
     state.preloadingCustomers = false;
     if (els.submitLoader) els.submitLoader.hidden = true;
+    setDataReady(true);
   }
 }
 
@@ -921,6 +931,12 @@ function getOrderPayload(customer, lineItems) {
     paymentTerms: els.paymentTerms?.value?.trim() || undefined,
     customerTags: customer.tags || ""
   };
+
+  const customTags = String(els.customTags?.value || "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  if (customTags.length) payload.customTags = customTags.join(", ");
 
   const shipNotes = els.shipNotes.value.trim();
   if (shipNotes) payload.poNumber = payload.poNumber ? `${payload.poNumber} | ${shipNotes}` : shipNotes;
