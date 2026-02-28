@@ -52,15 +52,12 @@ export REMOTE_HEARTBEAT_INTERVAL_S=10
 export ENV_TELEMETRY_INTERVAL_S=10
 export REMOTE_LEGACY_FALLBACK=1
 
-# Optional environment telemetry (if sensor attached to Pi)
-export ENV_DEVICE_ID="pi-env-01"
+# Optional environment telemetry fallbacks (used when sensor command is not set/fails)
 export ENV_TEMPERATURE_C=22.4
 export ENV_HUMIDITY_PCT=43.1
-export ENV_BATTERY_PCT=99
-export ENV_SIGNAL_RSSI=-58
 
-# Optional dynamic sensor command (e.g. DHT11 reader script)
-export ENV_SENSOR_CMD="python3 /usr/local/bin/dht11-read-json.py"
+# Optional dynamic sensor command (recommended for DHT11)
+export ENV_SENSOR_CMD="python3 /usr/local/bin/dht11-read-json.py --pin 4"
 ```
 
 ## 4) Run script
@@ -69,17 +66,23 @@ export ENV_SENSOR_CMD="python3 /usr/local/bin/dht11-read-json.py"
 python3 scripts/rotary-pi-wired.py
 ```
 
+## DHT11 wiring (signal pin)
+
+- `VCC` -> `3V3`
+- `GND` -> `GND`
+- `DATA`/`SIG` -> `GPIO4` (physical pin 7)
+
+`GPIO4` is a common default for DHT11 examples and helper scripts. If your helper uses a different pin, pass that pin in your `ENV_SENSOR_CMD` arguments.
+
 ## DHT11 dynamic telemetry command
 
 If your sensor can be read by a command-line program, set `ENV_SENSOR_CMD` so the rotary script can execute it on each telemetry interval.
 The command must exit with code `0` and print a single JSON object to stdout. Any numeric fields provided by the command override static `ENV_*` values for that sample; missing fields fall back to static values.
 
-Expected JSON keys (preferred):
+Expected JSON keys:
 
 - `temperatureC`
 - `humidityPct`
-- `batteryPct`
-- `signalRssi`
 
 For DHT11 scripts, `temperature`/`humidity` aliases are also accepted.
 
@@ -88,18 +91,16 @@ Example output from a DHT11 helper script:
 ```json
 {
   "temperatureC": 21.8,
-  "humidityPct": 45.2,
-  "batteryPct": 97,
-  "signalRssi": -62
+  "humidityPct": 45.2
 }
 ```
 
 ## API contract used
 
 - Remote heartbeat: `POST /api/v1/dispatch/remote/heartbeat` every `REMOTE_HEARTBEAT_INTERVAL_S` seconds.
-  - Body includes `remoteId`, `firmware`, `battery`, `signal` (plus compatibility fields).
+  - Body includes `remoteId`, `firmware` (plus compatibility field `firmwareVersion`).
 - Remote actions: `POST /api/v1/dispatch/remote/action` with `{ "action", "remoteId", "idempotencyKey" }`.
-- Optional sensor telemetry: `POST /api/v1/dispatch/environment` with `{ "deviceId", "temperatureC", "humidityPct", "recordedAt" }`.
+- Optional sensor telemetry: `POST /api/v1/dispatch/environment` with `{ "deviceId", "temperatureC", "humidityPct", "recordedAt" }` (temp + humidity only).
 - Legacy fallback (optional): `POST /api/v1/dispatch/{next|prev|confirm}` if remote API returns unavailable errors or is unreachable.
 - Headers:
   - `Authorization: Bearer <REMOTE_TOKEN>` for `/dispatch/remote/*` and `/dispatch/environment`

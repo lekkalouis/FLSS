@@ -47,12 +47,9 @@ class Settings:
     heartbeat_interval_s: float
     telemetry_interval_s: float
     remote_legacy_fallback: bool
-    env_device_id: str
     env_sensor_cmd: str
     env_temperature_c: float | None
     env_humidity_pct: float | None
-    env_battery_pct: float | None
-    env_signal_rssi: float | None
     request_timeout_s: float
     cw_pin: int
     ccw_pin: int
@@ -81,7 +78,6 @@ def load_settings() -> Settings:
         "no",
     }
 
-    env_device_id = os.getenv("ENV_DEVICE_ID", remote_id).strip() or remote_id
     env_sensor_cmd = os.getenv("ENV_SENSOR_CMD", "").strip()
 
     def _float_env(name: str) -> float | None:
@@ -92,8 +88,6 @@ def load_settings() -> Settings:
 
     env_temperature_c = _float_env("ENV_TEMPERATURE_C")
     env_humidity_pct = _float_env("ENV_HUMIDITY_PCT")
-    env_battery_pct = _float_env("ENV_BATTERY_PCT")
-    env_signal_rssi = _float_env("ENV_SIGNAL_RSSI")
 
     request_timeout_s = float(os.getenv("ROTARY_HTTP_TIMEOUT_S", "2.5"))
 
@@ -123,12 +117,9 @@ def load_settings() -> Settings:
         heartbeat_interval_s=heartbeat_interval_s,
         telemetry_interval_s=telemetry_interval_s,
         remote_legacy_fallback=remote_legacy_fallback,
-        env_device_id=env_device_id,
         env_sensor_cmd=env_sensor_cmd,
         env_temperature_c=env_temperature_c,
         env_humidity_pct=env_humidity_pct,
-        env_battery_pct=env_battery_pct,
-        env_signal_rssi=env_signal_rssi,
         request_timeout_s=request_timeout_s,
         cw_pin=cw_pin,
         ccw_pin=ccw_pin,
@@ -210,8 +201,6 @@ class RotaryFlssClient:
         field_aliases = {
             "temperatureC": ("temperatureC", "temperature", "temperature_c"),
             "humidityPct": ("humidityPct", "humidity", "humidity_pct"),
-            "batteryPct": ("batteryPct", "battery", "battery_pct"),
-            "signalRssi": ("signalRssi", "signal", "signal_rssi"),
         }
 
         sample: dict[str, float | None] = {}
@@ -355,10 +344,6 @@ class RotaryFlssClient:
             "remoteId": self.settings.remote_id,
             "firmware": self.settings.firmware_version,
             "firmwareVersion": self.settings.firmware_version,
-            "battery": self.settings.env_battery_pct,
-            "batteryPct": self.settings.env_battery_pct,
-            "signal": self.settings.env_signal_rssi,
-            "signalRssi": self.settings.env_signal_rssi,
         }
         try:
             response = self._post_json("/dispatch/remote/heartbeat", payload, self.settings.remote_token)
@@ -371,19 +356,15 @@ class RotaryFlssClient:
         dynamic_sample = self._read_env_sensor_sample()
         temperature_c = dynamic_sample.get("temperatureC", self.settings.env_temperature_c)
         humidity_pct = dynamic_sample.get("humidityPct", self.settings.env_humidity_pct)
-        battery_pct = dynamic_sample.get("batteryPct", self.settings.env_battery_pct)
-        signal_rssi = dynamic_sample.get("signalRssi", self.settings.env_signal_rssi)
 
         if temperature_c is None or humidity_pct is None:
             return
 
         payload = {
-            "deviceId": self.settings.env_device_id,
+            "deviceId": self.settings.remote_id,
             "temperatureC": temperature_c,
             "humidityPct": humidity_pct,
             "recordedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "batteryPct": battery_pct,
-            "signalRssi": signal_rssi,
         }
         try:
             response = self._post_json("/dispatch/environment", payload, self.settings.remote_token)
