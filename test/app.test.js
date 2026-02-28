@@ -255,14 +255,17 @@ test('dispatch controller selection updates trigger dispatch refresh path in fro
   const changeGuardSnippet = 'if (selectedOrderChanged) {';
   const refreshSnippet = 'refreshDispatchViews(selectedOrderId);';
   const rotarySnippet = 'syncDispatchRotaryFocus({ keepKey: true, scroll: selectedOrderChanged });';
+  const markPackedSnippet = 'markDispatchLineItemPacked(confirmedOrderId, confirmedLineItemKey);';
 
   const guardIndex = appJs.indexOf(changeGuardSnippet);
   const refreshIndex = appJs.indexOf(refreshSnippet, guardIndex);
   const rotaryIndex = appJs.indexOf(rotarySnippet, refreshIndex);
+  const markPackedIndex = appJs.indexOf(markPackedSnippet);
 
   assert.notEqual(guardIndex, -1, 'selected order change guard should exist');
   assert.notEqual(refreshIndex, -1, 'selection change should call refreshDispatchViews');
   assert.notEqual(rotaryIndex, -1, 'rotary focus should sync after dispatch view refresh');
+  assert.notEqual(markPackedIndex, -1, 'controller confirm should mark selected line packed');
   assert.ok(refreshIndex < rotaryIndex, 'refresh should happen before rotary focus sync');
 
   assert.match(

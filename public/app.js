@@ -3839,6 +3839,28 @@ async function startOrder(orderNo) {
     return `<div class="dispatchPackingPlanGrid">${boxes}</div>`;
   }
 
+  function markDispatchLineItemPacked(orderNo, itemKey) {
+    if (!orderNo || !itemKey) return;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return;
+    const state = dispatchPackingState.get(orderNo) || getPackingState(order);
+    if (!state) return;
+    const item = getPackingItem(state, itemKey);
+    if (!item) return;
+
+    const orderLineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const orderLineItem = Number.isInteger(item.index) ? orderLineItems[item.index] : null;
+    const quantity = orderLineItem ? getRemainingLineItemQty(orderLineItem) : Number(item.quantity) || 0;
+    if (quantity <= 0) return;
+
+    const currentPacked = Math.max(0, Number(item.packed) || 0);
+    if (currentPacked >= quantity) {
+      return;
+    }
+
+    setDispatchLinePackedQuantity(orderNo, itemKey, quantity);
+  }
+
   function toggleDispatchLineItemPacked(orderNo, itemKey) {
     if (!orderNo || !itemKey) return;
     const order = dispatchOrderCache.get(orderNo);
@@ -5282,7 +5304,7 @@ async function startOrder(orderNo) {
     if (confirmedAt && confirmedAt !== dispatchLastHandledConfirmAt && confirmedOrderId) {
       dispatchLastHandledConfirmAt = confirmedAt;
       if (confirmedLineItemKey) {
-        toggleDispatchLineItemPacked(confirmedOrderId, confirmedLineItemKey);
+        markDispatchLineItemPacked(confirmedOrderId, confirmedLineItemKey);
       } else if (dispatchOrderCache.has(confirmedOrderId)) {
         openDispatchOrderModal(confirmedOrderId);
       }
