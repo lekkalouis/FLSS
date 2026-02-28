@@ -201,7 +201,7 @@ class RotaryFlssClient:
             return {}
 
         field_aliases = {
-            "temperatureC": ("temperatureC", "temperature", "temperature_c"),
+            "temperatureC": ("temperatureC", "temperature", "tempC", "temperature_c"),
             "humidityPct": ("humidityPct", "humidity", "humidity_pct"),
         }
 
@@ -268,7 +268,6 @@ class RotaryFlssClient:
             headers=self._headers(token),
             timeout=self.settings.request_timeout_s,
         )
-
 
     def probe_auth(self) -> bool:
         """Check auth config early so Unauthorized errors are obvious before button presses."""
@@ -374,7 +373,6 @@ class RotaryFlssClient:
     def send_remote_heartbeat(self) -> None:
         payload = {
             "remoteId": self.settings.remote_id,
-            "firmware": self.settings.firmware_version,
             "firmwareVersion": self.settings.firmware_version,
         }
         try:
@@ -437,7 +435,6 @@ def main() -> int:
     led.off()
 
     client = RotaryFlssClient(settings, led)
-
 
     if not client.probe_auth():
         print("Hint: export ROTARY_TOKEN=\"<same-token-as-server>\" before running this script.")
