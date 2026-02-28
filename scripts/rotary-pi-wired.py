@@ -23,6 +23,8 @@ from __future__ import annotations
 import os
 import random
 import signal
+import json
+import subprocess
 import threading
 import time
 from dataclasses import dataclass
@@ -47,6 +49,7 @@ class Settings:
     env_humidity_pct: float | None
     env_battery_pct: float | None
     env_signal_rssi: float | None
+    env_sensor_cmd: str
     request_timeout_s: float
     cw_pin: int
     ccw_pin: int
@@ -87,6 +90,7 @@ def load_settings() -> Settings:
     env_humidity_pct = _float_env("ENV_HUMIDITY_PCT")
     env_battery_pct = _float_env("ENV_BATTERY_PCT")
     env_signal_rssi = _float_env("ENV_SIGNAL_RSSI")
+    env_sensor_cmd = os.getenv("ENV_SENSOR_CMD", "").strip()
 
     request_timeout_s = float(os.getenv("ROTARY_HTTP_TIMEOUT_S", "2.5"))
 
@@ -121,6 +125,7 @@ def load_settings() -> Settings:
         env_humidity_pct=env_humidity_pct,
         env_battery_pct=env_battery_pct,
         env_signal_rssi=env_signal_rssi,
+        env_sensor_cmd=env_sensor_cmd,
         request_timeout_s=request_timeout_s,
         cw_pin=cw_pin,
         ccw_pin=ccw_pin,
@@ -283,16 +288,29 @@ class RotaryFlssClient:
             print(f"[NET] heartbeat: {exc}")
 
     def send_environment_telemetry(self) -> None:
-        if self.settings.env_temperature_c is None or self.settings.env_humidity_pct is None:
+        temperature_c = self.settings.env_temperature_c
+        humidity_pct = self.settings.env_humidity_pct
+        battery_pct = self.settings.env_battery_pct
+        signal_rssi = self.settings.env_signal_rssi
+
+        if self.settings.env_sensor_cmd:
+            sample = self._read_env_sensor_sample()
+            if sample is not None:
+                temperature_c = sample.get("temperatureC", temperature_c)
+                humidity_pct = sample.get("humidityPct", humidity_pct)
+                battery_pct = sample.get("batteryPct", battery_pct)
+                signal_rssi = sample.get("signalRssi", signal_rssi)
+
+        if temperature_c is None or humidity_pct is None:
             return
 
         payload = {
             "deviceId": self.settings.env_device_id,
-            "temperatureC": self.settings.env_temperature_c,
-            "humidityPct": self.settings.env_humidity_pct,
+            "temperatureC": temperature_c,
+            "humidityPct": humidity_pct,
             "recordedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "batteryPct": self.settings.env_battery_pct,
-            "signalRssi": self.settings.env_signal_rssi,
+            "batteryPct": battery_pct,
+            "signalRssi": signal_rssi,
         }
         try:
             response = self._post_json("/dispatch/environment", payload, self.settings.remote_token)
@@ -300,6 +318,52 @@ class RotaryFlssClient:
                 print(f"[WARN] environment HTTP {response.status_code}: {response.text}")
         except requests.RequestException as exc:
             print(f"[NET] environment: {exc}")
+
+    def _read_env_sensor_sample(self) -> dict[str, float] | None:
+        try:
+            result = subprocess.run(
+                self.settings.env_sensor_cmd,
+                shell=True,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=max(1.0, self.settings.request_timeout_s),
+            )
+        except Exception as exc:
+            print(f"[WARN] sensor command failed: {exc}")
+            return None
+
+        if result.returncode != 0:
+            stderr = result.stderr.strip()
+            print(f"[WARN] sensor command exit {result.returncode}: {stderr or 'no stderr output'}")
+            return None
+
+        output = result.stdout.strip()
+        if not output:
+            print("[WARN] sensor command returned empty output")
+            return None
+
+        try:
+            payload = json.loads(output)
+        except json.JSONDecodeError as exc:
+            print(f"[WARN] sensor command returned invalid JSON: {exc}")
+            return None
+
+        if not isinstance(payload, dict):
+            print("[WARN] sensor command JSON must be an object")
+            return None
+
+        sample: dict[str, float] = {}
+        for key in ("temperatureC", "humidityPct", "batteryPct", "signalRssi"):
+            raw = payload.get(key)
+            if raw is None:
+                continue
+            try:
+                sample[key] = float(raw)
+            except (TypeError, ValueError):
+                print(f"[WARN] sensor field '{key}' is not numeric: {raw!r}")
+
+        return sample if sample else None
 
 
 def main() -> int:
@@ -312,6 +376,7 @@ def main() -> int:
     print(f"  REMOTE_FIRMWARE={settings.firmware_version}")
     print(f"  REMOTE_HEARTBEAT_INTERVAL_S={settings.heartbeat_interval_s}")
     print(f"  ENV_TELEMETRY_INTERVAL_S={settings.telemetry_interval_s}")
+    print(f"  ENV_SENSOR_CMD configured={'yes' if bool(settings.env_sensor_cmd) else 'no'}")
     print(f"  Pins CLK/DT/SW={settings.cw_pin}/{settings.ccw_pin}/{settings.sw_pin}")
     print(f"  Push buttons Action/Back={settings.action_btn_pin}/{settings.back_btn_pin}")
     print(
