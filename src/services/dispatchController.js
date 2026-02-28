@@ -1,3 +1,5 @@
+import { EventEmitter } from "node:events";
+
 const dispatchState = {
   queueOrderIds: [],
   selectedOrderId: null,
@@ -5,6 +7,27 @@ const dispatchState = {
   lastConfirmedAt: null,
   lastConfirmedOrderId: null
 };
+
+const dispatchEvents = new EventEmitter();
+
+function hasStateChanged(previousState, nextState) {
+  if (!previousState || !nextState) return true;
+  if (previousState.selectedOrderId !== nextState.selectedOrderId) return true;
+  if (previousState.mode !== nextState.mode) return true;
+  if (previousState.lastConfirmedAt !== nextState.lastConfirmedAt) return true;
+  if (previousState.lastConfirmedOrderId !== nextState.lastConfirmedOrderId) return true;
+  if (previousState.queueOrderIds.length !== nextState.queueOrderIds.length) return true;
+  return previousState.queueOrderIds.some((orderId, index) => orderId !== nextState.queueOrderIds[index]);
+}
+
+function emitStateChange(action, previousState, nextState) {
+  if (!hasStateChanged(previousState, nextState)) return;
+  dispatchEvents.emit("state-change", {
+    action,
+    state: nextState,
+    changedAt: new Date().toISOString()
+  });
+}
 
 function normalizeOrderIds(orderIds = []) {
   if (!Array.isArray(orderIds)) return [];
@@ -55,6 +78,7 @@ export function getState() {
 }
 
 export function syncState({ queueOrderIds, mode } = {}) {
+  const previousState = getState();
   if (queueOrderIds !== undefined) {
     dispatchState.queueOrderIds = normalizeOrderIds(queueOrderIds);
     ensureSelection();
@@ -62,24 +86,33 @@ export function syncState({ queueOrderIds, mode } = {}) {
   if (typeof mode === "string" && mode.trim()) {
     dispatchState.mode = mode.trim();
   }
-  return getState();
+  const nextState = getState();
+  emitStateChange("syncState", previousState, nextState);
+  return nextState;
 }
 
 export function next() {
+  const previousState = getState();
   if (!dispatchState.queueOrderIds.length) return getState();
   const index = getSelectedIndex();
   selectIndex(index === -1 ? 0 : index + 1);
-  return getState();
+  const nextState = getState();
+  emitStateChange("next", previousState, nextState);
+  return nextState;
 }
 
 export function prev() {
+  const previousState = getState();
   if (!dispatchState.queueOrderIds.length) return getState();
   const index = getSelectedIndex();
   selectIndex(index === -1 ? 0 : index - 1);
-  return getState();
+  const nextState = getState();
+  emitStateChange("prev", previousState, nextState);
+  return nextState;
 }
 
 export function confirm() {
+  const previousState = getState();
   ensureSelection();
   if (!dispatchState.selectedOrderId) {
     const err = new Error("No selected order to confirm.");
@@ -89,5 +122,12 @@ export function confirm() {
 
   dispatchState.lastConfirmedOrderId = dispatchState.selectedOrderId;
   dispatchState.lastConfirmedAt = new Date().toISOString();
-  return getState();
+  const nextState = getState();
+  emitStateChange("confirm", previousState, nextState);
+  return nextState;
+}
+
+export function onStateChange(listener) {
+  dispatchEvents.on("state-change", listener);
+  return () => dispatchEvents.off("state-change", listener);
 }

@@ -9,6 +9,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const CONFIG = {
     PROGRESS_STEP_DELAY_MS: 450,
     DISPATCH_POLL_INTERVAL_MS: 60000,
+    DISPATCH_CONTROLLER_FALLBACK_POLL_INTERVAL_MS: 5000,
+    DISPATCH_EVENTS_RECONNECT_DELAY_MS: 2000,
     SERVER_STATUS_POLL_INTERVAL_MS: 45000
   };
   const API_BASE = "/api/v1";
@@ -375,6 +377,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let dispatchControllerState = null;
   let dispatchLastHandledConfirmAt = null;
   let dispatchControllerPollInFlight = false;
+  let dispatchEventSource = null;
+  let dispatchEventsReconnectTimer = null;
   const DISPATCH_PRIORITY_KEY = "fl_dispatch_priority_v1";
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
@@ -5213,6 +5217,14 @@ async function startOrder(orderNo) {
     }
   }
 
+  function applyIncomingDispatchControllerState(state) {
+    if (!state || typeof state !== "object") return;
+    dispatchControllerState = state;
+    applyDispatchControllerState();
+    syncDispatchSelectionUI();
+    updateDashboardKpis();
+  }
+
   function applyDispatchControllerState() {
     if (!dispatchControllerState) return;
     const selectedOrderId = String(dispatchControllerState.selectedOrderId || "").trim();
@@ -5266,11 +5278,50 @@ async function startOrder(orderNo) {
     try {
       const state = await loadDispatchControllerState();
       if (!state) return;
-      applyDispatchControllerState();
-      syncDispatchSelectionUI();
+      applyIncomingDispatchControllerState(state);
     } finally {
       dispatchControllerPollInFlight = false;
     }
+  }
+
+  function scheduleDispatchEventsReconnect() {
+    if (dispatchEventsReconnectTimer) return;
+    dispatchEventsReconnectTimer = setTimeout(() => {
+      dispatchEventsReconnectTimer = null;
+      initDispatchControllerEvents();
+    }, Number(CONFIG.DISPATCH_EVENTS_RECONNECT_DELAY_MS) || 2000);
+  }
+
+  function initDispatchControllerEvents() {
+    if (typeof window.EventSource !== "function") return;
+    if (dispatchEventSource) {
+      dispatchEventSource.close();
+      dispatchEventSource = null;
+    }
+
+    const source = new EventSource(`${API_BASE}/dispatch/events`);
+    dispatchEventSource = source;
+
+    const handleMessage = (event) => {
+      try {
+        const payload = JSON.parse(String(event.data || "{}"));
+        const state = payload?.state || payload;
+        applyIncomingDispatchControllerState(state);
+      } catch {
+        // ignore malformed SSE payloads
+      }
+    };
+
+    source.addEventListener("ready", handleMessage);
+    source.addEventListener("state-change", handleMessage);
+    source.onmessage = handleMessage;
+    source.onerror = () => {
+      source.close();
+      if (dispatchEventSource === source) {
+        dispatchEventSource = null;
+      }
+      scheduleDispatchEventsReconnect();
+    };
   }
 
   async function refreshDispatchData() {
@@ -5302,12 +5353,9 @@ async function startOrder(orderNo) {
 
       const isDispatchViewActive = document.querySelector(".flView.flView--active")?.id === "viewDispatch";
       await syncDispatchControllerState(isDispatchViewActive ? "dispatch" : "idle");
-      await loadDispatchControllerState();
-      applyDispatchControllerState();
+      const state = await loadDispatchControllerState();
       renderDispatchBoard(dispatchOrdersLatest);
-      applyDispatchControllerState();
-      syncDispatchSelectionUI();
-      updateDashboardKpis();
+      applyIncomingDispatchControllerState(state || dispatchControllerState);
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
     } catch (e) {
       appendDebug("Dispatch refresh failed: " + String(e));
@@ -6805,8 +6853,9 @@ async function startOrder(orderNo) {
     setDispatchProgress(0, "Idle", { silent: true });
     initAddressSearch();
     refreshDispatchData();
+    initDispatchControllerEvents();
     setInterval(refreshDispatchData, CONFIG.DISPATCH_POLL_INTERVAL_MS);
-    setInterval(pollDispatchControllerSelection, 250);
+    setInterval(pollDispatchControllerSelection, CONFIG.DISPATCH_CONTROLLER_FALLBACK_POLL_INTERVAL_MS);
     refreshServerStatus();
     setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
     renderModuleDashboard();

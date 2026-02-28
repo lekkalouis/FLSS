@@ -6,7 +6,8 @@ import {
   getState,
   next,
   prev,
-  syncState
+  syncState,
+  onStateChange
 } from "../services/dispatchController.js";
 
 const router = Router();
@@ -83,6 +84,34 @@ router.post("/dispatch/state", (req, res) => {
     mode: req.body?.mode
   });
   res.json({ ok: true, ...state });
+});
+
+
+router.get("/dispatch/events", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  const sendEvent = (eventName, payload) => {
+    res.write(`event: ${eventName}\n`);
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  };
+
+  sendEvent("ready", { state: getState(), connectedAt: new Date().toISOString() });
+
+  const unsubscribe = onStateChange((payload) => {
+    sendEvent("state-change", payload);
+  });
+
+  const keepAlive = setInterval(() => {
+    res.write(`: keepalive ${Date.now()}\n\n`);
+  }, 15000);
+
+  req.on("close", () => {
+    clearInterval(keepAlive);
+    unsubscribe();
+  });
 });
 
 function handleAction(actionName, fn) {
