@@ -27,8 +27,11 @@ pip3 install gpiozero requests
 
 ```bash
 export FLSS_BASE_URL="http://<flss-host>:3000/api/v1"
-export ROTARY_TOKEN="<same-token-as-FLSS-ROTARY_TOKEN>"  # required when server ROTARY_TOKEN is set
+export ROTARY_TOKEN="<same-token-as-FLSS-ROTARY_TOKEN>"   # legacy /dispatch/{next|prev|confirm}
+export REMOTE_TOKEN="<same-token-as-FLSS-REMOTE_TOKEN>"   # /dispatch/remote/* and /dispatch/environment
 export ROTARY_SOURCE="rotary_pi"
+export REMOTE_ID="rotary_pi"
+export REMOTE_FIRMWARE="rotary-pi-wired-1.0.0"
 ```
 
 Optional tuning:
@@ -45,6 +48,16 @@ export ROTARY_RGB_BLUE_PIN=24
 export ROTARY_LED_FEEDBACK_S=0.25
 export ROTARY_MIN_ACTION_GAP_S=0.05
 export ROTARY_HTTP_TIMEOUT_S=2.5
+export REMOTE_HEARTBEAT_INTERVAL_S=10
+export ENV_TELEMETRY_INTERVAL_S=10
+export REMOTE_LEGACY_FALLBACK=1
+
+# Optional environment telemetry (if sensor attached to Pi)
+export ENV_DEVICE_ID="pi-env-01"
+export ENV_TEMPERATURE_C=22.4
+export ENV_HUMIDITY_PCT=43.1
+export ENV_BATTERY_PCT=99
+export ENV_SIGNAL_RSSI=-58
 ```
 
 ## 4) Run script
@@ -55,10 +68,14 @@ python3 scripts/rotary-pi-wired.py
 
 ## API contract used
 
-- `POST /api/v1/dispatch/next` body `{ "source": "rotary_pi" }`
-- `POST /api/v1/dispatch/prev` body `{ "source": "rotary_pi" }`
-- `POST /api/v1/dispatch/confirm` body `{ "source": "rotary_pi" }`
-- Header `Authorization: Bearer <ROTARY_TOKEN>`
+- Remote heartbeat: `POST /api/v1/dispatch/remote/heartbeat` every `REMOTE_HEARTBEAT_INTERVAL_S` seconds.
+  - Body includes `remoteId`, `firmware`, `battery`, `signal` (plus compatibility fields).
+- Remote actions: `POST /api/v1/dispatch/remote/action` with `{ "action", "remoteId", "idempotencyKey" }`.
+- Optional sensor telemetry: `POST /api/v1/dispatch/environment` with `{ "deviceId", "temperatureC", "humidityPct", "recordedAt" }`.
+- Legacy fallback (optional): `POST /api/v1/dispatch/{next|prev|confirm}` if remote API returns unavailable errors or is unreachable.
+- Headers:
+  - `Authorization: Bearer <REMOTE_TOKEN>` for `/dispatch/remote/*` and `/dispatch/environment`
+  - `Authorization: Bearer <ROTARY_TOKEN>` for legacy fallback endpoints
 
 ## Real-time browser sync
 
