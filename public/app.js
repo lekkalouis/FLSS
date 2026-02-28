@@ -3461,8 +3461,9 @@ async function startOrder(orderNo) {
                         ? item.variant
                         : "";
                     const itemLabel = [item.title, variantLabel].filter(Boolean).join(" · ");
+                    const isRotarySelected = dispatchRotaryFocusKey === `${orderNo}:${item.key}`;
                     return `
-                      <div class="dispatchPackingRow ${isComplete ? "is-complete" : ""}" data-item-key="${item.key}">
+                      <div class="dispatchPackingRow ${isComplete ? "is-complete" : ""} ${isRotarySelected ? "is-rotary-selected" : ""}" data-item-key="${item.key}">
                         <div class="dispatchPackingInfo">
                           <div class="dispatchPackingItem">${itemLabel}</div>
                           <div class="dispatchPackingMeta">Packed ${item.packed} / ${item.quantity} · Remaining ${remaining}</div>
@@ -5295,8 +5296,10 @@ async function startOrder(orderNo) {
     if (!state || typeof state !== "object") return;
     dispatchControllerState = state;
     const { selectedOrderChanged, selectedLineItemChanged, selectedOrderId } = applyDispatchControllerState();
-    if (selectedOrderChanged || selectedLineItemChanged) {
+    if (selectedOrderChanged) {
       refreshDispatchViews(selectedOrderId);
+      syncDispatchRotaryFocus({ keepKey: true });
+    } else if (selectedLineItemChanged) {
       syncDispatchRotaryFocus({ keepKey: true });
     }
     renderEnvironmentHeaderWidget(state.environment || null);

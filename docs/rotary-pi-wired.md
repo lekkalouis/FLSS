@@ -46,7 +46,7 @@ export ROTARY_RGB_RED_PIN=18
 export ROTARY_RGB_GREEN_PIN=23
 export ROTARY_RGB_BLUE_PIN=24
 export ROTARY_LED_FEEDBACK_S=0.25
-export ROTARY_MIN_ACTION_GAP_S=0.05
+export ROTARY_MIN_ACTION_GAP_S=0.18
 export ROTARY_HTTP_TIMEOUT_S=2.5
 export REMOTE_HEARTBEAT_INTERVAL_S=10
 export ENV_TELEMETRY_INTERVAL_S=10
@@ -85,6 +85,7 @@ Expected JSON keys:
 - `humidityPct`
 
 For DHT11 scripts, `temperature`/`humidity` aliases are also accepted.
+If your helper prints plain text (for example `Temp=23.0C Humidity=55.0%`) the script also extracts values from that output as a fallback.
 
 Example output from a DHT11 helper script:
 
@@ -125,3 +126,5 @@ Example output from a DHT11 helper script:
 - If you see `{ "ok": false, "error": "Unauthorized" }`, your Pi token does not match the server token.
 - Set `ROTARY_TOKEN` on the Pi to exactly the same value configured on the FLSS server and restart the script.
 - The script now runs an auth probe at startup and prints a clear `[AUTH]` message if token validation fails.
+
+- If the script prints `[WARN] environment telemetry skipped: temperature/humidity missing from sensor payload`, your `ENV_SENSOR_CMD` ran but did not return parseable temperature/humidity values.

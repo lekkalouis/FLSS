@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 import random
+import re
 import shlex
 import signal
 import subprocess
@@ -105,7 +106,7 @@ def load_settings() -> Settings:
     led_feedback_s = float(os.getenv("ROTARY_LED_FEEDBACK_S", "0.25"))
 
     # Client-side throttle to complement server debounce.
-    min_action_gap_s = float(os.getenv("ROTARY_MIN_ACTION_GAP_S", "0.05"))
+    min_action_gap_s = float(os.getenv("ROTARY_MIN_ACTION_GAP_S", "0.18"))
 
     return Settings(
         base_url=base_url,
@@ -140,6 +141,7 @@ class RotaryFlssClient:
         self.led = led
         self.session = requests.Session()
         self.last_sent_at = 0.0
+        self.last_sent_by_action: dict[str, float] = {}
         self.action_nonce = 0
         self.lock = threading.Lock()
 
@@ -216,7 +218,28 @@ class RotaryFlssClient:
                 sample[key] = float(raw_value)
             except (TypeError, ValueError):
                 print(f"[WARN] ENV_SENSOR_CMD field {key} is not numeric: {raw_value!r}")
+
+        if "temperatureC" not in sample or "humidityPct" not in sample:
+            regex_sample = self._parse_text_sensor_output(stdout)
+            sample = {**regex_sample, **sample}
         return sample
+
+    def _parse_text_sensor_output(self, output: str) -> dict[str, float]:
+        values: dict[str, float] = {}
+        temp_match = re.search(r"(?:temp(?:erature)?)[^0-9+-]*([+-]?\d+(?:\.\d+)?)", output, re.IGNORECASE)
+        humidity_match = re.search(r"(?:humidity|humid)[^0-9+-]*([+-]?\d+(?:\.\d+)?)", output, re.IGNORECASE)
+
+        if temp_match:
+            try:
+                values["temperatureC"] = float(temp_match.group(1))
+            except (TypeError, ValueError):
+                pass
+        if humidity_match:
+            try:
+                values["humidityPct"] = float(humidity_match.group(1))
+            except (TypeError, ValueError):
+                pass
+        return values
 
     def _flash_led(self, color: tuple[float, float, float], duration_s: float | None = None) -> None:
         def _worker() -> None:
@@ -283,7 +306,16 @@ class RotaryFlssClient:
         with self.lock:
             if now - self.last_sent_at < self.settings.min_action_gap_s:
                 return
+            if action in {"next", "prev"}:
+                last_for_action = self.last_sent_by_action.get(action, 0.0)
+                if now - last_for_action < self.settings.min_action_gap_s:
+                    return
+                opposite = "prev" if action == "next" else "next"
+                last_opposite = self.last_sent_by_action.get(opposite, 0.0)
+                if now - last_opposite < self.settings.min_action_gap_s:
+                    return
             self.last_sent_at = now
+            self.last_sent_by_action[action] = now
 
         remote_payload = {
             "action": action,
@@ -358,6 +390,8 @@ class RotaryFlssClient:
         humidity_pct = dynamic_sample.get("humidityPct", self.settings.env_humidity_pct)
 
         if temperature_c is None or humidity_pct is None:
+            if self.settings.env_sensor_cmd:
+                print("[WARN] environment telemetry skipped: temperature/humidity missing from sensor payload")
             return
 
         payload = {
@@ -370,6 +404,11 @@ class RotaryFlssClient:
             response = self._post_json("/dispatch/environment", payload, self.settings.remote_token)
             if response.status_code != 200:
                 print(f"[WARN] environment HTTP {response.status_code}: {response.text}")
+            else:
+                print(
+                    "[OK] environment telemetry sent "
+                    f"(temp={temperature_c:.1f}C humidity={humidity_pct:.1f}% device={self.settings.remote_id})"
+                )
         except requests.RequestException as exc:
             print(f"[NET] environment: {exc}")
 
