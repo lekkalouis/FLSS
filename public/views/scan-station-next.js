@@ -12,7 +12,7 @@ const DEFAULT_PREFERENCES = {
   idleTimeoutMs: 5 * 60 * 1000,
   toastDurationMs: 2200,
   scannerSound: "none",
-  autoFocusInput: true,
+  autoFocusInput: false,
   includeManualNotesInExports: true,
   hotkeysEnabled: true
 };
@@ -843,7 +843,6 @@ export const initScanStationNext = (options = {}) => {
   idleWatcher.start();
   const unsubscribe = emitter.on("state:changed", onStateChange);
 
-  notify("Scan station enhancements ready. Press F2 for inspector.", "success");
 
   const destroy = () => {
     unsubscribe();

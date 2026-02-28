@@ -181,6 +181,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const scanDispatchLog = $("scanDispatchLog");
   const dispatchTopBar = $("dispatchTopBar");
   const dispatchEnvironmentSummary = $("dispatchEnvironmentSummary");
+  const dispatchDateTimeSummary = $("dispatchDateTimeSummary");
   const dispatchEnvironmentStatus = $("dispatchEnvironmentStatus");
   const dispatchRemoteStatus = $("dispatchRemoteStatus");
   const dispatchBookingOverlay = $("dispatchBookingOverlay");
@@ -536,7 +537,9 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     shopify: "Shopify API",
     parcelPerfect: "SWE PP API",
     printNode: "Print Node",
-    email: "Email Service"
+    email: "Email Service",
+    sensor: "Sensor",
+    remote: "Remote"
   };
 
   function getParcelSet(orderNo) {
@@ -808,7 +811,11 @@ import { initScanStationNext } from "./views/scan-station-next.js";
       return;
     }
 
-    const serviceRows = Object.entries(data.services).map(([key, service]) => {
+    const augmentedServices = { ...(data.services || {}) };
+    if (dispatchEnvironmentStatus) augmentedServices.sensor = { ok: dispatchEnvironmentStatus.classList.contains("status-ok") || dispatchEnvironmentStatus.classList.contains("status-connected"), detail: dispatchEnvironmentStatus.textContent || "Waiting for sensor" };
+    if (dispatchRemoteStatus) augmentedServices.remote = { ok: dispatchRemoteStatus.classList.contains("status-connected") || /online|connected/i.test(dispatchRemoteStatus.textContent || ""), detail: dispatchRemoteStatus.textContent || "Remote offline" };
+
+    const serviceRows = Object.entries(augmentedServices).map(([key, service]) => {
       const label = SERVICE_LABELS[key] || key;
       const state = service.ok ? "Online" : "Offline";
       const detail = service.detail ? ` — ${service.detail}` : "";
@@ -819,7 +826,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     const tooltip = ["Connections", ...serviceRows, stamp].filter(Boolean).join("\n");
     serverStatusBar.dataset.tooltip = tooltip;
     serverStatusBar.title = tooltip;
-    serverStatusBar.innerHTML = Object.keys(data.services)
+    serverStatusBar.innerHTML = Object.keys(augmentedServices)
       .map(() => `<span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>`)
       .join("");
   }
@@ -1200,6 +1207,20 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     return `${minutes}m ${seconds}s`;
   }
 
+  function getWeekOfYear(date = new Date()) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  }
+
+  function renderDateTimeHeaderWidget() {
+    if (!dispatchDateTimeSummary) return;
+    const now = new Date();
+    dispatchDateTimeSummary.textContent = `${now.toLocaleDateString()} ${now.toLocaleTimeString()} · W${getWeekOfYear(now)}`;
+  }
+
   function setStatusClass(el, status) {
     if (!el) return;
     const statuses = ["ok", "stale", "missing", "error", "offline", "connected"];
@@ -1208,7 +1229,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   }
 
   function renderEnvironmentHeaderWidget(environment) {
-    if (!dispatchEnvironmentSummary || !dispatchEnvironmentStatus) return;
+    if (!dispatchEnvironmentSummary) return;
     const current = environment?.current || null;
     const status = String(environment?.status || "missing").trim() || "missing";
 
@@ -3356,8 +3377,8 @@ async function startOrder(orderNo) {
       const fulfilled = String(order?.fulfillment_status || "").toLowerCase() === "fulfilled";
       const isComplete = fulfilled || pickedUpTag;
       const actionType = isComplete ? "released" : notified ? "release-pickup" : "notify-ready";
-      const iconLabel = isComplete ? "✅" : notified ? "🔓" : "✉️";
-      const iconTitle = isComplete ? "Order released" : notified ? "Release order" : "Notify customer";
+      const iconLabel = isComplete ? "📥" : notified ? "🛍️" : "✉️";
+      const iconTitle = isComplete ? "Collected / Picked up" : notified ? "Mark collected" : "Notify customer";
       const pickupDisabled = isComplete ? "disabled" : disabled;
       return `
         ${docsDropdown}
@@ -4183,7 +4204,9 @@ async function startOrder(orderNo) {
   function updateDispatchSelectionSummary() {
     if (!dispatchSelectionPanel) return;
     const totals = aggregateDispatchSelection();
-    dispatchSelectionPanel.classList.toggle("is-hidden", totals.orderCount === 0);
+    const showScan = document.querySelector(".flView.flView--active")?.id === "viewScan";
+    dispatchSelectionPanel.parentElement.hidden = !showScan;
+    dispatchSelectionPanel.classList.toggle("is-hidden", totals.orderCount === 0 || !showScan);
     if (dispatchSelectionCount) {
       dispatchSelectionCount.textContent = String(totals.orderCount || 0);
     }
@@ -4843,7 +4866,7 @@ async function startOrder(orderNo) {
                   ? `<button class="dispatchFulfillBtn" type="button" data-action="fulfill-shipping-combined" data-group-id="${combinedGroup.id}" ${meta.anyPacked ? "" : "disabled"}>Fulfill Combined Shipment</button>`
                   : `<span class="dispatchCombinedStateTag">Combined disabled</span>`
               }
-              <button class="dispatchBoxBtn dispatchCombinedToggleBtn" type="button" data-action="toggle-combined-shipment" data-group-id="${combinedGroup.id}" aria-label="${combinedEnabled ? "Disable combined shipment" : "Enable combined shipment"}" title="${combinedEnabled ? "Disable combined shipment" : "Enable combined shipment"}">${combinedEnabled ? "🔒" : "🔓"}</button>
+              <button class="dispatchBoxBtn dispatchCombinedToggleBtn" type="button" data-action="toggle-combined-shipment" data-group-id="${combinedGroup.id}" aria-label="${combinedEnabled ? "Disable combined shipment" : "Enable combined shipment"}" title="${combinedEnabled ? "Disable combined shipment" : "Enable combined shipment"}">${combinedEnabled ? "🔗" : "🧩"}</button>
             </div>
           </div>`;
 
@@ -5514,6 +5537,7 @@ async function startOrder(orderNo) {
       renderDispatchBoard(dispatchOrdersLatest);
       applyIncomingDispatchControllerState(state || dispatchControllerState);
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
+      renderDateTimeHeaderWidget();
     } catch (e) {
       appendDebug("Dispatch refresh failed: " + String(e));
       if (dispatchBoard) dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">Error loading orders.</div>`;
@@ -5684,7 +5708,7 @@ async function startOrder(orderNo) {
 
     if (showScan) {
       statusExplain("Orders view ready.", "info");
-      scanInput?.focus();
+      // intentionally avoid forcing scan input focus
     } else if (showDocs) {
       statusExplain("Viewing operator documentation", "info");
     } else if (showFlocs) {
@@ -5708,6 +5732,7 @@ async function startOrder(orderNo) {
     }
 
     if (dispatchTopBar) dispatchTopBar.hidden = !showScan;
+    if (dispatchSelectionPanel) dispatchSelectionPanel.parentElement.hidden = !showScan;
   }
 
   const ROUTE_VIEW_MAP = new Map([
@@ -6465,6 +6490,8 @@ async function startOrder(orderNo) {
     }
     if (actionType === "fulfill-shipping") {
       if (!orderNo) return true;
+      const proceedFulfill = window.confirm(`Proceed with fulfillment for order ${orderNo}?`);
+      if (!proceedFulfill) return true;
       const order = dispatchOrderCache.get(orderNo);
       if (!order?.id) {
         statusExplain("Fulfill unavailable for this order.", "warn");
@@ -6771,6 +6798,13 @@ async function startOrder(orderNo) {
     if (shipmentRow && !shipmentRow.classList.contains("dispatchShipmentRow--header")) {
       const shipmentKeyId = shipmentRow.dataset.shipmentKey;
       if (shipmentKeyId) {
+        const shipment = dispatchShipmentCache.get(shipmentKeyId);
+        if (shipment?.tracking_number) {
+          navigator.clipboard?.writeText(String(shipment.tracking_number)).catch(() => null);
+          const trackingUrl = shipment.tracking_url || `https://www.swegroup.co.za/?s=${encodeURIComponent(shipment.tracking_number)}`;
+          window.open(trackingUrl, "_blank", "noopener,noreferrer");
+          return;
+        }
         await openDispatchShipmentModal(shipmentKeyId);
         return;
       }
@@ -7015,6 +7049,8 @@ async function startOrder(orderNo) {
     setInterval(pollDispatchControllerSelection, CONFIG.DISPATCH_CONTROLLER_FALLBACK_POLL_INTERVAL_MS);
     refreshServerStatus();
     setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
+    renderDateTimeHeaderWidget();
+    setInterval(renderDateTimeHeaderWidget, 1000);
     renderModuleDashboard();
 
     const currentPath = normalizePath(window.location.pathname);

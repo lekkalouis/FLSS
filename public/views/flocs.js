@@ -171,8 +171,8 @@ export function initFlocsView() {
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
   const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 36, 48, 50, 100, 250];
   const MATRIX_POPCORN_SIZES = ["100ml"];
-  const MATRIX_BASE_SIZES = ["200ml", "250ml"];
-  const MATRIX_BULK_SIZES = ["500g", "1kg", "750g", "750g Tubs"];
+  const MATRIX_BASE_SIZES = ["200ml"];
+  const MATRIX_BULK_SIZES = ["500g", "1kg", "750g"];
   const MATRIX_SIZES = [...MATRIX_POPCORN_SIZES, ...MATRIX_BASE_SIZES, ...MATRIX_BULK_SIZES];
   const SPICE_FLAVOUR_ORDER = [
     "original",
@@ -624,7 +624,8 @@ export function initFlocsView() {
   // ===== UI: products table rendering =====
   function normalizeMatrixSize(size) {
     const normalized = String(size || "").toLowerCase().replace(/\s+/g, " ").trim();
-    if (normalized === "750g tub" || normalized === "750g tubs") return "750g tubs";
+    if (normalized === "250ml") return "200ml";
+    if (normalized === "750g tub" || normalized === "750g tubs") return "750g";
     return normalized;
   }
 
@@ -774,7 +775,7 @@ export function initFlocsView() {
           const units = Number(state.items[key] || 0);
           const value = toDisplayQty(units);
           const qtyControl = renderSizeQtyControl({ key, value, sizeLabel: label });
-          return `<div class="flocs-sizeLine"><div class="flocs-matrixSku">${product.sku || ""}</div>${qtyControl}</div>`;
+          return `<div class="flocs-sizeLine"><div class="flocs-matrixSku">${label}</div>${qtyControl}</div>`;
         }).filter(Boolean).join("");
         return `
           <tr style="--flavour-color:${flavourColor(flavour)}">

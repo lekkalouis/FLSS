@@ -2824,6 +2824,10 @@
     text-align: left;
   }
 
+
+  .flHeaderMeta{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;}
+  .flHeaderEnv,.flHeaderDateTime{font-size:.72rem;color:var(--text-muted);}
+
 </style>
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
@@ -2835,8 +2839,14 @@
       <aside class="flSide">
         <div class="flSideHeader">
           <div class="flNavTitle">Flippen Lekka Operations</div>
-          <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
-            <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
+          <div class="flHeaderMeta">
+            <div id="dispatchEnvironmentSummary" class="flHeaderEnv">🌡 — · 💧 —</div>
+            <div id="dispatchDateTimeSummary" class="flHeaderDateTime">—</div>
+            <div id="dispatchEnvironmentStatus" class="flHeaderDateTime">Waiting for sensor</div>
+            <div id="dispatchRemoteStatus" class="flHeaderDateTime">Remote offline</div>
+            <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
+              <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
+            </div>
           </div>
         </div>
         <nav class="flNav" aria-label="Primary">
@@ -2845,13 +2855,11 @@
                         <button id="navFlocs" class="flNavBtn" type="button" role="tab" aria-controls="viewFlocs" aria-selected="false" data-route="/flocs"><span class="flNavBtnIcon" aria-hidden="true">📝</span><span class="flNavBtnText">Order capture</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">📊</span><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">💲</span><span class="flNavBtnText">Price manager</span></button>
-            <a class="flNavBtn" href="/traceability.html"><span class="flNavBtnIcon" aria-hidden="true">🧪</span><span class="flNavBtnText">Traceability</span></a>
-         
-          </div>
+                      </div>
           <div class="flNavStatus">
             <div class="flNavScanInputWrap">
               <span>Scan station</span>
-              <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan or enter Barcode" autofocus />
+              <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan or enter Barcode" />
               <button id="multiShipmentBtn" class="multiShipmentBtn" type="button" hidden aria-label="Create multi-shipment" title="Select 2+ delivery orders to create a multi-shipment">📦📦</button>
             </div>
             <div class="flNavSummary"></div>
@@ -2888,27 +2896,12 @@
 
       <div class="dispatchTopBar" id="dispatchTopBar">
         <div class="dispatchTopRow">
-          <div class="dispatchHeading">Dispatch Board</div>
+          <div class="dispatchHeading">Selected Orders</div>
           <div class="dispatchTopActions">
             <button class="btn btn-sm btn-light dispatchExpandToggle" id="dispatchExpandToggle" type="button" aria-expanded="false" title="Toggle dispatch details">⚙️</button>
           </div>
         </div>
-        <div class="dispatchTopDetails">
-          <div class="dispatchTopPanels">
-            <div class="dispatchDetailCard">
-              <div class="dispatchDetailLabel">Environment</div>
-              <div class="dispatchDetailValue" id="dispatchEnvironmentSummary">🌡 — · 💧 —</div>
-            </div>
-            <div class="dispatchDetailCard">
-              <div class="dispatchDetailLabel">Sensor status</div>
-              <div class="dispatchDetailValue" id="dispatchEnvironmentStatus">Waiting for sensor</div>
-            </div>
-            <div class="dispatchDetailCard">
-              <div class="dispatchDetailLabel">Remote</div>
-              <div class="dispatchDetailValue" id="dispatchRemoteStatus">Remote offline</div>
-            </div>
-          </div>
-        </div>
+
       </div>
 
       <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
