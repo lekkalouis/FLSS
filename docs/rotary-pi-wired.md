@@ -58,12 +58,40 @@ export ENV_TEMPERATURE_C=22.4
 export ENV_HUMIDITY_PCT=43.1
 export ENV_BATTERY_PCT=99
 export ENV_SIGNAL_RSSI=-58
+
+# Optional dynamic sensor command (e.g. DHT11 reader script)
+export ENV_SENSOR_CMD="python3 /usr/local/bin/dht11-read-json.py"
 ```
 
 ## 4) Run script
 
 ```bash
 python3 scripts/rotary-pi-wired.py
+```
+
+## DHT11 dynamic telemetry command
+
+If your sensor can be read by a command-line program, set `ENV_SENSOR_CMD` so the rotary script can execute it on each telemetry interval.
+The command must exit with code `0` and print a single JSON object to stdout. Any numeric fields provided by the command override static `ENV_*` values for that sample; missing fields fall back to static values.
+
+Expected JSON keys (preferred):
+
+- `temperatureC`
+- `humidityPct`
+- `batteryPct`
+- `signalRssi`
+
+For DHT11 scripts, `temperature`/`humidity` aliases are also accepted.
+
+Example output from a DHT11 helper script:
+
+```json
+{
+  "temperatureC": 21.8,
+  "humidityPct": 45.2,
+  "batteryPct": 97,
+  "signalRssi": -62
+}
 ```
 
 ## API contract used

@@ -22,9 +22,12 @@ Wiring (default BCM pins):
 
 from __future__ import annotations
 
+import json
 import os
 import random
+import shlex
 import signal
+import subprocess
 import threading
 import time
 from dataclasses import dataclass
@@ -45,6 +48,7 @@ class Settings:
     telemetry_interval_s: float
     remote_legacy_fallback: bool
     env_device_id: str
+    env_sensor_cmd: str
     env_temperature_c: float | None
     env_humidity_pct: float | None
     env_battery_pct: float | None
@@ -78,6 +82,7 @@ def load_settings() -> Settings:
     }
 
     env_device_id = os.getenv("ENV_DEVICE_ID", remote_id).strip() or remote_id
+    env_sensor_cmd = os.getenv("ENV_SENSOR_CMD", "").strip()
 
     def _float_env(name: str) -> float | None:
         raw = os.getenv(name, "").strip()
@@ -119,6 +124,7 @@ def load_settings() -> Settings:
         telemetry_interval_s=telemetry_interval_s,
         remote_legacy_fallback=remote_legacy_fallback,
         env_device_id=env_device_id,
+        env_sensor_cmd=env_sensor_cmd,
         env_temperature_c=env_temperature_c,
         env_humidity_pct=env_humidity_pct,
         env_battery_pct=env_battery_pct,
@@ -145,6 +151,83 @@ class RotaryFlssClient:
         self.last_sent_at = 0.0
         self.action_nonce = 0
         self.lock = threading.Lock()
+
+    def _read_env_sensor_sample(self) -> dict[str, float | None]:
+        command = self.settings.env_sensor_cmd
+        if not command:
+            return {}
+
+        try:
+            args = shlex.split(command)
+        except ValueError as exc:
+            print(f"[WARN] ENV_SENSOR_CMD could not be parsed: {exc}")
+            return {}
+
+        if not args:
+            print("[WARN] ENV_SENSOR_CMD is empty after parsing")
+            return {}
+
+        try:
+            result = subprocess.run(
+                args,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=max(1.0, self.settings.request_timeout_s),
+            )
+        except subprocess.TimeoutExpired:
+            print("[WARN] ENV_SENSOR_CMD timed out")
+            return {}
+        except Exception as exc:
+            print(f"[WARN] ENV_SENSOR_CMD failed to execute: {exc}")
+            return {}
+
+        if result.returncode != 0:
+            stderr = result.stderr.strip()
+            detail = f": {stderr}" if stderr else ""
+            print(f"[WARN] ENV_SENSOR_CMD exited with code {result.returncode}{detail}")
+            return {}
+
+        stdout = result.stdout.strip()
+        if not stdout:
+            print("[WARN] ENV_SENSOR_CMD returned empty stdout; expected JSON sample")
+            return {}
+
+        try:
+            payload = json.loads(stdout)
+        except json.JSONDecodeError:
+            last_line = stdout.splitlines()[-1].strip()
+            try:
+                payload = json.loads(last_line)
+            except json.JSONDecodeError as exc:
+                print(f"[WARN] ENV_SENSOR_CMD returned invalid JSON: {exc}")
+                return {}
+
+        if not isinstance(payload, dict):
+            print("[WARN] ENV_SENSOR_CMD JSON payload must be an object")
+            return {}
+
+        field_aliases = {
+            "temperatureC": ("temperatureC", "temperature", "temperature_c"),
+            "humidityPct": ("humidityPct", "humidity", "humidity_pct"),
+            "batteryPct": ("batteryPct", "battery", "battery_pct"),
+            "signalRssi": ("signalRssi", "signal", "signal_rssi"),
+        }
+
+        sample: dict[str, float | None] = {}
+        for key, aliases in field_aliases.items():
+            raw_value = None
+            for alias in aliases:
+                if alias in payload:
+                    raw_value = payload[alias]
+                    break
+            if raw_value is None:
+                continue
+            try:
+                sample[key] = float(raw_value)
+            except (TypeError, ValueError):
+                print(f"[WARN] ENV_SENSOR_CMD field {key} is not numeric: {raw_value!r}")
+        return sample
 
     def _flash_led(self, color: tuple[float, float, float], duration_s: float | None = None) -> None:
         def _worker() -> None:
@@ -285,16 +368,22 @@ class RotaryFlssClient:
             print(f"[NET] heartbeat: {exc}")
 
     def send_environment_telemetry(self) -> None:
-        if self.settings.env_temperature_c is None or self.settings.env_humidity_pct is None:
+        dynamic_sample = self._read_env_sensor_sample()
+        temperature_c = dynamic_sample.get("temperatureC", self.settings.env_temperature_c)
+        humidity_pct = dynamic_sample.get("humidityPct", self.settings.env_humidity_pct)
+        battery_pct = dynamic_sample.get("batteryPct", self.settings.env_battery_pct)
+        signal_rssi = dynamic_sample.get("signalRssi", self.settings.env_signal_rssi)
+
+        if temperature_c is None or humidity_pct is None:
             return
 
         payload = {
             "deviceId": self.settings.env_device_id,
-            "temperatureC": self.settings.env_temperature_c,
-            "humidityPct": self.settings.env_humidity_pct,
+            "temperatureC": temperature_c,
+            "humidityPct": humidity_pct,
             "recordedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "batteryPct": self.settings.env_battery_pct,
-            "signalRssi": self.settings.env_signal_rssi,
+            "batteryPct": battery_pct,
+            "signalRssi": signal_rssi,
         }
         try:
             response = self._post_json("/dispatch/environment", payload, self.settings.remote_token)
@@ -314,6 +403,7 @@ def main() -> int:
     print(f"  REMOTE_FIRMWARE={settings.firmware_version}")
     print(f"  REMOTE_HEARTBEAT_INTERVAL_S={settings.heartbeat_interval_s}")
     print(f"  ENV_TELEMETRY_INTERVAL_S={settings.telemetry_interval_s}")
+    print(f"  ENV_SENSOR_CMD configured={'yes' if bool(settings.env_sensor_cmd) else 'no'}")
     print(f"  Pins CLK/DT/SW={settings.cw_pin}/{settings.ccw_pin}/{settings.sw_pin}")
     print(f"  Push buttons Print/Fulfill={settings.print_btn_pin}/{settings.fulfill_btn_pin}")
     print(
