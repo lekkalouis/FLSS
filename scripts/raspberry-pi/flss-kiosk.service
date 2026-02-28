@@ -1,0 +1,19 @@
+[Unit]
+Description=FLSS Chromium kiosk
+After=systemd-user-sessions.service network-online.target flss.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+Environment=FLSS_KIOSK_URL=http://127.0.0.1:3000
+ExecStartPre=/usr/bin/bash -c 'until /usr/bin/curl -sf http://127.0.0.1:3000/api/v1/healthz; do sleep 1; done'
+ExecStart=/home/pi/FLSS/scripts/raspberry-pi/kiosk-launch.sh
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical.target

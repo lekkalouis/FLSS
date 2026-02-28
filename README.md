@@ -260,3 +260,4 @@ Some nav entries are hidden by default and can be toggled in-browser:
 - Cloudflare tunnel publishing: `docs/cloudflare-tunnel.md`
 - Shopify theme tier rendering approach: `docs/price-tiers-theme.md`
 - Raspberry Pi station controller concept: `docs/raspberry-pi-station-controller-schematic.md`
+- Raspberry Pi all-in-one kiosk deployment: `docs/raspberry-pi-all-in-one-setup.md`

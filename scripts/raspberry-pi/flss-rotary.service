@@ -1,0 +1,17 @@
+[Unit]
+Description=FLSS GPIO rotary/button bridge
+After=network-online.target flss.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=gpio
+WorkingDirectory=/home/pi/FLSS
+EnvironmentFile=/home/pi/FLSS/.env.pi-buttons
+ExecStart=/usr/bin/python3 /home/pi/FLSS/scripts/rotary-pi-wired.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
