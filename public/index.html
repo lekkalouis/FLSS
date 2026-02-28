@@ -735,6 +735,12 @@
     gap:.85rem;
     width:min(980px, 100%);
   }
+  .dispatchDetailValue.status-ok,
+  .dispatchDetailValue.status-connected{ color:#166534; }
+  .dispatchDetailValue.status-stale{ color:#92400e; }
+  .dispatchDetailValue.status-missing,
+  .dispatchDetailValue.status-offline,
+  .dispatchDetailValue.status-error{ color:#b91c1c; }
   .dispatchTruckIndicator{
     margin-left:auto;
     display:flex;
@@ -2874,6 +2880,31 @@
 
         <div class="flView flView--active" id="viewScan">
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
+
+      <div class="dispatchTopBar" id="dispatchTopBar">
+        <div class="dispatchTopRow">
+          <div class="dispatchHeading">Dispatch Board</div>
+          <div class="dispatchTopActions">
+            <button class="btn btn-sm btn-light dispatchExpandToggle" id="dispatchExpandToggle" type="button" aria-expanded="false" title="Toggle dispatch details">⚙️</button>
+          </div>
+        </div>
+        <div class="dispatchTopDetails">
+          <div class="dispatchTopPanels">
+            <div class="dispatchDetailCard">
+              <div class="dispatchDetailLabel">Environment</div>
+              <div class="dispatchDetailValue" id="dispatchEnvironmentSummary">🌡 — · 💧 —</div>
+            </div>
+            <div class="dispatchDetailCard">
+              <div class="dispatchDetailLabel">Sensor status</div>
+              <div class="dispatchDetailValue" id="dispatchEnvironmentStatus">Waiting for sensor</div>
+            </div>
+            <div class="dispatchDetailCard">
+              <div class="dispatchDetailLabel">Remote</div>
+              <div class="dispatchDetailValue" id="dispatchRemoteStatus">Remote offline</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
         <div class="dispatchBoardLayout">

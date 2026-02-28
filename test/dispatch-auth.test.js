@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 
-async function startServerWithRotaryToken(token) {
+async function startServerWithRotaryToken(token, remoteToken = '') {
   const previousToken = process.env.ROTARY_TOKEN;
+  const previousRemoteToken = process.env.REMOTE_TOKEN;
   process.env.ROTARY_TOKEN = token;
+  process.env.REMOTE_TOKEN = remoteToken;
   const mod = await import(`../src/app.js?dispatch-auth=${Date.now()}-${Math.random()}`);
   const { app } = mod.createApp();
   const server = http.createServer(app);
@@ -22,6 +24,11 @@ async function startServerWithRotaryToken(token) {
         delete process.env.ROTARY_TOKEN;
       } else {
         process.env.ROTARY_TOKEN = previousToken;
+      }
+      if (previousRemoteToken === undefined) {
+        delete process.env.REMOTE_TOKEN;
+      } else {
+        process.env.REMOTE_TOKEN = previousRemoteToken;
       }
     }
   };
@@ -126,6 +133,81 @@ test('dispatch event stream publishes immediate state changes', async () => {
     assert.equal(stateChange.data.state.selectedOrderId, '2001');
 
     await reader.cancel();
+  } finally {
+    restoreEnv();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('dispatch environment and remote endpoints support telemetry and remote actions', async () => {
+  const authToken = 'test-rotary-token';
+  const { server, baseUrl, restoreEnv } = await startServerWithRotaryToken(authToken, authToken);
+
+  try {
+    const unauthorizedEnvironment = await fetch(`${baseUrl}/api/v1/dispatch/environment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId: 'sensor-1', temperatureC: 23.4, humidityPct: 52 })
+    });
+    assert.ok(unauthorizedEnvironment.status === 401 || unauthorizedEnvironment.status === 403);
+
+    const environmentResponse = await fetch(`${baseUrl}/api/v1/dispatch/environment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        deviceId: 'sensor-1',
+        temperatureC: 23.4,
+        humidityPct: 52,
+        recordedAt: new Date().toISOString()
+      })
+    });
+    assert.equal(environmentResponse.status, 200);
+
+    const environmentStateResponse = await fetch(`${baseUrl}/api/v1/dispatch/environment`);
+    assert.equal(environmentStateResponse.status, 200);
+    const environmentStateBody = await environmentStateResponse.json();
+    assert.equal(environmentStateBody.environment.current.deviceId, 'sensor-1');
+
+    const heartbeatResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/heartbeat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ remoteId: 'remote-main', firmwareVersion: '1.0.2' })
+    });
+    assert.equal(heartbeatResponse.status, 200);
+
+    const remoteStatusResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/status`);
+    assert.equal(remoteStatusResponse.status, 200);
+    const remoteStatusBody = await remoteStatusResponse.json();
+    assert.equal(remoteStatusBody.remote.remoteId, 'remote-main');
+
+    const syncResponse = await fetch(`${baseUrl}/api/v1/dispatch/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queueOrderIds: ['3001', '3002'], mode: 'dispatch' })
+    });
+    assert.equal(syncResponse.status, 200);
+
+    const remoteActionResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'next',
+        idempotencyKey: 'abc-1'
+      })
+    });
+    assert.equal(remoteActionResponse.status, 200);
+    const remoteActionBody = await remoteActionResponse.json();
+    assert.equal(remoteActionBody.selectedOrderId, '3002');
   } finally {
     restoreEnv();
     await new Promise((resolve) => server.close(resolve));

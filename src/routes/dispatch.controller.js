@@ -3,15 +3,21 @@ import { Router } from "express";
 import { config } from "../config.js";
 import {
   confirm,
+  getEnvironmentState,
+  getRemoteState,
   getState,
   next,
+  onCustomEvent,
+  onStateChange,
   prev,
+  recordRemoteHeartbeat,
   syncState,
-  onStateChange
+  upsertEnvironmentReading
 } from "../services/dispatchController.js";
 
 const router = Router();
 const lastActionAtByKey = new Map();
+const remoteIdempotencyByRemote = new Map();
 
 function getRequestIp(req) {
   const raw = String(req.ip || req.socket?.remoteAddress || "");
@@ -41,8 +47,24 @@ function isAuthorized(req) {
   return isPrivateIp(getRequestIp(req));
 }
 
+function isRemoteAuthorized(req) {
+  const token = String(config.REMOTE_TOKEN || "").trim();
+  if (!token) return isAuthorized(req);
+  const authHeader = String(req.get("authorization") || "").trim();
+  const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  return bearerToken && bearerToken === token;
+}
+
 function unauthorizedResponse(res) {
   const hasToken = Boolean(String(config.ROTARY_TOKEN || "").trim());
+  return res.status(hasToken ? 401 : 403).json({
+    ok: false,
+    error: hasToken ? "Unauthorized" : "Forbidden"
+  });
+}
+
+function remoteUnauthorizedResponse(res) {
+  const hasToken = Boolean(String(config.REMOTE_TOKEN || "").trim());
   return res.status(hasToken ? 401 : 403).json({
     ok: false,
     error: hasToken ? "Unauthorized" : "Forbidden"
@@ -86,6 +108,91 @@ router.post("/dispatch/state", (req, res) => {
   res.json({ ok: true, ...state });
 });
 
+router.get("/dispatch/environment", (req, res) => {
+  const environment = getEnvironmentState({ staleMs: config.ENV_STALE_MS });
+  res.json({ ok: true, environment });
+});
+
+router.post("/dispatch/environment", (req, res) => {
+  if (!isRemoteAuthorized(req)) {
+    return remoteUnauthorizedResponse(res);
+  }
+  try {
+    const environment = upsertEnvironmentReading(req.body, {
+      staleMs: config.ENV_STALE_MS,
+      tempMin: config.ENV_TEMP_MIN_C,
+      tempMax: config.ENV_TEMP_MAX_C,
+      humidityMin: config.ENV_HUMIDITY_MIN,
+      humidityMax: config.ENV_HUMIDITY_MAX
+    });
+    return res.json({ ok: true, environment });
+  } catch (error) {
+    if (error?.code === "INVALID_ENVIRONMENT_PAYLOAD") {
+      return res.status(400).json({ ok: false, error: error.message });
+    }
+    return res.status(500).json({ ok: false, error: "Failed to save environment reading" });
+  }
+});
+
+router.post("/dispatch/remote/heartbeat", (req, res) => {
+  if (!isRemoteAuthorized(req)) {
+    return remoteUnauthorizedResponse(res);
+  }
+  try {
+    const remote = recordRemoteHeartbeat(req.body, { staleMs: config.REMOTE_HEARTBEAT_STALE_MS });
+    return res.json({ ok: true, remote });
+  } catch (error) {
+    if (error?.code === "INVALID_REMOTE_PAYLOAD") {
+      return res.status(400).json({ ok: false, error: error.message });
+    }
+    return res.status(500).json({ ok: false, error: "Failed to record remote heartbeat" });
+  }
+});
+
+router.get("/dispatch/remote/status", (req, res) => {
+  const remote = getRemoteState({ staleMs: config.REMOTE_HEARTBEAT_STALE_MS });
+  res.json({ ok: true, remote });
+});
+
+router.post("/dispatch/remote/action", (req, res) => {
+  if (!isRemoteAuthorized(req)) {
+    return remoteUnauthorizedResponse(res);
+  }
+
+  const action = String(req.body?.action || "").trim().toLowerCase();
+  const remoteId = String(req.body?.remoteId || "unknown").trim() || "unknown";
+  const idempotencyKey = String(req.body?.idempotencyKey || "").trim();
+  if (!action) {
+    return res.status(400).json({ ok: false, error: "action is required" });
+  }
+
+  const allowed = new Set(["next", "prev", "confirm"]);
+  if (!allowed.has(action)) {
+    return res.status(400).json({ ok: false, error: "Unsupported remote action" });
+  }
+
+  if (idempotencyKey) {
+    const lastKey = remoteIdempotencyByRemote.get(remoteId);
+    if (lastKey && lastKey === idempotencyKey) {
+      const state = getState();
+      return res.json({ ok: true, action, selectedOrderId: state.selectedOrderId, deduped: true });
+    }
+    remoteIdempotencyByRemote.set(remoteId, idempotencyKey);
+  }
+
+  try {
+    let state;
+    if (action === "next") state = next();
+    if (action === "prev") state = prev();
+    if (action === "confirm") state = confirm();
+    return res.json({ ok: true, action, selectedOrderId: state?.selectedOrderId || null });
+  } catch (error) {
+    if (error?.code === "NO_SELECTED_ORDER") {
+      return res.status(409).json({ ok: false, action, error: error.message });
+    }
+    return res.status(500).json({ ok: false, action, error: "Failed to apply remote action" });
+  }
+});
 
 router.get("/dispatch/events", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
@@ -98,10 +205,19 @@ router.get("/dispatch/events", (req, res) => {
     res.write(`data: ${JSON.stringify(payload)}\n\n`);
   };
 
-  sendEvent("ready", { state: getState(), connectedAt: new Date().toISOString() });
+  sendEvent("ready", {
+    state: getState(),
+    environment: getEnvironmentState({ staleMs: config.ENV_STALE_MS }),
+    remote: getRemoteState({ staleMs: config.REMOTE_HEARTBEAT_STALE_MS }),
+    connectedAt: new Date().toISOString()
+  });
 
-  const unsubscribe = onStateChange((payload) => {
+  const unsubscribeState = onStateChange((payload) => {
     sendEvent("state-change", payload);
+  });
+
+  const unsubscribeCustom = onCustomEvent((payload) => {
+    sendEvent(payload.event || "dispatch-event", payload.payload || {});
   });
 
   const keepAlive = setInterval(() => {
@@ -110,7 +226,8 @@ router.get("/dispatch/events", (req, res) => {
 
   req.on("close", () => {
     clearInterval(keepAlive);
-    unsubscribe();
+    unsubscribeState();
+    unsubscribeCustom();
   });
 });
 
