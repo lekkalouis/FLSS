@@ -4920,10 +4920,12 @@ async function startOrder(orderNo) {
   }
 
   function syncDispatchRotaryFocus({ keepKey = true, scroll = false } = {}) {
+    const preferredKey = keepKey ? dispatchRotaryFocusKey : "";
     const rows = getDispatchRotaryRows();
     if (!rows.length) {
       dispatchRotaryFocusIndex = -1;
-      dispatchRotaryFocusKey = "";
+      syncDispatchRotarySelectionUI(preferredKey);
+      dispatchRotaryFocusKey = preferredKey || "";
       return;
     }
 
@@ -4940,10 +4942,19 @@ async function startOrder(orderNo) {
     activeRow.classList.add("is-rotary-focus");
     dispatchRotaryFocusIndex = index;
     dispatchRotaryFocusKey = dispatchRotaryKeyForRow(activeRow);
+    syncDispatchRotarySelectionUI(preferredKey || dispatchRotaryFocusKey);
 
     if (scroll) {
       activeRow.scrollIntoView({ block: "nearest", behavior: "auto" });
     }
+  }
+
+  function syncDispatchRotarySelectionUI(selectedKey = "") {
+    if (!dispatchBoard) return;
+    const key = String(selectedKey || "").trim();
+    dispatchBoard.querySelectorAll(".dispatchPackingRow").forEach((row) => {
+      row.classList.toggle("is-rotary-selected", key && dispatchRotaryKeyForRow(row) === key);
+    });
   }
 
   function moveDispatchRotaryFocus(step) {
