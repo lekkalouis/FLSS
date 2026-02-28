@@ -299,6 +299,13 @@ function valueAsNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function firstDefined(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return null;
+}
+
 export function upsertEnvironmentReading(
   reading,
   {
@@ -311,8 +318,12 @@ export function upsertEnvironmentReading(
   } = {}
 ) {
   const deviceId = String(reading?.deviceId || "").trim();
-  const temperatureC = valueAsNumber(reading?.temperatureC);
-  const humidityPct = valueAsNumber(reading?.humidityPct);
+  const temperatureC = valueAsNumber(
+    firstDefined(reading?.temperatureC, reading?.temperature, reading?.tempC, reading?.temperature_c)
+  );
+  const humidityPct = valueAsNumber(
+    firstDefined(reading?.humidityPct, reading?.humidity, reading?.humidity_pct)
+  );
   const batteryPct = valueAsNumber(reading?.batteryPct);
   const signalRssi = valueAsNumber(reading?.signalRssi);
   const recordedAtRaw = reading?.recordedAt ? new Date(reading.recordedAt) : new Date(now);

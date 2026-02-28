@@ -159,8 +159,8 @@ test('dispatch environment and remote endpoints support telemetry and remote act
       },
       body: JSON.stringify({
         deviceId: 'sensor-1',
-        temperatureC: 23.4,
-        humidityPct: 52,
+        temperature: 23.4,
+        humidity: 52,
         recordedAt: new Date().toISOString()
       })
     });
