@@ -180,6 +180,9 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const scanProgressLabel = $("scanProgressLabel");
   const scanDispatchLog = $("scanDispatchLog");
   const dispatchTopBar = $("dispatchTopBar");
+  const dispatchEnvironmentSummary = $("dispatchEnvironmentSummary");
+  const dispatchEnvironmentStatus = $("dispatchEnvironmentStatus");
+  const dispatchRemoteStatus = $("dispatchRemoteStatus");
   const dispatchBookingOverlay = $("dispatchBookingOverlay");
   const dispatchOverlayProgressBar = $("dispatchOverlayProgressBar");
   const dispatchOverlayProgressFill = $("dispatchOverlayProgressFill");
@@ -1193,6 +1196,46 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     const minutes = Math.floor(diffMs / 60000);
     const seconds = Math.floor((diffMs % 60000) / 1000);
     return `${minutes}m ${seconds}s`;
+  }
+
+  function setStatusClass(el, status) {
+    if (!el) return;
+    const statuses = ["ok", "stale", "missing", "error", "offline", "connected"];
+    statuses.forEach((value) => el.classList.remove(`status-${value}`));
+    if (status) el.classList.add(`status-${status}`);
+  }
+
+  function renderEnvironmentHeaderWidget(environment) {
+    if (!dispatchEnvironmentSummary || !dispatchEnvironmentStatus) return;
+    const current = environment?.current || null;
+    const status = String(environment?.status || "missing").trim() || "missing";
+
+    if (current) {
+      const temp = Number(current.temperatureC);
+      const humidity = Number(current.humidityPct);
+      const tempText = Number.isFinite(temp) ? `${temp.toFixed(1)}°C` : "—";
+      const humidityText = Number.isFinite(humidity) ? `${Math.round(humidity)}%` : "—";
+      dispatchEnvironmentSummary.textContent = `🌡 ${tempText} · 💧 ${humidityText}`;
+
+      const ageText = environment?.lastUpdatedAt
+        ? ` · ${formatDispatchTime(environment.lastUpdatedAt)}`
+        : "";
+      dispatchEnvironmentStatus.textContent = `Sensor ${status}${ageText}`;
+    } else {
+      dispatchEnvironmentSummary.textContent = "🌡 — · 💧 —";
+      dispatchEnvironmentStatus.textContent = "Waiting for sensor";
+    }
+
+    setStatusClass(dispatchEnvironmentStatus, status);
+  }
+
+  function renderRemoteStatusBadge(remote) {
+    if (!dispatchRemoteStatus) return;
+    const status = String(remote?.status || "offline").trim() || "offline";
+    const remoteId = String(remote?.remoteId || "").trim();
+    const suffix = remoteId ? ` (${remoteId})` : "";
+    dispatchRemoteStatus.textContent = `Remote ${status}${suffix}`;
+    setStatusClass(dispatchRemoteStatus, status);
   }
 
   function makePackingKey(item, index) {
@@ -5225,6 +5268,8 @@ async function startOrder(orderNo) {
       refreshDispatchViews(selectedOrderId);
       syncDispatchRotaryFocus({ keepKey: true });
     }
+    renderEnvironmentHeaderWidget(state.environment || null);
+    renderRemoteStatusBadge(state.remote || null);
     syncDispatchSelectionUI();
     updateDashboardKpis();
   }
@@ -5330,6 +5375,22 @@ async function startOrder(orderNo) {
 
     source.addEventListener("ready", handleMessage);
     source.addEventListener("state-change", handleMessage);
+    source.addEventListener("environment-update", (event) => {
+      try {
+        const payload = JSON.parse(String(event.data || "{}"));
+        renderEnvironmentHeaderWidget(payload.environment || null);
+      } catch {
+        // ignore malformed payload
+      }
+    });
+    source.addEventListener("remote-status", (event) => {
+      try {
+        const payload = JSON.parse(String(event.data || "{}"));
+        renderRemoteStatusBadge(payload.remote || null);
+      } catch {
+        // ignore malformed payload
+      }
+    });
     source.onmessage = handleMessage;
     source.onerror = () => {
       source.close();

@@ -30,6 +30,12 @@ async function removeTemplateFixture() {
   await fs.rm(templatesFile, { force: true });
 }
 
+function withRotaryAuth(headers = {}) {
+  const token = String(process.env.ROTARY_TOKEN || '').trim();
+  if (!token) return headers;
+  return { ...headers, Authorization: `Bearer ${token}` };
+}
+
 test('GET /api/v1/healthz returns healthy payload', async () => {
   const { server, baseUrl } = await startServer();
   try {
@@ -157,7 +163,7 @@ test('dispatch controller endpoints support sync, next, prev and confirm flow', 
 
     const nextResponse = await fetch(`${baseUrl}/api/v1/dispatch/next`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withRotaryAuth({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ source: 'rotary_pi' })
     });
     assert.equal(nextResponse.status, 200);
@@ -169,7 +175,7 @@ test('dispatch controller endpoints support sync, next, prev and confirm flow', 
 
     const prevResponse = await fetch(`${baseUrl}/api/v1/dispatch/prev`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withRotaryAuth({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ source: 'rotary_pi' })
     });
     assert.equal(prevResponse.status, 200);
@@ -181,7 +187,7 @@ test('dispatch controller endpoints support sync, next, prev and confirm flow', 
 
     const confirmResponse = await fetch(`${baseUrl}/api/v1/dispatch/confirm`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withRotaryAuth({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ source: 'rotary_pi' })
     });
     assert.equal(confirmResponse.status, 200);

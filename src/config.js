@@ -55,6 +55,14 @@ export const config = {
 
   ROTARY_TOKEN: process.env.ROTARY_TOKEN || "",
   ROTARY_DEBOUNCE_MS: numberOrDefault(process.env.ROTARY_DEBOUNCE_MS, 40, { min: 1 }),
+  REMOTE_TOKEN: process.env.REMOTE_TOKEN || "",
+  REMOTE_HEARTBEAT_STALE_MS: numberOrDefault(process.env.REMOTE_HEARTBEAT_STALE_MS, 30000, { min: 1000 }),
+
+  ENV_TEMP_MIN_C: numberOrDefault(process.env.ENV_TEMP_MIN_C, 5),
+  ENV_TEMP_MAX_C: numberOrDefault(process.env.ENV_TEMP_MAX_C, 35),
+  ENV_HUMIDITY_MIN: numberOrDefault(process.env.ENV_HUMIDITY_MIN, 20, { min: 0, max: 100 }),
+  ENV_HUMIDITY_MAX: numberOrDefault(process.env.ENV_HUMIDITY_MAX, 70, { min: 0, max: 100 }),
+  ENV_STALE_MS: numberOrDefault(process.env.ENV_STALE_MS, 60000, { min: 1000 }),
 
   UI_COST_ALERT_THRESHOLD: process.env.UI_COST_ALERT_THRESHOLD,
   UI_BOOKING_IDLE_MS: process.env.UI_BOOKING_IDLE_MS,
