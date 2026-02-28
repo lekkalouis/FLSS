@@ -6,6 +6,8 @@ import {
   getState,
   next,
   prev,
+  requestFulfill,
+  requestPrint,
   syncState,
   onStateChange
 } from "../services/dispatchController.js";
@@ -81,6 +83,7 @@ router.get("/dispatch/state", (req, res) => {
 router.post("/dispatch/state", (req, res) => {
   const state = syncState({
     queueOrderIds: req.body?.queueOrderIds,
+    lineItemKeysByOrderId: req.body?.lineItemKeysByOrderId,
     mode: req.body?.mode
   });
   res.json({ ok: true, ...state });
@@ -122,16 +125,27 @@ function handleAction(actionName, fn) {
 
     if (shouldDebounce(req, actionName)) {
       const state = getState();
-      return res.json({ ok: true, action: actionName, selectedOrderId: state.selectedOrderId, debounced: true });
+      return res.json({
+        ok: true,
+        action: actionName,
+        selectedOrderId: state.selectedOrderId,
+        selectedLineItemKey: state.selectedLineItemKey || null,
+        debounced: true
+      });
     }
 
     const beforeState = getState();
     try {
       const state = fn();
       logAction(actionName, req, beforeState, state);
-      return res.json({ ok: true, action: actionName, selectedOrderId: state.selectedOrderId });
+      return res.json({
+        ok: true,
+        action: actionName,
+        selectedOrderId: state.selectedOrderId,
+        selectedLineItemKey: state.selectedLineItemKey || null
+      });
     } catch (error) {
-      if (error?.code === "NO_SELECTED_ORDER") {
+      if (error?.code === "NO_SELECTED_ORDER" || error?.code === "NO_SELECTED_LINE_ITEM") {
         return res.status(409).json({ ok: false, action: actionName, error: error.message });
       }
       return res.status(500).json({ ok: false, action: actionName, error: "Failed to apply action" });
@@ -142,5 +156,7 @@ function handleAction(actionName, fn) {
 router.post("/dispatch/next", handleAction("next", () => next()));
 router.post("/dispatch/prev", handleAction("prev", () => prev()));
 router.post("/dispatch/confirm", handleAction("confirm", () => confirm()));
+router.post("/dispatch/print", handleAction("print", () => requestPrint()));
+router.post("/dispatch/fulfill", handleAction("fulfill", () => requestFulfill()));
 
 export default router;
