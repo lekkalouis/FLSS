@@ -669,6 +669,32 @@
       padding:.35rem;
       background:rgba(248,113,113,.08);
     }
+
+    #viewFlocs .flocs-sizeLine{
+      display:flex;
+      flex-direction:column;
+      gap:.25rem;
+      padding:.2rem 0;
+      border-bottom:1px dashed rgba(148,163,184,.28);
+    }
+    #viewFlocs .flocs-sizeLine:last-child{
+      border-bottom:none;
+      padding-bottom:0;
+    }
+    #viewFlocs .flocs-sizeTag{
+      display:inline-flex;
+      align-items:center;
+      border:1px solid var(--panel-strong);
+      border-radius:.4rem;
+      padding:.08rem .35rem;
+      font-size:.62rem;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color:var(--muted);
+      background:var(--panel-soft);
+      margin-right:.2rem;
+      white-space:nowrap;
+    }
     #viewFlocs .flocs-qtyInput{
       width:4.2rem;
       border-radius:.45rem;
@@ -734,6 +760,16 @@
     #viewFlocs .flocs-qtyBtn:hover{
       border-color:var(--accent);
       color:var(--accent);
+    }
+    #viewFlocs .flocs-qtyBtn--clear{
+      color:#b91c1c;
+      border-color:rgba(185,28,28,.25);
+      background:rgba(185,28,28,.04);
+    }
+    #viewFlocs .flocs-qtyBtn--clear:hover{
+      border-color:#b91c1c;
+      color:#991b1b;
+      background:rgba(185,28,28,.08);
     }
     #viewFlocs .flocs-productResults{
       margin-top:.45rem;

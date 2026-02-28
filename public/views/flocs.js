@@ -64,6 +64,7 @@ export function initFlocsView() {
   const bulkColumnsWrap  = document.getElementById("flocs-bulkColumnsWrap");
   const qtyModeGroup     = document.getElementById("flocs-qtyModeGroup");
   const cartonSizeGroup  = document.getElementById("flocs-cartonSizeGroup");
+  const clearAllQtyBtn   = document.getElementById("flocs-clearAllQtyBtn");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
@@ -94,7 +95,7 @@ export function initFlocsView() {
     priceTier: null,
     customerTags: [],
     productType: "spices",
-    showBulkColumns: false,
+    showBulkColumns: true,
     qtyMode: "units",
     cartonUnits: 12,
     priceOverrides: {},
@@ -637,7 +638,7 @@ export function initFlocsView() {
   function renderProductsHeader() {
     if (!productsHeadRow) return;
     const sizeHeaders = visibleMatrixSizes().map((size) => `<th>${size}</th>`).join("");
-    productsHeadRow.innerHTML = `<th>SKU</th><th>Description</th>${sizeHeaders}`;
+    productsHeadRow.innerHTML = `<th>SKU / Flavour</th>${sizeHeaders}`;
   }
 
   function renderBulkToggleState() {
@@ -721,6 +722,23 @@ export function initFlocsView() {
     return Math.floor(base);
   }
 
+  function renderSizeQtyControl({ key, value, sizeLabel = "" }) {
+    const quickButtons = QUICK_QTY.map(
+      (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
+    ).join("");
+    const sizeTag = sizeLabel ? `<span class="flocs-sizeTag">${sizeLabel}</span>` : "";
+    return `<div class="flocs-qtyArea">
+      ${sizeTag}
+      <div class="flocs-qtyQuick">${quickButtons}</div>
+      <div class="flocs-qtyWrap">
+        <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}" title="Decrease">−</button>
+        <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
+        <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}" title="Increase">＋</button>
+        <button class="flocs-qtyBtn flocs-qtyBtn--clear" type="button" data-action="clear" data-key="${key}" title="Clear quantity">⨯</button>
+      </div>
+    </div>`;
+  }
+
   function renderProductsTable() {
     if (!productsBody) return;
     const activeSizes = visibleMatrixSizes();
@@ -736,25 +754,13 @@ export function initFlocsView() {
         const key = productKey(product);
         const units = Number(state.items[key] || 0);
         const value = toDisplayQty(units);
-        const quickButtons = QUICK_QTY.map(
-          (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
-        ).join("");
+        const qtyControl = renderSizeQtyControl({ key, value, sizeLabel: product.size || "Standard" });
         return `<tr style="--flavour-color:${flavourColor(product.flavour)}">
           <td>${product.sku || ""}</td>
-          <td><span class="flocs-productName">${displayProductTitle(product)}</span></td>
-          <td class="flocs-matrixCell" colspan="${activeSizes.length}">
-            <div class="flocs-qtyArea">
-              <div class="flocs-qtyQuick">${quickButtons}</div>
-              <div class="flocs-qtyWrap">
-                <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
-                <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
-                <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
-              </div>
-            </div>
-          </td>
+          <td class="flocs-matrixCell" colspan="${activeSizes.length}">${qtyControl}</td>
         </tr>`;
       }).join("");
-      const emptyRow = `<tr><td colspan="${2 + activeSizes.length}" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
+      const emptyRow = `<tr><td colspan="${1 + activeSizes.length}" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
       productsBody.innerHTML = `${emptyRow}${extraRows}`;
       return;
     }
@@ -767,26 +773,12 @@ export function initFlocsView() {
           const key = productKey(product);
           const units = Number(state.items[key] || 0);
           const value = toDisplayQty(units);
-          const quickButtons = QUICK_QTY.map(
-            (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
-          ).join("");
-          return `
-            <td class="flocs-matrixCell">
-              <div class="flocs-matrixSku">${product.sku || ""}</div>
-              <div class="flocs-qtyArea">
-                <div class="flocs-qtyQuick">${quickButtons}</div>
-                <div class="flocs-qtyWrap">
-                  <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
-                  <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
-                  <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
-                </div>
-              </div>
-            </td>`;
+          const qtyControl = renderSizeQtyControl({ key, value });
+          return `<td class="flocs-matrixCell"><div class="flocs-matrixSku">${product.sku || ""}</div>${qtyControl}</td>`;
         }).join("");
         return `
           <tr style="--flavour-color:${flavourColor(flavour)}">
             <td><span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span></td>
-            <td><span class="flocs-productName">${flavour} products</span></td>
             ${cells}
           </tr>`;
       })
@@ -796,22 +788,10 @@ export function initFlocsView() {
       const key = productKey(product);
       const units = Number(state.items[key] || 0);
       const value = toDisplayQty(units);
-      const quickButtons = QUICK_QTY.map(
-        (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
-      ).join("");
+      const qtyControl = renderSizeQtyControl({ key, value, sizeLabel: product.size || "Standard" });
       return `<tr style="--flavour-color:${flavourColor(product.flavour)}">
         <td>${product.sku || ""}</td>
-        <td><span class="flocs-productName">${displayProductTitle(product)}</span></td>
-        <td class="flocs-matrixCell" colspan="${activeSizes.length}">
-          <div class="flocs-qtyArea">
-            <div class="flocs-qtyQuick">${quickButtons}</div>
-            <div class="flocs-qtyWrap">
-              <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}">−</button>
-              <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
-              <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}">＋</button>
-            </div>
-          </div>
-        </td>
+        <td class="flocs-matrixCell" colspan="${activeSizes.length}">${qtyControl}</td>
       </tr>`;
     }).join("");
 
@@ -2270,6 +2250,8 @@ ${state.customer.email || ""}${
           const next = Math.max(0, current - step);
           if (next === 0) delete state.items[key];
           else state.items[key] = next;
+        } else if (action === "clear") {
+          delete state.items[key];
         } else {
           return;
         }
@@ -2310,6 +2292,16 @@ ${state.customer.email || ""}${
           node.classList.toggle("is-active", node === btn);
         });
         renderProductsTable();
+      });
+    }
+
+    if (clearAllQtyBtn) {
+      clearAllQtyBtn.addEventListener("click", () => {
+        state.items = {};
+        renderProductsTable();
+        renderInvoice();
+        validate();
+        scheduleAutoQuote();
       });
     }
 
