@@ -40,8 +40,7 @@ function isAuthorized(req) {
   return isPrivateIp(getRequestIp(req));
 }
 
-function enforceAuth(req, res, nextMiddleware) {
-  if (isAuthorized(req)) return nextMiddleware();
+function unauthorizedResponse(res) {
   const hasToken = Boolean(String(config.ROTARY_TOKEN || "").trim());
   return res.status(hasToken ? 401 : 403).json({
     ok: false,
@@ -73,8 +72,6 @@ function logAction(action, req, beforeState, afterState) {
   });
 }
 
-router.use("/dispatch", enforceAuth);
-
 router.get("/dispatch/state", (req, res) => {
   const state = getState();
   res.json({ ok: true, ...state });
@@ -90,6 +87,10 @@ router.post("/dispatch/state", (req, res) => {
 
 function handleAction(actionName, fn) {
   return (req, res) => {
+    if (!isAuthorized(req)) {
+      return unauthorizedResponse(res);
+    }
+
     if (shouldDebounce(req, actionName)) {
       const state = getState();
       return res.json({ ok: true, action: actionName, selectedOrderId: state.selectedOrderId, debounced: true });
