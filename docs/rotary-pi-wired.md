@@ -60,6 +60,12 @@ python3 scripts/rotary-pi-wired.py
 - `POST /api/v1/dispatch/confirm` body `{ "source": "rotary_pi" }`
 - Header `Authorization: Bearer <ROTARY_TOKEN>`
 
+## Real-time browser sync
+
+- Dispatch controller state now streams to browser clients over `GET /api/v1/dispatch/events` (Server-Sent Events).
+- Rotary `next`, `prev`, `confirm`, and state sync updates are pushed immediately so dispatch card selection updates without high-frequency polling.
+- The web UI still keeps a low-frequency fallback poll (`/api/v1/dispatch/state`) every few seconds. This fallback is only for legacy browsers or temporary SSE disconnects/reconnect windows.
+
 ## Notes
 
 - If direction feels inverted, either swap `CLK` and `DT` wires or swap action mapping in script.
