@@ -199,3 +199,27 @@ test('dispatch controller endpoints support sync, next, prev and confirm flow', 
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+
+test('dispatch controller selection updates trigger dispatch refresh path in frontend state handler', async () => {
+  const appJs = await fs.readFile(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  const changeGuardSnippet = 'if (selectedOrderChanged) {';
+  const refreshSnippet = 'refreshDispatchViews(selectedOrderId);';
+  const rotarySnippet = 'syncDispatchRotaryFocus({ keepKey: true });';
+
+  const guardIndex = appJs.indexOf(changeGuardSnippet);
+  const refreshIndex = appJs.indexOf(refreshSnippet, guardIndex);
+  const rotaryIndex = appJs.indexOf(rotarySnippet, refreshIndex);
+
+  assert.notEqual(guardIndex, -1, 'selected order change guard should exist');
+  assert.notEqual(refreshIndex, -1, 'selection change should call refreshDispatchViews');
+  assert.notEqual(rotaryIndex, -1, 'rotary focus should sync after dispatch view refresh');
+  assert.ok(refreshIndex < rotaryIndex, 'refresh should happen before rotary focus sync');
+
+  assert.match(
+    appJs,
+    /selectedOrderChanged:\s*previousSelectedOrderId\s*!==\s*selectedOrderId/,
+    'applyDispatchControllerState should detect selection changes and avoid unnecessary rerenders'
+  );
+});

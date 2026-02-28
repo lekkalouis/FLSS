@@ -5220,17 +5220,28 @@ async function startOrder(orderNo) {
   function applyIncomingDispatchControllerState(state) {
     if (!state || typeof state !== "object") return;
     dispatchControllerState = state;
-    applyDispatchControllerState();
+    const { selectedOrderChanged, selectedOrderId } = applyDispatchControllerState();
+    if (selectedOrderChanged) {
+      refreshDispatchViews(selectedOrderId);
+      syncDispatchRotaryFocus({ keepKey: true });
+    }
     syncDispatchSelectionUI();
     updateDashboardKpis();
   }
 
   function applyDispatchControllerState() {
-    if (!dispatchControllerState) return;
+    if (!dispatchControllerState) {
+      return { selectedOrderChanged: false, selectedOrderId: "" };
+    }
+    const previousSelectedOrderId =
+      dispatchSelectedOrders.size === 1 ? String(Array.from(dispatchSelectedOrders)[0] || "").trim() : "";
     const selectedOrderId = String(dispatchControllerState.selectedOrderId || "").trim();
     if (!selectedOrderId) {
       dispatchSelectedOrders.clear();
-      return;
+      return {
+        selectedOrderChanged: previousSelectedOrderId !== "",
+        selectedOrderId: ""
+      };
     }
 
     if (dispatchSelectedOrders.size !== 1 || !dispatchSelectedOrders.has(selectedOrderId)) {
@@ -5246,6 +5257,11 @@ async function startOrder(orderNo) {
         openDispatchOrderModal(confirmedOrderId);
       }
     }
+
+    return {
+      selectedOrderChanged: previousSelectedOrderId !== selectedOrderId,
+      selectedOrderId
+    };
   }
 
   function syncDispatchSelectionUI() {
