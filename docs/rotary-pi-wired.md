@@ -58,7 +58,24 @@ export ENV_TEMPERATURE_C=22.4
 export ENV_HUMIDITY_PCT=43.1
 export ENV_BATTERY_PCT=99
 export ENV_SIGNAL_RSSI=-58
+
+# Dynamic sensor command (recommended for real sensors like CNT5)
+# Command must print JSON: {"temperatureC": <num>, "humidityPct": <num>, "batteryPct": <num?>, "signalRssi": <num?>}
+export ENV_SENSOR_CMD="python3 /home/pi/cnt5_reader.py"
 ```
+
+## CNT5 sensor notes
+
+If you are using a CNT5 sensor, set `ENV_SENSOR_CMD` to a script/command that reads CNT5 values and prints one JSON object to stdout.
+
+Example output format:
+
+```json
+{"temperatureC": 21.7, "humidityPct": 46.2, "batteryPct": 88, "signalRssi": -61}
+```
+
+The rotary client executes `ENV_SENSOR_CMD` on each telemetry interval and uses those values for `POST /api/v1/dispatch/environment`.
+If the command fails or returns invalid JSON, the script logs a warning and keeps running.
 
 ## 4) Run script
 
