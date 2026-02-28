@@ -1,0 +1,17 @@
+[Unit]
+Description=FLSS Node.js server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/FLSS
+EnvironmentFile=/home/pi/FLSS/.env
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
