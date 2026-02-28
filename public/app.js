@@ -376,6 +376,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let dispatchVoicePrimed = false;
   let dispatchControllerState = null;
   let dispatchLastHandledConfirmAt = null;
+  let dispatchLastHandledPrintAt = null;
+  let dispatchLastHandledFulfillAt = null;
   let dispatchControllerPollInFlight = false;
   let dispatchEventSource = null;
   let dispatchEventsReconnectTimer = null;
@@ -4861,8 +4863,19 @@ async function startOrder(orderNo) {
       return;
     }
 
+    const selectedOrderId = String(dispatchControllerState?.selectedOrderId || "").trim();
+    const selectedLineItemKey = String(dispatchControllerState?.selectedLineItemKey || "").trim();
     let index = dispatchRotaryFocusIndex;
-    if (keepKey && dispatchRotaryFocusKey) {
+
+    if (selectedOrderId && selectedLineItemKey) {
+      const selectedRotaryKey = `${selectedOrderId}:${selectedLineItemKey}`;
+      const selectedIndex = rows.findIndex((row) => dispatchRotaryKeyForRow(row) === selectedRotaryKey);
+      if (selectedIndex >= 0) {
+        index = selectedIndex;
+      }
+    }
+
+    if (keepKey && dispatchRotaryFocusKey && (index < 0 || index >= rows.length)) {
       const byKey = rows.findIndex((row) => dispatchRotaryKeyForRow(row) === dispatchRotaryFocusKey);
       if (byKey >= 0) index = byKey;
     }
@@ -5191,12 +5204,26 @@ async function startOrder(orderNo) {
       .filter(Boolean);
   }
 
+  function getDispatchLineItemKeysByOrderId() {
+    return (dispatchOrdersLatest || []).reduce((acc, order) => {
+      const orderNo = String(order?.name || "").replace("#", "").trim();
+      if (!orderNo) return acc;
+      const state = getPackingState(order);
+      acc[orderNo] = Array.isArray(state?.items) ? state.items.map((item) => item.key).filter(Boolean) : [];
+      return acc;
+    }, {});
+  }
+
   async function syncDispatchControllerState(mode = "dispatch") {
     try {
       const response = await fetch(`${API_BASE}/dispatch/state`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ queueOrderIds: getDispatchQueueOrderIds(), mode })
+        body: JSON.stringify({
+          queueOrderIds: getDispatchQueueOrderIds(),
+          lineItemKeysByOrderId: getDispatchLineItemKeysByOrderId(),
+          mode
+        })
       });
       if (!response.ok) return;
       dispatchControllerState = await response.json();
@@ -5223,8 +5250,8 @@ async function startOrder(orderNo) {
     const { selectedOrderChanged, selectedOrderId } = applyDispatchControllerState();
     if (selectedOrderChanged) {
       refreshDispatchViews(selectedOrderId);
-      syncDispatchRotaryFocus({ keepKey: true });
     }
+    syncDispatchRotaryFocus({ keepKey: true, scroll: selectedOrderChanged });
     syncDispatchSelectionUI();
     updateDashboardKpis();
   }
@@ -5251,10 +5278,33 @@ async function startOrder(orderNo) {
 
     const confirmedAt = dispatchControllerState.lastConfirmedAt;
     const confirmedOrderId = String(dispatchControllerState.lastConfirmedOrderId || "").trim();
+    const confirmedLineItemKey = String(dispatchControllerState.lastConfirmedLineItemKey || "").trim();
     if (confirmedAt && confirmedAt !== dispatchLastHandledConfirmAt && confirmedOrderId) {
       dispatchLastHandledConfirmAt = confirmedAt;
-      if (dispatchOrderCache.has(confirmedOrderId)) {
+      if (confirmedLineItemKey) {
+        toggleDispatchLineItemPacked(confirmedOrderId, confirmedLineItemKey);
+      } else if (dispatchOrderCache.has(confirmedOrderId)) {
         openDispatchOrderModal(confirmedOrderId);
+      }
+    }
+
+    const printRequestedAt = dispatchControllerState.lastPrintRequestedAt;
+    const printRequestedOrderId = String(dispatchControllerState.lastPrintRequestedOrderId || "").trim();
+    if (printRequestedAt && printRequestedAt !== dispatchLastHandledPrintAt && printRequestedOrderId) {
+      dispatchLastHandledPrintAt = printRequestedAt;
+      const printButton = dispatchBoard?.querySelector(`.dispatchCard [data-action="print-box"][data-order-no="${printRequestedOrderId}"]`);
+      if (printButton) {
+        void handleDispatchAction(printButton);
+      }
+    }
+
+    const fulfillRequestedAt = dispatchControllerState.lastFulfillRequestedAt;
+    const fulfillRequestedOrderId = String(dispatchControllerState.lastFulfillRequestedOrderId || "").trim();
+    if (fulfillRequestedAt && fulfillRequestedAt !== dispatchLastHandledFulfillAt && fulfillRequestedOrderId) {
+      dispatchLastHandledFulfillAt = fulfillRequestedAt;
+      const fulfillButton = dispatchBoard?.querySelector(`.dispatchCard [data-action="fulfill-shipping"][data-order-no="${fulfillRequestedOrderId}"]`);
+      if (fulfillButton) {
+        void handleDispatchAction(fulfillButton);
       }
     }
 

@@ -6,6 +6,8 @@ Endpoints used:
   POST /api/v1/dispatch/next
   POST /api/v1/dispatch/prev
   POST /api/v1/dispatch/confirm
+  POST /api/v1/dispatch/print
+  POST /api/v1/dispatch/fulfill
 
 Auth:
   Authorization: Bearer <ROTARY_TOKEN>
@@ -39,7 +41,8 @@ class Settings:
     cw_pin: int
     ccw_pin: int
     sw_pin: int
-    action_btn_pin: int
+    print_btn_pin: int
+    fulfill_btn_pin: int
     back_btn_pin: int
     rgb_red_pin: int
     rgb_green_pin: int
@@ -58,8 +61,9 @@ def load_settings() -> Settings:
     cw_pin = int(os.getenv("ROTARY_CLK_PIN", "17"))
     ccw_pin = int(os.getenv("ROTARY_DT_PIN", "27"))
     sw_pin = int(os.getenv("ROTARY_SW_PIN", "22"))
-    action_btn_pin = int(os.getenv("ROTARY_ACTION_BTN_PIN", "5"))
-    back_btn_pin = int(os.getenv("ROTARY_BACK_BTN_PIN", "6"))
+    print_btn_pin = int(os.getenv("ROTARY_PRINT_BTN_PIN", "5"))
+    fulfill_btn_pin = int(os.getenv("ROTARY_FULFILL_BTN_PIN", "6"))
+    back_btn_pin = int(os.getenv("ROTARY_BACK_BTN_PIN", "13"))
 
     # Common BCM defaults for a discrete RGB LED module.
     rgb_red_pin = int(os.getenv("ROTARY_RGB_RED_PIN", "18"))
@@ -78,7 +82,8 @@ def load_settings() -> Settings:
         cw_pin=cw_pin,
         ccw_pin=ccw_pin,
         sw_pin=sw_pin,
-        action_btn_pin=action_btn_pin,
+        print_btn_pin=print_btn_pin,
+        fulfill_btn_pin=fulfill_btn_pin,
         back_btn_pin=back_btn_pin,
         rgb_red_pin=rgb_red_pin,
         rgb_green_pin=rgb_green_pin,
@@ -184,7 +189,10 @@ def main() -> int:
     print(f"  FLSS_BASE_URL={settings.base_url}")
     print(f"  ROTARY_SOURCE={settings.source}")
     print(f"  Pins CLK/DT/SW={settings.cw_pin}/{settings.ccw_pin}/{settings.sw_pin}")
-    print(f"  Push buttons Action/Back={settings.action_btn_pin}/{settings.back_btn_pin}")
+    print(
+        "  Push buttons Print/Fulfill/Back="
+        f"{settings.print_btn_pin}/{settings.fulfill_btn_pin}/{settings.back_btn_pin}"
+    )
     print(
         "  RGB LED pins R/G/B="
         f"{settings.rgb_red_pin}/{settings.rgb_green_pin}/{settings.rgb_blue_pin}"
@@ -204,7 +212,8 @@ def main() -> int:
     clk = Button(settings.cw_pin, pull_up=True, bounce_time=0.002)
     dt = Button(settings.ccw_pin, pull_up=True, bounce_time=0.002)
     sw = Button(settings.sw_pin, pull_up=True, bounce_time=0.05)
-    action_btn = Button(settings.action_btn_pin, pull_up=True, bounce_time=0.05)
+    print_btn = Button(settings.print_btn_pin, pull_up=True, bounce_time=0.05)
+    fulfill_btn = Button(settings.fulfill_btn_pin, pull_up=True, bounce_time=0.05)
     back_btn = Button(settings.back_btn_pin, pull_up=True, bounce_time=0.05)
 
     # Simple edge mapping suitable for many detented encoders.
@@ -212,7 +221,8 @@ def main() -> int:
     clk.when_pressed = lambda: client.send_action("next")
     dt.when_pressed = lambda: client.send_action("prev")
     sw.when_pressed = lambda: client.send_action("confirm")
-    action_btn.when_pressed = lambda: client.send_action("confirm")
+    print_btn.when_pressed = lambda: client.send_action("print")
+    fulfill_btn.when_pressed = lambda: client.send_action("fulfill")
     back_btn.when_pressed = lambda: client.send_action("prev")
 
     stop_event = threading.Event()

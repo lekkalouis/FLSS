@@ -142,46 +142,73 @@ test('notification template endpoints provide defaults and CRUD updates', async 
   }
 });
 
-test('dispatch controller endpoints support sync, next, prev and confirm flow', async () => {
+test('dispatch controller endpoints support line-item rotary traversal plus confirm/print/fulfill actions', async () => {
   const { server, baseUrl } = await startServer();
   try {
     const syncResponse = await fetch(`${baseUrl}/api/v1/dispatch/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ queueOrderIds: ['1001', '1002', '1003'], mode: 'dispatch' })
+      body: JSON.stringify({
+        queueOrderIds: ['1001', '1002'],
+        lineItemKeysByOrderId: {
+          '1001': ['a', 'b'],
+          '1002': ['c']
+        },
+        mode: 'dispatch'
+      })
     });
     assert.equal(syncResponse.status, 200);
     const syncBody = await syncResponse.json();
     assert.equal(syncBody.ok, true);
     assert.equal(syncBody.selectedOrderId, '1001');
+    assert.equal(syncBody.selectedLineItemKey, 'a');
+
+    const rotaryHeaders = { 'Content-Type': 'application/json' };
+    if (process.env.ROTARY_TOKEN) {
+      rotaryHeaders.authorization = `Bearer ${process.env.ROTARY_TOKEN}`;
+    }
 
     const nextResponse = await fetch(`${baseUrl}/api/v1/dispatch/next`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: rotaryHeaders,
       body: JSON.stringify({ source: 'rotary_pi' })
     });
     assert.equal(nextResponse.status, 200);
     const nextBody = await nextResponse.json();
     assert.equal(nextBody.ok, true);
-    assert.equal(nextBody.selectedOrderId, '1002');
+    assert.equal(nextBody.selectedOrderId, '1001');
+    assert.equal(nextBody.selectedLineItemKey, 'b');
+
+    await new Promise((resolve) => setTimeout(resolve, 45));
+
+    const nextOrderResponse = await fetch(`${baseUrl}/api/v1/dispatch/next`, {
+      method: 'POST',
+      headers: rotaryHeaders,
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(nextOrderResponse.status, 200);
+    const nextOrderBody = await nextOrderResponse.json();
+    assert.equal(nextOrderBody.selectedOrderId, '1002');
+    assert.equal(nextOrderBody.selectedLineItemKey, 'c');
 
     await new Promise((resolve) => setTimeout(resolve, 45));
 
     const prevResponse = await fetch(`${baseUrl}/api/v1/dispatch/prev`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: rotaryHeaders,
       body: JSON.stringify({ source: 'rotary_pi' })
     });
     assert.equal(prevResponse.status, 200);
     const prevBody = await prevResponse.json();
     assert.equal(prevBody.ok, true);
     assert.equal(prevBody.selectedOrderId, '1001');
+    assert.equal(prevBody.selectedLineItemKey, 'b');
 
     await new Promise((resolve) => setTimeout(resolve, 45));
 
     const confirmResponse = await fetch(`${baseUrl}/api/v1/dispatch/confirm`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: rotaryHeaders,
       body: JSON.stringify({ source: 'rotary_pi' })
     });
     assert.equal(confirmResponse.status, 200);
@@ -189,11 +216,32 @@ test('dispatch controller endpoints support sync, next, prev and confirm flow', 
     assert.equal(confirmBody.ok, true);
     assert.equal(confirmBody.selectedOrderId, '1001');
 
+    await new Promise((resolve) => setTimeout(resolve, 45));
+
+    const printResponse = await fetch(`${baseUrl}/api/v1/dispatch/print`, {
+      method: 'POST',
+      headers: rotaryHeaders,
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(printResponse.status, 200);
+
+    await new Promise((resolve) => setTimeout(resolve, 45));
+
+    const fulfillResponse = await fetch(`${baseUrl}/api/v1/dispatch/fulfill`, {
+      method: 'POST',
+      headers: rotaryHeaders,
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(fulfillResponse.status, 200);
+
     const stateResponse = await fetch(`${baseUrl}/api/v1/dispatch/state`);
     assert.equal(stateResponse.status, 200);
     const stateBody = await stateResponse.json();
     assert.equal(stateBody.selectedOrderId, '1001');
     assert.equal(stateBody.lastConfirmedOrderId, '1001');
+    assert.equal(stateBody.lastConfirmedLineItemKey, 'b');
+    assert.equal(stateBody.lastPrintRequestedOrderId, '1001');
+    assert.equal(stateBody.lastFulfillRequestedOrderId, '1001');
     assert.equal(Array.isArray(stateBody.queueOrderIds), true);
   } finally {
     await new Promise((resolve) => server.close(resolve));
@@ -206,7 +254,7 @@ test('dispatch controller selection updates trigger dispatch refresh path in fro
 
   const changeGuardSnippet = 'if (selectedOrderChanged) {';
   const refreshSnippet = 'refreshDispatchViews(selectedOrderId);';
-  const rotarySnippet = 'syncDispatchRotaryFocus({ keepKey: true });';
+  const rotarySnippet = 'syncDispatchRotaryFocus({ keepKey: true, scroll: selectedOrderChanged });';
 
   const guardIndex = appJs.indexOf(changeGuardSnippet);
   const refreshIndex = appJs.indexOf(refreshSnippet, guardIndex);
