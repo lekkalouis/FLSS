@@ -3,6 +3,8 @@ import { Router } from "express";
 import { config } from "../config.js";
 import {
   confirm,
+  requestFulfill,
+  requestPrint,
   getEnvironmentState,
   getRemoteState,
   getState,
@@ -103,6 +105,7 @@ router.get("/dispatch/state", (req, res) => {
 router.post("/dispatch/state", (req, res) => {
   const state = syncState({
     queueOrderIds: req.body?.queueOrderIds,
+    lineItemKeysByOrderId: req.body?.lineItemKeysByOrderId,
     mode: req.body?.mode
   });
   res.json({ ok: true, ...state });
@@ -166,7 +169,7 @@ router.post("/dispatch/remote/action", (req, res) => {
     return res.status(400).json({ ok: false, error: "action is required" });
   }
 
-  const allowed = new Set(["next", "prev", "confirm"]);
+  const allowed = new Set(["next", "prev", "confirm", "print", "fulfill"]);
   if (!allowed.has(action)) {
     return res.status(400).json({ ok: false, error: "Unsupported remote action" });
   }
@@ -175,7 +178,7 @@ router.post("/dispatch/remote/action", (req, res) => {
     const lastKey = remoteIdempotencyByRemote.get(remoteId);
     if (lastKey && lastKey === idempotencyKey) {
       const state = getState();
-      return res.json({ ok: true, action, selectedOrderId: state.selectedOrderId, deduped: true });
+      return res.json({ ok: true, action, selectedOrderId: state.selectedOrderId, selectedLineItemKey: state.selectedLineItemKey, deduped: true });
     }
     remoteIdempotencyByRemote.set(remoteId, idempotencyKey);
   }
@@ -185,7 +188,9 @@ router.post("/dispatch/remote/action", (req, res) => {
     if (action === "next") state = next();
     if (action === "prev") state = prev();
     if (action === "confirm") state = confirm();
-    return res.json({ ok: true, action, selectedOrderId: state?.selectedOrderId || null });
+    if (action === "print") state = requestPrint();
+    if (action === "fulfill") state = requestFulfill();
+    return res.json({ ok: true, action, selectedOrderId: state?.selectedOrderId || null, selectedLineItemKey: state?.selectedLineItemKey || null });
   } catch (error) {
     if (error?.code === "NO_SELECTED_ORDER") {
       return res.status(409).json({ ok: false, action, error: error.message });
@@ -239,14 +244,14 @@ function handleAction(actionName, fn) {
 
     if (shouldDebounce(req, actionName)) {
       const state = getState();
-      return res.json({ ok: true, action: actionName, selectedOrderId: state.selectedOrderId, debounced: true });
+      return res.json({ ok: true, action: actionName, selectedOrderId: state.selectedOrderId, selectedLineItemKey: state.selectedLineItemKey, debounced: true });
     }
 
     const beforeState = getState();
     try {
       const state = fn();
       logAction(actionName, req, beforeState, state);
-      return res.json({ ok: true, action: actionName, selectedOrderId: state.selectedOrderId });
+      return res.json({ ok: true, action: actionName, selectedOrderId: state.selectedOrderId, selectedLineItemKey: state.selectedLineItemKey });
     } catch (error) {
       if (error?.code === "NO_SELECTED_ORDER") {
         return res.status(409).json({ ok: false, action: actionName, error: error.message });
@@ -259,5 +264,7 @@ function handleAction(actionName, fn) {
 router.post("/dispatch/next", handleAction("next", () => next()));
 router.post("/dispatch/prev", handleAction("prev", () => prev()));
 router.post("/dispatch/confirm", handleAction("confirm", () => confirm()));
+router.post("/dispatch/print", handleAction("print", () => requestPrint()));
+router.post("/dispatch/fulfill", handleAction("fulfill", () => requestFulfill()));
 
 export default router;
