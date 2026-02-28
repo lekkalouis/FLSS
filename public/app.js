@@ -400,6 +400,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let dispatchLineHoldTriggered = false;
   let dispatchRotaryFocusIndex = -1;
   let dispatchRotaryFocusKey = "";
+  let dispatchRotarySelectedKey = "";
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -3497,7 +3498,7 @@ async function startOrder(orderNo) {
                         ? item.variant
                         : "";
                     const itemLabel = [item.title, variantLabel].filter(Boolean).join(" · ");
-                    const isRotarySelected = dispatchRotaryFocusKey === `${orderNo}:${item.key}`;
+                    const isRotarySelected = dispatchRotarySelectedKey === `${orderNo}:${item.key}`;
                     return `
                       <div class="dispatchPackingRow ${isComplete ? "is-complete" : ""} ${isRotarySelected ? "is-rotary-selected" : ""}" data-item-key="${item.key}">
                         <div class="dispatchPackingInfo">
@@ -4978,12 +4979,11 @@ async function startOrder(orderNo) {
   }
 
   function syncDispatchRotaryFocus({ keepKey = true, scroll = false } = {}) {
-    const preferredKey = keepKey ? dispatchRotaryFocusKey : "";
     const rows = getDispatchRotaryRows();
     if (!rows.length) {
       dispatchRotaryFocusIndex = -1;
-      syncDispatchRotarySelectionUI(preferredKey);
-      dispatchRotaryFocusKey = preferredKey || "";
+      dispatchRotaryFocusKey = "";
+      syncDispatchRotarySelectionUI(dispatchRotarySelectedKey);
       return;
     }
 
@@ -5000,7 +5000,7 @@ async function startOrder(orderNo) {
     activeRow.classList.add("is-rotary-focus");
     dispatchRotaryFocusIndex = index;
     dispatchRotaryFocusKey = dispatchRotaryKeyForRow(activeRow);
-    syncDispatchRotarySelectionUI(preferredKey || dispatchRotaryFocusKey);
+    syncDispatchRotarySelectionUI(dispatchRotarySelectedKey);
 
     if (scroll) {
       activeRow.scrollIntoView({ block: "nearest", behavior: "auto" });
@@ -5391,14 +5391,16 @@ async function startOrder(orderNo) {
     }
     const previousSelectedOrderId =
       dispatchSelectedOrders.size === 1 ? String(Array.from(dispatchSelectedOrders)[0] || "").trim() : "";
-    const previousRotaryFocusKey = dispatchRotaryFocusKey;
+    const previousRotarySelectedKey = dispatchRotarySelectedKey;
     const selectedOrderId = String(dispatchControllerState.selectedOrderId || "").trim();
     const selectedLineItemKey = String(dispatchControllerState.selectedLineItemKey || "").trim();
     if (!selectedOrderId) {
       dispatchSelectedOrders.clear();
+      dispatchRotarySelectedKey = "";
+      syncDispatchRotarySelectionUI(dispatchRotarySelectedKey);
       return {
         selectedOrderChanged: previousSelectedOrderId !== "",
-        selectedLineItemChanged: previousRotaryFocusKey !== "",
+        selectedLineItemChanged: previousRotarySelectedKey !== "",
         selectedOrderId: ""
       };
     }
@@ -5409,7 +5411,9 @@ async function startOrder(orderNo) {
     }
 
     if (selectedLineItemKey) {
-      dispatchRotaryFocusKey = `${selectedOrderId}:${selectedLineItemKey}`;
+      dispatchRotarySelectedKey = `${selectedOrderId}:${selectedLineItemKey}`;
+    } else {
+      dispatchRotarySelectedKey = "";
     }
 
     const confirmedAt = dispatchControllerState.lastConfirmedAt;
@@ -5442,7 +5446,7 @@ async function startOrder(orderNo) {
 
     return {
       selectedOrderChanged: previousSelectedOrderId !== selectedOrderId,
-      selectedLineItemChanged: previousRotaryFocusKey !== dispatchRotaryFocusKey,
+      selectedLineItemChanged: previousRotarySelectedKey !== dispatchRotarySelectedKey,
       selectedOrderId
     };
   }
