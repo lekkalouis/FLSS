@@ -21,6 +21,7 @@ Wiring (default BCM pins):
 from __future__ import annotations
 
 import os
+import random
 import signal
 import threading
 import time
@@ -34,7 +35,18 @@ from gpiozero import Button, RGBLED
 class Settings:
     base_url: str
     rotary_token: str
+    remote_token: str
     source: str
+    remote_id: str
+    firmware_version: str
+    heartbeat_interval_s: float
+    telemetry_interval_s: float
+    remote_legacy_fallback: bool
+    env_device_id: str
+    env_temperature_c: float | None
+    env_humidity_pct: float | None
+    env_battery_pct: float | None
+    env_signal_rssi: float | None
     request_timeout_s: float
     cw_pin: int
     ccw_pin: int
@@ -51,7 +63,31 @@ class Settings:
 def load_settings() -> Settings:
     base_url = os.getenv("FLSS_BASE_URL", "http://flss.flippenlekka.work:3000/api/v1").rstrip("/")
     rotary_token = os.getenv("ROTARY_TOKEN", "").strip()
+    remote_token = os.getenv("REMOTE_TOKEN", "").strip() or rotary_token
     source = os.getenv("ROTARY_SOURCE", "rotary_pi")
+    remote_id = os.getenv("REMOTE_ID", source).strip() or "rotary_pi"
+    firmware_version = os.getenv("REMOTE_FIRMWARE", "rotary-pi-wired-1.0.0").strip() or "unknown"
+    heartbeat_interval_s = float(os.getenv("REMOTE_HEARTBEAT_INTERVAL_S", "10"))
+    telemetry_interval_s = float(os.getenv("ENV_TELEMETRY_INTERVAL_S", "10"))
+    remote_legacy_fallback = os.getenv("REMOTE_LEGACY_FALLBACK", "1").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+    }
+
+    env_device_id = os.getenv("ENV_DEVICE_ID", remote_id).strip() or remote_id
+
+    def _float_env(name: str) -> float | None:
+        raw = os.getenv(name, "").strip()
+        if not raw:
+            return None
+        return float(raw)
+
+    env_temperature_c = _float_env("ENV_TEMPERATURE_C")
+    env_humidity_pct = _float_env("ENV_HUMIDITY_PCT")
+    env_battery_pct = _float_env("ENV_BATTERY_PCT")
+    env_signal_rssi = _float_env("ENV_SIGNAL_RSSI")
+
     request_timeout_s = float(os.getenv("ROTARY_HTTP_TIMEOUT_S", "2.5"))
 
     # Typical KY-040-style rotary wiring.
@@ -73,7 +109,18 @@ def load_settings() -> Settings:
     return Settings(
         base_url=base_url,
         rotary_token=rotary_token,
+        remote_token=remote_token,
         source=source,
+        remote_id=remote_id,
+        firmware_version=firmware_version,
+        heartbeat_interval_s=heartbeat_interval_s,
+        telemetry_interval_s=telemetry_interval_s,
+        remote_legacy_fallback=remote_legacy_fallback,
+        env_device_id=env_device_id,
+        env_temperature_c=env_temperature_c,
+        env_humidity_pct=env_humidity_pct,
+        env_battery_pct=env_battery_pct,
+        env_signal_rssi=env_signal_rssi,
         request_timeout_s=request_timeout_s,
         cw_pin=cw_pin,
         ccw_pin=ccw_pin,
@@ -94,6 +141,7 @@ class RotaryFlssClient:
         self.led = led
         self.session = requests.Session()
         self.last_sent_at = 0.0
+        self.action_nonce = 0
         self.lock = threading.Lock()
 
     def _flash_led(self, color: tuple[float, float, float], duration_s: float | None = None) -> None:
@@ -104,18 +152,36 @@ class RotaryFlssClient:
 
         threading.Thread(target=_worker, daemon=True).start()
 
-    def _headers(self) -> dict[str, str]:
+    def _headers(self, token: str) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
-        if self.settings.rotary_token:
-            headers["Authorization"] = f"Bearer {self.settings.rotary_token}"
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         return headers
+
+    def _new_idempotency_key(self, action: str) -> str:
+        with self.lock:
+            self.action_nonce += 1
+            nonce = self.action_nonce
+        return f"{self.settings.remote_id}:{action}:{int(time.time() * 1000)}:{nonce}:{random.randint(1000, 9999)}"
+
+    def _post_json(self, path: str, payload: dict[str, object], token: str) -> requests.Response:
+        return self.session.post(
+            f"{self.settings.base_url}{path}",
+            json=payload,
+            headers=self._headers(token),
+            timeout=self.settings.request_timeout_s,
+        )
 
 
     def probe_auth(self) -> bool:
         """Check auth config early so Unauthorized errors are obvious before button presses."""
         url = f"{self.settings.base_url}/dispatch/state"
         try:
-            response = self.session.get(url, headers=self._headers(), timeout=self.settings.request_timeout_s)
+            response = self.session.get(
+                url,
+                headers=self._headers(self.settings.rotary_token),
+                timeout=self.settings.request_timeout_s,
+            )
         except requests.RequestException as exc:
             print(f"[NET] auth probe failed: {exc}")
             self._flash_led((1.0, 0.0, 0.0), duration_s=0.5)
@@ -145,16 +211,26 @@ class RotaryFlssClient:
                 return
             self.last_sent_at = now
 
-        url = f"{self.settings.base_url}/dispatch/{action}"
-        payload = {"source": self.settings.source}
+        remote_payload = {
+            "action": action,
+            "remoteId": self.settings.remote_id,
+            "idempotencyKey": self._new_idempotency_key(action),
+            "source": self.settings.source,
+        }
+        legacy_payload = {"source": self.settings.source}
 
         try:
-            response = self.session.post(
-                url,
-                json=payload,
-                headers=self._headers(),
-                timeout=self.settings.request_timeout_s,
+            response = self._post_json(
+                "/dispatch/remote/action",
+                remote_payload,
+                self.settings.remote_token,
             )
+            if response.status_code in (404, 405, 500, 502, 503, 504) and self.settings.remote_legacy_fallback:
+                response = self._post_json(
+                    f"/dispatch/{action}",
+                    legacy_payload,
+                    self.settings.rotary_token,
+                )
             try:
                 data = response.json()
             except Exception:
@@ -173,8 +249,57 @@ class RotaryFlssClient:
                 print(f"[ERR] {action}: HTTP {response.status_code} {data}")
                 self._flash_led((1.0, 0.0, 0.0), duration_s=0.5)  # red
         except requests.RequestException as exc:
+            if self.settings.remote_legacy_fallback:
+                try:
+                    fallback = self._post_json(
+                        f"/dispatch/{action}",
+                        legacy_payload,
+                        self.settings.rotary_token,
+                    )
+                    if fallback.status_code == 200:
+                        print(f"[OK] {action}: remote API offline, fallback to legacy endpoint")
+                        self._flash_led((0.0, 1.0, 0.0))
+                        return
+                except requests.RequestException:
+                    pass
             print(f"[NET] {action}: {exc}")
             self._flash_led((1.0, 0.0, 0.0), duration_s=0.5)  # red
+
+    def send_remote_heartbeat(self) -> None:
+        payload = {
+            "remoteId": self.settings.remote_id,
+            "firmware": self.settings.firmware_version,
+            "firmwareVersion": self.settings.firmware_version,
+            "battery": self.settings.env_battery_pct,
+            "batteryPct": self.settings.env_battery_pct,
+            "signal": self.settings.env_signal_rssi,
+            "signalRssi": self.settings.env_signal_rssi,
+        }
+        try:
+            response = self._post_json("/dispatch/remote/heartbeat", payload, self.settings.remote_token)
+            if response.status_code != 200:
+                print(f"[WARN] heartbeat HTTP {response.status_code}: {response.text}")
+        except requests.RequestException as exc:
+            print(f"[NET] heartbeat: {exc}")
+
+    def send_environment_telemetry(self) -> None:
+        if self.settings.env_temperature_c is None or self.settings.env_humidity_pct is None:
+            return
+
+        payload = {
+            "deviceId": self.settings.env_device_id,
+            "temperatureC": self.settings.env_temperature_c,
+            "humidityPct": self.settings.env_humidity_pct,
+            "recordedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "batteryPct": self.settings.env_battery_pct,
+            "signalRssi": self.settings.env_signal_rssi,
+        }
+        try:
+            response = self._post_json("/dispatch/environment", payload, self.settings.remote_token)
+            if response.status_code != 200:
+                print(f"[WARN] environment HTTP {response.status_code}: {response.text}")
+        except requests.RequestException as exc:
+            print(f"[NET] environment: {exc}")
 
 
 def main() -> int:
@@ -183,13 +308,18 @@ def main() -> int:
     print("Starting FLSS rotary client with settings:")
     print(f"  FLSS_BASE_URL={settings.base_url}")
     print(f"  ROTARY_SOURCE={settings.source}")
+    print(f"  REMOTE_ID={settings.remote_id}")
+    print(f"  REMOTE_FIRMWARE={settings.firmware_version}")
+    print(f"  REMOTE_HEARTBEAT_INTERVAL_S={settings.heartbeat_interval_s}")
+    print(f"  ENV_TELEMETRY_INTERVAL_S={settings.telemetry_interval_s}")
     print(f"  Pins CLK/DT/SW={settings.cw_pin}/{settings.ccw_pin}/{settings.sw_pin}")
     print(f"  Push buttons Action/Back={settings.action_btn_pin}/{settings.back_btn_pin}")
     print(
         "  RGB LED pins R/G/B="
         f"{settings.rgb_red_pin}/{settings.rgb_green_pin}/{settings.rgb_blue_pin}"
     )
-    print(f"  Token configured={'yes' if bool(settings.rotary_token) else 'no'}")
+    print(f"  ROTARY_TOKEN configured={'yes' if bool(settings.rotary_token) else 'no'}")
+    print(f"  REMOTE_TOKEN configured={'yes' if bool(settings.remote_token) else 'no'}")
 
     led = RGBLED(settings.rgb_red_pin, settings.rgb_green_pin, settings.rgb_blue_pin)
     led.off()
@@ -225,7 +355,16 @@ def main() -> int:
     signal.signal(signal.SIGTERM, _handle_stop)
 
     print("Rotary client running. Rotate knob or press button to send actions.")
+    next_heartbeat_at = 0.0
+    next_env_at = 0.0
     while not stop_event.is_set():
+        now = time.monotonic()
+        if now >= next_heartbeat_at:
+            client.send_remote_heartbeat()
+            next_heartbeat_at = now + max(5.0, settings.heartbeat_interval_s)
+        if now >= next_env_at:
+            client.send_environment_telemetry()
+            next_env_at = now + max(5.0, settings.telemetry_interval_s)
         time.sleep(0.2)
 
     led.off()
