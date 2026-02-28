@@ -3244,10 +3244,18 @@ async function startOrder(orderNo) {
     }, 0);
   }
 
+  function isCancelledFulfillment(fulfillment) {
+    if (!fulfillment || typeof fulfillment !== "object") return false;
+    if (fulfillment?.cancelled_at) return true;
+    const status = String(fulfillment?.status || "").toLowerCase();
+    return status === "cancelled";
+  }
+
   function getOrderFulfillmentSummary(order) {
     const fulfillmentRows = [];
     const fulfilledQtyByLineItemId = new Map();
-    const fulfillments = Array.isArray(order?.fulfillments) ? order.fulfillments : [];
+    const allFulfillments = Array.isArray(order?.fulfillments) ? order.fulfillments : [];
+    const fulfillments = allFulfillments.filter((fulfillment) => !isCancelledFulfillment(fulfillment));
     fulfillments.forEach((fulfillment, index) => {
       const lineItems = Array.isArray(fulfillment?.line_items) ? fulfillment.line_items : [];
       let fulfillmentQty = 0;

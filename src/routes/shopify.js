@@ -2613,6 +2613,9 @@ router.get("/shopify/orders/open", async (req, res) => {
           return {
             id: fulfillment?.id,
             name: fulfillment?.name || `F${index + 1}`,
+            status: fulfillment?.status || "",
+            shipment_status: fulfillment?.shipment_status || "",
+            cancelled_at: fulfillment?.cancelled_at || null,
             tracking_numbers: trackingNumbers,
             created_at: fulfillment?.created_at || null,
             line_items: lineItems
