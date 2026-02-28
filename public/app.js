@@ -162,6 +162,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const dispatchSelectionWeight = $("dispatchSelectionWeight");
   const dispatchSelectionTime = $("dispatchSelectionTime");
   const dispatchSelectionMixes = $("dispatchSelectionMixes");
+  const dispatchSelectionOrderCards = $("dispatchSelectionOrderCards");
   const dispatchSelectionClear = $("dispatchSelectionClear");
   const dispatchPrepareDeliveriesContainer = $("dispatchPrepareDeliveriesContainer");
   const dispatchPrepareDeliveries = $("dispatchPrepareDeliveries");
@@ -532,6 +533,9 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     debugLog.scrollTop = debugLog.scrollHeight;
   };
 
+  let sensorIndicatorState = { ok: false, detail: "Waiting for sensor" };
+  let remoteIndicatorState = { ok: false, detail: "Remote offline" };
+
   const SERVICE_LABELS = {
     server: "FL Server",
     shopify: "Shopify API",
@@ -807,13 +811,13 @@ import { initScanStationNext } from "./views/scan-station-next.js";
       const unavailable = "Connections\nStatus unavailable";
       serverStatusBar.dataset.tooltip = unavailable;
       serverStatusBar.title = unavailable;
-      serverStatusBar.innerHTML = `<span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>`;
+      serverStatusBar.innerHTML = `<span class="statusPill statusPill--warn"><span class="statusPillDot"></span></span>`;
       return;
     }
 
     const augmentedServices = { ...(data.services || {}) };
-    if (dispatchEnvironmentStatus) augmentedServices.sensor = { ok: dispatchEnvironmentStatus.classList.contains("status-ok") || dispatchEnvironmentStatus.classList.contains("status-connected"), detail: dispatchEnvironmentStatus.textContent || "Waiting for sensor" };
-    if (dispatchRemoteStatus) augmentedServices.remote = { ok: dispatchRemoteStatus.classList.contains("status-connected") || /online|connected/i.test(dispatchRemoteStatus.textContent || ""), detail: dispatchRemoteStatus.textContent || "Remote offline" };
+    augmentedServices.sensor = sensorIndicatorState;
+    augmentedServices.remote = remoteIndicatorState;
 
     const serviceRows = Object.entries(augmentedServices).map(([key, service]) => {
       const label = SERVICE_LABELS[key] || key;
@@ -826,8 +830,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     const tooltip = ["Connections", ...serviceRows, stamp].filter(Boolean).join("\n");
     serverStatusBar.dataset.tooltip = tooltip;
     serverStatusBar.title = tooltip;
-    serverStatusBar.innerHTML = Object.keys(augmentedServices)
-      .map(() => `<span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>`)
+    serverStatusBar.innerHTML = Object.entries(augmentedServices)
+      .map(([, service]) => `<span class="statusPill ${service?.ok ? "statusPill--ok" : "statusPill--warn"}"><span class="statusPillDot"></span></span>`)
       .join("");
   }
 
@@ -1244,9 +1248,11 @@ import { initScanStationNext } from "./views/scan-station-next.js";
         ? ` · ${formatDispatchTime(environment.lastUpdatedAt)}`
         : "";
       dispatchEnvironmentStatus.textContent = `Sensor ${status}${ageText}`;
+      sensorIndicatorState = { ok: status === "ok" || status === "connected", detail: dispatchEnvironmentStatus.textContent };
     } else {
       dispatchEnvironmentSummary.textContent = "🌡 — · 💧 —";
       dispatchEnvironmentStatus.textContent = "Waiting for sensor";
+      sensorIndicatorState = { ok: false, detail: "Waiting for sensor" };
     }
 
     setStatusClass(dispatchEnvironmentStatus, status);
@@ -1259,6 +1265,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     const suffix = remoteId ? ` (${remoteId})` : "";
     dispatchRemoteStatus.textContent = `Remote ${status}${suffix}`;
     setStatusClass(dispatchRemoteStatus, status);
+    remoteIndicatorState = { ok: status === "connected" || status === "ok", detail: dispatchRemoteStatus.textContent };
   }
 
   function makePackingKey(item, index) {
@@ -4151,6 +4158,23 @@ async function startOrder(orderNo) {
       boxCount: totalBoxes
     });
 
+    const selectedOrders = [...dispatchSelectedOrders]
+      .map((orderNo) => {
+        const order = dispatchOrderCache.get(orderNo);
+        if (!order) return null;
+        const plan = buildDispatchPackingPlan(order);
+        const destination = [order.shipping_city, order.shipping_province].filter(Boolean).join(", ") || "—";
+        return {
+          orderNo,
+          customer: order.customer_name || order.name || "—",
+          destination,
+          weightKg: Number(plan?.totalWeightKg || 0),
+          parcels: Number(plan?.estimatedBoxes || 0),
+          units: Number(plan?.totalUnits || 0)
+        };
+      })
+      .filter(Boolean);
+
     return {
       totalWeightKg,
       totalBoxes,
@@ -4159,7 +4183,8 @@ async function startOrder(orderNo) {
       totalTimeMin,
       sizeTotals,
       flavourTotals,
-      flavourSizeTotals
+      flavourSizeTotals,
+      selectedOrders
     };
   }
 
@@ -4225,6 +4250,16 @@ async function startOrder(orderNo) {
     }
     const selectedDeliveryOrderCount = getSelectedDeliveryOrderNos().length;
     updateMultiShipmentButtonVisibility();
+    if (dispatchSelectionOrderCards) {
+      dispatchSelectionOrderCards.innerHTML = (totals.selectedOrders || [])
+        .map((entry) => `
+          <article class="dispatchSelectionOrderCard">
+            <div class="dispatchSelectionOrderCardTitle">${entry.orderNo} · ${entry.customer}</div>
+            <div class="dispatchSelectionOrderCardValue">${entry.destination}</div>
+            <div class="dispatchSelectionOrderCardTitle">${entry.weightKg > 0 ? `${entry.weightKg.toFixed(2)} kg` : "—"} · ${entry.parcels} parcels · ${entry.units} units</div>
+          </article>`)
+        .join("");
+    }
     if (dispatchPrepareDeliveriesContainer) {
       dispatchPrepareDeliveriesContainer.classList.toggle("is-hidden", selectedDeliveryOrderCount === 0);
     }
