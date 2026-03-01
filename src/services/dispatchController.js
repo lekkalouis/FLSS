@@ -359,17 +359,16 @@ export function setPackedQty({ lineItemKey, qty } = {}) {
   }
 
   const normalizedQty = normalizeQtyValue(qty);
-  if (normalizedQty == null) {
-    const err = new Error("qty must be a number greater than or equal to 0.");
-    err.code = "INVALID_REMOTE_PAYLOAD";
-    throw err;
-  }
+  const nextQty =
+    normalizedQty == null
+      ? normalizeQtyValue(dispatchState.quantityPromptQty) ?? 0
+      : normalizedQty;
 
   dispatchState.quantityPromptOpen = false;
   dispatchState.quantityPromptTargetLineItemKey = targetLineItemKey;
-  dispatchState.quantityPromptQty = normalizedQty;
+  dispatchState.quantityPromptQty = nextQty;
   dispatchState.lastPackedQtyCommittedLineItemKey = targetLineItemKey;
-  dispatchState.lastPackedQtyCommittedQty = normalizedQty;
+  dispatchState.lastPackedQtyCommittedQty = nextQty;
   dispatchState.lastPackedQtyCommittedAt = new Date().toISOString();
 
   const nextState = getState();
@@ -377,8 +376,50 @@ export function setPackedQty({ lineItemKey, qty } = {}) {
   emitCustomEvent("dispatch-packed-qty-committed", {
     orderId: dispatchState.selectedOrderId,
     lineItemKey: targetLineItemKey,
-    qty: normalizedQty,
+    qty: nextQty,
     committedAt: dispatchState.lastPackedQtyCommittedAt
+  });
+  return nextState;
+}
+
+export function adjustPackedQty({ lineItemKey, delta } = {}) {
+  const previousState = getState();
+  ensureSelection();
+  if (!dispatchState.selectedOrderId) {
+    const err = new Error("No selected order to adjust packed quantity.");
+    err.code = "NO_SELECTED_ORDER";
+    throw err;
+  }
+
+  const targetLineItemKey = String(lineItemKey || dispatchState.quantityPromptTargetLineItemKey || dispatchState.selectedLineItemKey || "").trim();
+  if (!targetLineItemKey) {
+    const err = new Error("lineItemKey is required to adjust packed quantity.");
+    err.code = "INVALID_REMOTE_PAYLOAD";
+    throw err;
+  }
+
+  const parsedDelta = Number(delta);
+  if (!Number.isFinite(parsedDelta) || parsedDelta === 0) {
+    const err = new Error("delta must be a non-zero number.");
+    err.code = "INVALID_REMOTE_PAYLOAD";
+    throw err;
+  }
+
+  const currentQty = normalizeQtyValue(dispatchState.quantityPromptQty) ?? 0;
+  const nextQty = Math.max(0, Math.round((currentQty + parsedDelta) * 1000) / 1000);
+
+  dispatchState.quantityPromptOpen = true;
+  dispatchState.quantityPromptTargetLineItemKey = targetLineItemKey;
+  dispatchState.quantityPromptQty = nextQty;
+
+  const nextState = getState();
+  emitStateChange("adjustPackedQty", previousState, nextState, { delta: parsedDelta, lineItemKey: targetLineItemKey });
+  emitCustomEvent("dispatch-quantity-prompt", {
+    open: true,
+    orderId: dispatchState.selectedOrderId,
+    lineItemKey: targetLineItemKey,
+    qty: nextQty,
+    delta: parsedDelta
   });
   return nextState;
 }
