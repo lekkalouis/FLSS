@@ -4077,7 +4077,22 @@ async function startOrder(orderNo) {
     `;
 
     const valueEl = modal.querySelector('[data-role="value"]');
+    let autoCommitTimer = null;
+    const clearAutoCommitTimer = () => {
+      if (autoCommitTimer) {
+        window.clearTimeout(autoCommitTimer);
+        autoCommitTimer = null;
+      }
+    };
+    const scheduleAutoCommit = () => {
+      clearAutoCommitTimer();
+      autoCommitTimer = window.setTimeout(() => {
+        if (dispatchPackedQtyPromptState?.modal !== modal) return;
+        dispatchPackedQtyPromptState.commit(value);
+      }, 2000);
+    };
     const close = () => {
+      clearAutoCommitTimer();
       if (dispatchPackedQtyPromptState?.modal === modal) {
         dispatchPackedQtyPromptState = null;
       }
@@ -4087,6 +4102,7 @@ async function startOrder(orderNo) {
       if (!Number.isFinite(Number(nextValue))) return;
       value = Math.max(0, Math.min(maxQty, Number(nextValue)));
       paint();
+      scheduleAutoCommit();
     };
     const paint = () => {
       if (valueEl) valueEl.textContent = String(value);
