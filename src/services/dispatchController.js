@@ -408,14 +408,15 @@ export function adjustPackedQty({ lineItemKey, delta } = {}) {
   const currentQty = normalizeQtyValue(dispatchState.quantityPromptQty) ?? 0;
   const nextQty = Math.max(0, Math.round((currentQty + parsedDelta) * 1000) / 1000);
 
-  dispatchState.quantityPromptOpen = true;
+  const shouldKeepPromptOpen = Boolean(dispatchState.quantityPromptOpen);
+  dispatchState.quantityPromptOpen = shouldKeepPromptOpen;
   dispatchState.quantityPromptTargetLineItemKey = targetLineItemKey;
   dispatchState.quantityPromptQty = nextQty;
 
   const nextState = getState();
   emitStateChange("adjustPackedQty", previousState, nextState, { delta: parsedDelta, lineItemKey: targetLineItemKey });
   emitCustomEvent("dispatch-quantity-prompt", {
-    open: true,
+    open: shouldKeepPromptOpen,
     orderId: dispatchState.selectedOrderId,
     lineItemKey: targetLineItemKey,
     qty: nextQty,
