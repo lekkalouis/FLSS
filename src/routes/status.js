@@ -1,11 +1,22 @@
 import { Router } from "express";
 
 import { config } from "../config.js";
+import { getEnvironmentState } from "../services/dispatchController.js";
 import { getLatestEnvironmentTelemetry } from "../services/environmentTelemetry.js";
 import { getShopifyAdminToken } from "../services/shopify.js";
 import { buildServiceStatus } from "../utils/http.js";
 
 const router = Router();
+
+function hasEnvironmentValues(environment) {
+  return environment && environment.temperatureC != null && environment.humidityPct != null;
+}
+
+function isStale(lastUpdated, staleMs) {
+  const lastUpdatedMs = new Date(lastUpdated).getTime();
+  if (!Number.isFinite(lastUpdatedMs)) return true;
+  return Date.now() - lastUpdatedMs > staleMs;
+}
 
 router.get("/healthz", (_req, res) => res.json({ ok: true }));
 
@@ -49,19 +60,28 @@ router.get("/statusz", async (_req, res) => {
 
   const ok = Object.values(services).every((service) => service.ok);
   const latestEnvironment = getLatestEnvironmentTelemetry();
-  const environment = latestEnvironment
+  const latestEnvironmentLastUpdated = latestEnvironment?.lastUpdated || latestEnvironment?.timestamp;
+  const latestEnvironmentIsUsable =
+    hasEnvironmentValues(latestEnvironment) &&
+    latestEnvironmentLastUpdated &&
+    !isStale(latestEnvironmentLastUpdated, config.ENV_STALE_MS);
+
+  const environment = latestEnvironmentIsUsable
     ? {
       status: latestEnvironment.status,
       temperatureC: latestEnvironment.temperatureC,
       humidityPct: latestEnvironment.humidityPct,
-      lastUpdated: latestEnvironment.lastUpdated || latestEnvironment.timestamp
+      lastUpdated: latestEnvironmentLastUpdated
     }
-    : {
-      status: "offline",
-      temperatureC: null,
-      humidityPct: null,
-      lastUpdated: null
-    };
+    : (() => {
+      const dispatchEnvironment = getEnvironmentState({ staleMs: config.ENV_STALE_MS });
+      return {
+        status: dispatchEnvironment.status,
+        temperatureC: dispatchEnvironment.current?.temperatureC ?? null,
+        humidityPct: dispatchEnvironment.current?.humidityPct ?? null,
+        lastUpdated: dispatchEnvironment.lastUpdatedAt || null
+      };
+    })();
 
   res.json({ ok, checkedAt: new Date().toISOString(), services, environment });
 });
