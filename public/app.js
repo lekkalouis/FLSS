@@ -5433,7 +5433,7 @@ async function startOrder(orderNo) {
     if (confirmedAt && confirmedAt !== dispatchLastHandledConfirmAt && confirmedOrderId) {
       dispatchLastHandledConfirmAt = confirmedAt;
       if (confirmedLineItemKey) {
-        markDispatchLineItemPacked(confirmedOrderId, confirmedLineItemKey);
+        toggleDispatchLineItemPacked(confirmedOrderId, confirmedLineItemKey);
       } else if (dispatchOrderCache.has(confirmedOrderId)) {
         openDispatchOrderModal(confirmedOrderId);
       }
