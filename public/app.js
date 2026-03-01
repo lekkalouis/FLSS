@@ -195,6 +195,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const dispatchMobileControls = $("dispatchMobileControls");
   const dispatchMobileLaneTabs = $("dispatchMobileLaneTabs");
   const dispatchMobileLaneLabel = $("dispatchMobileLaneLabel");
+  const dispatchRotaryToggle = $("dispatchRotaryToggle");
 
   const navScan = $("navScan");
   const navOps = $("navOps");
@@ -401,6 +402,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
   const VOICE_SETTINGS_KEY = "fl_voice_settings_v1";
+  const ROTARY_SETTINGS_KEY = "fl_rotary_settings_v1";
+  const AUDIO_FEEDBACK_SETTINGS_KEY = "fl_audio_feedback_settings_v1";
   const DISPATCH_LINE_HOLD_MS = 1500;
   let dailyParcelCount = 0;
   let truckBooked = false;
@@ -412,6 +415,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let dispatchRotaryFocusIndex = -1;
   let dispatchRotaryFocusKey = "";
   let dispatchRotarySelectedKey = "";
+  let rotaryEnabled = true;
+  let audioFeedbackEnabled = true;
   let dispatchPackedQtyPromptState = null;
   const DISPATCH_STEPS = [
     "Start",
@@ -819,6 +824,35 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     statusExplain(`Combined shipment created for ${selected.length} orders.`, "ok");
   }
 
+  function loadBooleanSetting(storageKey, defaultValue = true) {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw === null || typeof raw === "undefined") return Boolean(defaultValue);
+      if (raw === "true" || raw === true) return true;
+      if (raw === "false" || raw === false) return false;
+      return Boolean(defaultValue);
+    } catch {
+      return Boolean(defaultValue);
+    }
+  }
+
+  function saveBooleanSetting(storageKey, value) {
+    try {
+      localStorage.setItem(storageKey, String(Boolean(value)));
+    } catch {
+      // ignore storage write errors
+    }
+  }
+
+  function updateDispatchRotaryToggleUi() {
+    if (!dispatchRotaryToggle) return;
+    dispatchRotaryToggle.textContent = rotaryEnabled ? "Knob: On" : "Knob: Off";
+    dispatchRotaryToggle.setAttribute("aria-pressed", rotaryEnabled ? "true" : "false");
+    dispatchRotaryToggle.title = rotaryEnabled
+      ? "Disable external rotary knob input"
+      : "Enable external rotary knob input";
+  }
+
   function renderServerStatusBar(data) {
     if (!serverStatusBar) return;
     if (!data || !data.services) {
@@ -870,6 +904,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let lastDispatchRotaryToneAt = 0;
 
   function playDispatchTone(freq = 740, duration = 0.12) {
+    if (!audioFeedbackEnabled) return;
     try {
       if (!dispatchAudioCtx) {
         dispatchAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -891,6 +926,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   }
 
   function playFeedbackTone(type = "success") {
+    if (!audioFeedbackEnabled) return;
     try {
       if (!dispatchAudioCtx) {
         dispatchAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -943,6 +979,16 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     if (now - lastDispatchRotaryToneAt < 70) return;
     lastDispatchRotaryToneAt = now;
     playDispatchTone(620, 0.04);
+  }
+
+  function resumeAudioContext() {
+    if (!audioFeedbackEnabled) return;
+    if (!dispatchAudioCtx) return;
+    if (dispatchAudioCtx.state === "suspended") {
+      dispatchAudioCtx.resume().catch(() => {
+        // browser may still block autoplay
+      });
+    }
   }
 
   function triggerScreenFlash(type = "success") {
@@ -1052,6 +1098,9 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   }
 
   const voiceSettings = loadVoiceSettings();
+  rotaryEnabled = loadBooleanSetting(ROTARY_SETTINGS_KEY, true);
+  audioFeedbackEnabled = loadBooleanSetting(AUDIO_FEEDBACK_SETTINGS_KEY, true);
+  updateDispatchRotaryToggleUi();
 
   function pickBestVoice(voiceName) {
     if (!("speechSynthesis" in window)) return null;
@@ -5545,6 +5594,11 @@ async function startOrder(orderNo) {
     if (!state || typeof state !== "object") return;
     dispatchControllerState = state;
     const { selectedOrderChanged, selectedLineItemChanged, selectedOrderId } = applyDispatchControllerState();
+    const isRotaryInputEnabled = typeof rotaryEnabled === "undefined" ? true : rotaryEnabled;
+    if (!isRotaryInputEnabled && dispatchRotarySelectedKey) {
+      dispatchRotarySelectedKey = "";
+      syncDispatchRotarySelectionUI("");
+    }
     if (selectedOrderChanged) {
       refreshDispatchViews(selectedOrderId);
       syncDispatchRotaryFocus({ keepKey: true });
@@ -5564,12 +5618,22 @@ async function startOrder(orderNo) {
     const previousSelectedOrderId =
       dispatchSelectedOrders.size === 1 ? String(Array.from(dispatchSelectedOrders)[0] || "").trim() : "";
     const previousRotarySelectedKey = dispatchRotarySelectedKey;
+    const isRotaryInputEnabled = typeof rotaryEnabled === "undefined" ? true : rotaryEnabled;
+    if (!isRotaryInputEnabled) {
+      if (dispatchRotarySelectedKey) {
+        dispatchRotarySelectedKey = "";
+        syncDispatchRotarySelectionUI("");
+      }
+      return { selectedOrderChanged: false, selectedLineItemChanged: false, selectedOrderId: previousSelectedOrderId };
+    }
     const selectedOrderId = String(dispatchControllerState.selectedOrderId || "").trim();
     const selectedLineItemKey = String(dispatchControllerState.selectedLineItemKey || "").trim();
     if (!selectedOrderId) {
       dispatchSelectedOrders.clear();
       dispatchRotarySelectedKey = "";
-      syncDispatchRotarySelectionUI(dispatchRotarySelectedKey);
+      if (isRotaryInputEnabled) {
+        syncDispatchRotarySelectionUI(dispatchRotarySelectedKey);
+      }
       return {
         selectedOrderChanged: previousSelectedOrderId !== "",
         selectedLineItemChanged: previousRotarySelectedKey !== "",
@@ -5582,7 +5646,7 @@ async function startOrder(orderNo) {
       dispatchSelectedOrders.add(selectedOrderId);
     }
 
-    if (selectedLineItemKey) {
+    if (isRotaryInputEnabled && selectedLineItemKey) {
       dispatchRotarySelectedKey = `${selectedOrderId}:${selectedLineItemKey}`;
     } else {
       dispatchRotarySelectedKey = "";
@@ -5659,7 +5723,7 @@ async function startOrder(orderNo) {
 
     return {
       selectedOrderChanged: previousSelectedOrderId !== selectedOrderId,
-      selectedLineItemChanged: previousRotarySelectedKey !== dispatchRotarySelectedKey,
+      selectedLineItemChanged: isRotaryInputEnabled && previousRotarySelectedKey !== dispatchRotarySelectedKey,
       selectedOrderId
     };
   }
@@ -6451,8 +6515,24 @@ async function startOrder(orderNo) {
     if (!(target instanceof HTMLElement)) return;
     const clickable = target.closest('button, [role="button"], a, input[type="checkbox"], input[type="radio"], .btn');
     if (!clickable) return;
+    resumeAudioContext();
     playUiClickTone();
   }, { capture: true });
+
+  dispatchRotaryToggle?.addEventListener("click", () => {
+    rotaryEnabled = !rotaryEnabled;
+    saveBooleanSetting(ROTARY_SETTINGS_KEY, rotaryEnabled);
+    updateDispatchRotaryToggleUi();
+    const isRotaryInputEnabled = typeof rotaryEnabled === "undefined" ? true : rotaryEnabled;
+    if (!isRotaryInputEnabled) {
+      dispatchRotarySelectedKey = "";
+      syncDispatchRotarySelectionUI("");
+      statusExplain("External rotary knob disabled. Mouse + keyboard control only.", "info");
+      return;
+    }
+    statusExplain("External rotary knob enabled.", "ok");
+    syncDispatchRotaryFocus({ keepKey: true });
+  });
 
   modeToggle?.addEventListener("click", () => {
     isAutoMode = !isAutoMode;
