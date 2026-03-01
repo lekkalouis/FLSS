@@ -338,6 +338,15 @@ import { initScanStationNext } from "./views/scan-station-next.js";
       target: "/purchase-orders.html",
       meta: "Materials ordering",
       tag: "Module"
+    },
+    {
+      id: "retailer-manager",
+      title: "Retailer Manager",
+      description: "Browse predefined retailers and view markers on a map.",
+      type: "link",
+      target: "/retailer-manager.html",
+      meta: "Retail footprint",
+      tag: "Module"
     }
   ];
 

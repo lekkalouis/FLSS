@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Retailer Manager</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #f5f7fb; }
+    .layout { display: grid; grid-template-columns: 360px 1fr; min-height: 100vh; }
+    .sidebar { background: #fff; border-right: 1px solid #d9dfeb; padding: 16px; overflow: auto; }
+    .map-wrap { position: relative; }
+    #map { width: 100%; height: 100vh; }
+    h1 { margin: 0 0 10px; font-size: 1.35rem; }
+    .muted { color: #5d667a; font-size: .9rem; margin-bottom: 12px; }
+    .counts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-bottom: 10px; }
+    .count-card { border: 1px solid #dfe5f1; border-radius: 10px; padding: 8px; background: #f9fbff; }
+    .count-card b { display:block; font-size:1.05rem; }
+    input, select { width: 100%; padding: 8px 10px; border: 1px solid #c7d0e0; border-radius: 8px; margin-bottom: 10px; font: inherit; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { border: 1px solid #e1e6f0; border-radius: 8px; padding: 8px; margin-bottom: 8px; background:#fff; }
+    .name { font-weight: 600; }
+    .meta { color: #60697d; font-size: .82rem; }
+    .legend { position: absolute; top: 10px; right: 10px; z-index: 500; background: #fff; border: 1px solid #d5dceb; border-radius: 10px; padding: 8px 10px; font-size: .82rem; }
+    @media (max-width: 920px) { .layout { grid-template-columns: 1fr; } #map { height: 56vh; } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>Retailer Manager</h1>
+      <div class="muted">Predefined Flippen Lekka retailers with interactive map markers.</div>
+      <div class="counts">
+        <div class="count-card"><span>Retailers</span><b id="totalRetailers">0</b></div>
+        <div class="count-card"><span>Locations</span><b id="totalLocations">0</b></div>
+      </div>
+      <input id="search" type="search" placeholder="Search retailer or location" />
+      <select id="provinceFilter"><option value="all">All provinces/regions</option></select>
+      <ul id="retailerList"></ul>
+    </aside>
+    <section class="map-wrap">
+      <div class="legend">Markers are distributed around each province/region center.</div>
+      <div id="map"></div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="/retailer-manager.js" type="module"></script>
+</body>
+</html>
