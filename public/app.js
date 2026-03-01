@@ -843,6 +843,9 @@ import { initScanStationNext } from "./views/scan-station-next.js";
       const res = await fetch(`${API_BASE}/statusz`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Status error");
+      if (data?.environment) {
+        renderEnvironmentHeaderWidget(normalizeEnvironmentForHeader(data.environment));
+      }
       renderServerStatusBar(data);
     } catch (err) {
       appendDebug("Status refresh failed: " + String(err));
@@ -1280,6 +1283,28 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     }
 
     setStatusClass(dispatchEnvironmentStatus, status);
+  }
+
+  function normalizeEnvironmentForHeader(environment) {
+    if (!environment || typeof environment !== "object") return null;
+
+    if (environment.current && typeof environment.current === "object") {
+      return environment;
+    }
+
+    const hasTemp = Number.isFinite(Number(environment.temperatureC));
+    const hasHumidity = Number.isFinite(Number(environment.humidityPct));
+
+    return {
+      current: hasTemp || hasHumidity
+        ? {
+          temperatureC: environment.temperatureC,
+          humidityPct: environment.humidityPct
+        }
+        : null,
+      status: environment.status || "missing",
+      lastUpdatedAt: environment.lastUpdated || environment.lastUpdatedAt || null
+    };
   }
 
   function renderRemoteStatusBadge(remote) {
