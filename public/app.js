@@ -390,14 +390,11 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
   const VOICE_SETTINGS_KEY = "fl_voice_settings_v1";
-  const DISPATCH_LINE_HOLD_MS = 1500;
   let dailyParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
   let truckBookedBy = null;
   let truckBookingInFlight = false;
-  let dispatchLineHoldTimer = null;
-  let dispatchLineHoldTriggered = false;
   let dispatchRotaryFocusIndex = -1;
   let dispatchRotaryFocusKey = "";
   let dispatchRotarySelectedKey = "";
@@ -5585,21 +5582,7 @@ async function startOrder(orderNo) {
     }
 
     const promptState = typeof dispatchPackedQtyPromptState === "undefined" ? null : dispatchPackedQtyPromptState;
-    const quantityPromptOpen = Boolean(dispatchControllerState.quantityPromptOpen);
-    const quantityPromptLineItemKey = String(dispatchControllerState.quantityPromptTargetLineItemKey || "").trim();
-    if (quantityPromptOpen && selectedOrderId && quantityPromptLineItemKey) {
-      if (
-        !promptState ||
-        promptState.orderNo !== selectedOrderId ||
-        promptState.itemKey !== quantityPromptLineItemKey
-      ) {
-        showDispatchPackedQtyPrompt(selectedOrderId, quantityPromptLineItemKey, { startFromZero: true, initialValue: 0 });
-      }
-      const activePromptState = typeof dispatchPackedQtyPromptState === "undefined" ? null : dispatchPackedQtyPromptState;
-      if (Number.isFinite(Number(dispatchControllerState.quantityPromptQty)) && activePromptState) {
-        activePromptState.setValue(Number(dispatchControllerState.quantityPromptQty));
-      }
-    } else if (promptState && !quantityPromptOpen) {
+    if (promptState) {
       promptState.close();
     }
 
@@ -6971,31 +6954,6 @@ async function startOrder(orderNo) {
     if (ok) input.dataset.lastValue = String(parsed);
   }
 
-  function clearDispatchLineHold() {
-    if (dispatchLineHoldTimer) {
-      clearTimeout(dispatchLineHoldTimer);
-      dispatchLineHoldTimer = null;
-    }
-  }
-
-  dispatchBoard?.addEventListener("pointerdown", (e) => {
-    const lineItem = e.target.closest(".dispatchLineItem");
-    if (!lineItem) return;
-    dispatchLineHoldTriggered = false;
-    const orderNo = lineItem.dataset.orderNo;
-    const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
-    clearDispatchLineHold();
-    dispatchLineHoldTimer = setTimeout(() => {
-      dispatchLineHoldTriggered = true;
-      showDispatchPackedQtyPrompt(orderNo, itemKey, { startFromZero: true, initialValue: 0 });
-      clearDispatchLineHold();
-    }, DISPATCH_LINE_HOLD_MS);
-  });
-
-  dispatchBoard?.addEventListener("pointerup", clearDispatchLineHold);
-  dispatchBoard?.addEventListener("pointerleave", clearDispatchLineHold);
-  dispatchBoard?.addEventListener("pointercancel", clearDispatchLineHold);
-
   dispatchBoard?.addEventListener("click", async (e) => {
     const action = e.target.closest("[data-action]");
     if (action) {
@@ -7034,10 +6992,6 @@ async function startOrder(orderNo) {
     const lineItem = e.target.closest(".dispatchLineItem");
     if (lineItem) {
       if (e.target.closest("button") || e.target.closest("input") || e.target.closest("label")) return;
-      if (dispatchLineHoldTriggered) {
-        dispatchLineHoldTriggered = false;
-        return;
-      }
       const orderNo = lineItem.dataset.orderNo;
       const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
       toggleDispatchLineItemPacked(orderNo, itemKey);
