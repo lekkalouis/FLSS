@@ -548,6 +548,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
 
   let sensorIndicatorState = { ok: false, detail: "Waiting for sensor" };
   let remoteIndicatorState = { ok: false, detail: "Remote offline" };
+  let lastEnvironmentForHeader = null;
 
   const SERVICE_LABELS = {
     server: "FL Server",
@@ -1273,7 +1274,17 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   function renderEnvironmentHeaderWidget(environment) {
     if (!dispatchEnvironmentSummary) return;
     const normalizedEnvironment = normalizeEnvironmentForHeader(environment);
-    const current = normalizedEnvironment?.current || null;
+    const hasCurrentReading = Boolean(
+      normalizedEnvironment?.current &&
+        (Number.isFinite(Number(normalizedEnvironment.current.temperatureC)) ||
+          Number.isFinite(Number(normalizedEnvironment.current.humidityPct)))
+    );
+
+    if (hasCurrentReading) {
+      lastEnvironmentForHeader = normalizedEnvironment;
+    }
+
+    const current = (hasCurrentReading ? normalizedEnvironment : lastEnvironmentForHeader)?.current || null;
     const status = String(normalizedEnvironment?.status || "missing").trim() || "missing";
 
     if (current) {
