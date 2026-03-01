@@ -1075,14 +1075,31 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   function buildOrderLineItemsAnnouncement(order, maxLineItems = 4) {
     const items = Array.isArray(order?.line_items) ? order.line_items : [];
     if (!items.length) return "";
-    const spoken = items.slice(0, maxLineItems).map((item) => {
-      const qty = Math.max(1, Number(item?.quantity) || 1);
-      const rawName = String(item?.name || item?.title || "item").trim();
-      const cleanedName = rawName
+
+    function stripDuplicateSizeFromName(name, sizeLabel) {
+      const normalizedName = String(name || "")
         .replace(/[()]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
-      return `${qty} × ${cleanedName}`;
+      if (!normalizedName || !sizeLabel) return normalizedName;
+      const escapedSize = String(sizeLabel)
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+        .replace(/\s*/g, "\\s*");
+      const withoutDuplicateSize = normalizedName
+        .replace(new RegExp(`\\b${escapedSize}\\b`, "ig"), " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return withoutDuplicateSize || normalizedName;
+    }
+
+    const spoken = items.slice(0, maxLineItems).map((item) => {
+      const qty = Math.max(1, Number(item?.quantity) || 1);
+      const rawName = String(item?.name || item?.title || "item").trim();
+      const sizeLabel = getLineItemSize(item);
+      const cleanedName = stripDuplicateSizeFromName(rawName, sizeLabel);
+      const spokenLabel = sizeLabel ? `${sizeLabel} ${cleanedName}`.trim() : cleanedName;
+      return `${qty} × ${spokenLabel}`;
     });
     if (items.length > maxLineItems) spoken.push(`plus ${items.length - maxLineItems} more item${items.length - maxLineItems === 1 ? "" : "s"}`);
     return spoken.join(", ");
@@ -1095,12 +1112,9 @@ import { initScanStationNext } from "./views/scan-station-next.js";
 
   function announceIncomingOrder(order) {
     if (!voiceSettings.announceIncomingOrders) return;
-    const orderNo = String(order?.name || "").replace("#", "").trim();
     const customer = String(order?.customer_name || order?.shipping_name || "Customer").trim();
     const itemsText = buildOrderLineItemsAnnouncement(order, voiceSettings.maxLineItems);
-    const base = orderNo
-      ? `New incoming order ${orderNo} for ${customer}.`
-      : `New incoming order for ${customer}.`;
+    const base = `New incoming order for ${customer}.`;
     const fullMessage = itemsText ? `${base} Items: ${itemsText}.` : base;
     speakAnnouncement(fullMessage, { cancelCurrent: false });
   }
