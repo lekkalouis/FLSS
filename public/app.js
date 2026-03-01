@@ -852,6 +852,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
 
   let dispatchAudioCtx = null;
   let lastUiClickToneAt = 0;
+  let lastDispatchRotaryToneAt = 0;
 
   function playDispatchTone(freq = 740, duration = 0.12) {
     try {
@@ -919,6 +920,13 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     const now = Date.now();
     if (now - lastUiClickToneAt < 45) return;
     lastUiClickToneAt = now;
+    playDispatchTone(620, 0.04);
+  }
+
+  function playDispatchRotaryMoveTone() {
+    const now = Date.now();
+    if (now - lastDispatchRotaryToneAt < 70) return;
+    lastDispatchRotaryToneAt = now;
     playDispatchTone(620, 0.04);
   }
 
@@ -5086,6 +5094,7 @@ async function startOrder(orderNo) {
   function moveDispatchRotaryFocus(step) {
     const rows = getDispatchRotaryRows();
     if (!rows.length) return;
+    const previousKey = dispatchRotaryFocusKey;
     const total = rows.length;
     const safeStep = step > 0 ? 1 : -1;
     let nextIndex = Number.isFinite(dispatchRotaryFocusIndex) ? dispatchRotaryFocusIndex + safeStep : 0;
@@ -5094,6 +5103,9 @@ async function startOrder(orderNo) {
     dispatchRotaryFocusIndex = nextIndex;
     dispatchRotaryFocusKey = dispatchRotaryKeyForRow(rows[nextIndex]);
     syncDispatchRotaryFocus({ keepKey: true, scroll: true });
+    if (dispatchRotaryFocusKey && dispatchRotaryFocusKey !== previousKey) {
+      playDispatchRotaryMoveTone();
+    }
   }
 
   async function activateDispatchRotaryFocus() {
