@@ -497,20 +497,17 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const VOICE_SETTINGS_KEY = "fl_voice_settings_v1";
   const ROTARY_SETTINGS_KEY = "fl_rotary_settings_v1";
   const AUDIO_FEEDBACK_SETTINGS_KEY = "fl_audio_feedback_settings_v1";
-  const DISPATCH_LINE_HOLD_MS = 1500;
   let dailyParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
   let truckBookedBy = null;
   let truckBookingInFlight = false;
-  let dispatchLineHoldTimer = null;
   let dispatchLineHoldTriggered = false;
   let dispatchRotaryFocusIndex = -1;
   let dispatchRotaryFocusKey = "";
   let dispatchRotarySelectedKey = "";
   let rotaryEnabled = true;
   let audioFeedbackEnabled = true;
-  let dispatchPackedQtyPromptState = null;
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -634,6 +631,37 @@ import { initScanStationNext } from "./views/scan-station-next.js";
       }
     });
     document.body.appendChild(modal);
+  }
+
+  function showDispatchConfirmDialog({ title = "Confirm action", message = "", confirmLabel = "Continue", cancelLabel = "Cancel" } = {}) {
+    return new Promise((resolve) => {
+      const modal = document.createElement("div");
+      modal.className = "dispatchSiteAlertModal";
+      modal.innerHTML = `
+        <div class="dispatchSiteAlertModal__backdrop" data-action="cancel" aria-hidden="true"></div>
+        <div class="dispatchSiteAlertModal__content dispatchSiteAlertModal__content--warn" role="dialog" aria-modal="true" aria-labelledby="dispatchConfirmTitle">
+          <div class="dispatchSiteAlertModal__header">
+            <h3 id="dispatchConfirmTitle">${title}</h3>
+            <button type="button" class="dispatchSiteAlertModal__close" data-action="cancel" aria-label="Close dialog">✕</button>
+          </div>
+          <div class="dispatchSiteAlertModal__body">${message}</div>
+          <div class="dispatchSiteAlertModal__actions">
+            <button type="button" class="dispatchPackedQtyAction dispatchPackedQtyAction--ghost" data-action="cancel">${cancelLabel}</button>
+            <button type="button" class="dispatchPackedQtyAction dispatchPackedQtyAction--primary" data-action="confirm">${confirmLabel}</button>
+          </div>
+        </div>
+      `;
+      const close = (decision) => {
+        modal.remove();
+        resolve(Boolean(decision));
+      };
+      modal.addEventListener("click", (event) => {
+        const action = event.target.closest("[data-action]")?.dataset?.action;
+        if (action === "confirm") close(true);
+        if (action === "cancel") close(false);
+      });
+      document.body.appendChild(modal);
+    });
   }
 
   const triggerBookedFlash = () => {};
@@ -1067,11 +1095,11 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     playDispatchTone(620, 0.04);
   }
 
-  function playDispatchRotaryMoveTone() {
+  function playDispatchRotaryMoveTone({ orderChanged = false } = {}) {
     const now = Date.now();
     if (now - lastDispatchRotaryToneAt < 70) return;
     lastDispatchRotaryToneAt = now;
-    playDispatchTone(620, 0.04);
+    playDispatchTone(orderChanged ? 760 : 620, 0.04);
   }
 
   function resumeAudioContext() {
@@ -3734,8 +3762,6 @@ async function startOrder(orderNo) {
                           <div class="dispatchPackingMeta">Packed ${item.packed} / ${item.quantity} · Remaining ${remaining}</div>
                         </div>
                         <div class="dispatchPackingActions">
-                          <input class="dispatchPackingQty" type="number" min="1" max="${remaining}" placeholder="Qty" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}/>
-                          <button class="dispatchPackQtyBtn" type="button" data-action="pack-qty" data-order-no="${orderNo}" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}>Pack qty</button>
                           <button class="dispatchPackAllBtn" type="button" data-action="pack-all" data-order-no="${orderNo}" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}>Pack all</button>
                         </div>
                       </div>
@@ -4235,117 +4261,6 @@ async function startOrder(orderNo) {
     refreshDispatchViews(orderNo);
   }
 
-  function showDispatchPackedQtyPrompt(orderNo, itemKey, options = {}) {
-    if (!orderNo || !itemKey) return;
-    const order = dispatchOrderCache.get(orderNo);
-    const state = order ? dispatchPackingState.get(orderNo) || getPackingState(order) : null;
-    const item = state ? getPackingItem(state, itemKey) : null;
-    if (!order || !state || !item) return;
-    const orderLineItems = Array.isArray(order?.line_items) ? order.line_items : [];
-    const orderLineItem = Number.isInteger(item.index) ? orderLineItems[item.index] : null;
-    const maxQty = orderLineItem ? getRemainingLineItemQty(orderLineItem) : Number(item.quantity) || 0;
-    if (maxQty <= 0) return;
-
-    const modal = document.createElement("div");
-    modal.className = "dispatchPackedQtyModal";
-    const baseTitle = item.title || "Line item";
-    const variant = String(item.variant || "").trim();
-    const name = variant && variant.toLowerCase() !== "default title" ? `${baseTitle} · ${variant}` : baseTitle;
-    const shouldResetToZero = Boolean(options?.startFromZero);
-    const initialValue = shouldResetToZero
-      ? 0
-      : Math.max(0, Math.min(maxQty, Number(options?.initialValue ?? item.packed) || 0));
-    let value = initialValue;
-
-    modal.innerHTML = `
-      <div class="dispatchPackedQtyCard" role="dialog" aria-modal="true" aria-label="Packed quantity">
-        <h3>Update packed quantity</h3>
-        <p>${name}</p>
-        <div class="dispatchPackedQtyControls">
-          <button type="button" class="dispatchPackedQtyBtn" data-role="decrease">−</button>
-          <strong class="dispatchPackedQtyValue" data-role="value">${value}</strong>
-          <button type="button" class="dispatchPackedQtyBtn" data-role="increase">+</button>
-        </div>
-        <div class="dispatchPackedQtyMax">of ${maxQty}</div>
-        <div class="dispatchPackedQtyActions">
-          <button type="button" class="dispatchPackedQtyAction dispatchPackedQtyAction--ghost" data-role="cancel">Cancel</button>
-          <button type="button" class="dispatchPackedQtyAction dispatchPackedQtyAction--primary" data-role="save">Save</button>
-        </div>
-      </div>
-    `;
-
-    const valueEl = modal.querySelector('[data-role="value"]');
-    let autoCommitTimer = null;
-    const clearAutoCommitTimer = () => {
-      if (autoCommitTimer) {
-        window.clearTimeout(autoCommitTimer);
-        autoCommitTimer = null;
-      }
-    };
-    const scheduleAutoCommit = () => {
-      clearAutoCommitTimer();
-      autoCommitTimer = window.setTimeout(() => {
-        if (dispatchPackedQtyPromptState?.modal !== modal) return;
-        dispatchPackedQtyPromptState.commit(value);
-      }, 2000);
-    };
-    const close = () => {
-      clearAutoCommitTimer();
-      if (dispatchPackedQtyPromptState?.modal === modal) {
-        dispatchPackedQtyPromptState = null;
-      }
-      modal.remove();
-    };
-    const setValue = (nextValue) => {
-      if (!Number.isFinite(Number(nextValue))) return;
-      value = Math.max(0, Math.min(maxQty, Number(nextValue)));
-      paint();
-      scheduleAutoCommit();
-    };
-    const paint = () => {
-      if (valueEl) valueEl.textContent = String(value);
-    };
-
-    dispatchPackedQtyPromptState?.close?.();
-    dispatchPackedQtyPromptState = {
-      modal,
-      orderNo,
-      itemKey,
-      maxQty,
-      close,
-      setValue,
-      increase: () => setValue(value + 1),
-      decrease: () => setValue(value - 1),
-      currentValue: () => value,
-      commit: (nextValue) => {
-        const committedValue = Number.isFinite(Number(nextValue)) ? Number(nextValue) : value;
-        setDispatchLinePackedQuantity(orderNo, itemKey, committedValue);
-        close();
-      }
-    };
-
-    modal.addEventListener("click", (event) => {
-      const target = event.target.closest("[data-role]");
-      if (!target) {
-        if (event.target === modal) close();
-        return;
-      }
-      const role = target.dataset.role;
-      if (role === "decrease") {
-        dispatchPackedQtyPromptState?.decrease?.();
-      } else if (role === "increase") {
-        dispatchPackedQtyPromptState?.increase?.();
-      } else if (role === "cancel") {
-        close();
-      } else if (role === "save") {
-        dispatchPackedQtyPromptState?.commit?.();
-      }
-    });
-
-    document.body.appendChild(modal);
-  }
-
-
   function renderDispatchPackingSummary(plan) {
     if (!plan) return "";
     const sizeRows = Array.from(plan.sizeCounts.entries())
@@ -4502,6 +4417,11 @@ async function startOrder(orderNo) {
 
   function updateDispatchTopSelectedOrder() {
     if (!dispatchTopSelectedOrderTitle || !dispatchTopSelectedOrderMeta) return;
+    if (dispatchSelectedOrders.size > 1) {
+      dispatchTopSelectedOrderTitle.textContent = `${dispatchSelectedOrders.size} orders selected`;
+      dispatchTopSelectedOrderMeta.textContent = "Totals and product mix are shown in the Selected orders card.";
+      return;
+    }
     const selectedOrderId =
       dispatchSelectedOrders.size === 1 ? String(Array.from(dispatchSelectedOrders)[0] || "").trim() : "";
     const order = selectedOrderId ? dispatchOrderCache.get(selectedOrderId) : null;
@@ -5334,11 +5254,13 @@ async function startOrder(orderNo) {
     let nextIndex = Number.isFinite(dispatchRotaryFocusIndex) ? dispatchRotaryFocusIndex + safeStep : 0;
     if (nextIndex < 0) nextIndex = total - 1;
     if (nextIndex >= total) nextIndex = 0;
+    const previousOrderNo = String(previousKey || "").split(":")[0] || "";
     dispatchRotaryFocusIndex = nextIndex;
     dispatchRotaryFocusKey = dispatchRotaryKeyForRow(rows[nextIndex]);
     syncDispatchRotaryFocus({ keepKey: true, scroll: true });
     if (dispatchRotaryFocusKey && dispatchRotaryFocusKey !== previousKey) {
-      playDispatchRotaryMoveTone();
+      const nextOrderNo = String(dispatchRotaryFocusKey || "").split(":")[0] || "";
+      playDispatchRotaryMoveTone({ orderChanged: Boolean(previousOrderNo && nextOrderNo && previousOrderNo !== nextOrderNo) });
     }
   }
 
@@ -5769,49 +5691,6 @@ async function startOrder(orderNo) {
       dispatchLastHandledFulfillRequestAt = fulfillRequestedAt;
       const fulfillAction = dispatchBoard?.querySelector(`[data-action="fulfill-shipping"][data-order-no="${fulfillOrderId}"]`);
       if (fulfillAction) void handleDispatchAction(fulfillAction);
-    }
-
-    const promptState = typeof dispatchPackedQtyPromptState === "undefined" ? null : dispatchPackedQtyPromptState;
-    const quantityPromptOpen = Boolean(dispatchControllerState.quantityPromptOpen);
-    const quantityPromptLineItemKey = String(dispatchControllerState.quantityPromptTargetLineItemKey || "").trim();
-    if (quantityPromptOpen && selectedOrderId && quantityPromptLineItemKey) {
-      if (
-        !promptState ||
-        promptState.orderNo !== selectedOrderId ||
-        promptState.itemKey !== quantityPromptLineItemKey
-      ) {
-        showDispatchPackedQtyPrompt(selectedOrderId, quantityPromptLineItemKey, { startFromZero: true, initialValue: 0 });
-      }
-      const activePromptState = typeof dispatchPackedQtyPromptState === "undefined" ? null : dispatchPackedQtyPromptState;
-      if (Number.isFinite(Number(dispatchControllerState.quantityPromptQty)) && activePromptState) {
-        activePromptState.setValue(Number(dispatchControllerState.quantityPromptQty));
-      }
-    } else if (promptState && !quantityPromptOpen) {
-      promptState.commit(promptState.currentValue());
-    }
-
-    const packedQtyCommittedAt = dispatchControllerState.lastPackedQtyCommittedAt;
-    const packedQtyCommittedLineItemKey = String(dispatchControllerState.lastPackedQtyCommittedLineItemKey || "").trim();
-    if (
-      packedQtyCommittedAt &&
-      packedQtyCommittedAt !== applyDispatchControllerState.lastHandledPackedQtyCommitAt &&
-      selectedOrderId &&
-      packedQtyCommittedLineItemKey
-    ) {
-      applyDispatchControllerState.lastHandledPackedQtyCommitAt = packedQtyCommittedAt;
-      const committedQty = Number(dispatchControllerState.lastPackedQtyCommittedQty);
-      if (Number.isFinite(committedQty)) {
-        const activePromptState = typeof dispatchPackedQtyPromptState === "undefined" ? null : dispatchPackedQtyPromptState;
-        if (
-          activePromptState &&
-          activePromptState.orderNo === selectedOrderId &&
-          activePromptState.itemKey === packedQtyCommittedLineItemKey
-        ) {
-          activePromptState.commit(committedQty);
-        } else {
-          setDispatchLinePackedQuantity(selectedOrderId, packedQtyCommittedLineItemKey, committedQty);
-        }
-      }
     }
 
     return {
@@ -6778,31 +6657,6 @@ async function startOrder(orderNo) {
       refreshDispatchViews(orderNo);
       return true;
     }
-    if (actionType === "pack-qty") {
-      if (!orderNo) return true;
-      const state = dispatchPackingState.get(orderNo);
-      if (!state) return true;
-      if (!state.startTime) state.startTime = new Date().toISOString();
-      const itemKey = action.dataset.itemKey;
-      const item = getPackingItem(state, itemKey);
-      if (!item) return true;
-      const row = action.closest(".dispatchPackingRow");
-      const input = row?.querySelector(".dispatchPackingQty");
-      const remaining = Math.max(0, item.quantity - item.packed);
-      const requested = input ? Number(input.value) : 0;
-      const qty = Math.max(0, Math.min(remaining, requested));
-      if (!qty) return true;
-      allocatePackedToBox(state, item.key, qty);
-      item.packed += qty;
-      if (input) input.value = "";
-      if (isPackingComplete(state)) {
-        finalizePacking(state);
-      } else {
-        savePackingState();
-      }
-      refreshDispatchViews(orderNo);
-      return true;
-    }
     if (actionType === "add-box") {
       if (!orderNo) return true;
       const state = dispatchPackingState.get(orderNo);
@@ -6919,7 +6773,11 @@ async function startOrder(orderNo) {
     }
     if (actionType === "fulfill-shipping") {
       if (!orderNo) return true;
-      const proceedFulfill = window.confirm(`Proceed with fulfillment for order ${orderNo}?`);
+      const proceedFulfill = await showDispatchConfirmDialog({
+        title: "Confirm fulfillment",
+        message: `Proceed with fulfillment for order ${orderNo}?`,
+        confirmLabel: "Continue"
+      });
       if (!proceedFulfill) return true;
       const order = dispatchOrderCache.get(orderNo);
       if (!order?.id) {
@@ -6935,9 +6793,11 @@ async function startOrder(orderNo) {
 
       const isSplitFulfillment = !fulfillmentState.allRemainingPacked;
       if (isSplitFulfillment) {
-        const proceed = window.confirm(
-          `Not all line items are marked packed for order ${orderNo}. Continuing will create a split fulfillment for only the packed items. Continue?`
-        );
+        const proceed = await showDispatchConfirmDialog({
+          title: "Split fulfillment",
+          message: `Not all line items are marked packed for order ${orderNo}. Continuing will create a split fulfillment for only the packed items. Continue?`,
+          confirmLabel: "Create split fulfillment"
+        });
         if (!proceed) return true;
       }
 
@@ -7178,30 +7038,9 @@ async function startOrder(orderNo) {
     if (ok) input.dataset.lastValue = String(parsed);
   }
 
-  function clearDispatchLineHold() {
-    if (dispatchLineHoldTimer) {
-      clearTimeout(dispatchLineHoldTimer);
-      dispatchLineHoldTimer = null;
-    }
-  }
-
-  dispatchBoard?.addEventListener("pointerdown", (e) => {
-    const lineItem = e.target.closest(".dispatchLineItem");
-    if (!lineItem) return;
+  dispatchBoard?.addEventListener("pointerdown", () => {
     dispatchLineHoldTriggered = false;
-    const orderNo = lineItem.dataset.orderNo;
-    const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
-    clearDispatchLineHold();
-    dispatchLineHoldTimer = setTimeout(() => {
-      dispatchLineHoldTriggered = true;
-      showDispatchPackedQtyPrompt(orderNo, itemKey, { startFromZero: true, initialValue: 0 });
-      clearDispatchLineHold();
-    }, DISPATCH_LINE_HOLD_MS);
   });
-
-  dispatchBoard?.addEventListener("pointerup", clearDispatchLineHold);
-  dispatchBoard?.addEventListener("pointerleave", clearDispatchLineHold);
-  dispatchBoard?.addEventListener("pointercancel", clearDispatchLineHold);
 
   dispatchBoard?.addEventListener("click", async (e) => {
     const action = e.target.closest("[data-action]");
@@ -7245,9 +7084,6 @@ async function startOrder(orderNo) {
         dispatchLineHoldTriggered = false;
         return;
       }
-      const orderNo = lineItem.dataset.orderNo;
-      const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
-      toggleDispatchLineItemPacked(orderNo, itemKey);
       return;
     }
 

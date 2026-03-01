@@ -253,9 +253,6 @@
     .flMain{ padding:1rem; }
     .flMainHeader{ flex-direction:column; align-items:stretch; }
     .dispatchSelectionFloat{
-      left:1rem;
-      right:1rem;
-      bottom:1rem;
       margin-top:.5rem;
     }
     .dispatchSelectionPanel{ width:100%; }
@@ -316,11 +313,7 @@
       border-radius:.8rem;
     }
     .dispatchSelectionFloat{
-      left:.55rem;
-      right:.55rem;
-      width:auto;
-      bottom:calc(env(safe-area-inset-bottom, 0px) + .35rem);
-      z-index:45;
+      width:100%;
     }
     .dispatchSelectionPanel{
       border-radius:.75rem;
@@ -1079,16 +1072,11 @@
 }
 
 .dispatchSelectionFloat{
-  position:fixed;
-  right:1rem;
-  bottom:.85rem;
-  z-index:35;
-  display:flex;
-  justify-content:flex-end;
-  pointer-events:none;
-  left:auto;
-  width:calc(100vw - 3rem);
-  max-width:1180px;
+  position:static;
+  display:block;
+  width:100%;
+  max-width:none;
+  margin-bottom:.55rem;
 }
 
 .dispatchSelectionPanel{
@@ -1102,7 +1090,6 @@
   flex-direction:column;
   gap:.45rem;
   flex-shrink:0;
-  pointer-events:auto;
 }
 .dispatchSelectionHeader{
   display:flex;

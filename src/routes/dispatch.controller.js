@@ -5,9 +5,6 @@ import {
   confirm,
   requestFulfill,
   requestPrint,
-  confirmHold,
-  setPackedQty,
-  adjustPackedQty,
   getEnvironmentState,
   getRemoteState,
   getState,
@@ -83,8 +80,6 @@ function shouldDebounce(req, actionName) {
   const perActionDebounceMs = {
     next: Number(config.ROTARY_DEBOUNCE_MS) || 14,
     prev: Number(config.ROTARY_DEBOUNCE_MS) || 14,
-    qty_increase: 4,
-    qty_decrease: 4
   };
   const debounceMs = perActionDebounceMs[actionName] ?? (Number(config.ROTARY_DEBOUNCE_MS) || 14);
   const lastAt = lastActionAtByKey.get(key) || 0;
@@ -178,7 +173,7 @@ router.post("/dispatch/remote/action", (req, res) => {
     return res.status(400).json({ ok: false, error: "action is required" });
   }
 
-  const allowed = new Set(["next", "prev", "confirm", "print", "fulfill", "confirm_hold", "set_packed_qty", "qty_increase", "qty_decrease"]);
+  const allowed = new Set(["next", "prev", "confirm", "print", "fulfill"]);
   if (!allowed.has(action)) {
     return res.status(400).json({ ok: false, error: "Unsupported remote action" });
   }
@@ -199,25 +194,6 @@ router.post("/dispatch/remote/action", (req, res) => {
     if (action === "confirm") state = confirm();
     if (action === "print") state = requestPrint();
     if (action === "fulfill") state = requestFulfill();
-    if (action === "confirm_hold") state = confirmHold();
-    if (action === "set_packed_qty") {
-      state = setPackedQty({
-        lineItemKey: req.body?.lineItemKey ?? req.body?.selectedLineItemKey,
-        qty: req.body?.qty
-      });
-    }
-    if (action === "qty_increase") {
-      state = adjustPackedQty({
-        lineItemKey: req.body?.lineItemKey ?? req.body?.selectedLineItemKey,
-        delta: 1
-      });
-    }
-    if (action === "qty_decrease") {
-      state = adjustPackedQty({
-        lineItemKey: req.body?.lineItemKey ?? req.body?.selectedLineItemKey,
-        delta: -1
-      });
-    }
     return res.json({ ok: true, action, selectedOrderId: state?.selectedOrderId || null, selectedLineItemKey: state?.selectedLineItemKey || null });
   } catch (error) {
     if (error?.code === "NO_SELECTED_ORDER") {
