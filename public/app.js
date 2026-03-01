@@ -1261,8 +1261,9 @@ import { initScanStationNext } from "./views/scan-station-next.js";
 
   function renderEnvironmentHeaderWidget(environment) {
     if (!dispatchEnvironmentSummary) return;
-    const current = environment?.current || null;
-    const status = String(environment?.status || "missing").trim() || "missing";
+    const normalizedEnvironment = normalizeEnvironmentForHeader(environment);
+    const current = normalizedEnvironment?.current || null;
+    const status = String(normalizedEnvironment?.status || "missing").trim() || "missing";
 
     if (current) {
       const temp = Number(current.temperatureC);
@@ -1271,8 +1272,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
       const humidityText = Number.isFinite(humidity) ? `${Math.round(humidity)}%` : "—";
       dispatchEnvironmentSummary.textContent = `🌡 ${tempText} · 💧 ${humidityText}`;
 
-      const ageText = environment?.lastUpdatedAt
-        ? ` · ${formatDispatchTime(environment.lastUpdatedAt)}`
+      const ageText = normalizedEnvironment?.lastUpdatedAt
+        ? ` · ${formatDispatchTime(normalizedEnvironment.lastUpdatedAt)}`
         : "";
       dispatchEnvironmentStatus.textContent = `Sensor ${status}${ageText}`;
       sensorIndicatorState = { ok: status === "ok" || status === "connected", detail: dispatchEnvironmentStatus.textContent };
