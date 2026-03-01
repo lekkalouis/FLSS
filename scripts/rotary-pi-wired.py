@@ -126,7 +126,7 @@ def load_settings() -> Settings:
     led_feedback_s = float(os.getenv("ROTARY_LED_FEEDBACK_S", "0.25"))
 
     # Client-side throttle to complement server debounce.
-    min_action_gap_s = float(os.getenv("ROTARY_MIN_ACTION_GAP_S", "0.18"))
+    min_action_gap_s = float(os.getenv("ROTARY_MIN_ACTION_GAP_S", "0.07"))
 
     return Settings(
         base_url=base_url,
@@ -443,17 +443,20 @@ class RotaryFlssClient:
 
     def send_action(self, action: str, *, force: bool = False) -> None:
         now = time.monotonic()
+        per_action_gap = {
+            "next": self.settings.min_action_gap_s,
+            "prev": self.settings.min_action_gap_s,
+            "qty_increase": min(self.settings.min_action_gap_s, 0.025),
+            "qty_decrease": min(self.settings.min_action_gap_s, 0.025),
+        }
+        min_gap = per_action_gap.get(action, self.settings.min_action_gap_s)
         with self.lock:
             if not force:
-                if now - self.last_sent_at < self.settings.min_action_gap_s:
+                if now - self.last_sent_at < min_gap:
                     return
                 if action in {"next", "prev"}:
                     last_for_action = self.last_sent_by_action.get(action, 0.0)
-                    if now - last_for_action < self.settings.min_action_gap_s:
-                        return
-                    opposite = "prev" if action == "next" else "next"
-                    last_opposite = self.last_sent_by_action.get(opposite, 0.0)
-                    if now - last_opposite < self.settings.min_action_gap_s:
+                    if now - last_for_action < min_gap:
                         return
             self.last_sent_at = now
             self.last_sent_by_action[action] = now

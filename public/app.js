@@ -181,6 +181,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const scanProgressLabel = $("scanProgressLabel");
   const scanDispatchLog = $("scanDispatchLog");
   const dispatchTopBar = $("dispatchTopBar");
+  const dispatchTopSelectedOrderTitle = $("dispatchTopSelectedOrderTitle");
+  const dispatchTopSelectedOrderMeta = $("dispatchTopSelectedOrderMeta");
   const dispatchEnvironmentSummary = $("dispatchEnvironmentSummary");
   const dispatchDateTimeSummary = $("dispatchDateTimeSummary");
   const dispatchEnvironmentStatus = $("dispatchEnvironmentStatus");
@@ -4152,6 +4154,7 @@ async function startOrder(orderNo) {
       setValue,
       increase: () => setValue(value + 1),
       decrease: () => setValue(value - 1),
+      currentValue: () => value,
       commit: (nextValue) => {
         const committedValue = Number.isFinite(Number(nextValue)) ? Number(nextValue) : value;
         setDispatchLinePackedQuantity(orderNo, itemKey, committedValue);
@@ -4335,6 +4338,32 @@ async function startOrder(orderNo) {
     }
   }
 
+  function updateDispatchTopSelectedOrder() {
+    if (!dispatchTopSelectedOrderTitle || !dispatchTopSelectedOrderMeta) return;
+    const selectedOrderId =
+      dispatchSelectedOrders.size === 1 ? String(Array.from(dispatchSelectedOrders)[0] || "").trim() : "";
+    const order = selectedOrderId ? dispatchOrderCache.get(selectedOrderId) : null;
+    if (!selectedOrderId || !order) {
+      dispatchTopSelectedOrderTitle.textContent = "No order selected";
+      dispatchTopSelectedOrderMeta.textContent = "Use rotary knob to select an order line item.";
+      return;
+    }
+
+    const customer = String(order.customer_name || order.name || `Order ${order.id || selectedOrderId}`).trim();
+    const city = String(order.shipping_city || "").trim();
+    const parcelCount =
+      typeof order.parcel_count_from_meta === "number"
+        ? order.parcel_count_from_meta
+        : typeof order.parcel_count === "number"
+        ? order.parcel_count
+        : typeof order.parcel_count_from_tag === "number"
+        ? order.parcel_count_from_tag
+        : "—";
+
+    dispatchTopSelectedOrderTitle.textContent = `${selectedOrderId} · ${customer}`;
+    dispatchTopSelectedOrderMeta.textContent = `${city || "Unknown destination"} · Parcels ${parcelCount}`;
+  }
+
   function updateDispatchSelectionSummary() {
     if (!dispatchSelectionPanel) return;
     const totals = aggregateDispatchSelection();
@@ -4372,6 +4401,7 @@ async function startOrder(orderNo) {
     if (dispatchPrepareDeliveriesContainer) {
       dispatchPrepareDeliveriesContainer.classList.toggle("is-hidden", selectedDeliveryOrderCount === 0);
     }
+    updateDispatchTopSelectedOrder();
     if (dispatchSelectionMixes) {
       const entries = [...totals.flavourSizeTotals.values()].sort((a, b) => {
         const aKey = flavourKey(a.flavour);
@@ -5545,8 +5575,6 @@ async function startOrder(orderNo) {
       dispatchLastHandledConfirmAt = confirmedAt;
       if (confirmedLineItemKey) {
         toggleDispatchLineItemPacked(confirmedOrderId, confirmedLineItemKey);
-      } else if (dispatchOrderCache.has(confirmedOrderId)) {
-        openDispatchOrderModal(confirmedOrderId);
       }
     }
 
@@ -5582,7 +5610,7 @@ async function startOrder(orderNo) {
         activePromptState.setValue(Number(dispatchControllerState.quantityPromptQty));
       }
     } else if (promptState && !quantityPromptOpen) {
-      promptState.close();
+      promptState.commit(promptState.currentValue());
     }
 
     const packedQtyCommittedAt = dispatchControllerState.lastPackedQtyCommittedAt;

@@ -54,7 +54,7 @@ export const config = {
   FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
 
   ROTARY_TOKEN: process.env.ROTARY_TOKEN || "",
-  ROTARY_DEBOUNCE_MS: numberOrDefault(process.env.ROTARY_DEBOUNCE_MS, 40, { min: 1 }),
+  ROTARY_DEBOUNCE_MS: numberOrDefault(process.env.ROTARY_DEBOUNCE_MS, 14, { min: 1 }),
   REMOTE_TOKEN: process.env.REMOTE_TOKEN || "",
   REMOTE_HEARTBEAT_STALE_MS: numberOrDefault(process.env.REMOTE_HEARTBEAT_STALE_MS, 30000, { min: 1000 }),
 
