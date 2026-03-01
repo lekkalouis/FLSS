@@ -661,6 +661,21 @@
     gap:1rem;
     flex-wrap:wrap;
   }
+  .dispatchTopSelectedOrder{
+    display:flex;
+    flex-direction:column;
+    gap:.15rem;
+    min-width:260px;
+  }
+  .dispatchTopSelectedOrderTitle{
+    font-size:.86rem;
+    font-weight:700;
+    color:var(--text);
+  }
+  .dispatchTopSelectedOrderMeta{
+    font-size:.74rem;
+    color:var(--text-muted);
+  }
   .dispatchHeading{
     display:flex;
     align-items:center;
@@ -2915,6 +2930,10 @@
       <div class="dispatchTopBar" id="dispatchTopBar">
         <div class="dispatchTopRow">
           <div class="dispatchHeading">Selected Orders</div>
+          <div class="dispatchTopSelectedOrder" id="dispatchTopSelectedOrder" aria-live="polite">
+            <div class="dispatchTopSelectedOrderTitle" id="dispatchTopSelectedOrderTitle">No order selected</div>
+            <div class="dispatchTopSelectedOrderMeta" id="dispatchTopSelectedOrderMeta">Use rotary knob to select an order line item.</div>
+          </div>
           <div class="dispatchTopActions">
             <button class="btn btn-sm btn-light dispatchExpandToggle" id="dispatchExpandToggle" type="button" aria-expanded="false" title="Toggle dispatch details">⚙️</button>
           </div>

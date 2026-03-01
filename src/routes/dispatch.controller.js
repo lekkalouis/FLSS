@@ -77,10 +77,16 @@ function remoteUnauthorizedResponse(res) {
 }
 
 function shouldDebounce(req, actionName) {
-  const debounceMs = Number(config.ROTARY_DEBOUNCE_MS) || 40;
   const source = String(req.body?.source || "unknown").trim() || "unknown";
   const key = `${getRequestIp(req)}:${source}:${actionName}`;
   const now = Date.now();
+  const perActionDebounceMs = {
+    next: Number(config.ROTARY_DEBOUNCE_MS) || 14,
+    prev: Number(config.ROTARY_DEBOUNCE_MS) || 14,
+    qty_increase: 4,
+    qty_decrease: 4
+  };
+  const debounceMs = perActionDebounceMs[actionName] ?? (Number(config.ROTARY_DEBOUNCE_MS) || 14);
   const lastAt = lastActionAtByKey.get(key) || 0;
   if (now - lastAt < debounceMs) {
     return true;
