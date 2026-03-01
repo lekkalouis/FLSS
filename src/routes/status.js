@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { config } from "../config.js";
+import { getLatestEnvironmentTelemetry } from "../services/environmentTelemetry.js";
 import { getShopifyAdminToken } from "../services/shopify.js";
 import { buildServiceStatus } from "../utils/http.js";
 
@@ -47,7 +48,22 @@ router.get("/statusz", async (_req, res) => {
   }
 
   const ok = Object.values(services).every((service) => service.ok);
-  res.json({ ok, checkedAt: new Date().toISOString(), services });
+  const latestEnvironment = getLatestEnvironmentTelemetry();
+  const environment = latestEnvironment
+    ? {
+      status: latestEnvironment.status,
+      temperatureC: latestEnvironment.temperatureC,
+      humidityPct: latestEnvironment.humidityPct,
+      lastUpdated: latestEnvironment.lastUpdated || latestEnvironment.timestamp
+    }
+    : {
+      status: "offline",
+      temperatureC: null,
+      humidityPct: null,
+      lastUpdated: null
+    };
+
+  res.json({ ok, checkedAt: new Date().toISOString(), services, environment });
 });
 
 export default router;

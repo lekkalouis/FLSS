@@ -3,6 +3,7 @@ import configRouter from "./config.js";
 import customerAccountsRouter from "./customer-accounts.js";
 import dispatchControllerRouter from "./dispatch.controller.js";
 import docsRouter from "./docs.js";
+import environmentRouter from "./environment.js";
 import liquidTemplatesRouter from "./liquidTemplates.js";
 import notificationTemplatesRouter from "./notificationTemplates.js";
 import parcelPerfectRouter from "./parcelperfect.js";
@@ -16,6 +17,7 @@ export const apiRouters = [
   { name: "config", router: configRouter },
   { name: "customerAccounts", router: customerAccountsRouter },
   { name: "dispatchController", router: dispatchControllerRouter },
+  { name: "environment", router: environmentRouter },
   { name: "docs", router: docsRouter },
   { name: "liquidTemplates", router: liquidTemplatesRouter },
   { name: "notificationTemplates", router: notificationTemplatesRouter },

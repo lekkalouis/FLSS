@@ -66,6 +66,47 @@ test('GET /api/v1/config returns expected config keys', async () => {
   }
 });
 
+test('environment ingest endpoint stores telemetry and statusz includes summary', async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const ingestResponse = await fetch(`${baseUrl}/api/v1/environment/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stationId: 'scan-station-01',
+        timestamp: '2026-01-01T12:00:00.000Z',
+        temperatureC: 23.5,
+        humidityPct: 51.2,
+        status: 'ok',
+        readErrorsSinceBoot: 4,
+        lastUpdated: '2026-01-01T12:00:00.000Z'
+      })
+    });
+    assert.equal(ingestResponse.status, 200);
+    const ingestBody = await ingestResponse.json();
+    assert.equal(ingestBody.ok, true);
+    assert.equal(ingestBody.environment.stationId, 'scan-station-01');
+
+    const environmentResponse = await fetch(`${baseUrl}/api/v1/environment`);
+    assert.equal(environmentResponse.status, 200);
+    const environmentBody = await environmentResponse.json();
+    assert.equal(environmentBody.ok, true);
+    assert.equal(environmentBody.environment.temperatureC, 23.5);
+    assert.equal(environmentBody.environment.humidityPct, 51.2);
+    assert.equal(environmentBody.environment.status, 'ok');
+
+    const statusResponse = await fetch(`${baseUrl}/api/v1/statusz`);
+    assert.equal(statusResponse.status, 200);
+    const statusBody = await statusResponse.json();
+    assert.equal(statusBody.environment.status, 'ok');
+    assert.equal(statusBody.environment.temperatureC, 23.5);
+    assert.equal(statusBody.environment.humidityPct, 51.2);
+    assert.equal(statusBody.environment.lastUpdated, '2026-01-01T12:00:00.000Z');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('liquid template endpoints support create/list/delete flow', async () => {
   await removeTemplateFixture();
   const { server, baseUrl } = await startServer();

@@ -10,6 +10,11 @@ This reference mirrors route definitions under `src/routes/`.
 - `GET /statusz`
 - `GET /config`
 
+## Environment telemetry
+
+- `POST /environment/ingest`
+- `GET /environment`
+
 ## Documentation topics
 
 - `GET /docs`
