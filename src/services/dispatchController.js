@@ -13,6 +13,12 @@ const dispatchState = {
   lastPrintRequestedOrderId: null,
   lastFulfillRequestedAt: null,
   lastFulfillRequestedOrderId: null,
+  quantityPromptOpen: false,
+  quantityPromptTargetLineItemKey: null,
+  quantityPromptQty: null,
+  lastPackedQtyCommittedAt: null,
+  lastPackedQtyCommittedLineItemKey: null,
+  lastPackedQtyCommittedQty: null,
   environment: {
     current: null,
     status: "missing",
@@ -65,6 +71,12 @@ function hasStateChanged(previousState, nextState) {
   if (previousState.lastPrintRequestedOrderId !== nextState.lastPrintRequestedOrderId) return true;
   if (previousState.lastFulfillRequestedAt !== nextState.lastFulfillRequestedAt) return true;
   if (previousState.lastFulfillRequestedOrderId !== nextState.lastFulfillRequestedOrderId) return true;
+  if (previousState.quantityPromptOpen !== nextState.quantityPromptOpen) return true;
+  if (previousState.quantityPromptTargetLineItemKey !== nextState.quantityPromptTargetLineItemKey) return true;
+  if (previousState.quantityPromptQty !== nextState.quantityPromptQty) return true;
+  if (previousState.lastPackedQtyCommittedAt !== nextState.lastPackedQtyCommittedAt) return true;
+  if (previousState.lastPackedQtyCommittedLineItemKey !== nextState.lastPackedQtyCommittedLineItemKey) return true;
+  if (previousState.lastPackedQtyCommittedQty !== nextState.lastPackedQtyCommittedQty) return true;
   if (previousState.queueOrderIds.length !== nextState.queueOrderIds.length) return true;
   if (JSON.stringify(previousState.lineItemKeysByOrderId) !== JSON.stringify(nextState.lineItemKeysByOrderId)) return true;
   if (JSON.stringify(previousState.environment) !== JSON.stringify(nextState.environment)) return true;
@@ -176,6 +188,12 @@ export function getState() {
     lastPrintRequestedOrderId: dispatchState.lastPrintRequestedOrderId,
     lastFulfillRequestedAt: dispatchState.lastFulfillRequestedAt,
     lastFulfillRequestedOrderId: dispatchState.lastFulfillRequestedOrderId,
+    quantityPromptOpen: dispatchState.quantityPromptOpen,
+    quantityPromptTargetLineItemKey: dispatchState.quantityPromptTargetLineItemKey,
+    quantityPromptQty: dispatchState.quantityPromptQty,
+    lastPackedQtyCommittedAt: dispatchState.lastPackedQtyCommittedAt,
+    lastPackedQtyCommittedLineItemKey: dispatchState.lastPackedQtyCommittedLineItemKey,
+    lastPackedQtyCommittedQty: dispatchState.lastPackedQtyCommittedQty,
     environment: cloneEnvironment(),
     remote: cloneRemote()
   };
@@ -291,6 +309,77 @@ export function requestFulfill() {
   dispatchState.lastFulfillRequestedAt = new Date().toISOString();
   const nextState = getState();
   emitStateChange("requestFulfill", previousState, nextState);
+  return nextState;
+}
+
+
+function normalizeQtyValue(value) {
+  const qty = Number(value);
+  if (!Number.isFinite(qty)) return null;
+  if (qty < 0) return null;
+  return Math.round(qty * 1000) / 1000;
+}
+
+export function confirmHold() {
+  const previousState = getState();
+  ensureSelection();
+  if (!dispatchState.selectedOrderId) {
+    const err = new Error("No selected order to confirm hold.");
+    err.code = "NO_SELECTED_ORDER";
+    throw err;
+  }
+
+  dispatchState.quantityPromptOpen = true;
+  dispatchState.quantityPromptTargetLineItemKey = dispatchState.selectedLineItemKey;
+  dispatchState.quantityPromptQty = null;
+  const nextState = getState();
+  emitStateChange("confirmHold", previousState, nextState);
+  emitCustomEvent("dispatch-quantity-prompt", {
+    open: true,
+    orderId: dispatchState.selectedOrderId,
+    lineItemKey: dispatchState.quantityPromptTargetLineItemKey
+  });
+  return nextState;
+}
+
+export function setPackedQty({ lineItemKey, qty } = {}) {
+  const previousState = getState();
+  ensureSelection();
+  if (!dispatchState.selectedOrderId) {
+    const err = new Error("No selected order to set packed quantity.");
+    err.code = "NO_SELECTED_ORDER";
+    throw err;
+  }
+
+  const targetLineItemKey = String(lineItemKey || dispatchState.quantityPromptTargetLineItemKey || dispatchState.selectedLineItemKey || "").trim();
+  if (!targetLineItemKey) {
+    const err = new Error("lineItemKey is required to set packed quantity.");
+    err.code = "INVALID_REMOTE_PAYLOAD";
+    throw err;
+  }
+
+  const normalizedQty = normalizeQtyValue(qty);
+  if (normalizedQty == null) {
+    const err = new Error("qty must be a number greater than or equal to 0.");
+    err.code = "INVALID_REMOTE_PAYLOAD";
+    throw err;
+  }
+
+  dispatchState.quantityPromptOpen = false;
+  dispatchState.quantityPromptTargetLineItemKey = targetLineItemKey;
+  dispatchState.quantityPromptQty = normalizedQty;
+  dispatchState.lastPackedQtyCommittedLineItemKey = targetLineItemKey;
+  dispatchState.lastPackedQtyCommittedQty = normalizedQty;
+  dispatchState.lastPackedQtyCommittedAt = new Date().toISOString();
+
+  const nextState = getState();
+  emitStateChange("setPackedQty", previousState, nextState);
+  emitCustomEvent("dispatch-packed-qty-committed", {
+    orderId: dispatchState.selectedOrderId,
+    lineItemKey: targetLineItemKey,
+    qty: normalizedQty,
+    committedAt: dispatchState.lastPackedQtyCommittedAt
+  });
   return nextState;
 }
 

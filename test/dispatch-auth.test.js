@@ -189,7 +189,14 @@ test('dispatch environment and remote endpoints support telemetry and remote act
     const syncResponse = await fetch(`${baseUrl}/api/v1/dispatch/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ queueOrderIds: ['3001', '3002'], mode: 'dispatch' })
+      body: JSON.stringify({
+        queueOrderIds: ['3001', '3002'],
+        lineItemKeysByOrderId: {
+          '3001': ['line-3001-a'],
+          '3002': ['line-3002-a']
+        },
+        mode: 'dispatch'
+      })
     });
     assert.equal(syncResponse.status, 200);
 
@@ -208,6 +215,62 @@ test('dispatch environment and remote endpoints support telemetry and remote act
     assert.equal(remoteActionResponse.status, 200);
     const remoteActionBody = await remoteActionResponse.json();
     assert.equal(remoteActionBody.selectedOrderId, '3002');
+
+    const confirmHoldResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'confirm_hold',
+        idempotencyKey: 'abc-2'
+      })
+    });
+    assert.equal(confirmHoldResponse.status, 200);
+
+    const setPackedQtyResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'set_packed_qty',
+        lineItemKey: 'line-3002-a',
+        qty: 4,
+        idempotencyKey: 'abc-3'
+      })
+    });
+    assert.equal(setPackedQtyResponse.status, 200);
+
+    const duplicateSetPackedQtyResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'set_packed_qty',
+        lineItemKey: 'line-3002-a',
+        qty: 4,
+        idempotencyKey: 'abc-3'
+      })
+    });
+    assert.equal(duplicateSetPackedQtyResponse.status, 200);
+    const duplicateSetPackedQtyBody = await duplicateSetPackedQtyResponse.json();
+    assert.equal(duplicateSetPackedQtyBody.deduped, true);
+
+    const stateResponse = await fetch(`${baseUrl}/api/v1/dispatch/state`);
+    assert.equal(stateResponse.status, 200);
+    const stateBody = await stateResponse.json();
+    assert.equal(stateBody.quantityPromptOpen, false);
+    assert.equal(stateBody.lastPackedQtyCommittedLineItemKey, 'line-3002-a');
+    assert.equal(stateBody.lastPackedQtyCommittedQty, 4);
+
   } finally {
     restoreEnv();
     await new Promise((resolve) => server.close(resolve));
