@@ -1263,19 +1263,22 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   function renderEnvironmentHeaderWidget(environment) {
     if (!dispatchEnvironmentSummary) return;
     const normalizedEnvironment = normalizeEnvironmentForHeader(environment);
-      const hasCurrentReading = Boolean(
+    const hasCurrentReading = Boolean(
       normalizedEnvironment?.current &&
         (Number.isFinite(Number(normalizedEnvironment.current.temperatureC)) ||
           Number.isFinite(Number(normalizedEnvironment.current.humidityPct)))
     );
+    const hasCachedReading = Boolean(lastEnvironmentForHeader?.current);
+    const useCachedReading = !hasCurrentReading && hasCachedReading;
+    const environmentToRender = useCachedReading ? lastEnvironmentForHeader : normalizedEnvironment;
 
     if (hasCurrentReading) {
       lastEnvironmentForHeader = normalizedEnvironment;
     }
 
-
-    const current = normalizedEnvironment?.current || null;
-    const status = String(normalizedEnvironment?.status || "missing").trim() || "missing";
+    const current = environmentToRender?.current || null;
+    const incomingStatus = String(normalizedEnvironment?.status || "missing").trim() || "missing";
+    const status = useCachedReading ? `${incomingStatus} (stale)` : incomingStatus;
 
     if (current) {
       const temp = Number(current.temperatureC);
@@ -1284,18 +1287,21 @@ import { initScanStationNext } from "./views/scan-station-next.js";
       const humidityText = Number.isFinite(humidity) ? `${Math.round(humidity)}%` : "—";
       dispatchEnvironmentSummary.textContent = `🌡 ${tempText} · 💧 ${humidityText}`;
 
-      const ageText = normalizedEnvironment?.lastUpdatedAt
-        ? ` · ${formatDispatchTime(normalizedEnvironment.lastUpdatedAt)}`
+      const ageText = environmentToRender?.lastUpdatedAt
+        ? ` · ${formatDispatchTime(environmentToRender.lastUpdatedAt)}`
         : "";
       dispatchEnvironmentStatus.textContent = `Sensor ${status}${ageText}`;
-      sensorIndicatorState = { ok: status === "ok" || status === "connected", detail: dispatchEnvironmentStatus.textContent };
+      sensorIndicatorState = {
+        ok: !useCachedReading && (incomingStatus === "ok" || incomingStatus === "connected"),
+        detail: dispatchEnvironmentStatus.textContent
+      };
     } else {
       dispatchEnvironmentSummary.textContent = "🌡 — · 💧 —";
       dispatchEnvironmentStatus.textContent = "Waiting for sensor";
       sensorIndicatorState = { ok: false, detail: "Waiting for sensor" };
     }
 
-    setStatusClass(dispatchEnvironmentStatus, status);
+    setStatusClass(dispatchEnvironmentStatus, incomingStatus);
   }
 
   function normalizeEnvironmentForHeader(environment) {
@@ -1305,8 +1311,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
       return environment;
     }
 
-    const hasTemp = Number.isFinite(Number(environment.temperatureC));
-    const hasHumidity = Number.isFinite(Number(environment.humidityPct));
+    const hasTemp = environment.temperatureC !== null && environment.temperatureC !== "" && Number.isFinite(Number(environment.temperatureC));
+    const hasHumidity = environment.humidityPct !== null && environment.humidityPct !== "" && Number.isFinite(Number(environment.humidityPct));
 
     return {
       current: hasTemp || hasHumidity

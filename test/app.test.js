@@ -494,3 +494,56 @@ return ({ rows, state, selectedOrders, rotarySelection, focusIndex = -1, focusKe
   );
   assert.deepEqual(movedSnapshot.refreshDispatchViewsCalls, [orderId]);
 });
+
+test('environment header widget preserves last numeric reading across null updates', async () => {
+  const appJs = await fs.readFile(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  const runtimeFactory = new Function(
+    `let dispatchEnvironmentSummary = { textContent: '' };
+let dispatchEnvironmentStatus = { textContent: '', classList: { add: () => {}, remove: () => {} } };
+let sensorIndicatorState = null;
+let lastEnvironmentForHeader = null;
+let formatDispatchTime = () => 'moments ago';
+
+${extractFunctionSource(appJs, 'setStatusClass')}
+${extractFunctionSource(appJs, 'normalizeEnvironmentForHeader')}
+${extractFunctionSource(appJs, 'renderEnvironmentHeaderWidget')}
+
+return {
+  renderEnvironmentHeaderWidget,
+  normalizeEnvironmentForHeader,
+  getSnapshot: () => ({
+    summary: dispatchEnvironmentSummary.textContent,
+    status: dispatchEnvironmentStatus.textContent,
+    sensorIndicatorState,
+    lastEnvironmentForHeader
+  })
+};`
+  )();
+
+  runtimeFactory.renderEnvironmentHeaderWidget({
+    temperatureC: 22.25,
+    humidityPct: 48.4,
+    status: 'ok',
+    lastUpdated: '2026-01-01T00:00:00.000Z'
+  });
+
+  const initialSnapshot = runtimeFactory.getSnapshot();
+  assert.equal(initialSnapshot.summary, '🌡 22.3°C · 💧 48%');
+  assert.match(initialSnapshot.status, /^Sensor ok/);
+  assert.equal(initialSnapshot.sensorIndicatorState.ok, true);
+  assert.equal(initialSnapshot.lastEnvironmentForHeader.current.temperatureC, 22.25);
+
+  runtimeFactory.renderEnvironmentHeaderWidget({
+    temperatureC: null,
+    humidityPct: null,
+    status: 'missing',
+    lastUpdated: '2026-01-01T00:05:00.000Z'
+  });
+
+  const staleSnapshot = runtimeFactory.getSnapshot();
+  assert.equal(staleSnapshot.summary, '🌡 22.3°C · 💧 48%');
+  assert.match(staleSnapshot.status, /^Sensor missing \(stale\)/);
+  assert.equal(staleSnapshot.sensorIndicatorState.ok, false);
+  assert.equal(staleSnapshot.lastEnvironmentForHeader.current.temperatureC, 22.25);
+});
