@@ -283,3 +283,168 @@ test('dispatch controller selection updates trigger dispatch refresh path in fro
     'applyDispatchControllerState should detect selection changes and avoid unnecessary rerenders'
   );
 });
+
+function extractFunctionSource(source, functionName) {
+  const signature = `function ${functionName}`;
+  const start = source.indexOf(signature);
+  assert.notEqual(start, -1, `${functionName} should exist in public/app.js`);
+
+  const signatureEnd = source.indexOf(')', start);
+  assert.notEqual(signatureEnd, -1, `${functionName} should contain a closing signature parenthesis`);
+  const bodyStart = source.indexOf('{', signatureEnd);
+  assert.notEqual(bodyStart, -1, `${functionName} should contain an opening brace`);
+
+  let depth = 0;
+  for (let i = bodyStart; i < source.length; i += 1) {
+    const char = source[i];
+    if (char === '{') depth += 1;
+    if (char === '}') depth -= 1;
+    if (depth === 0) return source.slice(start, i + 1);
+  }
+
+  throw new Error(`Could not extract ${functionName}`);
+}
+
+function createClassList() {
+  const classes = new Set();
+  return {
+    add: (...names) => names.forEach((name) => classes.add(name)),
+    remove: (...names) => names.forEach((name) => classes.delete(name)),
+    toggle: (name, force) => {
+      const shouldAdd = typeof force === 'boolean' ? force : !classes.has(name);
+      if (shouldAdd) classes.add(name);
+      else classes.delete(name);
+      return shouldAdd;
+    },
+    contains: (name) => classes.has(name)
+  };
+}
+
+function createDispatchRow(orderNo, itemKey, { disabled = false } = {}) {
+  const classList = createClassList();
+  classList.add('dispatchPackingRow');
+  const button = {
+    disabled,
+    dataset: { orderNo }
+  };
+
+  return {
+    dataset: { itemKey },
+    classList,
+    querySelector: (selector) => (selector === '.dispatchPackAllBtn' ? button : null),
+    scrollIntoView: () => {}
+  };
+}
+
+test('dispatch rotary selection UI follows controller-selected line item across focus reconciliation', async () => {
+  const appJs = await fs.readFile(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  const runtimeFactory = new Function(
+    `let dispatchBoard = null;
+let dispatchControllerState = null;
+let dispatchSelectedOrders = new Set();
+let dispatchRotarySelectedKey = '';
+let dispatchRotaryFocusIndex = -1;
+let dispatchRotaryFocusKey = '';
+let dispatchLastHandledConfirmAt = '';
+let dispatchLastHandledPrintRequestAt = '';
+let dispatchLastHandledFulfillRequestAt = '';
+let dispatchOrderCache = new Map();
+let refreshDispatchViews = () => {};
+let renderEnvironmentHeaderWidget = () => {};
+let renderRemoteStatusBadge = () => {};
+let syncDispatchSelectionUI = () => {};
+let updateDashboardKpis = () => {};
+let markDispatchLineItemPacked = () => {};
+let openDispatchOrderModal = () => {};
+let handleDispatchAction = () => Promise.resolve();
+
+${extractFunctionSource(appJs, 'dispatchRotaryKeyForRow')}
+${extractFunctionSource(appJs, 'getDispatchRotaryRows')}
+${extractFunctionSource(appJs, 'syncDispatchRotarySelectionUI')}
+${extractFunctionSource(appJs, 'syncDispatchRotaryFocus')}
+${extractFunctionSource(appJs, 'applyDispatchControllerState')}
+${extractFunctionSource(appJs, 'applyIncomingDispatchControllerState')}
+
+return ({ rows, state, selectedOrders, rotarySelection, focusIndex = -1, focusKey = '', refreshDispatchViewsSpy = [] }) => {
+  dispatchBoard = {
+    querySelectorAll: (selector) => {
+      if (selector === '.dispatchPackingRow') return rows;
+      return [];
+    }
+  };
+  dispatchControllerState = state;
+  dispatchSelectedOrders = selectedOrders;
+  dispatchRotarySelectedKey = rotarySelection;
+  dispatchRotaryFocusIndex = focusIndex;
+  dispatchRotaryFocusKey = focusKey;
+  dispatchLastHandledConfirmAt = '';
+  dispatchLastHandledPrintRequestAt = '';
+  dispatchLastHandledFulfillRequestAt = '';
+  dispatchOrderCache = new Map();
+  refreshDispatchViews = (orderId) => refreshDispatchViewsSpy.push(orderId);
+  renderEnvironmentHeaderWidget = () => {};
+  renderRemoteStatusBadge = () => {};
+  syncDispatchSelectionUI = () => {};
+  updateDashboardKpis = () => {};
+  markDispatchLineItemPacked = () => {};
+  openDispatchOrderModal = () => {};
+  handleDispatchAction = () => Promise.resolve();
+
+  return {
+    applyIncomingDispatchControllerState,
+    setState: (nextState) => {
+      dispatchControllerState = nextState;
+    },
+    setButtonDisabled: (index, disabled) => {
+      const button = rows[index]?.querySelector('.dispatchPackAllBtn');
+      if (button) button.disabled = disabled;
+    },
+    getSnapshot: () => ({
+      dispatchRotaryFocusIndex,
+      dispatchRotaryFocusKey,
+      dispatchRotarySelectedKey,
+      selectedRows: rows.filter((row) => row.classList.contains('is-rotary-selected')),
+      focusedRows: rows.filter((row) => row.classList.contains('is-rotary-focus')),
+      refreshDispatchViewsCalls: [...refreshDispatchViewsSpy]
+    })
+  };
+};`
+  )();
+
+  const orderId = '1001';
+  const lineItemA = 'line-1a';
+  const lineItemB = 'line-1b';
+  const rowA = createDispatchRow(orderId, lineItemA);
+  const rowB = createDispatchRow(orderId, lineItemB);
+  const rowC = createDispatchRow(orderId, 'line-1c');
+  const refreshDispatchViewsSpy = [];
+  const runtime = runtimeFactory({
+    rows: [rowA, rowB, rowC],
+    state: null,
+    selectedOrders: new Set(),
+    rotarySelection: '',
+    refreshDispatchViewsSpy
+  });
+
+  runtime.applyIncomingDispatchControllerState({ selectedOrderId: orderId, selectedLineItemKey: lineItemA });
+  const initialSnapshot = runtime.getSnapshot();
+  assert.equal(initialSnapshot.dispatchRotarySelectedKey, `${orderId}:${lineItemA}`);
+  assert.equal(initialSnapshot.selectedRows.length, 1);
+  assert.equal(initialSnapshot.selectedRows[0].dataset.itemKey, lineItemA);
+
+  runtime.setButtonDisabled(1, true);
+  runtime.applyIncomingDispatchControllerState({ selectedOrderId: orderId, selectedLineItemKey: lineItemB });
+  const movedSnapshot = runtime.getSnapshot();
+
+  assert.equal(movedSnapshot.dispatchRotarySelectedKey, `${orderId}:${lineItemB}`);
+  assert.equal(movedSnapshot.selectedRows.length, 1);
+  assert.equal(movedSnapshot.selectedRows[0].dataset.itemKey, lineItemB);
+  assert.equal(movedSnapshot.focusedRows.length, 1);
+  assert.notEqual(
+    movedSnapshot.focusedRows[0].dataset.itemKey,
+    movedSnapshot.selectedRows[0].dataset.itemKey,
+    'focus reconciliation may move focus away from disabled rows while keeping rotary selection on the controller-selected row'
+  );
+  assert.deepEqual(movedSnapshot.refreshDispatchViewsCalls, [orderId]);
+});
