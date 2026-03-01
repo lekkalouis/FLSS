@@ -246,6 +246,51 @@ test('dispatch environment and remote endpoints support telemetry and remote act
     });
     assert.equal(setPackedQtyResponse.status, 200);
 
+    const qtyIncreaseResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'qty_increase',
+        lineItemKey: 'line-3002-a',
+        idempotencyKey: 'abc-qty-up'
+      })
+    });
+    assert.equal(qtyIncreaseResponse.status, 200);
+
+    const qtyDecreaseResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'qty_decrease',
+        lineItemKey: 'line-3002-a',
+        idempotencyKey: 'abc-qty-down'
+      })
+    });
+    assert.equal(qtyDecreaseResponse.status, 200);
+
+    const setPackedQtyWithoutExplicitQty = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'set_packed_qty',
+        lineItemKey: 'line-3002-a',
+        idempotencyKey: 'abc-qty-commit-no-qty'
+      })
+    });
+    assert.equal(setPackedQtyWithoutExplicitQty.status, 200);
+
     const duplicateSetPackedQtyResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
       method: 'POST',
       headers: {
@@ -256,8 +301,7 @@ test('dispatch environment and remote endpoints support telemetry and remote act
         remoteId: 'remote-main',
         action: 'set_packed_qty',
         lineItemKey: 'line-3002-a',
-        qty: 4,
-        idempotencyKey: 'abc-3'
+        idempotencyKey: 'abc-qty-commit-no-qty'
       })
     });
     assert.equal(duplicateSetPackedQtyResponse.status, 200);

@@ -3186,12 +3186,14 @@ async function startOrder(orderNo) {
         const isShortOrUnavailable =
           (Number.isFinite(fulfillableQty) && fulfillableQty < requestedQty) ||
           (Number.isFinite(inventoryAvailableQty) && inventoryAvailableQty < requestedQty);
-        const openQtyLabel = requestedQty > 0 ? formatDispatchQtyLabel(requestedQty, shortLabel, order) : "";
+        const openQty = Math.max(0, requestedQty - packedCount);
+        const openQtyLabel = openQty > 0 ? formatDispatchQtyLabel(openQty, shortLabel, order) : "";
+        const packedQtyLabel = packedCount > 0 ? formatDispatchQtyLabel(packedCount, shortLabel, order) : "";
         const fulfilledQtyLabel = fulfilledQty > 0 ? formatDispatchQtyLabel(fulfilledQty, shortLabel, order) : "";
         const qtyLabel = fulfilledQty > 0 && openQtyLabel
           ? `${openQtyLabel} <span class="dispatchLineFulfilledPart">+ ${fulfilledQtyLabel}</span>`
           : openQtyLabel || fulfilledQtyLabel;
-        const shouldStrike = fulfilledQty > 0 || isComplete || isPartial;
+        const shouldStrike = fulfilledQty > 0 || isComplete;
         const rightMeta = [
           isShortOrUnavailable
             ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
@@ -3200,11 +3202,23 @@ async function startOrder(orderNo) {
           .filter(Boolean)
           .join("");
 
-        return {
-          isComplete,
-          html: `<div class="dispatchLineItem ${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""} ${shouldStrike ? "is-fulfilled" : ""}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${qtyLabel}</span><span class="dispatchLineMeta">${rightMeta}</span></div>`
-        };
+        const lineClass = `${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${isPartial ? "is-partial" : ""} ${shouldStrike ? "is-fulfilled" : ""}`.trim();
+        const packedLineClass = `${isComplete ? `is-complete ${isNewlyComplete ? "is-newly-complete" : ""}` : ""} ${packedCount > 0 ? "is-fulfilled" : ""}`.trim();
+        const topEntry = openQty > 0
+          ? {
+              isComplete: false,
+              html: `<div class="dispatchLineItem ${lineClass}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${qtyLabel}</span><span class="dispatchLineMeta">${rightMeta}</span></div>`
+            }
+          : null;
+        const packedEntry = packedCount > 0
+          ? {
+              isComplete: true,
+              html: `<div class="dispatchLineItem ${packedLineClass}" data-order-no="${orderNo}" data-item-key="${encodeURIComponent(itemKey)}" style="--dispatch-flavour-color:${lineItemFlavourColor}"><span class="dispatchLineText"><span class="dispatchLineBullet" aria-hidden="true"></span> ${packedQtyLabel}</span><span class="dispatchLineMeta">${rightMeta}</span></div>`
+            }
+          : null;
+        return [topEntry, packedEntry].filter(Boolean);
       })
+      .flat()
       .filter(Boolean);
 
     const unpacked = lineEntries.filter((entry) => !entry.isComplete);

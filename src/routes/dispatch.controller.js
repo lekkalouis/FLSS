@@ -7,6 +7,7 @@ import {
   requestPrint,
   confirmHold,
   setPackedQty,
+  adjustPackedQty,
   getEnvironmentState,
   getRemoteState,
   getState,
@@ -171,7 +172,7 @@ router.post("/dispatch/remote/action", (req, res) => {
     return res.status(400).json({ ok: false, error: "action is required" });
   }
 
-  const allowed = new Set(["next", "prev", "confirm", "print", "fulfill", "confirm_hold", "set_packed_qty"]);
+  const allowed = new Set(["next", "prev", "confirm", "print", "fulfill", "confirm_hold", "set_packed_qty", "qty_increase", "qty_decrease"]);
   if (!allowed.has(action)) {
     return res.status(400).json({ ok: false, error: "Unsupported remote action" });
   }
@@ -197,6 +198,18 @@ router.post("/dispatch/remote/action", (req, res) => {
       state = setPackedQty({
         lineItemKey: req.body?.lineItemKey ?? req.body?.selectedLineItemKey,
         qty: req.body?.qty
+      });
+    }
+    if (action === "qty_increase") {
+      state = adjustPackedQty({
+        lineItemKey: req.body?.lineItemKey ?? req.body?.selectedLineItemKey,
+        delta: 1
+      });
+    }
+    if (action === "qty_decrease") {
+      state = adjustPackedQty({
+        lineItemKey: req.body?.lineItemKey ?? req.body?.selectedLineItemKey,
+        delta: -1
       });
     }
     return res.json({ ok: true, action, selectedOrderId: state?.selectedOrderId || null, selectedLineItemKey: state?.selectedLineItemKey || null });
