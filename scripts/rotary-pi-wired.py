@@ -3,11 +3,11 @@
 Wired Raspberry Pi rotary encoder client for FLSS Dispatch Controller API.
 
 Endpoints used:
-  POST /api/v1/dispatch/next
-  POST /api/v1/dispatch/prev
-  POST /api/v1/dispatch/confirm
-  POST /api/v1/dispatch/print
-  POST /api/v1/dispatch/fulfill
+  POST /api/v1/dispatch/remote/action
+  POST /api/v1/dispatch/remote/heartbeat
+  POST /api/v1/dispatch/environment
+  POST /api/v1/environment/ingest
+  (optional fallback) POST /api/v1/dispatch/{next|prev|confirm|print|fulfill}
 
 Auth:
   Authorization: Bearer <ROTARY_TOKEN>
@@ -114,8 +114,12 @@ def load_settings() -> Settings:
     cw_pin = int(os.getenv("ROTARY_CLK_PIN", "17"))
     ccw_pin = int(os.getenv("ROTARY_DT_PIN", "27"))
     sw_pin = int(os.getenv("ROTARY_SW_PIN", "22"))
-    print_btn_pin = int(os.getenv("ROTARY_PRINT_BTN_PIN", "5"))
-    fulfill_btn_pin = int(os.getenv("ROTARY_FULFILL_BTN_PIN", "6"))
+    print_btn_pin = int(
+        os.getenv("ROTARY_PRINT_BTN_PIN", os.getenv("ROTARY_ACTION_BTN_PIN", "5"))
+    )
+    fulfill_btn_pin = int(
+        os.getenv("ROTARY_FULFILL_BTN_PIN", os.getenv("ROTARY_BACK_BTN_PIN", "6"))
+    )
     sw_hold_time_s = float(os.getenv("ROTARY_SW_HOLD_TIME_S", "0.6"))
     sw_multi_click_window_s = float(os.getenv("ROTARY_SW_MULTI_CLICK_WINDOW_S", "0.45"))
 
@@ -412,11 +416,17 @@ class RotaryFlssClient:
 
     def probe_auth(self) -> bool:
         """Check auth config early so Unauthorized errors are obvious before button presses."""
-        url = f"{self.settings.base_url}/dispatch/state"
+        url = f"{self.settings.base_url}/dispatch/remote/heartbeat"
+        payload = {
+            "remoteId": self.settings.remote_id,
+            "firmware": self.settings.firmware_version,
+            "firmwareVersion": self.settings.firmware_version,
+        }
         try:
-            response = self.session.get(
+            response = self.session.post(
                 url,
-                headers=self._headers(self.settings.rotary_token),
+                json=payload,
+                headers=self._headers(self.settings.remote_token),
                 timeout=self.settings.request_timeout_s,
             )
         except requests.RequestException as exc:
@@ -432,7 +442,8 @@ class RotaryFlssClient:
         if response.status_code in (401, 403):
             print(
                 "[AUTH] Auth probe failed with "
-                f"HTTP {response.status_code}. Set ROTARY_TOKEN to the same value as FLSS ROTARY_TOKEN."
+                f"HTTP {response.status_code}. Set REMOTE_TOKEN to match FLSS REMOTE_TOKEN "
+                "(or use the same value as ROTARY_TOKEN if REMOTE_TOKEN is unset)."
             )
             self._flash_led((1.0, 0.0, 0.0), duration_s=0.6)
             return False
@@ -515,6 +526,7 @@ class RotaryFlssClient:
     def send_remote_heartbeat(self) -> None:
         payload = {
             "remoteId": self.settings.remote_id,
+            "firmware": self.settings.firmware_version,
             "firmwareVersion": self.settings.firmware_version,
         }
         try:
