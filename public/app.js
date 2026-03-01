@@ -4978,6 +4978,13 @@ async function startOrder(orderNo) {
     return `${orderNo}:${itemKey}`;
   }
 
+  function dispatchRotaryKeyForLineItem(lineItem) {
+    const orderNo = String(lineItem?.dataset?.orderNo || "").trim();
+    const itemKey = decodeURIComponent(String(lineItem?.dataset?.itemKey || "")).trim();
+    if (!orderNo || !itemKey) return "";
+    return `${orderNo}:${itemKey}`;
+  }
+
   function syncDispatchRotaryFocus({ keepKey = true, scroll = false } = {}) {
     const rows = getDispatchRotaryRows();
     if (!rows.length) {
@@ -5012,6 +5019,9 @@ async function startOrder(orderNo) {
     const key = String(selectedKey || "").trim();
     dispatchBoard.querySelectorAll(".dispatchPackingRow").forEach((row) => {
       row.classList.toggle("is-rotary-selected", key && dispatchRotaryKeyForRow(row) === key);
+    });
+    dispatchBoard.querySelectorAll(".dispatchLineItem").forEach((lineItem) => {
+      lineItem.classList.toggle("is-rotary-selected", key && dispatchRotaryKeyForLineItem(lineItem) === key);
     });
   }
 
