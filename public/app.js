@@ -928,7 +928,32 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     const now = Date.now();
     if (now - lastDispatchRotaryToneAt < 70) return;
     lastDispatchRotaryToneAt = now;
-    playDispatchTone(620, 0.04);
+    try {
+      if (!dispatchAudioCtx) {
+        dispatchAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = dispatchAudioCtx;
+      const start = ctx.currentTime;
+      const sequence = [
+        { freq: 1240, duration: 0.016, gain: 0.11, type: "triangle" },
+        { freq: 1560, duration: 0.018, gain: 0.08, type: "square" }
+      ];
+      sequence.forEach((step, index) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = step.type;
+        osc.frequency.value = step.freq;
+        gain.gain.value = step.gain;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const stepStart = start + index * 0.013;
+        osc.start(stepStart);
+        gain.gain.exponentialRampToValueAtTime(0.001, stepStart + step.duration);
+        osc.stop(stepStart + step.duration);
+      });
+    } catch (e) {
+      appendDebug("Rotary move tone blocked: " + String(e));
+    }
   }
 
   function triggerScreenFlash(type = "success") {
@@ -1380,6 +1405,45 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     };
     dispatchPackingState.set(orderNo, state);
     return state;
+  }
+
+  function compareDispatchLineItemsForSort(a, b) {
+    const aKey = String(a?.title || "").trim().toLowerCase();
+    const bKey = String(b?.title || "").trim().toLowerCase();
+    const aIndex = lineItemOrderIndex.get(aKey) ?? Number.POSITIVE_INFINITY;
+    const bIndex = lineItemOrderIndex.get(bKey) ?? Number.POSITIVE_INFINITY;
+    if (aIndex !== bIndex) return aIndex - bIndex;
+    return String(a?.sku || "").localeCompare(String(b?.sku || ""), undefined, {
+      numeric: true,
+      sensitivity: "base"
+    });
+  }
+
+  function getOrderedPackingItems(order, packingState) {
+    if (!order || !packingState) return [];
+    const packingByKey = new Map((packingState.items || []).map((item) => [item.key, item]));
+    const orderedLineItems = (order.line_items || [])
+      .map((lineItem, index) => ({ ...lineItem, __index: index }))
+      .sort(compareDispatchLineItemsForSort);
+
+    return orderedLineItems
+      .map((lineItem) => {
+        const key = makePackingKey(lineItem, lineItem.__index);
+        const packedStateItem = packingByKey.get(key);
+        if (packedStateItem) return packedStateItem;
+        const quantity = Number(lineItem?.quantity) || 0;
+        return {
+          key,
+          index: lineItem.__index,
+          title: lineItem?.title || "Item",
+          variant: lineItem?.variant_title || "",
+          sku: lineItem?.sku || "",
+          quantity,
+          packed: 0,
+          completedAt: null
+        };
+      })
+      .filter((item) => (Number(item?.quantity) || 0) > 0);
   }
 
   function getPackingItem(state, itemKey) {
@@ -3205,17 +3269,7 @@ async function startOrder(orderNo) {
     const { fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(order);
     const lineEntries = (order.line_items || [])
       .map((item, index) => ({ ...item, __index: index }))
-      .sort((a, b) => {
-        const aKey = String(a.title || "").trim().toLowerCase();
-        const bKey = String(b.title || "").trim().toLowerCase();
-        const aIndex = lineItemOrderIndex.get(aKey) ?? Number.POSITIVE_INFINITY;
-        const bIndex = lineItemOrderIndex.get(bKey) ?? Number.POSITIVE_INFINITY;
-        if (aIndex !== bIndex) return aIndex - bIndex;
-        return String(a.sku || "").localeCompare(String(b.sku || ""), undefined, {
-          numeric: true,
-          sensitivity: "base"
-        });
-      })
+      .sort(compareDispatchLineItemsForSort)
       .map((li) => {
         const orderedQty = Math.max(0, Number(li?.quantity) || 0);
         const requestedQty = getRemainingLineItemQty(li);
@@ -3548,8 +3602,11 @@ async function startOrder(orderNo) {
     if (!packingState) return "";
     const isActive = packingState.active || options.forceOpen;
     const boxes = Array.isArray(packingState.boxes) ? packingState.boxes : [];
+    const sourceOrder = dispatchOrderCache.get(orderNo);
+    const orderedPackingItems = getOrderedPackingItems(sourceOrder, packingState);
+    const displayPackingItems = orderedPackingItems.length ? orderedPackingItems : packingState.items;
     const itemLabelByKey = new Map(
-      packingState.items.map((item) => {
+      displayPackingItems.map((item) => {
         const variantLabel =
           item.variant && item.variant.toLowerCase() !== "default title" ? item.variant : "";
         return [item.key, [item.title, variantLabel].filter(Boolean).join(" · ") || "Item"];
@@ -3567,8 +3624,8 @@ async function startOrder(orderNo) {
         </div>
         <div class="dispatchPackingList">
           ${
-            packingState.items.length
-              ? packingState.items
+            displayPackingItems.length
+              ? displayPackingItems
                   .map((item) => {
                     const remaining = Math.max(0, item.quantity - item.packed);
                     const isComplete = remaining === 0;
@@ -5458,6 +5515,22 @@ async function startOrder(orderNo) {
   }
 
   function getDispatchQueueOrderIds() {
+    if (dispatchBoard) {
+      const laneIdsInTraversalOrder = ["shippingAgent", "shippingA", "shippingB", "export", "pickup", "delivery"];
+      const visited = new Set();
+      const queue = [];
+      laneIdsInTraversalOrder.forEach((laneId) => {
+        const lane = dispatchBoard.querySelector(`.dispatchCol[data-lane-id="${laneId}"]`);
+        if (!lane) return;
+        lane.querySelectorAll(".dispatchCard[data-order-no]").forEach((card) => {
+          const orderNo = String(card?.dataset?.orderNo || "").trim();
+          if (!orderNo || visited.has(orderNo)) return;
+          visited.add(orderNo);
+          queue.push(orderNo);
+        });
+      });
+      if (queue.length) return queue;
+    }
     return (dispatchOrdersLatest || [])
       .map((order) => String(order?.name || "").replace("#", "").trim())
       .filter(Boolean);
@@ -5470,7 +5543,7 @@ async function startOrder(orderNo) {
       if (!orderNo) return;
       const packingState = getPackingState(order);
       map[orderNo] = Array.isArray(packingState?.items)
-        ? packingState.items.map((item) => String(item?.key || "").trim()).filter(Boolean)
+        ? getOrderedPackingItems(order, packingState).map((item) => String(item?.key || "").trim()).filter(Boolean)
         : [];
     });
     return map;
