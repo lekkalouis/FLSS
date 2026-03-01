@@ -116,6 +116,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
 
   const $ = (id) => document.getElementById(id);
   const scanInput = $("scanInput");
+  const scanCameraBtn = $("scanCameraBtn");
   const uiOrderNo = $("uiOrderNo");
   const uiParcelCount = $("uiParcelCount");
   const uiExpectedCount = $("uiExpectedCount");
@@ -228,6 +229,98 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const adminLogsPreview = $("adminLogsPreview");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
+
+  const isProbablyMobileDevice = () => {
+    if (typeof window === "undefined") return false;
+    if (window.matchMedia?.("(pointer: coarse)")?.matches) return true;
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
+  };
+
+  const openMobileBarcodeScanner = async () => {
+    if (!scanInput) return;
+    if (!isProbablyMobileDevice()) {
+      statusExplain("Camera barcode scanning is available on mobile devices.", "info");
+      return;
+    }
+
+    const supported = typeof window !== "undefined" && typeof window.BarcodeDetector === "function";
+    if (!supported) {
+      statusExplain("This mobile browser does not support in-app camera scanning.", "warn");
+      return;
+    }
+
+    let stream = null;
+    let rafId = 0;
+    let closed = false;
+
+    const overlay = document.createElement("div");
+    overlay.className = "scanCameraOverlay";
+    overlay.innerHTML = `
+      <div class="scanCameraPanel">
+        <video class="scanCameraVideo" autoplay playsinline muted></video>
+        <div class="scanCameraFooter">
+          <span class="scanCameraHint">Align the barcode inside the camera view.</span>
+          <button type="button" class="scanCameraClose">Close</button>
+        </div>
+      </div>
+    `;
+
+    const video = overlay.querySelector(".scanCameraVideo");
+    const closeBtn = overlay.querySelector(".scanCameraClose");
+    const detector = new window.BarcodeDetector({
+      formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "qr_code"]
+    });
+
+    const cleanup = () => {
+      if (closed) return;
+      closed = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      stream?.getTracks?.().forEach((track) => track.stop());
+      overlay.remove();
+    };
+
+    const tick = async () => {
+      if (closed) return;
+      try {
+        if (video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+          const barcodes = await detector.detect(video);
+          const rawValue = String(barcodes?.[0]?.rawValue || "").trim();
+          if (rawValue) {
+            cleanup();
+            scanInput.value = rawValue;
+            await handleScan(rawValue);
+            statusExplain("Barcode scanned via camera.", "ok");
+            return;
+          }
+        }
+      } catch {
+        // ignore transient detector errors while stream is warming up
+      }
+      rafId = requestAnimationFrame(() => {
+        tick();
+      });
+    };
+
+    closeBtn?.addEventListener("click", () => {
+      cleanup();
+      statusExplain("Camera scanner closed.", "info");
+    });
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false
+      });
+      video.srcObject = stream;
+      document.body.appendChild(overlay);
+      await video.play();
+      tick();
+    } catch (err) {
+      cleanup();
+      statusExplain("Camera access denied or unavailable.", "warn");
+      logDispatchEvent(`Camera scan unavailable: ${String(err)}`);
+    }
+  };
 
   const btnBookNow = $("btnBookNow");
   const modeToggle = $("modeToggle");
@@ -6358,6 +6451,10 @@ async function startOrder(orderNo) {
   dispatchNotesClose?.addEventListener("click", () => {
     const collapsed = dispatchNotesInput?.hidden === true;
     setDispatchNotesCollapsed(!collapsed);
+  });
+
+  scanCameraBtn?.addEventListener("click", async () => {
+    await openMobileBarcodeScanner();
   });
 
   scanInput?.addEventListener("keydown", async (e) => {
