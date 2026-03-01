@@ -254,6 +254,11 @@ test('dispatch controller endpoints support line-item traversal and action reque
     assert.equal(stateBody.lastConfirmedLineItemKey, 'line-1b');
     assert.equal(stateBody.lastPrintRequestedOrderId, '1001');
     assert.equal(stateBody.lastFulfillRequestedOrderId, '1001');
+    assert.equal(stateBody.quantityPromptOpen, false);
+    assert.equal(stateBody.quantityPromptTargetLineItemKey, null);
+    assert.equal(stateBody.quantityPromptQty, null);
+    assert.equal(stateBody.lastPackedQtyCommittedLineItemKey, null);
+    assert.equal(stateBody.lastPackedQtyCommittedQty, null);
     assert.equal(Array.isArray(stateBody.queueOrderIds), true);
   } finally {
     await new Promise((resolve) => server.close(resolve));
