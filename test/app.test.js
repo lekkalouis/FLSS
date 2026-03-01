@@ -69,17 +69,18 @@ test('GET /api/v1/config returns expected config keys', async () => {
 test('environment ingest endpoint stores telemetry and statusz includes summary', async () => {
   const { server, baseUrl } = await startServer();
   try {
+    const nowIso = new Date().toISOString();
     const ingestResponse = await fetch(`${baseUrl}/api/v1/environment/ingest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         stationId: 'scan-station-01',
-        timestamp: '2026-01-01T12:00:00.000Z',
+        timestamp: nowIso,
         temperatureC: 23.5,
         humidityPct: 51.2,
         status: 'ok',
         readErrorsSinceBoot: 4,
-        lastUpdated: '2026-01-01T12:00:00.000Z'
+        lastUpdated: nowIso
       })
     });
     assert.equal(ingestResponse.status, 200);
@@ -101,7 +102,46 @@ test('environment ingest endpoint stores telemetry and statusz includes summary'
     assert.equal(statusBody.environment.status, 'ok');
     assert.equal(statusBody.environment.temperatureC, 23.5);
     assert.equal(statusBody.environment.humidityPct, 51.2);
-    assert.equal(statusBody.environment.lastUpdated, '2026-01-01T12:00:00.000Z');
+    assert.equal(statusBody.environment.lastUpdated, nowIso);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+
+
+test('statusz uses dispatch environment when telemetry is empty', async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const dispatchEnvironmentResponse = await fetch(`${baseUrl}/api/v1/dispatch/environment`, {
+      method: 'POST',
+      headers: withRotaryAuth({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        deviceId: 'sensor-dispatch-1',
+        temperatureC: 18.6,
+        humidityPct: 67.4,
+        recordedAt: new Date().toISOString()
+      })
+    });
+    assert.equal(dispatchEnvironmentResponse.status, 200);
+
+    const emptyTelemetryResponse = await fetch(`${baseUrl}/api/v1/environment/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stationId: 'scan-station-01',
+        status: 'offline'
+      })
+    });
+    assert.equal(emptyTelemetryResponse.status, 200);
+
+    const statusResponse = await fetch(`${baseUrl}/api/v1/statusz`);
+    assert.equal(statusResponse.status, 200);
+    const statusBody = await statusResponse.json();
+    assert.equal(statusBody.environment.status, 'ok');
+    assert.equal(statusBody.environment.temperatureC, 18.6);
+    assert.equal(statusBody.environment.humidityPct, 67.4);
+    assert.ok(statusBody.environment.lastUpdated);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
