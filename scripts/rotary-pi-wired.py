@@ -57,6 +57,7 @@ class Settings:
     sw_pin: int
     print_btn_pin: int
     fulfill_btn_pin: int
+    sw_hold_time_s: float
     rgb_red_pin: int
     rgb_green_pin: int
     rgb_blue_pin: int
@@ -98,6 +99,7 @@ def load_settings() -> Settings:
     sw_pin = int(os.getenv("ROTARY_SW_PIN", "22"))
     print_btn_pin = int(os.getenv("ROTARY_PRINT_BTN_PIN", "5"))
     fulfill_btn_pin = int(os.getenv("ROTARY_FULFILL_BTN_PIN", "6"))
+    sw_hold_time_s = float(os.getenv("ROTARY_SW_HOLD_TIME_S", "0.6"))
 
     # Common BCM defaults for a discrete RGB LED module.
     rgb_red_pin = int(os.getenv("ROTARY_RGB_RED_PIN", "18"))
@@ -127,6 +129,7 @@ def load_settings() -> Settings:
         sw_pin=sw_pin,
         print_btn_pin=print_btn_pin,
         fulfill_btn_pin=fulfill_btn_pin,
+        sw_hold_time_s=sw_hold_time_s,
         rgb_red_pin=rgb_red_pin,
         rgb_green_pin=rgb_green_pin,
         rgb_blue_pin=rgb_blue_pin,
@@ -430,6 +433,7 @@ def main() -> int:
     )
     print(f"  ROTARY_TOKEN configured={'yes' if bool(settings.rotary_token) else 'no'}")
     print(f"  REMOTE_TOKEN configured={'yes' if bool(settings.remote_token) else 'no'}")
+    print(f"  ROTARY_SW_HOLD_TIME_S={settings.sw_hold_time_s}")
 
     led = RGBLED(settings.rgb_red_pin, settings.rgb_green_pin, settings.rgb_blue_pin)
     led.off()
@@ -442,15 +446,63 @@ def main() -> int:
     # pull_up=True assumes switch/encoder outputs pull to GND when active.
     clk = Button(settings.cw_pin, pull_up=True, bounce_time=0.002)
     dt = Button(settings.ccw_pin, pull_up=True, bounce_time=0.002)
-    sw = Button(settings.sw_pin, pull_up=True, bounce_time=0.05)
+    sw = Button(settings.sw_pin, pull_up=True, bounce_time=0.05, hold_time=settings.sw_hold_time_s)
     print_btn = Button(settings.print_btn_pin, pull_up=True, bounce_time=0.05)
     fulfill_btn = Button(settings.fulfill_btn_pin, pull_up=True, bounce_time=0.05)
 
+    mode_lock = threading.Lock()
+    quantity_mode = False
+    sw_press_nonce = 0
+
+    def _send_rotary_turn(cw: bool) -> None:
+        with mode_lock:
+            in_quantity_mode = quantity_mode
+        if in_quantity_mode:
+            client.send_action("qty_increase" if cw else "qty_decrease")
+            return
+        client.send_action("next" if cw else "prev")
+
+    def _on_sw_pressed() -> None:
+        nonlocal quantity_mode, sw_press_nonce
+
+        with mode_lock:
+            if quantity_mode:
+                quantity_mode = False
+                sw_press_nonce += 1
+                should_submit_qty = True
+                press_nonce = sw_press_nonce
+            else:
+                sw_press_nonce += 1
+                should_submit_qty = False
+                press_nonce = sw_press_nonce
+
+        if should_submit_qty:
+            client.send_action("set_packed_qty")
+            return
+
+        def _send_confirm_after_hold_window(nonce: int) -> None:
+            time.sleep(max(0.0, settings.sw_hold_time_s))
+            with mode_lock:
+                if nonce != sw_press_nonce or quantity_mode:
+                    return
+            if not sw.is_held:
+                client.send_action("confirm")
+
+        threading.Thread(target=_send_confirm_after_hold_window, args=(press_nonce,), daemon=True).start()
+
+    def _on_sw_held() -> None:
+        nonlocal quantity_mode, sw_press_nonce
+        with mode_lock:
+            quantity_mode = True
+            sw_press_nonce += 1
+        client.send_action("confirm_hold")
+
     # Simple edge mapping suitable for many detented encoders.
     # If direction is reversed, swap next/prev here or swap CLK/DT wiring.
-    clk.when_pressed = lambda: client.send_action("next")
-    dt.when_pressed = lambda: client.send_action("prev")
-    sw.when_pressed = lambda: client.send_action("confirm")
+    clk.when_pressed = lambda: _send_rotary_turn(cw=True)
+    dt.when_pressed = lambda: _send_rotary_turn(cw=False)
+    sw.when_pressed = _on_sw_pressed
+    sw.when_held = _on_sw_held
     print_btn.when_pressed = lambda: client.send_action("print")
     fulfill_btn.when_pressed = lambda: client.send_action("fulfill")
 
