@@ -3073,6 +3073,7 @@ async function startOrder(orderNo) {
     const shippingTitles = (order?.shipping_lines || [])
       .map((line) => String(line.title || "").toLowerCase())
       .join(" ");
+    if (/free\s*shipping/.test(shippingTitles)) return "shipping";
     const combined = `${tags} ${shippingTitles}`.trim();
     if (/(warehouse|pickup|collect|collection|click\s*&\s*collect)/.test(combined)) return "pickup";
     if (/(same\s*day|delivery)/.test(combined)) return "delivery";
