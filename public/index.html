@@ -169,6 +169,22 @@
     border-color:rgba(99,102,241,.55);
     background:rgba(99,102,241,.08);
   }
+  .scanCameraBtn{
+    display:none;
+    border:1px solid rgba(14,116,144,.35);
+    background:#ecfeff;
+    color:#0f172a;
+    border-radius:.6rem;
+    padding:.24rem .45rem;
+    font-size:.9rem;
+    line-height:1;
+    cursor:pointer;
+    transition:all .18s ease;
+  }
+  .scanCameraBtn:hover{
+    border-color:rgba(14,116,144,.6);
+    background:#cffafe;
+  }
   .flMain{
     flex:1;
     display:flex;
@@ -339,6 +355,12 @@
     #scanInput{
       font-size:1rem;
     }
+    .scanCameraBtn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 auto;
+    }
     .podBox{
       width:100%;
       max-width:300px;
@@ -370,6 +392,51 @@
     70%{ transform:scale(1); opacity:.85; }
     100%{ transform:scale(1); opacity:.7; }
   }
+  .scanCameraOverlay{
+    position:fixed;
+    inset:0;
+    z-index:1200;
+    background:rgba(2,6,23,.88);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:1rem;
+  }
+  .scanCameraPanel{
+    width:min(100%, 520px);
+    background:#020617;
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:1rem;
+    overflow:hidden;
+    box-shadow:0 20px 60px rgba(2,6,23,.5);
+  }
+  .scanCameraVideo{
+    width:100%;
+    aspect-ratio:3/4;
+    display:block;
+    background:#000;
+    object-fit:cover;
+  }
+  .scanCameraFooter{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.7rem;
+    padding:.7rem .8rem;
+    color:#e2e8f0;
+    font-size:.82rem;
+  }
+  .scanCameraClose{
+    border:1px solid rgba(148,163,184,.45);
+    background:#0f172a;
+    color:#e2e8f0;
+    border-radius:.6rem;
+    padding:.35rem .65rem;
+    font-size:.78rem;
+    font-weight:600;
+  }
+  .scanCameraHint{ opacity:.9; }
+
   .screenFlash{
     position:fixed;
     inset:0;
@@ -2892,6 +2959,7 @@
             <div class="flNavScanInputWrap">
               <span>Scan station</span>
               <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan or enter Barcode" />
+              <button id="scanCameraBtn" class="scanCameraBtn" type="button" aria-label="Scan barcode with camera" title="Scan barcode with camera">📷</button>
               <button id="multiShipmentBtn" class="multiShipmentBtn" type="button" hidden aria-label="Create multi-shipment" title="Select 2+ delivery orders to create a multi-shipment">📦📦</button>
             </div>
             <div class="flNavSummary"></div>
