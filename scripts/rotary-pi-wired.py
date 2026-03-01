@@ -35,7 +35,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import requests
-from gpiozero import Button, RGBLED
+from gpiozero import Button, Buzzer, RGBLED
 
 try:
     import adafruit_dht
@@ -67,6 +67,8 @@ class Settings:
     cw_pin: int
     ccw_pin: int
     sw_pin: int
+    action_btn_pin: int
+    back_btn_pin: int
     print_btn_pin: int
     fulfill_btn_pin: int
     sw_hold_time_s: float
@@ -74,8 +76,12 @@ class Settings:
     rgb_red_pin: int
     rgb_green_pin: int
     rgb_blue_pin: int
+    buzzer_pin: int
+    buzzer_enabled: bool
+    buzzer_feedback_s: float
     led_feedback_s: float
     min_action_gap_s: float
+    rotary_settle_s: float
 
 
 def load_settings() -> Settings:
@@ -114,8 +120,10 @@ def load_settings() -> Settings:
     cw_pin = int(os.getenv("ROTARY_CLK_PIN", "17"))
     ccw_pin = int(os.getenv("ROTARY_DT_PIN", "27"))
     sw_pin = int(os.getenv("ROTARY_SW_PIN", "22"))
-    print_btn_pin = int(os.getenv("ROTARY_PRINT_BTN_PIN", "5"))
-    fulfill_btn_pin = int(os.getenv("ROTARY_FULFILL_BTN_PIN", "6"))
+    action_btn_pin = int(os.getenv("ROTARY_ACTION_BTN_PIN", os.getenv("ROTARY_PRINT_BTN_PIN", "5")))
+    back_btn_pin = int(os.getenv("ROTARY_BACK_BTN_PIN", os.getenv("ROTARY_FULFILL_BTN_PIN", "6")))
+    print_btn_pin = int(os.getenv("ROTARY_PRINT_BTN_PIN", "12"))
+    fulfill_btn_pin = int(os.getenv("ROTARY_FULFILL_BTN_PIN", "16"))
     sw_hold_time_s = float(os.getenv("ROTARY_SW_HOLD_TIME_S", "0.6"))
     sw_multi_click_window_s = float(os.getenv("ROTARY_SW_MULTI_CLICK_WINDOW_S", "0.45"))
 
@@ -123,10 +131,14 @@ def load_settings() -> Settings:
     rgb_red_pin = int(os.getenv("ROTARY_RGB_RED_PIN", "18"))
     rgb_green_pin = int(os.getenv("ROTARY_RGB_GREEN_PIN", "23"))
     rgb_blue_pin = int(os.getenv("ROTARY_RGB_BLUE_PIN", "24"))
+    buzzer_pin = int(os.getenv("ROTARY_BUZZER_PIN", "25"))
+    buzzer_enabled = os.getenv("ROTARY_BUZZER_ENABLED", "1").strip().lower() not in {"0", "false", "no"}
+    buzzer_feedback_s = float(os.getenv("ROTARY_BUZZER_FEEDBACK_S", "0.04"))
     led_feedback_s = float(os.getenv("ROTARY_LED_FEEDBACK_S", "0.25"))
 
     # Client-side throttle to complement server debounce.
     min_action_gap_s = float(os.getenv("ROTARY_MIN_ACTION_GAP_S", "0.18"))
+    rotary_settle_s = float(os.getenv("ROTARY_ROTATION_SETTLE_S", "0.0025"))
 
     return Settings(
         base_url=base_url,
@@ -149,6 +161,8 @@ def load_settings() -> Settings:
         cw_pin=cw_pin,
         ccw_pin=ccw_pin,
         sw_pin=sw_pin,
+        action_btn_pin=action_btn_pin,
+        back_btn_pin=back_btn_pin,
         print_btn_pin=print_btn_pin,
         fulfill_btn_pin=fulfill_btn_pin,
         sw_hold_time_s=sw_hold_time_s,
@@ -156,8 +170,12 @@ def load_settings() -> Settings:
         rgb_red_pin=rgb_red_pin,
         rgb_green_pin=rgb_green_pin,
         rgb_blue_pin=rgb_blue_pin,
+        buzzer_pin=buzzer_pin,
+        buzzer_enabled=buzzer_enabled,
+        buzzer_feedback_s=buzzer_feedback_s,
         led_feedback_s=led_feedback_s,
         min_action_gap_s=min_action_gap_s,
+        rotary_settle_s=rotary_settle_s,
     )
 
 
@@ -277,7 +295,7 @@ class DHT11Monitor:
 
 
 class RotaryFlssClient:
-    def __init__(self, settings: Settings, led: RGBLED) -> None:
+    def __init__(self, settings: Settings, led: RGBLED, buzzer: Buzzer | None = None) -> None:
         self.settings = settings
         self.led = led
         self.session = requests.Session()
@@ -285,6 +303,7 @@ class RotaryFlssClient:
         self.last_sent_by_action: dict[str, float] = {}
         self.action_nonce = 0
         self.lock = threading.Lock()
+        self.buzzer = buzzer
 
     def _read_env_sensor_sample(self) -> dict[str, float | None]:
         command = self.settings.env_sensor_cmd
@@ -390,6 +409,20 @@ class RotaryFlssClient:
 
         threading.Thread(target=_worker, daemon=True).start()
 
+    def _beep(self, duration_s: float | None = None, repeats: int = 1, gap_s: float = 0.03) -> None:
+        if self.buzzer is None:
+            return
+
+        def _worker() -> None:
+            for _ in range(max(1, repeats)):
+                self.buzzer.on()
+                time.sleep(duration_s if duration_s is not None else self.settings.buzzer_feedback_s)
+                self.buzzer.off()
+                if repeats > 1:
+                    time.sleep(gap_s)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
     def _headers(self, token: str) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if token:
@@ -427,6 +460,7 @@ class RotaryFlssClient:
         if response.status_code == 200:
             print("[OK] Auth probe passed.")
             self._flash_led((0.0, 1.0, 0.0), duration_s=0.15)
+            self._beep(duration_s=0.03)
             return True
 
         if response.status_code in (401, 403):
@@ -435,10 +469,12 @@ class RotaryFlssClient:
                 f"HTTP {response.status_code}. Set ROTARY_TOKEN to the same value as FLSS ROTARY_TOKEN."
             )
             self._flash_led((1.0, 0.0, 0.0), duration_s=0.6)
+            self._beep(duration_s=0.08, repeats=2)
             return False
 
         print(f"[WARN] Auth probe got HTTP {response.status_code}; continuing anyway.")
         self._flash_led((0.0, 0.0, 1.0), duration_s=0.4)
+        self._beep(duration_s=0.04)
         return True
 
     def send_action(self, action: str, *, force: bool = False) -> None:
@@ -486,15 +522,19 @@ class RotaryFlssClient:
             if response.status_code == 200:
                 print(f"[OK] {action}: {data}")
                 self._flash_led((0.0, 1.0, 0.0))  # green
+                self._beep(duration_s=0.03)
             elif response.status_code in (401, 403):
                 print(f"[AUTH] {action}: HTTP {response.status_code} {data}")
                 self._flash_led((1.0, 0.0, 0.0), duration_s=0.5)  # red
+                self._beep(duration_s=0.07, repeats=2)
             elif response.status_code == 409:
                 print(f"[STATE] {action}: HTTP 409 {data}")
                 self._flash_led((0.0, 0.0, 1.0))  # blue
+                self._beep(duration_s=0.04)
             else:
                 print(f"[ERR] {action}: HTTP {response.status_code} {data}")
                 self._flash_led((1.0, 0.0, 0.0), duration_s=0.5)  # red
+                self._beep(duration_s=0.09, repeats=2)
         except requests.RequestException as exc:
             if self.settings.remote_legacy_fallback:
                 try:
@@ -506,11 +546,13 @@ class RotaryFlssClient:
                     if fallback.status_code == 200:
                         print(f"[OK] {action}: remote API offline, fallback to legacy endpoint")
                         self._flash_led((0.0, 1.0, 0.0))
+                        self._beep(duration_s=0.03)
                         return
                 except requests.RequestException:
                     pass
             print(f"[NET] {action}: {exc}")
             self._flash_led((1.0, 0.0, 0.0), duration_s=0.5)  # red
+            self._beep(duration_s=0.09, repeats=2)
 
     def send_remote_heartbeat(self) -> None:
         payload = {
@@ -569,19 +611,26 @@ def main() -> int:
     print(f"  DHT_PIN={settings.dht_pin}")
     print(f"  DHT_POLL_INTERVAL_S={settings.dht_interval_s}")
     print(f"  Pins CLK/DT/SW={settings.cw_pin}/{settings.ccw_pin}/{settings.sw_pin}")
-    print(f"  Push buttons Print/Fulfill={settings.print_btn_pin}/{settings.fulfill_btn_pin}")
+    print(
+        "  Push buttons Action/Back/Print/Fulfill="
+        f"{settings.action_btn_pin}/{settings.back_btn_pin}/{settings.print_btn_pin}/{settings.fulfill_btn_pin}"
+    )
     print(
         "  RGB LED pins R/G/B="
         f"{settings.rgb_red_pin}/{settings.rgb_green_pin}/{settings.rgb_blue_pin}"
     )
+    print(f"  Buzzer enabled={'yes' if settings.buzzer_enabled else 'no'} pin={settings.buzzer_pin}")
     print(f"  ROTARY_TOKEN configured={'yes' if bool(settings.rotary_token) else 'no'}")
     print(f"  REMOTE_TOKEN configured={'yes' if bool(settings.remote_token) else 'no'}")
     print(f"  ROTARY_SW_HOLD_TIME_S={settings.sw_hold_time_s}")
 
     led = RGBLED(settings.rgb_red_pin, settings.rgb_green_pin, settings.rgb_blue_pin)
     led.off()
+    buzzer = Buzzer(settings.buzzer_pin) if settings.buzzer_enabled else None
+    if buzzer:
+        buzzer.off()
 
-    client = RotaryFlssClient(settings, led)
+    client = RotaryFlssClient(settings, led, buzzer)
     dht_monitor = DHT11Monitor(settings)
     dht_monitor.start()
 
@@ -592,6 +641,8 @@ def main() -> int:
     clk = Button(settings.cw_pin, pull_up=True, bounce_time=0.002)
     dt = Button(settings.ccw_pin, pull_up=True, bounce_time=0.002)
     sw = Button(settings.sw_pin, pull_up=True, bounce_time=0.05)
+    action_btn = Button(settings.action_btn_pin, pull_up=True, bounce_time=0.05)
+    back_btn = Button(settings.back_btn_pin, pull_up=True, bounce_time=0.05)
     print_btn = Button(settings.print_btn_pin, pull_up=True, bounce_time=0.05)
     fulfill_btn = Button(settings.fulfill_btn_pin, pull_up=True, bounce_time=0.05)
 
@@ -601,6 +652,9 @@ def main() -> int:
     sw_click_count = 0
 
     def _send_rotary_turn(cw: bool) -> None:
+        time.sleep(max(0.0, settings.rotary_settle_s))
+        if clk.is_pressed == dt.is_pressed:
+            return
         with mode_lock:
             in_quantity_mode = quantity_mode
         if in_quantity_mode:
@@ -651,6 +705,8 @@ def main() -> int:
     clk.when_pressed = lambda: _send_rotary_turn(cw=True)
     dt.when_pressed = lambda: _send_rotary_turn(cw=False)
     sw.when_pressed = _on_sw_pressed
+    action_btn.when_pressed = lambda: client.send_action("confirm")
+    back_btn.when_pressed = lambda: client.send_action("prev")
     print_btn.when_pressed = lambda: client.send_action("print")
     fulfill_btn.when_pressed = lambda: client.send_action("fulfill")
 
@@ -678,6 +734,8 @@ def main() -> int:
 
     dht_monitor.stop()
     led.off()
+    if buzzer is not None:
+        buzzer.off()
 
     return 0
 

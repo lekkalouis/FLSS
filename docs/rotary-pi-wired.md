@@ -11,16 +11,19 @@ pip3 install gpiozero requests adafruit-circuitpython-dht
 sudo apt-get install -y libgpiod2
 ```
 
-## 2) Wire the controls + RGB LED (default BCM pins)
+## 2) Wire the controls + RGB LED + buzzer (default BCM pins)
 
 - `CLK` -> `GPIO17`
 - `DT` -> `GPIO27`
 - `SW` -> `GPIO22`
 - `Action push button` -> `GPIO5`
 - `Back/Close push button` -> `GPIO6`
+- `Print push button` -> `GPIO12`
+- `Fulfill push button` -> `GPIO16`
 - `RGB LED R` -> `GPIO18`
 - `RGB LED G` -> `GPIO23`
 - `RGB LED B` -> `GPIO24`
+- `Buzzer +` -> `GPIO25`
 - `+` -> `3V3`
 - `GND` -> `GND`
 
@@ -47,11 +50,17 @@ export ROTARY_DT_PIN=27
 export ROTARY_SW_PIN=22
 export ROTARY_ACTION_BTN_PIN=5
 export ROTARY_BACK_BTN_PIN=6
+export ROTARY_PRINT_BTN_PIN=12
+export ROTARY_FULFILL_BTN_PIN=16
 export ROTARY_RGB_RED_PIN=18
 export ROTARY_RGB_GREEN_PIN=23
 export ROTARY_RGB_BLUE_PIN=24
+export ROTARY_BUZZER_ENABLED=1
+export ROTARY_BUZZER_PIN=25
+export ROTARY_BUZZER_FEEDBACK_S=0.04
 export ROTARY_LED_FEEDBACK_S=0.25
 export ROTARY_MIN_ACTION_GAP_S=0.18
+export ROTARY_ROTATION_SETTLE_S=0.0025
 export ROTARY_HTTP_TIMEOUT_S=2.5
 export REMOTE_HEARTBEAT_INTERVAL_S=10
 export ENV_TELEMETRY_INTERVAL_S=10
@@ -138,8 +147,9 @@ Example output from a DHT11 helper script:
 
 - If direction feels inverted, either swap `CLK` and `DT` wires or swap action mapping in script.
 - Server already debounces burst input (`ROTARY_DEBOUNCE_MS`); script also has a small client-side action gap.
-- Button mapping: `Action` sends `confirm`, `Back/Close` sends `prev`.
+- Button mapping: `Action` sends `confirm`, `Back/Close` sends `prev`, `Print` sends `print`, `Fulfill` sends `fulfill`.
 - RGB feedback: green on HTTP 200, blue on HTTP 409 state conflict, red on network/auth/other errors.
+- Audible feedback: short beep on success/info, double longer beeps on auth/network/error states.
 
 
 ## Troubleshooting
