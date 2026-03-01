@@ -401,6 +401,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let dispatchRotaryFocusIndex = -1;
   let dispatchRotaryFocusKey = "";
   let dispatchRotarySelectedKey = "";
+  let dispatchPackedQtyPromptState = null;
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -4008,7 +4009,7 @@ async function startOrder(orderNo) {
     refreshDispatchViews(orderNo);
   }
 
-  function showDispatchPackedQtyPrompt(orderNo, itemKey) {
+  function showDispatchPackedQtyPrompt(orderNo, itemKey, options = {}) {
     if (!orderNo || !itemKey) return;
     const order = dispatchOrderCache.get(orderNo);
     const state = order ? dispatchPackingState.get(orderNo) || getPackingState(order) : null;
@@ -4024,7 +4025,11 @@ async function startOrder(orderNo) {
     const baseTitle = item.title || "Line item";
     const variant = String(item.variant || "").trim();
     const name = variant && variant.toLowerCase() !== "default title" ? `${baseTitle} · ${variant}` : baseTitle;
-    let value = Math.max(0, Math.min(maxQty, Number(item.packed) || 0));
+    const shouldResetToZero = Boolean(options?.startFromZero);
+    const initialValue = shouldResetToZero
+      ? 0
+      : Math.max(0, Math.min(maxQty, Number(options?.initialValue ?? item.packed) || 0));
+    let value = initialValue;
 
     modal.innerHTML = `
       <div class="dispatchPackedQtyCard" role="dialog" aria-modal="true" aria-label="Packed quantity">
@@ -4044,9 +4049,36 @@ async function startOrder(orderNo) {
     `;
 
     const valueEl = modal.querySelector('[data-role="value"]');
-    const close = () => modal.remove();
+    const close = () => {
+      if (dispatchPackedQtyPromptState?.modal === modal) {
+        dispatchPackedQtyPromptState = null;
+      }
+      modal.remove();
+    };
+    const setValue = (nextValue) => {
+      if (!Number.isFinite(Number(nextValue))) return;
+      value = Math.max(0, Math.min(maxQty, Number(nextValue)));
+      paint();
+    };
     const paint = () => {
       if (valueEl) valueEl.textContent = String(value);
+    };
+
+    dispatchPackedQtyPromptState?.close?.();
+    dispatchPackedQtyPromptState = {
+      modal,
+      orderNo,
+      itemKey,
+      maxQty,
+      close,
+      setValue,
+      increase: () => setValue(value + 1),
+      decrease: () => setValue(value - 1),
+      commit: (nextValue) => {
+        const committedValue = Number.isFinite(Number(nextValue)) ? Number(nextValue) : value;
+        setDispatchLinePackedQuantity(orderNo, itemKey, committedValue);
+        close();
+      }
     };
 
     modal.addEventListener("click", (event) => {
@@ -4057,16 +4089,13 @@ async function startOrder(orderNo) {
       }
       const role = target.dataset.role;
       if (role === "decrease") {
-        value = Math.max(0, value - 1);
-        paint();
+        dispatchPackedQtyPromptState?.decrease?.();
       } else if (role === "increase") {
-        value = Math.min(maxQty, value + 1);
-        paint();
+        dispatchPackedQtyPromptState?.increase?.();
       } else if (role === "cancel") {
         close();
       } else if (role === "save") {
-        setDispatchLinePackedQuantity(orderNo, itemKey, value);
-        close();
+        dispatchPackedQtyPromptState?.commit?.();
       }
     });
 
@@ -5455,6 +5484,49 @@ async function startOrder(orderNo) {
       if (fulfillAction) void handleDispatchAction(fulfillAction);
     }
 
+    const promptState = typeof dispatchPackedQtyPromptState === "undefined" ? null : dispatchPackedQtyPromptState;
+    const quantityPromptOpen = Boolean(dispatchControllerState.quantityPromptOpen);
+    const quantityPromptLineItemKey = String(dispatchControllerState.quantityPromptTargetLineItemKey || "").trim();
+    if (quantityPromptOpen && selectedOrderId && quantityPromptLineItemKey) {
+      if (
+        !promptState ||
+        promptState.orderNo !== selectedOrderId ||
+        promptState.itemKey !== quantityPromptLineItemKey
+      ) {
+        showDispatchPackedQtyPrompt(selectedOrderId, quantityPromptLineItemKey, { startFromZero: true, initialValue: 0 });
+      }
+      const activePromptState = typeof dispatchPackedQtyPromptState === "undefined" ? null : dispatchPackedQtyPromptState;
+      if (Number.isFinite(Number(dispatchControllerState.quantityPromptQty)) && activePromptState) {
+        activePromptState.setValue(Number(dispatchControllerState.quantityPromptQty));
+      }
+    } else if (promptState && !quantityPromptOpen) {
+      promptState.close();
+    }
+
+    const packedQtyCommittedAt = dispatchControllerState.lastPackedQtyCommittedAt;
+    const packedQtyCommittedLineItemKey = String(dispatchControllerState.lastPackedQtyCommittedLineItemKey || "").trim();
+    if (
+      packedQtyCommittedAt &&
+      packedQtyCommittedAt !== applyDispatchControllerState.lastHandledPackedQtyCommitAt &&
+      selectedOrderId &&
+      packedQtyCommittedLineItemKey
+    ) {
+      applyDispatchControllerState.lastHandledPackedQtyCommitAt = packedQtyCommittedAt;
+      const committedQty = Number(dispatchControllerState.lastPackedQtyCommittedQty);
+      if (Number.isFinite(committedQty)) {
+        const activePromptState = typeof dispatchPackedQtyPromptState === "undefined" ? null : dispatchPackedQtyPromptState;
+        if (
+          activePromptState &&
+          activePromptState.orderNo === selectedOrderId &&
+          activePromptState.itemKey === packedQtyCommittedLineItemKey
+        ) {
+          activePromptState.commit(committedQty);
+        } else {
+          setDispatchLinePackedQuantity(selectedOrderId, packedQtyCommittedLineItemKey, committedQty);
+        }
+      }
+    }
+
     return {
       selectedOrderChanged: previousSelectedOrderId !== selectedOrderId,
       selectedLineItemChanged: previousRotarySelectedKey !== dispatchRotarySelectedKey,
@@ -6815,7 +6887,7 @@ async function startOrder(orderNo) {
     clearDispatchLineHold();
     dispatchLineHoldTimer = setTimeout(() => {
       dispatchLineHoldTriggered = true;
-      showDispatchPackedQtyPrompt(orderNo, itemKey);
+      showDispatchPackedQtyPrompt(orderNo, itemKey, { startFromZero: true, initialValue: 0 });
       clearDispatchLineHold();
     }, DISPATCH_LINE_HOLD_MS);
   });
