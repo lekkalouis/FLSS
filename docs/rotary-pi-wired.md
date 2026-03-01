@@ -7,7 +7,8 @@ Use `scripts/rotary-pi-wired.py` to control FLSS dispatch selection over HTTP.
 ```bash
 sudo apt update
 sudo apt install -y python3-pip
-pip3 install gpiozero requests
+pip3 install gpiozero requests adafruit-circuitpython-dht
+sudo apt-get install -y libgpiod2
 ```
 
 ## 2) Wire the controls + RGB LED (default BCM pins)
@@ -32,6 +33,10 @@ export REMOTE_TOKEN="<same-token-as-FLSS-REMOTE_TOKEN>"   # /dispatch/remote/* a
 export ROTARY_SOURCE="rotary_pi"
 export REMOTE_ID="rotary_pi"
 export REMOTE_FIRMWARE="rotary-pi-wired-1.0.0"
+export STATION_ID="scan-station-01"
+export DHT11_ENABLED=1
+export DHT_PIN=4
+export DHT_POLL_INTERVAL_S=5
 ```
 
 Optional tuning:
@@ -56,7 +61,7 @@ export REMOTE_LEGACY_FALLBACK=1
 export ENV_TEMPERATURE_C=22.4
 export ENV_HUMIDITY_PCT=43.1
 
-# Optional dynamic sensor command (recommended for DHT11)
+# Optional dynamic sensor command (legacy fallback)
 export ENV_SENSOR_CMD="python3 /usr/local/bin/dht11-read-json.py --pin 4"
 ```
 
@@ -75,6 +80,22 @@ python3 scripts/rotary-pi-wired.py
 `GPIO4` is a common default for DHT11 examples and helper scripts. If your helper uses a different pin, pass that pin in your `ENV_SENSOR_CMD` arguments.
 
 ## DHT11 dynamic telemetry command
+
+The controller now has built-in DHT11 monitoring in a background thread. It polls every `DHT_POLL_INTERVAL_S` (default `5s`) and posts to:
+
+- `POST /api/v1/environment/ingest`
+
+Payload fields sent by the controller:
+
+- `stationId`
+- `timestamp` (ISO8601)
+- `temperatureC`
+- `humidityPct`
+- `lastUpdated`
+- `status` (`ok` / `degraded` / `offline`)
+- `readErrorsSinceBoot`
+
+The legacy `ENV_SENSOR_CMD` flow is still available for custom sensors and still posts to `/api/v1/dispatch/environment`.
 
 If your sensor can be read by a command-line program, set `ENV_SENSOR_CMD` so the rotary script can execute it on each telemetry interval.
 The command must exit with code `0` and print a single JSON object to stdout. Any numeric fields provided by the command override static `ENV_*` values for that sample; missing fields fall back to static values.

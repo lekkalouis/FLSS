@@ -32,9 +32,17 @@ import subprocess
 import threading
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import requests
 from gpiozero import Button, RGBLED
+
+try:
+    import adafruit_dht
+    import board
+except Exception:
+    adafruit_dht = None
+    board = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +59,10 @@ class Settings:
     env_sensor_cmd: str
     env_temperature_c: float | None
     env_humidity_pct: float | None
+    dht_enabled: bool
+    dht_pin: int
+    dht_interval_s: float
+    station_id: str
     request_timeout_s: float
     cw_pin: int
     ccw_pin: int
@@ -90,6 +102,10 @@ def load_settings() -> Settings:
 
     env_temperature_c = _float_env("ENV_TEMPERATURE_C")
     env_humidity_pct = _float_env("ENV_HUMIDITY_PCT")
+    dht_enabled = os.getenv("DHT11_ENABLED", "1").strip().lower() not in {"0", "false", "no"}
+    dht_pin = int(os.getenv("DHT_PIN", "4"))
+    dht_interval_s = float(os.getenv("DHT_POLL_INTERVAL_S", "5"))
+    station_id = os.getenv("STATION_ID", "scan-station-01").strip() or "scan-station-01"
 
     request_timeout_s = float(os.getenv("ROTARY_HTTP_TIMEOUT_S", "2.5"))
 
@@ -123,6 +139,10 @@ def load_settings() -> Settings:
         env_sensor_cmd=env_sensor_cmd,
         env_temperature_c=env_temperature_c,
         env_humidity_pct=env_humidity_pct,
+        dht_enabled=dht_enabled,
+        dht_pin=dht_pin,
+        dht_interval_s=dht_interval_s,
+        station_id=station_id,
         request_timeout_s=request_timeout_s,
         cw_pin=cw_pin,
         ccw_pin=ccw_pin,
@@ -136,6 +156,121 @@ def load_settings() -> Settings:
         led_feedback_s=led_feedback_s,
         min_action_gap_s=min_action_gap_s,
     )
+
+
+class DHT11Monitor:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self.flss_base_url = settings.base_url.rstrip("/")
+        self.station_id = settings.station_id
+        self.interval_s = max(1.0, settings.dht_interval_s)
+        self.pin = settings.dht_pin
+        self.request_timeout_s = settings.request_timeout_s
+
+        self.dht = None
+        self.last: dict[str, float] | None = None
+        self.last_ok_ts: datetime | None = None
+        self.read_errors = 0
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._last_sent_status: str | None = None
+
+    def start(self) -> None:
+        if not self.settings.dht_enabled:
+            print("[INFO] DHT11 monitor disabled by DHT11_ENABLED=0")
+            return
+
+        if adafruit_dht is None or board is None:
+            print("[WARN] DHT11 monitor unavailable: install adafruit-circuitpython-dht and libgpiod2")
+            return
+
+        board_pin = getattr(board, f"D{self.pin}", None)
+        if board_pin is None:
+            print(f"[WARN] DHT11 monitor disabled: unsupported board pin D{self.pin}")
+            return
+
+        try:
+            self.dht = adafruit_dht.DHT11(board_pin, use_pulseio=False)
+        except TypeError:
+            self.dht = adafruit_dht.DHT11(board_pin)
+        except Exception as exc:
+            print(f"[WARN] DHT11 init failed: {exc}")
+            self.dht = None
+            return
+
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        print(f"[INFO] DHT11 monitor started on GPIO{self.pin} at {self.interval_s:.1f}s interval")
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self.dht is not None:
+            try:
+                self.dht.exit()
+            except Exception:
+                pass
+
+    def get_cached(self) -> dict[str, object]:
+        status = self._calc_status()
+        return {
+            "stationId": self.station_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "temperatureC": self.last["temperatureC"] if self.last else None,
+            "humidityPct": self.last["humidityPct"] if self.last else None,
+            "lastUpdated": self.last_ok_ts.isoformat() if self.last_ok_ts else None,
+            "status": status,
+            "readErrorsSinceBoot": self.read_errors,
+        }
+
+    def _calc_status(self) -> str:
+        if not self.last_ok_ts:
+            return "offline"
+        age_s = (datetime.now(timezone.utc) - self.last_ok_ts).total_seconds()
+        if age_s < 15:
+            return "ok"
+        if age_s < 60:
+            return "degraded"
+        return "offline"
+
+    def _post(self, payload: dict[str, object]) -> None:
+        try:
+            response = requests.post(
+                f"{self.flss_base_url}/environment/ingest",
+                json=payload,
+                timeout=self.request_timeout_s,
+            )
+            if response.status_code >= 300:
+                print(f"[WARN] DHT11 telemetry HTTP {response.status_code}: {response.text}")
+        except Exception:
+            # Keep the main controller resilient during network failures.
+            pass
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            try:
+                temperature_c = self.dht.temperature if self.dht is not None else None
+                humidity_pct = self.dht.humidity if self.dht is not None else None
+                if temperature_c is not None and humidity_pct is not None:
+                    self.last = {
+                        "temperatureC": float(temperature_c),
+                        "humidityPct": float(humidity_pct),
+                    }
+                    self.last_ok_ts = datetime.now(timezone.utc)
+            except RuntimeError:
+                # DHT11 read errors are common; keep previous valid value.
+                self.read_errors += 1
+            except Exception:
+                self.read_errors += 1
+
+            payload = self.get_cached()
+            status = str(payload["status"])
+            has_valid_sample = payload["temperatureC"] is not None and payload["humidityPct"] is not None
+
+            if has_valid_sample or self._last_sent_status != status:
+                self._post(payload)
+                self._last_sent_status = status
+
+            self._stop.wait(self.interval_s)
 
 
 class RotaryFlssClient:
@@ -425,6 +560,10 @@ def main() -> int:
     print(f"  REMOTE_HEARTBEAT_INTERVAL_S={settings.heartbeat_interval_s}")
     print(f"  ENV_TELEMETRY_INTERVAL_S={settings.telemetry_interval_s}")
     print(f"  ENV_SENSOR_CMD configured={'yes' if bool(settings.env_sensor_cmd) else 'no'}")
+    print(f"  STATION_ID={settings.station_id}")
+    print(f"  DHT11_ENABLED={'yes' if settings.dht_enabled else 'no'}")
+    print(f"  DHT_PIN={settings.dht_pin}")
+    print(f"  DHT_POLL_INTERVAL_S={settings.dht_interval_s}")
     print(f"  Pins CLK/DT/SW={settings.cw_pin}/{settings.ccw_pin}/{settings.sw_pin}")
     print(f"  Push buttons Print/Fulfill={settings.print_btn_pin}/{settings.fulfill_btn_pin}")
     print(
@@ -439,6 +578,8 @@ def main() -> int:
     led.off()
 
     client = RotaryFlssClient(settings, led)
+    dht_monitor = DHT11Monitor(settings)
+    dht_monitor.start()
 
     if not client.probe_auth():
         print("Hint: export ROTARY_TOKEN=\"<same-token-as-server>\" before running this script.")
@@ -528,6 +669,7 @@ def main() -> int:
             next_env_at = now + max(5.0, settings.telemetry_interval_s)
         time.sleep(0.2)
 
+    dht_monitor.stop()
     led.off()
 
     return 0
