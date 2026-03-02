@@ -35,6 +35,12 @@ FLSS is a Node + Express operations platform for order capture, dispatch workflo
 
 The **Documentation** route is available from the **footer navigation** alongside **Admin** and **Changelog**. It loads all markdown files from `docs/` plus `README.md` via `/api/v1/docs`.
 
+Core living references to keep current are:
+- `docs/operator-manual.md` (end-to-end operational flows)
+- `docs/button-action-map.md` (button/control → action mapping)
+- `docs/data-model.md` (entity and ownership model)
+- `docs/api-reference.md` (full API route surface)
+
 ---
 
 ## Architecture
