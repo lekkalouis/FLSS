@@ -337,6 +337,7 @@ async function fulfillOrderByOrderId(base, orderId, message = "Collected at disp
 const ORDER_PARCEL_NAMESPACE = "custom";
 const ORDER_PARCEL_KEY = "parcel_count";
 const CUSTOMER_META_NAMESPACE = "custom";
+const CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY = "payment-before-delivery";
 const ORDER_PARCEL_CACHE_TTL_MS = 2 * 60 * 1000;
 const ORDER_PARCEL_REST_FALLBACK_CAP = 20;
 const SEARCH_TIER_ENRICHMENT_CAP = 80;
@@ -395,8 +396,43 @@ function normalizeCustomerMetafields(metafields = []) {
     delivery_instructions: getValue("delivery_instructions"),
     company_name: getValue("company_name"),
     vat_number: getValue("vat_number"),
-    payment_terms: getValue("payment_terms")
+    payment_terms: getValue("payment_terms"),
+    payment_before_delivery: getValue(CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY)
   };
+}
+
+function parseBooleanLike(value) {
+  if (typeof value === "boolean") return value;
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return null;
+  if (["1", "true", "yes", "y", "on", "required"].includes(normalized)) return true;
+  if (["0", "false", "no", "n", "off", "not_required"].includes(normalized)) return false;
+  return null;
+}
+
+async function fetchCustomerPaymentBeforeDeliveryMap(base, customerIds = []) {
+  const ids = Array.from(new Set((customerIds || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)));
+  const map = new Map();
+  if (!ids.length) return map;
+
+  await Promise.all(
+    ids.map(async (customerId) => {
+      try {
+        const metaResp = await shopifyFetch(`${base}/customers/${customerId}/metafields.json`, { method: "GET" });
+        if (!metaResp.ok) return;
+        const metaData = await metaResp.json();
+        const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
+        const paymentBeforeDelivery = metafields.find(
+          (mf) => mf?.namespace === CUSTOMER_META_NAMESPACE && mf?.key === CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY
+        );
+        map.set(String(customerId), parseBooleanLike(paymentBeforeDelivery?.value));
+      } catch {
+        // best-effort enrichment
+      }
+    })
+  );
+
+  return map;
 }
 
 async function fetchCustomerCustomMetafields(base, customerId) {
@@ -2715,7 +2751,9 @@ router.get("/shopify/orders/open", async (req, res) => {
     }
 
     const orderIds = filteredOrders.map((o) => o.id);
+    const customerIds = filteredOrders.map((o) => o?.customer?.id).filter(Boolean);
     const parcelCountMap = await batchFetchOrderParcelCounts(base, orderIds);
+    const customerPaymentBeforeDeliveryMap = await fetchCustomerPaymentBeforeDeliveryMap(base, customerIds);
 
     const orders = filteredOrders.map((o) => {
         const shipping = o.shipping_address || {};
@@ -2768,13 +2806,23 @@ router.get("/shopify/orders/open", async (req, res) => {
           };
         });
 
+        const paymentBeforeDeliveryRequired = customer?.id
+          ? customerPaymentBeforeDeliveryMap.get(String(customer.id))
+          : null;
+
         return {
           id: o.id,
           name: o.name,
           customer_name,
           email: o.email || customer.email || "",
           created_at: o.processed_at || o.created_at,
+          delivery_date:
+            Array.isArray(o.note_attributes)
+              ? o.note_attributes.find((attr) => String(attr?.name || "").toLowerCase() === "delivery_date")?.value || null
+              : null,
           fulfillment_status: o.fulfillment_status,
+          financial_status: o.financial_status || "",
+          payment_before_delivery: paymentBeforeDeliveryRequired,
           tags: o.tags || "",
           total_weight_kg: totalWeightKg,
           shipping_lines: (o.shipping_lines || []).map((line) => ({

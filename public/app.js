@@ -3653,6 +3653,25 @@ async function startOrder(orderNo) {
     return onlyBulkMissing ? "yellow" : "red";
   }
 
+  function getPaymentState(order) {
+    const financialStatus = String(order?.financial_status || "").trim().toLowerCase();
+    const isPaid = ["paid", "partially_paid"].includes(financialStatus);
+    if (isPaid) return "green";
+    const paymentBeforeDelivery = order?.payment_before_delivery;
+    const requiresPrepayment = paymentBeforeDelivery === null ? true : Boolean(paymentBeforeDelivery);
+    return requiresPrepayment ? "red" : "yellow";
+  }
+
+  function getDispatchDisplayDate(order) {
+    const deliveryDateRaw = String(order?.delivery_date || "").trim();
+    if (deliveryDateRaw) {
+      const parsed = new Date(deliveryDateRaw);
+      if (Number.isFinite(parsed.getTime())) return parsed.toLocaleDateString();
+      return deliveryDateRaw;
+    }
+    return order?.created_at ? new Date(order.created_at).toLocaleTimeString() : "";
+  }
+
   function renderDispatchPackingPanel(packingState, orderNo, options = {}) {
     if (!packingState) return "";
     const isActive = packingState.active || options.forceOpen;
@@ -4543,10 +4562,7 @@ async function startOrder(orderNo) {
 
   function clearDispatchSelection() {
     dispatchSelectedOrders.clear();
-    dispatchBoard?.querySelectorAll(".dispatchCardSelectInput").forEach((checkbox) => {
-      checkbox.checked = false;
-      checkbox.closest(".dispatchCard")?.classList.remove("is-selected");
-    });
+    dispatchBoard?.querySelectorAll(".dispatchCard").forEach((card) => card.classList.remove("is-selected"));
     updateDispatchSelectionSummary();
   }
 
@@ -4558,11 +4574,11 @@ async function startOrder(orderNo) {
     const laneId = laneFromOrder(order);
     const title = order.customer_name || order.name || `Order ${order.id}`;
     const city = order.shipping_city || "";
-    const created = order.created_at ? new Date(order.created_at).toLocaleTimeString() : "";
+    const displayDate = getDispatchDisplayDate(order);
     const lines = renderDispatchLineItems(order, packingState);
     dispatchOrderModalTitle.textContent = title;
     if (dispatchOrderModalMeta) {
-      dispatchOrderModalMeta.textContent = `#${(order.name || "").replace("#", "")} · ${city} · ${created}`;
+      dispatchOrderModalMeta.textContent = `#${(order.name || "").replace("#", "")} · ${city} · ${displayDate}`;
     }
     const packingPlan = buildDispatchPackingPlan(order);
     const packingPlanMarkup = renderDispatchPackingPlan(packingPlan);
@@ -4975,7 +4991,7 @@ async function startOrder(orderNo) {
       const title = o.customer_name || o.name || `Order ${o.id}`;
       const city = o.shipping_city || "";
       const postal = o.shipping_postal || "";
-      const created = o.created_at ? new Date(o.created_at).toLocaleTimeString() : "";
+      const displayDate = getDispatchDisplayDate(o);
       const orderNo = String(o.name || "").replace("#", "").trim();
       const packingState = getPackingState(o);
       if (orderNo) activeOrders.add(orderNo);
@@ -5003,7 +5019,7 @@ async function startOrder(orderNo) {
       const isSelected = orderNo && dispatchSelectedOrders.has(orderNo);
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
-      const missingSeverity = getMissingSeverity(o, packingState);
+      const paymentState = getPaymentState(o);
       const shippedItemCount = getShippedItemCount(o);
       const hasUnfulfilledItems = (o.line_items || []).some((item) => {
         const orderedQty = Math.max(0, Number(item?.quantity) || 0);
@@ -5017,19 +5033,12 @@ async function startOrder(orderNo) {
       }
 
       return `
-        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} dispatchCard--${missingSeverity}" data-order-no="${orderNo}" ${combinedStyle}>
+        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} dispatchCard--${paymentState}" data-order-no="${orderNo}" ${combinedStyle}>
           <div class="dispatchCardTitle">
             <span class="dispatchCardTitleText">${title}</span>
-            <span class="dispatchCardMissingDot dispatchCardMissingDot--${missingSeverity}" aria-label="${missingSeverity} shortage status"></span>
-            ${
-              orderNo
-                ? `<label class="dispatchCardSelect"><input class="dispatchCardSelectInput" type="checkbox" data-order-no="${orderNo}" ${
-                    isSelected ? "checked" : ""
-                  } aria-label="Select order ${orderNo}"/></label>`
-                : ""
-            }
+            <span class="dispatchCardMissingDot dispatchCardMissingDot--${paymentState}" aria-label="${paymentState} payment status"></span>
           </div>
-          <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${created}</div>
+          <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${displayDate}</div>
           ${
             combinedGroup
               ? `<div class="dispatchCardMeta dispatchCardMeta--combined"><span class="dispatchCombinedDot" aria-hidden="true"></span> Combined Shipment${isCombinedShipmentEnabled(combinedGroup) ? "" : " (Unlocked)"} · ${combinedGroup.orderNos.length} orders</div>`
@@ -5164,14 +5173,12 @@ async function startOrder(orderNo) {
             : col.id === "shippingAgent"
             ? lanes.shippingAgent
             : lanes[col.id] || [];
-        const cards =
-          renderLaneCards(laneOrders, col.id) ||
-          `<div class="dispatchBoardEmptyCol">No ${col.label.toLowerCase()} orders.</div>`;
+        const cards = renderLaneCards(laneOrders, col.id);
+        if (!cards) return "";
         return `
           <div class="dispatchCol" data-lane-id="${col.id}">
             <div class="dispatchColHeader">
               <span>${col.label}</span>
-              <label class="dispatchLaneSelectAll"><input type="checkbox" class="dispatchLaneSelectAllInput" data-lane-id="${col.id}"/>All</label>
             </div>
             <div class="dispatchColBody">${cards}</div>
           </div>`;
@@ -5755,18 +5762,10 @@ async function startOrder(orderNo) {
   function syncDispatchSelectionUI() {
     if (!dispatchBoard) return;
 
-    dispatchBoard.querySelectorAll(".dispatchCardSelectInput").forEach((checkbox) => {
-      const orderNo = String(checkbox.dataset.orderNo || "").trim();
+    dispatchBoard.querySelectorAll(".dispatchCard[data-order-no]").forEach((card) => {
+      const orderNo = String(card.dataset.orderNo || "").trim();
       const checked = Boolean(orderNo && dispatchSelectedOrders.has(orderNo));
-      checkbox.checked = checked;
-      checkbox.closest(".dispatchCard")?.classList.toggle("is-selected", checked);
-    });
-
-    dispatchBoard.querySelectorAll(".dispatchLaneSelectAllInput").forEach((laneInput) => {
-      const lane = laneInput.closest(".dispatchCol");
-      if (!lane) return;
-      const laneCheckboxes = Array.from(lane.querySelectorAll(".dispatchCardSelectInput"));
-      laneInput.checked = laneCheckboxes.length > 0 && laneCheckboxes.every((checkbox) => checkbox.checked);
+      card.classList.toggle("is-selected", checked);
     });
 
     updateDispatchSelectionSummary();
@@ -7158,6 +7157,17 @@ async function startOrder(orderNo) {
 
     const card = e.target.closest(".dispatchCard");
     if (card && !e.target.closest("button") && !e.target.closest("input") && !e.target.closest("label")) {
+      const orderNo = String(card.dataset.orderNo || "").trim();
+      if (!orderNo) return;
+      const isMultiToggle = e.ctrlKey || e.metaKey;
+      if (isMultiToggle) {
+        if (dispatchSelectedOrders.has(orderNo)) dispatchSelectedOrders.delete(orderNo);
+        else dispatchSelectedOrders.add(orderNo);
+      } else {
+        dispatchSelectedOrders.clear();
+        dispatchSelectedOrders.add(orderNo);
+      }
+      syncDispatchSelectionUI();
       const input = card.querySelector(".dispatchParcelCountInput");
       if (input) {
         input.focus();
@@ -7173,42 +7183,6 @@ async function startOrder(orderNo) {
     }
     const orderNo = card.dataset.orderNo;
     if (orderNo) openDispatchOrderModal(orderNo);
-  });
-
-  dispatchBoard?.addEventListener("change", (e) => {
-    const checkbox = e.target.closest(".dispatchCardSelectInput");
-    if (!checkbox) return;
-    const orderNo = checkbox.dataset.orderNo;
-    if (!orderNo) return;
-    if (checkbox.checked) {
-      dispatchSelectedOrders.add(orderNo);
-    } else {
-      dispatchSelectedOrders.delete(orderNo);
-    }
-    const card = checkbox.closest(".dispatchCard");
-    if (card) {
-      card.classList.toggle("is-selected", checkbox.checked);
-    }
-    updateDispatchSelectionSummary();
-  });
-
-  
-
-  dispatchBoard?.addEventListener("change", (e) => {
-    const laneSelect = e.target.closest(".dispatchLaneSelectAllInput");
-    if (!laneSelect) return;
-    const laneId = laneSelect.dataset.laneId;
-    const lane = laneSelect.closest(".dispatchCol");
-    if (!lane || !laneId) return;
-    lane.querySelectorAll(".dispatchCardSelectInput").forEach((checkbox) => {
-      checkbox.checked = laneSelect.checked;
-      const orderNo = checkbox.dataset.orderNo;
-      if (!orderNo) return;
-      if (laneSelect.checked) dispatchSelectedOrders.add(orderNo);
-      else dispatchSelectedOrders.delete(orderNo);
-      checkbox.closest(".dispatchCard")?.classList.toggle("is-selected", laneSelect.checked);
-    });
-    updateDispatchSelectionSummary();
   });
 
   dispatchSelectionClear?.addEventListener("click", () => {
