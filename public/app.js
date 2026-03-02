@@ -145,6 +145,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   const truckParcelCount = $("truckParcelCount");
   const dispatchCreateCombined = $("dispatchCreateCombined");
   const dispatchExpandToggle = $("dispatchExpandToggle");
+  const dispatchRotaryToggle = $("dispatchRotaryToggle");
   const uiBundleOrders = $("uiBundleOrders");
   const uiMultiShip = $("uiMultiShip");
 
@@ -399,6 +400,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let dispatchRotaryFocusKey = "";
   let dispatchRotarySelectedKey = "";
   let dispatchPackedQtyPromptState = null;
+  let dispatchRotaryInputEnabled = true;
   const DISPATCH_STEPS = [
     "Start",
     "Quote",
@@ -5582,6 +5584,13 @@ async function startOrder(orderNo) {
   function applyIncomingDispatchControllerState(state) {
     if (!state || typeof state !== "object") return;
     dispatchControllerState = state;
+    if (typeof dispatchRotaryInputEnabled !== "undefined" && !dispatchRotaryInputEnabled) {
+      renderEnvironmentHeaderWidget(state.environment || null);
+      renderRemoteStatusBadge(state.remote || null);
+      syncDispatchSelectionUI();
+      updateDashboardKpis();
+      return;
+    }
     const { selectedOrderChanged, selectedLineItemChanged, selectedOrderId } = applyDispatchControllerState();
     if (selectedOrderChanged) {
       refreshDispatchViews(selectedOrderId);
@@ -6302,12 +6311,35 @@ async function startOrder(orderNo) {
     }
   }
 
+  const setDispatchRotaryInputEnabled = (enabled, { notify = true } = {}) => {
+    dispatchRotaryInputEnabled = Boolean(enabled);
+    if (dispatchRotaryToggle) {
+      dispatchRotaryToggle.setAttribute("aria-pressed", dispatchRotaryInputEnabled ? "false" : "true");
+      dispatchRotaryToggle.textContent = dispatchRotaryInputEnabled ? "Disable rotary" : "Enable rotary";
+      dispatchRotaryToggle.classList.toggle("btn-outline-warning", dispatchRotaryInputEnabled);
+      dispatchRotaryToggle.classList.toggle("btn-warning", !dispatchRotaryInputEnabled);
+    }
+    if (notify) {
+      statusExplain(
+        dispatchRotaryInputEnabled
+          ? "Rotary controller enabled."
+          : "Rotary controller disabled. Manual order selection stays active.",
+        "info"
+      );
+    }
+  };
+
   if (dispatchExpandToggle) {
     setDispatchExpanded(false);
     dispatchExpandToggle.addEventListener("click", () => {
       setDispatchExpanded(!dispatchExpanded);
     });
   }
+
+  setDispatchRotaryInputEnabled(true, { notify: false });
+  dispatchRotaryToggle?.addEventListener("click", () => {
+    setDispatchRotaryInputEnabled(!dispatchRotaryInputEnabled);
+  });
 
   const ADMIN_UNLOCKED_KEY = "fl_admin_unlocked";
   const applyAdminMenuVisibility = (visible) => {
@@ -6337,7 +6369,7 @@ async function startOrder(orderNo) {
       targetTag === "select" ||
       Boolean(target?.isContentEditable);
 
-    if (activeView === "viewScan" && !inEditable) {
+    if (activeView === "viewScan" && !inEditable && dispatchRotaryInputEnabled) {
       if (key === "ArrowDown") {
         e.preventDefault();
         moveDispatchRotaryFocus(1);
