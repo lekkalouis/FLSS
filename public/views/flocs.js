@@ -177,13 +177,12 @@ export function initFlocsView() {
   const MATRIX_SIZES = [...MATRIX_POPCORN_SIZES, ...MATRIX_BASE_SIZES, ...MATRIX_BULK_SIZES];
   const SPICE_FLAVOUR_ORDER = [
     "original",
-    "hot & spicy",
+    "hot",
     "worcester sauce",
-    "red wine & garlic",
-    "chutney",
-    "savoury herb",
-    "salt & vinegar",
-    "curry"
+    "red wine and garlic",
+    "chutney sprinkle",
+    "savoury herbs",
+    "salt and vinegar"
   ];
   const POPCORN_FLAVOUR_ORDER = [
     "butter",
