@@ -1121,19 +1121,10 @@
   background:rgba(34,197,94,.16);
   color:#065f46;
 }
-.dispatchLaneSelectAll{
-  display:flex;
-  align-items:center;
-  gap:.3rem;
-  font-size:.62rem;
-  color:#0f172a;
-  font-weight:700;
-  text-transform:uppercase;
-}
 .dispatchColHeader{
   display:flex;
   align-items:center;
-  justify-content:space-between;
+  justify-content:flex-start;
   gap:.5rem;
 }
 .dispatchCard.is-combined{
@@ -1407,16 +1398,7 @@
   line-clamp: 2;
   overflow: hidden;
   word-break: break-word;
-}
-.dispatchCardSelect{
-  display:flex;
-  align-items:center;
-  gap:0;
-}
-.dispatchCardSelect input{
-  width:.9rem;
-  height:.9rem;
-  accent-color:#38bdf8;
+  padding-right:1rem;
 }
 
 .dispatchCardMeta {
@@ -1433,8 +1415,8 @@
   border-radius:999px;
   display:block;
   position:absolute;
-  left:.55rem;
-  bottom:.55rem;
+  right:.55rem;
+  top:.55rem;
   box-shadow:0 0 0 1px rgba(15,23,42,.22);
 }
 .dispatchCardMissingDot--green{ background:#22c55e; }
