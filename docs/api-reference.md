@@ -1,19 +1,35 @@
 # FLSS API Reference (Current)
 
-Base URL: `/api/v1`
+Base URL: `/api/v1`.
 
-This reference mirrors route definitions under `src/routes/`.
+This reference mirrors the mounted routers in `src/routes/` and includes every active endpoint currently exposed by the app.
 
-## Health, status, and config
+## Health and configuration
 
-- `GET /healthz`
-- `GET /statusz`
-- `GET /config`
+- `GET /healthz` — process liveness.
+- `GET /statusz` — integration readiness summary (Shopify, ParcelPerfect, PrintNode, SMTP, runtime).
+- `GET /config` — frontend/runtime config projection.
 
-## Environment telemetry
+## Environment and remote station data
 
-- `POST /environment/ingest`
-- `GET /environment`
+- `POST /environment/ingest` — ingest environment sample payloads.
+- `GET /environment` — latest aggregated environment data.
+
+## Dispatch controller API
+
+- `GET /dispatch/state`
+- `POST /dispatch/state`
+- `GET /dispatch/environment`
+- `POST /dispatch/environment`
+- `POST /dispatch/remote/heartbeat`
+- `GET /dispatch/remote/status`
+- `POST /dispatch/remote/action`
+- `GET /dispatch/events`
+- `POST /dispatch/next`
+- `POST /dispatch/prev`
+- `POST /dispatch/confirm`
+- `POST /dispatch/print`
+- `POST /dispatch/fulfill`
 
 ## Documentation topics
 
@@ -22,9 +38,9 @@ This reference mirrors route definitions under `src/routes/`.
 
 ## ParcelPerfect
 
-- `POST /pp`
-- `GET /pp/place?q=<search>`
-- `POST /pp/matrix`
+- `POST /pp` — quote/book proxy.
+- `GET /pp/place?q=<search>` — place lookup.
+- `POST /pp/matrix` — shipping matrix simulation endpoint.
 
 ## PrintNode
 
@@ -36,7 +52,7 @@ This reference mirrors route definitions under `src/routes/`.
 
 - `POST /alerts/book-truck`
 
-## Customer accounts
+## Customer accounts demo
 
 - `POST /customer-accounts/register`
 - `POST /customer-accounts/login`
@@ -47,13 +63,15 @@ This reference mirrors route definitions under `src/routes/`.
 - `GET /customer-accounts/orders`
 - `POST /customer-accounts/orders`
 
-## Liquid templates
+## Template management
+
+### Liquid templates
 
 - `GET /liquid-templates`
 - `POST /liquid-templates`
 - `DELETE /liquid-templates/:id`
 
-## Notification templates
+### Notification templates
 
 - `GET /notification-templates`
 - `POST /notification-templates`
@@ -64,28 +82,25 @@ This reference mirrors route definitions under `src/routes/`.
 - `GET /traceability/template.xlsx`
 - `POST /traceability/report`
 
-## Shopify
+## Shopify proxy domain
 
-### Customers and customer metadata
+### Customers and account metadata
 
 - `GET /shopify/customers/search`
 - `GET /shopify/customers/recent`
 - `GET /shopify/customers/:id/metafields`
+- `GET /shopify/payment-terms/options`
 - `GET /shopify/customers/by-access-code`
 - `POST /shopify/customers`
 
-### Product and pricing data
+### Products and price tiers
 
 - `GET /shopify/products/search`
 - `GET /shopify/products/collection`
-- `GET /shopify/payment-terms/options`
 - `POST /shopify/variants/price-tiers`
 - `POST /shopify/variants/price-tiers/fetch`
-- `POST /pricing/resolve`
-- `POST /pricing/reconcile-draft-order`
-- `GET /pricing/status/:draftOrderId`
 
-### Draft orders and purchase orders
+### Draft orders, PO helpers, and pricing resolution
 
 - `POST /shopify/draft-orders`
 - `POST /shopify/draft-orders/complete`
@@ -94,8 +109,11 @@ This reference mirrors route definitions under `src/routes/`.
 - `POST /shopify/purchase-orders`
 - `GET /shopify/purchase-orders/open`
 - `GET /shopify/purchase-orders/raw-materials`
+- `POST /pricing/resolve`
+- `POST /pricing/reconcile-draft-order`
+- `GET /pricing/status/:draftOrderId`
 
-### Orders and workflows
+### Orders and dispatch flows
 
 - `POST /shopify/orders`
 - `POST /shopify/orders/cash`
@@ -105,14 +123,16 @@ This reference mirrors route definitions under `src/routes/`.
 - `GET /shopify/orders/list`
 - `POST /shopify/orders/run-flow`
 - `POST /shopify/orders/tag`
+- `POST /shopify/orders/delivery-qr-payload`
 
-### Fulfillment and shipment
+### Shipments and fulfillments
 
 - `GET /shopify/shipments/recent`
 - `GET /shopify/fulfillment-events`
 - `POST /shopify/fulfill`
 - `POST /shopify/ready-for-pickup`
 - `POST /shopify/collection/fulfill-from-code`
+- `POST /shopify/delivery/complete-from-code`
 
 ### Inventory
 

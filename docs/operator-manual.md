@@ -1,103 +1,116 @@
-# FLSS Operator Manual (Comprehensive)
+# FLSS Operator Manual (Current App Workflows)
 
-This manual is written for day-to-day operators and supervisors running FLSS in production.
+This manual documents the end-to-end operating flows in the current app: what each module is for, when to use it, and what happens after each major action.
 
-## 1) Navigation and access
+## 1) App navigation map
 
-### Main operational views
+### Main SPA routes (inside `public/index.html` shell)
 
-- **Orders** (`/`) for scan-based dispatch flow.
-- **Dispatch Board** (`/ops`) for open-order triage and grouped processing.
-- **Order Capture** (`/flocs`) for customer + product order creation.
-- **Stock Take** (`/stock`) for inventory checks and adjustments.
+- `/` — **Orders / Scan Station**
+- `/ops` — **Dispatch board**
+- `/flocs` — **Order capture (FLOCS)**
+- `/stock` — **Stock tools**
+- `/price-manager` — **Price manager**
+- `/docs` — **In-app documentation viewer**
+- `/flowcharts` — **Flow diagrams view**
+- `/dispatch-settings` — **Dispatch settings** (admin unlock)
+- `/logs` — **Operational logs** (admin unlock)
+- `/admin` and `/changelog` — utility/admin screens
 
-### Footer menu views
+### Standalone tools (separate pages)
 
-- **Documentation** (`/docs`) for in-app docs topics.
-- **Admin** (`/admin`) for utility links and management shortcuts.
-- **Changelog** (`/changelog`) for recent app update notes.
-
-### Standalone tools
-
-- `/traceability.html`
 - `/shipping-matrix.html`
+- `/order-capture-custom.html`
+- `/customer-accounts.html`
 - `/purchase-orders.html`
 - `/liquid-templates.html`
 - `/notification-templates.html`
+- `/traceability.html`
+- `/pos.html`
 
-## 2) Startup checklist (shift start)
+## 2) Shift startup checklist
 
-1. Confirm app opens at `http://localhost:3000`.
-2. Open **Documentation** in footer and check status guidance.
-3. Verify `/api/v1/healthz` responds and `/api/v1/statusz` integrations are healthy.
-4. Test scanner input focus in Orders view.
-5. Confirm printer availability if labels are required for shift.
+1. Open the app and confirm the Orders view loads.
+2. Confirm `GET /api/v1/healthz` and `GET /api/v1/statusz` are healthy.
+3. Verify scanner input focus and a test code path in Orders/POS.
+4. Verify label printer readiness (PrintNode) and ParcelPerfect credentials.
+5. If dispatch hardware is used, confirm remote heartbeat data is updating.
 
-## 3) Orders / Scan Station runbook
+## 3) Core operating flows
 
-1. Scan parcel barcode into the scan input.
-2. Verify order identity and parcel sequence context.
-3. Confirm destination place and courier service (override only when needed).
-4. Trigger booking manually with **Book Now** or wait for auto-book timer.
-5. Monitor progress states for quote/book/print/fulfillment.
-6. Confirm final status and tracking artifacts.
+## 3.1 Orders / Scan Station flow
 
-### Exceptions
+1. Scan or enter order barcode/code.
+2. App resolves order and parcel context via Shopify endpoints.
+3. Operator confirms shipping context (service/place/parcel counts).
+4. Booking runs automatically after countdown, or manually with **Book now**.
+5. On successful booking:
+   - booking reference/tracking is attached,
+   - print action is triggered/available,
+   - fulfillment flow can proceed.
+6. If delivery QR flow is enabled, delivery completion can be confirmed from QR code route.
 
-- **Lookup mismatch:** re-scan, then fetch order by name/number route where available.
-- **Quote failure:** validate place code and service override.
-- **Print failure:** retry print route, then inspect PrintNode credentials/printer.
+Failure handling:
 
-## 4) Dispatch Board runbook
+- Booking/API failure shows status message and preserves actionable context.
+- Printing failure can be retried independently.
+- Fulfillment failure leaves order visible in open/dispatch lists.
 
-1. Open `/ops` and allow open-order and shipment snapshots to load.
-2. Select orders requiring dispatch preparation.
-3. Use **Prepare deliveries** for grouped flow.
-4. Optionally create combined shipment groups where policy allows.
-5. Book truck alert when parcel threshold is hit and approved.
+## 3.2 Dispatch board flow
 
-## 5) FLOCS / Order Capture runbook
+1. Dispatch board loads open orders + recent shipment context.
+2. Operator sets priorities and selects orders.
+3. Use **Prepare deliveries** to apply batch preparation logic.
+4. Optionally create multi/combined shipment groups.
+5. Use shipment modal/order modal actions for print, fulfill, ready-for-pickup, tag updates.
+6. If parcel threshold is exceeded, book truck alert can be sent.
 
-1. Search existing customer or create new customer.
-2. Confirm customer tier, delivery method, and payment metadata.
-3. Add products and quantities.
-4. Calculate shipping (when shipping applies).
-5. Create draft order for approval or create immediate order.
-6. Convert draft to order when downstream workflow requires it.
+## 3.3 FLOCS order capture flow
 
-## 6) Stock operations runbook
+1. Search customer (quick search, filters, recents) or create new customer.
+2. Choose delivery method and addresses.
+3. Add line quantities by SKU/flavour matrix.
+4. Optionally calculate shipping quote.
+5. Create draft order or direct order.
+6. Optional conversion path: complete draft to order.
 
-1. Pick Shopify location.
-2. Search/filter inventory rows.
-3. Choose mode: read-only, stock take (set), or stock received (adjust).
-4. Apply focused changes using quick controls.
-5. Review local activity log before ending session.
+## 3.4 Stock flow
 
-## 7) Pricing operations runbook
+1. Pick location.
+2. Choose mode:
+   - Read only
+   - Stock take (set absolute qty)
+   - Stock received (transfer/add flow)
+3. Search/filter SKU rows.
+4. Adjust row qty with quick controls, then **Set**/**Apply**.
+5. Review local activity log and open PO receiving table when receiving mode is used.
 
-1. Open price manager and load products/variants.
-2. Edit tier values for required variants.
-3. Save tier metafields (`custom.price_tiers`).
-4. Use public price sync only when global storefront change is intended.
+## 3.5 Price manager flow
 
-## 8) Traceability runbook
+1. Search products/variants.
+2. Edit tier prices per row.
+3. Save tier set to variant metafield `custom.price_tiers`.
+4. Optional sync/update base price where required.
 
-1. Open `/traceability.html`.
-2. Enter batch and flavor.
-3. Upload purchase and COA/COC sheets (optional but recommended).
-4. Generate report and review sales + supplier/inspection sections.
-5. Use template download if file format correction is needed.
+## 3.6 Traceability flow
 
-## 9) Incident response quick guide
+1. Open traceability page.
+2. Enter batch + flavour.
+3. Optional: upload PO workbook and COA/COC workbook.
+4. Run report.
+5. Review sales and purchase/inspection projections.
+6. Export/use generated output for QA and audit workflows.
 
-- **Shopify degraded:** continue local-only prep steps and queue Shopify-dependent actions.
-- **ParcelPerfect degraded:** avoid booking attempts; capture exceptions for later replay.
-- **PrintNode degraded:** pause print-dependent workflows and switch to backup print process.
-- **SMTP degraded:** continue operations; defer notification actions and log outstanding notices.
+## 4) Admin and support operations
 
-## 10) End-of-shift closeout
+- **Admin unlock:** `Shift + Alt + A` toggles admin-only nav sections.
+- **Dispatch notes:** saved locally and surfaced in admin logs panel.
+- **Environment telemetry:** available through `/api/v1/environment` endpoints and dispatch environment views.
+- **Docs browser:** `/docs` loads markdown topics served by `/api/v1/docs`.
 
-1. Ensure no active bookings remain in uncertain state.
-2. Export or record key dispatch/traceability outcomes.
-3. Confirm stock adjustments are complete.
-4. Verify outstanding incidents are logged with timestamps and owner.
+## 5) End-of-shift routine
+
+1. Confirm no stuck bookings, print jobs, or pending dispatch actions.
+2. Validate truck booking state if threshold workflow was triggered.
+3. Export or note traceability/stock actions completed during shift.
+4. Lock workstation and clear any local-only sensitive notes if required by policy.
