@@ -41,6 +41,35 @@ function normalizeTagList(tags) {
   return [];
 }
 
+function normalizeOrderAddress(address) {
+  if (!address || typeof address !== "object") return undefined;
+
+  const normalized = {
+    first_name: address.first_name ?? address.firstName,
+    last_name: address.last_name ?? address.lastName,
+    company: address.company,
+    address1: address.address1,
+    address2: address.address2,
+    city: address.city,
+    province: address.province,
+    province_code: address.province_code ?? address.provinceCode,
+    zip: address.zip,
+    country: address.country,
+    country_code: address.country_code ?? address.countryCode,
+    phone: address.phone,
+    name: address.name
+  };
+
+  const hasValue = Object.values(normalized).some((value) => value != null && String(value).trim() !== "");
+  if (!hasValue) return undefined;
+
+  return Object.fromEntries(
+    Object.entries(normalized)
+      .filter(([, value]) => value != null && String(value).trim() !== "")
+      .map(([key, value]) => [key, String(value).trim()])
+  );
+}
+
 function requireShopifyConfigured(res) {
   if (!config.SHOPIFY_STORE || !config.SHOPIFY_CLIENT_ID || !config.SHOPIFY_CLIENT_SECRET) {
     res.status(501).json({
@@ -1607,6 +1636,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
       customerId,
       lineItems,
       priceTier,
+      billingAddress,
+      shippingAddress,
       poNumber,
       shippingMethod,
       shippingPrice,
@@ -1784,6 +1815,8 @@ router.post("/shopify/draft-orders", async (req, res) => {
         line_items: resolvedLines,
         tags: orderTags.join(", "),
         note: poNumber ? `PO: ${poNumber}` : undefined,
+        billing_address: normalizeOrderAddress(billingAddress),
+        shipping_address: normalizeOrderAddress(shippingAddress),
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
           { name: "price_tier", value: tier || "public" },
@@ -2297,8 +2330,8 @@ router.post("/shopify/orders", async (req, res) => {
           if (li.price != null && !entry.price) entry.price = String(li.price);
           return entry;
         }),
-        billing_address: billingAddress || undefined,
-        shipping_address: shippingAddress || undefined,
+        billing_address: normalizeOrderAddress(billingAddress),
+        shipping_address: normalizeOrderAddress(shippingAddress),
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
           ...(shippingQuoteNo
