@@ -16,8 +16,15 @@ function normalizeNumber(value, field) {
   return parsed;
 }
 
+function firstDefined(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return null;
+}
+
 function normalizePayload(payload = {}) {
-  const stationId = String(payload.stationId || "").trim();
+  const stationId = String(firstDefined(payload.stationId, payload.deviceId) || "").trim();
   if (!stationId) {
     const err = new Error("stationId is required");
     err.code = "INVALID_ENVIRONMENT_TELEMETRY";
@@ -40,14 +47,16 @@ function normalizePayload(payload = {}) {
     throw err;
   }
 
-  const hasTemp = payload.temperatureC !== null && payload.temperatureC !== undefined;
-  const hasHumidity = payload.humidityPct !== null && payload.humidityPct !== undefined;
+  const rawTemperature = firstDefined(payload.temperatureC, payload.temperature, payload.tempC, payload.temperature_c);
+  const rawHumidity = firstDefined(payload.humidityPct, payload.humidity, payload.humidity_pct);
+  const hasTemp = rawTemperature !== null;
+  const hasHumidity = rawHumidity !== null;
 
   return {
     stationId,
     timestamp,
-    temperatureC: hasTemp ? normalizeNumber(payload.temperatureC, "temperatureC") : null,
-    humidityPct: hasHumidity ? normalizeNumber(payload.humidityPct, "humidityPct") : null,
+    temperatureC: hasTemp ? normalizeNumber(rawTemperature, "temperatureC") : null,
+    humidityPct: hasHumidity ? normalizeNumber(rawHumidity, "humidityPct") : null,
     lastUpdated: payload.lastUpdated ? String(payload.lastUpdated) : null,
     status,
     readErrorsSinceBoot: Number.isFinite(Number(payload.readErrorsSinceBoot))
