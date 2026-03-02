@@ -1367,18 +1367,13 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     return `${minutes}m ${seconds}s`;
   }
 
-  function getWeekOfYear(date = new Date()) {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-  }
-
   function renderDateTimeHeaderWidget() {
     if (!dispatchDateTimeSummary) return;
     const now = new Date();
-    dispatchDateTimeSummary.textContent = `${now.toLocaleDateString()} ${now.toLocaleTimeString()} · W${getWeekOfYear(now)}`;
+    const weekday = now.toLocaleDateString(undefined, { weekday: "long" });
+    const isoDate = now.toLocaleDateString("en-CA");
+    const time = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    dispatchDateTimeSummary.textContent = `${weekday}, ${isoDate} · ${time}`;
   }
 
   function setStatusClass(el, status) {
@@ -1411,9 +1406,18 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     if (current) {
       const temp = Number(current.temperatureC);
       const humidity = Number(current.humidityPct);
-      const tempText = Number.isFinite(temp) ? `${temp.toFixed(1)}°C` : "—";
-      const humidityText = Number.isFinite(humidity) ? `${Math.round(humidity)}%` : "—";
-      dispatchEnvironmentSummary.textContent = `🌡 ${tempText} · 💧 ${humidityText}`;
+      const tempValue = Number.isFinite(temp) ? temp.toFixed(1) : "—";
+      const humidityValue = Number.isFinite(humidity) ? String(Math.round(humidity)) : "—";
+      dispatchEnvironmentSummary.innerHTML = `
+        <span class="flHeaderMetric" aria-label="Temperature">
+          <span class="flHeaderMetricLabel">Temp</span>
+          <span class="flHeaderMetricValue">${tempValue}<span class="flHeaderMetricUnit">°C</span></span>
+        </span>
+        <span class="flHeaderMetric" aria-label="Humidity">
+          <span class="flHeaderMetricLabel">Humidity</span>
+          <span class="flHeaderMetricValue">${humidityValue}<span class="flHeaderMetricUnit">%</span></span>
+        </span>
+      `;
 
       const ageText = environmentToRender?.lastUpdatedAt
         ? ` · ${formatDispatchTime(environmentToRender.lastUpdatedAt)}`
@@ -1424,7 +1428,16 @@ import { initScanStationNext } from "./views/scan-station-next.js";
         detail: dispatchEnvironmentStatus.textContent
       };
     } else {
-      dispatchEnvironmentSummary.textContent = "🌡 — · 💧 —";
+      dispatchEnvironmentSummary.innerHTML = `
+        <span class="flHeaderMetric" aria-label="Temperature unavailable">
+          <span class="flHeaderMetricLabel">Temp</span>
+          <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span>
+        </span>
+        <span class="flHeaderMetric" aria-label="Humidity unavailable">
+          <span class="flHeaderMetricLabel">Humidity</span>
+          <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span>
+        </span>
+      `;
       dispatchEnvironmentStatus.textContent = "Waiting for sensor";
       sensorIndicatorState = { ok: false, detail: "Waiting for sensor" };
     }
