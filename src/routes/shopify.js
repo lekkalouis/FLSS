@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 
 import { config } from "../config.js";
@@ -63,6 +64,17 @@ function requireCustomerEmailConfigured(res) {
   return true;
 }
 
+function requireDeliveryCodeSecretConfigured(res) {
+  if (!config.DELIVERY_CODE_SECRET) {
+    res.status(501).json({
+      error: "DELIVERY_CODE_SECRET_NOT_CONFIGURED",
+      message: "Set DELIVERY_CODE_SECRET in .env to issue and verify delivery QR payloads."
+    });
+    return false;
+  }
+  return true;
+}
+
 function normalizeOrderNo(orderNo) {
   return String(orderNo || "")
     .replace(/[^0-9A-Za-z]/g, "")
@@ -80,15 +92,35 @@ function buildCollectionCredentials(orderNo) {
   return { normalizedOrderNo, pin, barcodeValue };
 }
 
+const DELIVERY_CODE_VERSION = "v1";
+const DELIVERY_CODE_MAX_AGE_SEC = 14 * 24 * 60 * 60;
+
+function toBase64Url(input) {
+  return Buffer.from(input)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function fromBase64Url(input) {
+  const normalized = String(input || "").replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  return Buffer.from(padded, "base64");
+}
+
+function signDeliveryPayload(payload) {
+  return crypto.createHmac("sha256", String(config.DELIVERY_CODE_SECRET)).update(payload).digest();
+}
+
 function buildDeliveryCredentials(orderNo) {
   const normalizedOrderNo = normalizeOrderNo(orderNo);
-  let hash = 7;
-  for (let i = 0; i < normalizedOrderNo.length; i += 1) {
-    hash = (hash * 31 + normalizedOrderNo.charCodeAt(i)) % 10000;
-  }
-  const pin = String(hash).padStart(4, "0");
-  const code = `FLSS-DELIVERY-${normalizedOrderNo}-${pin}`;
-  return { normalizedOrderNo, pin, code };
+  const iat = Math.floor(Date.now() / 1000);
+  const payload = `${DELIVERY_CODE_VERSION}.${normalizedOrderNo}.${iat}`;
+  const signature = signDeliveryPayload(payload);
+  const token = `${toBase64Url(payload)}.${toBase64Url(signature)}`;
+  const code = `FLSS-DELIVERY-${token}`;
+  return { normalizedOrderNo, iat, token, code };
 }
 
 function parseCollectionCode(rawCode = "") {
@@ -105,16 +137,56 @@ function parseCollectionCode(rawCode = "") {
 }
 
 function parseDeliveryCode(rawCode = "") {
-  const cleaned = String(rawCode || "").trim().toUpperCase();
-  const codeMatch = cleaned.match(/^FLSS-DELIVERY-([0-9A-Z]+)-(\d{4})$/);
-  if (codeMatch) {
-    return { orderNo: codeMatch[1], pin: codeMatch[2] };
+  const cleaned = String(rawCode || "").trim();
+  const prefixedMatch = cleaned.match(/^FLSS-DELIVERY-([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/);
+  const token = prefixedMatch ? prefixedMatch[1] : cleaned;
+
+  if (/^([0-9A-Z]+)[-: ]?(\d{4})$/i.test(cleaned)) {
+    return { error: "LEGACY_CODE_NOT_SUPPORTED", message: "Legacy delivery PIN codes are no longer supported." };
   }
-  const compactMatch = cleaned.match(/^([0-9A-Z]+)[-: ]?(\d{4})$/);
-  if (compactMatch) {
-    return { orderNo: compactMatch[1], pin: compactMatch[2] };
+
+  const [payloadPart, signaturePart, extra] = token.split(".");
+  if (!payloadPart || !signaturePart || extra) {
+    return { error: "INVALID_CODE_FORMAT", message: "Delivery code format is invalid." };
   }
-  return null;
+
+  let payload;
+  let providedSignature;
+  try {
+    payload = fromBase64Url(payloadPart).toString("utf8");
+    providedSignature = fromBase64Url(signaturePart);
+  } catch {
+    return { error: "INVALID_CODE_FORMAT", message: "Delivery code payload is malformed." };
+  }
+
+  const expectedSignature = signDeliveryPayload(payload);
+  if (
+    expectedSignature.length !== providedSignature.length ||
+    !crypto.timingSafeEqual(expectedSignature, providedSignature)
+  ) {
+    return { error: "INVALID_SIGNATURE", message: "Delivery code signature is invalid." };
+  }
+
+  const [version, encodedOrderNo, issuedAtRaw, ...rest] = payload.split(".");
+  if (rest.length || version !== DELIVERY_CODE_VERSION) {
+    return { error: "INVALID_CODE_VERSION", message: "Delivery code version is invalid." };
+  }
+
+  const orderNo = normalizeOrderNo(encodedOrderNo);
+  const issuedAt = Number.parseInt(issuedAtRaw, 10);
+  if (!orderNo || !Number.isFinite(issuedAt)) {
+    return { error: "INVALID_CODE_PAYLOAD", message: "Delivery code payload is invalid." };
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (issuedAt > now + 60) {
+    return { error: "INVALID_CODE_PAYLOAD", message: "Delivery code issue time is invalid." };
+  }
+  if (now - issuedAt > DELIVERY_CODE_MAX_AGE_SEC) {
+    return { error: "CODE_EXPIRED", message: "Delivery code has expired." };
+  }
+
+  return { orderNo, issuedAt, token };
 }
 
 async function appendOrderTag(base, orderId, tagToApply) {
@@ -3538,11 +3610,11 @@ router.post("/shopify/orders/tag", async (req, res) => {
 
 router.post("/shopify/orders/delivery-qr-payload", async (req, res) => {
   try {
-    if (!requireShopifyConfigured(res)) return;
+    if (!requireShopifyConfigured(res) || !requireDeliveryCodeSecretConfigured(res)) return;
     const { orderId, orderNo, confirmUrl } = req.body || {};
     if (!orderId) return badRequest(res, "Missing orderId");
 
-    const { normalizedOrderNo, code, pin } = buildDeliveryCredentials(orderNo);
+    const { normalizedOrderNo, code, token, iat } = buildDeliveryCredentials(orderNo);
     const fallbackOrigin = String(config.FRONTEND_ORIGIN || "").split(",").map((part) => part.trim()).find(Boolean);
     const resolvedConfirmBase = String(confirmUrl || fallbackOrigin || "").trim();
     if (!resolvedConfirmBase) {
@@ -3578,7 +3650,9 @@ router.post("/shopify/orders/delivery-qr-payload", async (req, res) => {
       : [];
     const attrMap = new Map(existingAttrs.map((attr) => [String(attr.name), String(attr.value || "")]));
     attrMap.set("Delivery QR Payload", code);
-    attrMap.set("Delivery QR PIN", pin);
+    attrMap.set("Delivery QR Token", token);
+    attrMap.set("Delivery QR Issued At", new Date(iat * 1000).toISOString());
+    attrMap.delete("Delivery QR PIN");
     attrMap.set("Delivery Confirm URL", confirmTarget);
 
     const noteAttributes = Array.from(attrMap.entries()).map(([name, value]) => ({ name, value }));
@@ -3595,7 +3669,7 @@ router.post("/shopify/orders/delivery-qr-payload", async (req, res) => {
       });
     }
 
-    return res.json({ ok: true, orderNo: normalizedOrderNo, code, pin, confirmUrl: confirmTarget, noteAttributes });
+    return res.json({ ok: true, orderNo: normalizedOrderNo, code, confirmUrl: confirmTarget, noteAttributes });
   } catch (err) {
     console.error("Delivery QR payload update error:", err);
     return res.status(502).json({ error: "UPSTREAM_ERROR", message: String(err?.message || err) });
@@ -3648,15 +3722,25 @@ router.post("/shopify/collection/fulfill-from-code", async (req, res) => {
 
 router.post("/shopify/delivery/complete-from-code", async (req, res) => {
   try {
-    if (!requireShopifyConfigured(res)) return;
+    if (!requireShopifyConfigured(res) || !requireDeliveryCodeSecretConfigured(res)) return;
 
     const { code, orderNo, pin } = req.body || {};
-    const parsed = parseDeliveryCode(code) || parseDeliveryCode(`${orderNo || ""}${pin || ""}`);
-    if (!parsed) return badRequest(res, "Invalid delivery QR payload.");
+    if (!code) {
+      if (orderNo || pin) {
+        return res.status(400).json({
+          error: "LEGACY_CODE_NOT_SUPPORTED",
+          message: "Legacy delivery PIN submission is no longer supported. Provide signed delivery code."
+        });
+      }
+      return badRequest(res, "Missing delivery code.");
+    }
 
-    const expected = buildDeliveryCredentials(parsed.orderNo);
-    if (parsed.pin !== expected.pin) {
-      return res.status(401).json({ error: "INVALID_PIN", message: "Delivery PIN mismatch." });
+    const parsed = parseDeliveryCode(code);
+    if (!parsed || parsed.error) {
+      const error = parsed?.error || "INVALID_DELIVERY_CODE";
+      const message = parsed?.message || "Invalid delivery QR payload.";
+      const status = error === "CODE_EXPIRED" ? 410 : error === "INVALID_SIGNATURE" ? 401 : 400;
+      return res.status(status).json({ error, message });
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
