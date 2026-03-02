@@ -9,6 +9,18 @@ const dispatchState = {
   lastConfirmedAt: null,
   lastConfirmedOrderId: null,
   lastConfirmedLineItemKey: null,
+  quantityPromptOpen: false,
+  quantityPromptTargetOrderId: null,
+  quantityPromptTargetLineItemKey: null,
+  quantityPromptQty: null,
+  lastPackedQtyAdjustedAt: null,
+  lastPackedQtyAdjustDelta: null,
+  lastPackedQtyAdjustOrderId: null,
+  lastPackedQtyAdjustLineItemKey: null,
+  lastPackedQtyCommittedAt: null,
+  lastPackedQtyCommittedOrderId: null,
+  lastPackedQtyCommittedLineItemKey: null,
+  lastPackedQtyCommittedQty: null,
   lastPrintRequestedAt: null,
   lastPrintRequestedOrderId: null,
   lastFulfillRequestedAt: null,
@@ -60,6 +72,12 @@ function hasStateChanged(previousState, nextState) {
   if (previousState.lastConfirmedAt !== nextState.lastConfirmedAt) return true;
   if (previousState.lastConfirmedOrderId !== nextState.lastConfirmedOrderId) return true;
   if (previousState.lastConfirmedLineItemKey !== nextState.lastConfirmedLineItemKey) return true;
+  if (previousState.quantityPromptOpen !== nextState.quantityPromptOpen) return true;
+  if (previousState.quantityPromptTargetOrderId !== nextState.quantityPromptTargetOrderId) return true;
+  if (previousState.quantityPromptTargetLineItemKey !== nextState.quantityPromptTargetLineItemKey) return true;
+  if (previousState.quantityPromptQty !== nextState.quantityPromptQty) return true;
+  if (previousState.lastPackedQtyAdjustedAt !== nextState.lastPackedQtyAdjustedAt) return true;
+  if (previousState.lastPackedQtyCommittedAt !== nextState.lastPackedQtyCommittedAt) return true;
   if (previousState.selectedLineItemKey !== nextState.selectedLineItemKey) return true;
   if (previousState.lastPrintRequestedAt !== nextState.lastPrintRequestedAt) return true;
   if (previousState.lastPrintRequestedOrderId !== nextState.lastPrintRequestedOrderId) return true;
@@ -172,6 +190,18 @@ export function getState() {
     lastConfirmedAt: dispatchState.lastConfirmedAt,
     lastConfirmedOrderId: dispatchState.lastConfirmedOrderId,
     lastConfirmedLineItemKey: dispatchState.lastConfirmedLineItemKey,
+    quantityPromptOpen: dispatchState.quantityPromptOpen,
+    quantityPromptTargetOrderId: dispatchState.quantityPromptTargetOrderId,
+    quantityPromptTargetLineItemKey: dispatchState.quantityPromptTargetLineItemKey,
+    quantityPromptQty: dispatchState.quantityPromptQty,
+    lastPackedQtyAdjustedAt: dispatchState.lastPackedQtyAdjustedAt,
+    lastPackedQtyAdjustDelta: dispatchState.lastPackedQtyAdjustDelta,
+    lastPackedQtyAdjustOrderId: dispatchState.lastPackedQtyAdjustOrderId,
+    lastPackedQtyAdjustLineItemKey: dispatchState.lastPackedQtyAdjustLineItemKey,
+    lastPackedQtyCommittedAt: dispatchState.lastPackedQtyCommittedAt,
+    lastPackedQtyCommittedOrderId: dispatchState.lastPackedQtyCommittedOrderId,
+    lastPackedQtyCommittedLineItemKey: dispatchState.lastPackedQtyCommittedLineItemKey,
+    lastPackedQtyCommittedQty: dispatchState.lastPackedQtyCommittedQty,
     lastPrintRequestedAt: dispatchState.lastPrintRequestedAt,
     lastPrintRequestedOrderId: dispatchState.lastPrintRequestedOrderId,
     lastFulfillRequestedAt: dispatchState.lastFulfillRequestedAt,
@@ -257,11 +287,65 @@ export function confirm() {
     throw err;
   }
 
+  if (dispatchState.quantityPromptOpen) {
+    const nextState = setPackedQty({ qty: dispatchState.quantityPromptQty });
+    emitStateChange("confirm", previousState, nextState);
+    return nextState;
+  }
+
   dispatchState.lastConfirmedOrderId = dispatchState.selectedOrderId;
   dispatchState.lastConfirmedLineItemKey = dispatchState.selectedLineItemKey;
   dispatchState.lastConfirmedAt = new Date().toISOString();
   const nextState = getState();
   emitStateChange("confirm", previousState, nextState);
+  return nextState;
+}
+
+export function confirmHold() {
+  const previousState = getState();
+  ensureSelection();
+  if (!dispatchState.selectedOrderId || !dispatchState.selectedLineItemKey) {
+    const err = new Error("No selected line item to adjust packed quantity.");
+    err.code = "NO_SELECTED_ORDER";
+    throw err;
+  }
+  dispatchState.quantityPromptOpen = true;
+  dispatchState.quantityPromptTargetOrderId = dispatchState.selectedOrderId;
+  dispatchState.quantityPromptTargetLineItemKey = dispatchState.selectedLineItemKey;
+  dispatchState.quantityPromptQty = 0;
+  const nextState = getState();
+  emitStateChange("confirmHold", previousState, nextState);
+  return nextState;
+}
+
+export function adjustPackedQty({ delta } = {}) {
+  const previousState = getState();
+  if (!dispatchState.quantityPromptOpen) return previousState;
+  const step = Number(delta) || 0;
+  dispatchState.quantityPromptQty = Math.max(0, (Number(dispatchState.quantityPromptQty) || 0) + step);
+  dispatchState.lastPackedQtyAdjustedAt = new Date().toISOString();
+  dispatchState.lastPackedQtyAdjustDelta = step;
+  dispatchState.lastPackedQtyAdjustOrderId = dispatchState.quantityPromptTargetOrderId;
+  dispatchState.lastPackedQtyAdjustLineItemKey = dispatchState.quantityPromptTargetLineItemKey;
+  const nextState = getState();
+  emitStateChange("adjustPackedQty", previousState, nextState, { delta: step });
+  return nextState;
+}
+
+export function setPackedQty({ qty } = {}) {
+  const previousState = getState();
+  if (!dispatchState.quantityPromptOpen) return previousState;
+  const nextQty = Math.max(0, Number(qty) || 0);
+  dispatchState.quantityPromptQty = nextQty;
+  dispatchState.lastPackedQtyCommittedAt = new Date().toISOString();
+  dispatchState.lastPackedQtyCommittedOrderId = dispatchState.quantityPromptTargetOrderId;
+  dispatchState.lastPackedQtyCommittedLineItemKey = dispatchState.quantityPromptTargetLineItemKey;
+  dispatchState.lastPackedQtyCommittedQty = nextQty;
+  dispatchState.quantityPromptOpen = false;
+  dispatchState.quantityPromptTargetOrderId = null;
+  dispatchState.quantityPromptTargetLineItemKey = null;
+  const nextState = getState();
+  emitStateChange("setPackedQty", previousState, nextState, { qty: nextQty });
   return nextState;
 }
 
