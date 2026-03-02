@@ -77,6 +77,7 @@ export function initFlocsView() {
   const azBar            = document.getElementById("flocs-azBar");
 
   const toast            = document.getElementById("flocs-toast");
+  const quickPanelId     = "flocs-quickAddPanel";
 
   // ===== STATE =====
   const state = {
@@ -196,6 +197,8 @@ export function initFlocsView() {
   const REQUIRE_RESOLVED_PRICING = CONFIG?.FLOCS?.REQUIRE_RESOLVED_PRICING !== false;
   let autoQuoteTimer = null;
   const deliveryHintDefault = deliveryHint ? deliveryHint.textContent : "";
+  let activeQtyKey = "";
+  let quickAddPanel = null;
 
   function normalizeTags(tags) {
     if (!tags) return [];
@@ -731,13 +734,9 @@ export function initFlocsView() {
   }
 
   function renderSizeQtyControl({ key, value, sizeLabel = "" }) {
-    const quickButtons = QUICK_QTY.map(
-      (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}">${qty}</button>`
-    ).join("");
     const sizeTag = sizeLabel ? `<span class="flocs-sizeTag">${sizeLabel}</span>` : "";
     return `<div class="flocs-qtyArea">
       ${sizeTag}
-      <div class="flocs-qtyQuick">${quickButtons}</div>
       <div class="flocs-qtyWrap">
         <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}" title="Decrease">−</button>
         <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
@@ -745,6 +744,60 @@ export function initFlocsView() {
         <button class="flocs-qtyBtn flocs-qtyBtn--clear" type="button" data-action="clear" data-key="${key}" title="Clear quantity">⨯</button>
       </div>
     </div>`;
+  }
+
+  function ensureQuickAddPanel() {
+    if (quickAddPanel || !shell) return;
+    const quickButtons = QUICK_QTY.map(
+      (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-amount="${qty}">${qty}</button>`
+    ).join("");
+    const panel = document.createElement("div");
+    panel.id = quickPanelId;
+    panel.className = "flocs-quickAddPanel";
+    panel.innerHTML = `
+      <div class="flocs-quickAddPanelLabel">Quick add</div>
+      <div class="flocs-qtyQuick">${quickButtons}</div>
+    `;
+    shell.appendChild(panel);
+    quickAddPanel = panel;
+    setQuickPanelState();
+  }
+
+  function setQuickPanelState() {
+    if (!quickAddPanel) return;
+    const hasActiveKey = Boolean(activeQtyKey);
+    quickAddPanel.classList.toggle("is-disabled", !hasActiveKey);
+    quickAddPanel.setAttribute("aria-disabled", hasActiveKey ? "false" : "true");
+    quickAddPanel.querySelectorAll(".flocs-qtyQuickBtn").forEach((btn) => {
+      btn.disabled = !hasActiveKey;
+    });
+  }
+
+  function applyQtyAction(action, key, amount = 0) {
+    if (!key) return;
+    const current = Number(state.items[key] || 0);
+    const step = state.qtyMode === "cartons" ? Number(state.cartonUnits || 12) : 1;
+    if (action === "quick-add") {
+      if (Number.isFinite(amount) && amount > 0) {
+        state.items[key] = current + displayQtyToUnits(amount);
+      }
+    } else if (action === "inc") {
+      state.items[key] = current + step;
+    } else if (action === "dec") {
+      const next = Math.max(0, current - step);
+      if (next === 0) delete state.items[key];
+      else state.items[key] = next;
+    } else if (action === "clear") {
+      delete state.items[key];
+    } else {
+      return;
+    }
+
+    const input = productsBody?.querySelector(`.flocs-qtyInput[data-key="${CSS.escape(key)}"]`);
+    if (input) input.value = toDisplayQty(state.items[key] || 0);
+    renderInvoice();
+    validate();
+    scheduleAutoQuote();
   }
 
   function renderProductsTable() {
@@ -2003,6 +2056,8 @@ ${state.customer.email || ""}${
     if (errorsBox) {
       errorsBox.textContent = "";
     }
+    activeQtyKey = "";
+    setQuickPanelState();
     if (createDraftBtn) {
       createDraftBtn.textContent = "Create draft order";
     }
@@ -2226,6 +2281,29 @@ ${state.customer.email || ""}${
     }
 
     if (productsBody) {
+      productsBody.addEventListener("focusin", (e) => {
+        const input = e.target;
+        if (!(input instanceof HTMLInputElement) || !input.classList.contains("flocs-qtyInput")) return;
+        activeQtyKey = String(input.dataset.key || "");
+        setQuickPanelState();
+      });
+
+      productsBody.addEventListener("focusout", (e) => {
+        const input = e.target;
+        if (!(input instanceof HTMLInputElement) || !input.classList.contains("flocs-qtyInput")) return;
+        requestAnimationFrame(() => {
+          const focused = document.activeElement;
+          if (
+            focused instanceof HTMLElement &&
+            (focused.classList.contains("flocs-qtyInput") || quickAddPanel?.contains(focused))
+          ) {
+            return;
+          }
+          activeQtyKey = "";
+          setQuickPanelState();
+        });
+      });
+
       productsBody.addEventListener("input", (e) => {
         const t = e.target;
         if (!(t instanceof HTMLInputElement)) return;
@@ -2249,29 +2327,17 @@ ${state.customer.email || ""}${
         const action = btn.dataset.action;
         const key = btn.dataset.key;
         if (!key) return;
-        const current = Number(state.items[key] || 0);
-        const step = state.qtyMode === "cartons" ? Number(state.cartonUnits || 12) : 1;
-        if (action === "quick-add") {
-          const amount = Number(btn.dataset.amount || 0);
-          if (Number.isFinite(amount) && amount > 0) {
-            state.items[key] = current + displayQtyToUnits(amount);
-          }
-        } else if (action === "inc") {
-          state.items[key] = current + step;
-        } else if (action === "dec") {
-          const next = Math.max(0, current - step);
-          if (next === 0) delete state.items[key];
-          else state.items[key] = next;
-        } else if (action === "clear") {
-          delete state.items[key];
-        } else {
-          return;
-        }
-        const input = productsBody.querySelector(`.flocs-qtyInput[data-key="${CSS.escape(key)}"]`);
-        if (input) input.value = toDisplayQty(state.items[key] || 0);
-        renderInvoice();
-        validate();
-        scheduleAutoQuote();
+        activeQtyKey = key;
+        setQuickPanelState();
+        applyQtyAction(action, key, Number(btn.dataset.amount || 0));
+      });
+    }
+
+    if (quickAddPanel) {
+      quickAddPanel.addEventListener("click", (e) => {
+        const btn = e.target.closest(".flocs-qtyQuickBtn[data-action='quick-add']");
+        if (!btn || !activeQtyKey) return;
+        applyQtyAction("quick-add", activeQtyKey, Number(btn.dataset.amount || 0));
       });
     }
 
@@ -2387,6 +2453,7 @@ ${state.customer.email || ""}${
 
   // ===== BOOT =====
   function boot() {
+    ensureQuickAddPanel();
     renderProductsTable();
     resetForm();
     hydratePriceTiersForProducts(state.products);
