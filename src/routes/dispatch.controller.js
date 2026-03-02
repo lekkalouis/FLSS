@@ -3,6 +3,9 @@ import { Router } from "express";
 import { config } from "../config.js";
 import {
   confirm,
+  confirmHold,
+  adjustPackedQty,
+  setPackedQty,
   requestFulfill,
   requestPrint,
   getEnvironmentState,
@@ -173,7 +176,7 @@ router.post("/dispatch/remote/action", (req, res) => {
     return res.status(400).json({ ok: false, error: "action is required" });
   }
 
-  const allowed = new Set(["next", "prev", "confirm", "print", "fulfill"]);
+  const allowed = new Set(["next", "prev", "confirm", "print", "fulfill", "confirm_hold", "qty_increase", "qty_decrease", "set_packed_qty"]);
   if (!allowed.has(action)) {
     return res.status(400).json({ ok: false, error: "Unsupported remote action" });
   }
@@ -194,9 +197,16 @@ router.post("/dispatch/remote/action", (req, res) => {
     if (action === "confirm") state = confirm();
     if (action === "print") state = requestPrint();
     if (action === "fulfill") state = requestFulfill();
+    if (action === "confirm_hold") state = confirmHold({ lineItemKey: req.body?.lineItemKey, qty: req.body?.qty });
+    if (action === "qty_increase") state = adjustPackedQty({ delta: 1, lineItemKey: req.body?.lineItemKey });
+    if (action === "qty_decrease") state = adjustPackedQty({ delta: -1, lineItemKey: req.body?.lineItemKey });
+    if (action === "set_packed_qty") state = setPackedQty({ lineItemKey: req.body?.lineItemKey, qty: req.body?.qty });
     return res.json({ ok: true, action, selectedOrderId: state?.selectedOrderId || null, selectedLineItemKey: state?.selectedLineItemKey || null });
   } catch (error) {
     if (error?.code === "NO_SELECTED_ORDER") {
+      return res.status(409).json({ ok: false, action, error: error.message });
+    }
+    if (error?.code === "NO_SELECTED_LINE_ITEM") {
       return res.status(409).json({ ok: false, action, error: error.message });
     }
     if (error?.code === "INVALID_REMOTE_PAYLOAD") {
