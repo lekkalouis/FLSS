@@ -110,6 +110,40 @@ test('environment ingest endpoint stores telemetry and statusz includes summary'
 
 
 
+
+
+test('environment ingest accepts alias telemetry keys and deviceId fallback', async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const nowIso = new Date().toISOString();
+    const ingestResponse = await fetch(`${baseUrl}/api/v1/environment/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deviceId: 'sensor-alias-01',
+        timestamp: nowIso,
+        temperature: 24.1,
+        humidity: 49.7,
+        status: 'ok',
+        lastUpdated: nowIso
+      })
+    });
+    assert.equal(ingestResponse.status, 200);
+    const ingestBody = await ingestResponse.json();
+    assert.equal(ingestBody.ok, true);
+    assert.equal(ingestBody.environment.stationId, 'sensor-alias-01');
+    assert.equal(ingestBody.environment.temperatureC, 24.1);
+    assert.equal(ingestBody.environment.humidityPct, 49.7);
+
+    const statusResponse = await fetch(`${baseUrl}/api/v1/statusz`);
+    assert.equal(statusResponse.status, 200);
+    const statusBody = await statusResponse.json();
+    assert.equal(statusBody.environment.temperatureC, 24.1);
+    assert.equal(statusBody.environment.humidityPct, 49.7);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
 test('statusz uses dispatch environment when telemetry is empty', async () => {
   const { server, baseUrl } = await startServer();
   try {
