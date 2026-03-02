@@ -3176,20 +3176,73 @@ async function startOrder(orderNo) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code })
       });
+
+      const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+      const isJson = contentType.includes("application/json");
+      const payload = isJson
+        ? await res.json().catch(() => ({}))
+        : { message: await res.text().catch(() => "") };
+
       if (!res.ok) {
-        const text = await res.text();
+        const errorCode = String(payload?.error || "").toUpperCase();
+        const errorMessage = String(payload?.message || payload?.body || "").trim();
+        const isAlreadyDelivered =
+          errorCode === "ORDER_NOT_FOUND" ||
+          errorCode === "ALREADY_DELIVERED" ||
+          (errorCode === "FULFILL_FAILED" && /already\s+fulfilled|already\s+delivered/i.test(errorMessage));
+        const isInvalidCode =
+          errorCode === "CODE_EXPIRED" ||
+          errorCode === "INVALID_SIGNATURE" ||
+          errorCode === "INVALID_CODE_FORMAT" ||
+          errorCode === "INVALID_CODE_VERSION" ||
+          errorCode === "INVALID_CODE_PAYLOAD" ||
+          errorCode === "INVALID_DELIVERY_CODE" ||
+          errorCode === "LEGACY_CODE_NOT_SUPPORTED";
+
+        if (isAlreadyDelivered) {
+          statusExplain("Delivery already confirmed for this order.", "ok");
+          logDispatchEvent(`Delivery already confirmed (${errorCode || res.status}).`);
+          return {
+            outcome: "already-confirmed",
+            orderNo: payload?.orderNo || "",
+            message: payload?.message || "This order was already marked as delivered."
+          };
+        }
+
+        if (isInvalidCode) {
+          statusExplain("Delivery code is invalid or expired.", "warn");
+          logDispatchEvent(`Delivery code rejected: ${errorCode || res.status} ${errorMessage}`);
+          return {
+            outcome: "invalid-code",
+            orderNo: payload?.orderNo || "",
+            message: payload?.message || "The delivery code is invalid or expired."
+          };
+        }
+
         statusExplain("Delivery scan failed.", "warn");
-        logDispatchEvent(`Delivery scan failed: ${text}`);
-        return false;
+        logDispatchEvent(`Delivery scan failed: ${errorCode || res.status} ${errorMessage}`);
+        return {
+          outcome: "failed",
+          orderNo: payload?.orderNo || "",
+          message: payload?.message || "Delivery confirmation failed."
+        };
       }
-      const payload = await res.json();
+
       statusExplain(`Delivery completed for order ${payload.orderNo}.`, "ok");
       logDispatchEvent(`Delivery completed from code for order ${payload.orderNo}.`);
-      return true;
+      return {
+        outcome: "confirmed",
+        orderNo: payload?.orderNo || "",
+        message: payload?.message || "Delivery confirmed."
+      };
     } catch (err) {
       statusExplain("Delivery scan failed.", "warn");
       logDispatchEvent(`Delivery scan failed: ${String(err)}`);
-      return false;
+      return {
+        outcome: "failed",
+        orderNo: "",
+        message: "Delivery confirmation failed."
+      };
     }
   }
 
@@ -7339,14 +7392,23 @@ async function startOrder(orderNo) {
       const params = new URLSearchParams(window.location.search || "");
       const code = params.get("code") || "";
       if (code) {
-        const ok = await handleDeliveryScan(code);
-        if (ok) {
-          document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">✅ Delivery confirmed. You can close this page.</div>';
+        const result = await handleDeliveryScan(code);
+        if (result?.outcome === "confirmed") {
+          document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">✅ Delivery confirmed. Thanks driver — this stop has been completed and you can close this page.</div>';
           setTimeout(() => window.close(), 1200);
           return;
         }
+        if (result?.outcome === "already-confirmed") {
+          document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">ℹ️ This delivery was already confirmed earlier. No further action is needed — you can close this page.</div>';
+          setTimeout(() => window.close(), 1200);
+          return;
+        }
+        if (result?.outcome === "invalid-code") {
+          document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">❌ Invalid or expired delivery code. Please rescan the latest QR code or contact dispatch for a new confirmation link.</div>';
+          return;
+        }
       }
-      document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">⚠️ Delivery confirmation failed.</div>';
+      document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">⚠️ Delivery confirmation could not be completed. Please try again or contact dispatch.</div>';
       return;
     }
 
