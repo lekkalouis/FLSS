@@ -2838,8 +2838,13 @@
   }
 
 
-  .flHeaderMeta{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;justify-content:flex-end;}
-  .flHeaderEnv,.flHeaderDateTime{font-size:.72rem;color:var(--text-muted);}
+  .flHeaderMeta{display:flex;align-items:flex-start;gap:.75rem;flex-wrap:wrap;justify-content:flex-end;}
+  .flHeaderEnv{display:flex;gap:.75rem;align-items:flex-start;}
+  .flHeaderDateTime{font-size:.78rem;color:var(--text-muted);font-weight:600;letter-spacing:.01em;white-space:nowrap;padding-top:.15rem;}
+  .flHeaderMetric{display:flex;flex-direction:column;line-height:1.1;}
+  .flHeaderMetricLabel{font-size:.64rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-weight:700;}
+  .flHeaderMetricValue{font-size:.98rem;font-weight:800;color:var(--text-main);}
+  .flHeaderMetricUnit{font-size:.72rem;font-weight:700;color:var(--text-muted);margin-left:.12rem;}
   .dispatchSelectionOrderCards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem;margin-top:.5rem;}
   .dispatchSelectionOrderCard{border:1px solid rgba(148,163,184,.35);border-radius:.55rem;padding:.45rem .55rem;background:#fff;}
   .dispatchSelectionOrderCardTitle{font-size:.72rem;color:var(--text-muted);}
@@ -2857,7 +2862,7 @@
         <div class="flSideHeader">
           <div class="flNavTitle">Flippen Lekka Operations</div>
           <div class="flHeaderMeta">
-            <div id="dispatchEnvironmentSummary" class="flHeaderEnv">🌡 — · 💧 —</div>
+            <div id="dispatchEnvironmentSummary" class="flHeaderEnv"><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Temp</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span></span><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Humidity</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span></span></div>
             <div id="dispatchDateTimeSummary" class="flHeaderDateTime">—</div>
             <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
               <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
