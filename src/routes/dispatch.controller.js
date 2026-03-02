@@ -2,7 +2,9 @@ import { Router } from "express";
 
 import { config } from "../config.js";
 import {
+  adjustPackedQty,
   confirm,
+  confirmHold,
   requestFulfill,
   requestPrint,
   getEnvironmentState,
@@ -13,6 +15,7 @@ import {
   onStateChange,
   prev,
   recordRemoteHeartbeat,
+  setPackedQty,
   syncState,
   upsertEnvironmentReading
 } from "../services/dispatchController.js";
@@ -173,7 +176,7 @@ router.post("/dispatch/remote/action", (req, res) => {
     return res.status(400).json({ ok: false, error: "action is required" });
   }
 
-  const allowed = new Set(["next", "prev", "confirm", "print", "fulfill"]);
+  const allowed = new Set(["next", "prev", "confirm", "confirm_hold", "qty_up", "qty_down", "qty_increase", "qty_decrease", "set_packed_qty", "print", "fulfill"]);
   if (!allowed.has(action)) {
     return res.status(400).json({ ok: false, error: "Unsupported remote action" });
   }
@@ -192,6 +195,10 @@ router.post("/dispatch/remote/action", (req, res) => {
     if (action === "next") state = next();
     if (action === "prev") state = prev();
     if (action === "confirm") state = confirm();
+    if (action === "confirm_hold") state = confirmHold();
+    if (action === "qty_up" || action === "qty_increase") state = adjustPackedQty({ delta: 1 });
+    if (action === "qty_down" || action === "qty_decrease") state = adjustPackedQty({ delta: -1 });
+    if (action === "set_packed_qty") state = setPackedQty({ qty: req.body?.qty });
     if (action === "print") state = requestPrint();
     if (action === "fulfill") state = requestFulfill();
     return res.json({ ok: true, action, selectedOrderId: state?.selectedOrderId || null, selectedLineItemKey: state?.selectedLineItemKey || null });

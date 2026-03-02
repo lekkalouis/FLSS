@@ -503,6 +503,10 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   let truckBookedBy = null;
   let truckBookingInFlight = false;
   let dispatchLineHoldTriggered = false;
+  let dispatchLineHoldTimer = null;
+  let dispatchPackedQtyModal = null;
+  let dispatchPackedQtyModalState = null;
+  let dispatchLastHandledPackedQtyCommitAt = null;
   let dispatchRotaryFocusIndex = -1;
   let dispatchRotaryFocusKey = "";
   let dispatchRotarySelectedKey = "";
@@ -662,6 +666,92 @@ import { initScanStationNext } from "./views/scan-station-next.js";
       });
       document.body.appendChild(modal);
     });
+  }
+
+  function closeDispatchPackedQtyPrompt() {
+    if (dispatchPackedQtyModal) {
+      dispatchPackedQtyModal.remove();
+    }
+    dispatchPackedQtyModal = null;
+    dispatchPackedQtyModalState = null;
+  }
+
+  function updateDispatchPackedQtyPromptValue(nextValue) {
+    if (!dispatchPackedQtyModalState || !dispatchPackedQtyModal) return;
+    const clamped = Math.max(0, Math.min(dispatchPackedQtyModalState.maxQty, Number(nextValue) || 0));
+    dispatchPackedQtyModalState.value = clamped;
+    const valueEl = dispatchPackedQtyModal.querySelector(".dispatchPackedQtyValue");
+    if (valueEl) valueEl.textContent = String(clamped);
+  }
+
+  function getDispatchLineMaxPackQty(orderNo, itemKey) {
+    if (!orderNo || !itemKey) return 0;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return 0;
+    const state = dispatchPackingState.get(orderNo) || getPackingState(order);
+    const item = state ? getPackingItem(state, itemKey) : null;
+    if (!item) return 0;
+    const orderLineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const orderLineItem = Number.isInteger(item.index) ? orderLineItems[item.index] : null;
+    const qty = orderLineItem ? getRemainingLineItemQty(orderLineItem) : Number(item.quantity) || 0;
+    return Math.max(0, Number(qty) || 0);
+  }
+
+  function showDispatchPackedQtyPrompt(orderNo, itemKey) {
+    const maxQty = getDispatchLineMaxPackQty(orderNo, itemKey);
+    if (maxQty <= 0) return;
+    closeDispatchPackedQtyPrompt();
+
+    const modal = document.createElement("div");
+    modal.className = "dispatchPackedQtyModal";
+    modal.innerHTML = `
+      <div class="dispatchPackedQtyBackdrop" data-action="cancel" aria-hidden="true"></div>
+      <div class="dispatchPackedQtyCard" role="dialog" aria-modal="true" aria-labelledby="dispatchPackedQtyTitle">
+        <h3 id="dispatchPackedQtyTitle">Set packed quantity</h3>
+        <p>Use the rotary knob or buttons to choose a value.</p>
+        <div class="dispatchPackedQtyControls">
+          <button type="button" class="dispatchPackedQtyBtn" data-action="decrease" aria-label="Decrease packed quantity">−</button>
+          <div class="dispatchPackedQtyValue" aria-live="polite">0</div>
+          <button type="button" class="dispatchPackedQtyBtn" data-action="increase" aria-label="Increase packed quantity">+</button>
+        </div>
+        <div class="dispatchPackedQtyMax">Range: 0 to ${maxQty}</div>
+        <div class="dispatchPackedQtyActions">
+          <button type="button" class="dispatchPackedQtyAction dispatchPackedQtyAction--ghost" data-action="cancel">Cancel</button>
+          <button type="button" class="dispatchPackedQtyAction dispatchPackedQtyAction--primary" data-action="confirm">Confirm</button>
+        </div>
+      </div>
+    `;
+
+    dispatchPackedQtyModal = modal;
+    dispatchPackedQtyModalState = {
+      orderNo,
+      itemKey,
+      maxQty,
+      value: 0
+    };
+
+    modal.addEventListener("click", (event) => {
+      const action = event.target.closest("[data-action]")?.dataset?.action;
+      if (!action) return;
+      if (action === "cancel") {
+        closeDispatchPackedQtyPrompt();
+        return;
+      }
+      if (action === "increase") {
+        updateDispatchPackedQtyPromptValue(dispatchPackedQtyModalState.value + 1);
+        return;
+      }
+      if (action === "decrease") {
+        updateDispatchPackedQtyPromptValue(dispatchPackedQtyModalState.value - 1);
+        return;
+      }
+      if (action === "confirm") {
+        setDispatchLinePackedQuantity(orderNo, itemKey, dispatchPackedQtyModalState.value);
+        closeDispatchPackedQtyPrompt();
+      }
+    });
+
+    document.body.appendChild(modal);
   }
 
   const triggerBookedFlash = () => {};
@@ -5677,6 +5767,44 @@ async function startOrder(orderNo) {
       }
     }
 
+    const qtyPromptOpen = Boolean(dispatchControllerState.quantityPromptOpen);
+    const qtyPromptOrderId = String(dispatchControllerState.quantityPromptTargetOrderId || selectedOrderId || "").trim();
+    const qtyPromptLineItemKey = String(dispatchControllerState.quantityPromptTargetLineItemKey || selectedLineItemKey || "").trim();
+    const packedQtyModalOpen = typeof dispatchPackedQtyModal !== "undefined" ? Boolean(dispatchPackedQtyModal) : false;
+    const packedQtyModalState = typeof dispatchPackedQtyModalState !== "undefined" ? dispatchPackedQtyModalState : null;
+    if (qtyPromptOpen && qtyPromptOrderId && qtyPromptLineItemKey) {
+      if (!packedQtyModalOpen && typeof showDispatchPackedQtyPrompt === "function") {
+        showDispatchPackedQtyPrompt(qtyPromptOrderId, qtyPromptLineItemKey);
+      }
+      if (
+        packedQtyModalState &&
+        packedQtyModalState.orderNo === qtyPromptOrderId &&
+        packedQtyModalState.itemKey === qtyPromptLineItemKey &&
+        typeof updateDispatchPackedQtyPromptValue === "function"
+      ) {
+        updateDispatchPackedQtyPromptValue(dispatchControllerState.quantityPromptQty);
+      }
+    }
+
+    const packedQtyAdjustedAt = dispatchControllerState.lastPackedQtyAdjustedAt;
+    if (packedQtyAdjustedAt && packedQtyModalState && typeof updateDispatchPackedQtyPromptValue === "function") {
+      updateDispatchPackedQtyPromptValue(dispatchControllerState.quantityPromptQty);
+    }
+
+    const packedQtyCommittedAt = dispatchControllerState.lastPackedQtyCommittedAt;
+    const packedQtyCommittedOrderId = String(dispatchControllerState.lastPackedQtyCommittedOrderId || "").trim();
+    const packedQtyCommittedLineItemKey = String(dispatchControllerState.lastPackedQtyCommittedLineItemKey || "").trim();
+    if (packedQtyCommittedAt && packedQtyCommittedAt !== dispatchLastHandledPackedQtyCommitAt && packedQtyCommittedOrderId && packedQtyCommittedLineItemKey) {
+      dispatchLastHandledPackedQtyCommitAt = packedQtyCommittedAt;
+      setDispatchLinePackedQuantity(packedQtyCommittedOrderId, packedQtyCommittedLineItemKey, dispatchControllerState.lastPackedQtyCommittedQty);
+      if (typeof closeDispatchPackedQtyPrompt === "function") {
+        closeDispatchPackedQtyPrompt();
+      }
+    }
+    if (!qtyPromptOpen && packedQtyModalOpen && typeof closeDispatchPackedQtyPrompt === "function") {
+      closeDispatchPackedQtyPrompt();
+    }
+
     const printRequestedAt = dispatchControllerState.lastPrintRequestedAt;
     const printOrderId = String(dispatchControllerState.lastPrintRequestedOrderId || "").trim();
     if (printRequestedAt && printRequestedAt !== dispatchLastHandledPrintRequestAt && printOrderId) {
@@ -7038,8 +7166,35 @@ async function startOrder(orderNo) {
     if (ok) input.dataset.lastValue = String(parsed);
   }
 
-  dispatchBoard?.addEventListener("pointerdown", () => {
+  dispatchBoard?.addEventListener("pointerdown", (e) => {
     dispatchLineHoldTriggered = false;
+    if (dispatchLineHoldTimer) {
+      clearTimeout(dispatchLineHoldTimer);
+      dispatchLineHoldTimer = null;
+    }
+    const lineItem = e.target.closest(".dispatchLineItem");
+    if (!lineItem || e.target.closest("button") || e.target.closest("input") || e.target.closest("label")) return;
+    const orderNo = String(lineItem.dataset.orderNo || "").trim();
+    const itemKey = decodeURIComponent(String(lineItem.dataset.itemKey || "").trim());
+    if (!orderNo || !itemKey) return;
+    dispatchLineHoldTimer = setTimeout(() => {
+      dispatchLineHoldTriggered = true;
+      showDispatchPackedQtyPrompt(orderNo, itemKey);
+    }, 450);
+  });
+
+  dispatchBoard?.addEventListener("pointerup", () => {
+    if (dispatchLineHoldTimer) {
+      clearTimeout(dispatchLineHoldTimer);
+      dispatchLineHoldTimer = null;
+    }
+  });
+
+  dispatchBoard?.addEventListener("pointercancel", () => {
+    if (dispatchLineHoldTimer) {
+      clearTimeout(dispatchLineHoldTimer);
+      dispatchLineHoldTimer = null;
+    }
   });
 
   dispatchBoard?.addEventListener("click", async (e) => {
