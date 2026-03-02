@@ -3,6 +3,38 @@ import { normalizeFlavourKey, resolveFlavourColor } from "./flavour-map.js";
 
 let flocsInitialized = false;
 
+const MATRIX_POPCORN_SIZES = ["100ml"];
+const MATRIX_BASE_SIZES = ["200ml"];
+const MATRIX_BULK_SIZES = ["500g", "750g", "750g Tub", "1kg"];
+const MATRIX_SIZES = [...MATRIX_POPCORN_SIZES, ...MATRIX_BASE_SIZES, ...MATRIX_BULK_SIZES];
+
+const SPICE_FLAVOUR_ORDER_LABELS = [
+  "Original",
+  "Hot & Spicy",
+  "Worcester Sauce",
+  "Red Wine & Garlic",
+  "Chutney Sprinkle",
+  "Savoury Herbs",
+  "Salt & Vinegar"
+];
+const POPCORN_FLAVOUR_ORDER_LABELS = [
+  "Butter",
+  "Sour Cream & Chives",
+  "Chutney",
+  "Parmesan Cheese",
+  "Cheese & Onion",
+  "Salt & Vinegar"
+];
+const SPICE_FLAVOUR_ORDER = SPICE_FLAVOUR_ORDER_LABELS.map((flavour) => normalizeFlavourKey(flavour));
+const POPCORN_FLAVOUR_ORDER = POPCORN_FLAVOUR_ORDER_LABELS.map((flavour) => normalizeFlavourKey(flavour));
+
+export function flavourSortIndexForType(flavour, productType = "spices") {
+  const key = normalizeFlavourKey(flavour);
+  const order = productType === "popcorn" ? POPCORN_FLAVOUR_ORDER : SPICE_FLAVOUR_ORDER;
+  const idx = order.indexOf(key);
+  return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+}
+
 export function initFlocsView() {
   if (flocsInitialized) return;
   flocsInitialized = true;
@@ -171,27 +203,6 @@ export function initFlocsView() {
 
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
   const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 36, 48, 50, 100, 250];
-  const MATRIX_POPCORN_SIZES = ["100ml"];
-  const MATRIX_BASE_SIZES = ["200ml"];
-  const MATRIX_BULK_SIZES = ["500g", "750g", "750g Tub", "1kg"];
-  const MATRIX_SIZES = [...MATRIX_POPCORN_SIZES, ...MATRIX_BASE_SIZES, ...MATRIX_BULK_SIZES];
-  const SPICE_FLAVOUR_ORDER = [
-    "original",
-    "hot",
-    "worcester sauce",
-    "red wine and garlic",
-    "chutney sprinkle",
-    "savoury herbs",
-    "salt and vinegar"
-  ];
-  const POPCORN_FLAVOUR_ORDER = [
-    "butter",
-    "sour cream & chives",
-    "chutney",
-    "parmesan cheese",
-    "cheese & onion",
-    "salt & vinegar"
-  ];
   const AUTO_QUOTE_DELAY_MS = 3000;
   const REQUIRE_RESOLVED_PRICING = CONFIG?.FLOCS?.REQUIRE_RESOLVED_PRICING !== false;
   let autoQuoteTimer = null;
@@ -671,10 +682,7 @@ export function initFlocsView() {
   }
 
   function flavourSortIndex(flavour) {
-    const key = flavourKey(flavour);
-    const order = state.productType === "popcorn" ? POPCORN_FLAVOUR_ORDER : SPICE_FLAVOUR_ORDER;
-    const idx = order.indexOf(key);
-    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+    return flavourSortIndexForType(flavour, state.productType);
   }
 
   function groupedProductsForMatrix() {
