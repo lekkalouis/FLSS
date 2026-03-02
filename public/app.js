@@ -526,6 +526,84 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     document.body.appendChild(modal);
   }
 
+  function showSiteConfirm({
+    title = "Confirm action",
+    message = "Are you sure you want to continue?",
+    tone = "warn",
+    confirmLabel = "Confirm",
+    cancelLabel = "Cancel",
+    confirmStyle = "primary"
+  } = {}) {
+    return new Promise((resolve) => {
+      const existing = document.getElementById("flssSiteConfirmModal");
+      if (existing) existing.remove();
+
+      const modal = document.createElement("div");
+      modal.id = "flssSiteConfirmModal";
+      modal.className = "dispatchSiteAlertModal";
+      modal.innerHTML = `
+        <div class="dispatchSiteAlertModal__backdrop" data-action="cancel-confirm" aria-hidden="true"></div>
+        <div class="dispatchSiteAlertModal__content dispatchSiteAlertModal__content--${tone}" role="dialog" aria-modal="true" aria-labelledby="dispatchSiteConfirmTitle" aria-describedby="dispatchSiteConfirmMessage">
+          <div class="dispatchSiteAlertModal__header">
+            <h3 id="dispatchSiteConfirmTitle">${title}</h3>
+            <button type="button" class="dispatchSiteAlertModal__close" data-action="cancel-confirm" aria-label="Close confirmation">✕</button>
+          </div>
+          <div class="dispatchSiteAlertModal__body" id="dispatchSiteConfirmMessage">${message}</div>
+          <div class="dispatchSiteAlertModal__actions dispatchSiteAlertModal__actions--split">
+            <button type="button" class="dispatchSiteAlertModal__secondary" data-action="cancel-confirm">${cancelLabel}</button>
+            <button type="button" class="dispatchSiteAlertModal__confirm dispatchSiteAlertModal__confirm--${confirmStyle}" data-action="confirm">${confirmLabel}</button>
+          </div>
+        </div>
+      `;
+
+      const close = (didConfirm) => {
+        modal.remove();
+        resolve(Boolean(didConfirm));
+      };
+
+      const focusables = () => Array.from(
+        modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+      ).filter((node) => !node.hasAttribute("disabled"));
+
+      modal.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          close(false);
+          return;
+        }
+        if (event.key === "Tab") {
+          const items = focusables();
+          if (!items.length) return;
+          const first = items[0];
+          const last = items[items.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      });
+
+      modal.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.dataset.action === "confirm") {
+          close(true);
+          return;
+        }
+        if (target.dataset.action === "cancel-confirm") {
+          close(false);
+        }
+      });
+
+      document.body.appendChild(modal);
+      const primary = modal.querySelector('[data-action="confirm"]');
+      if (primary instanceof HTMLElement) primary.focus();
+    });
+  }
+
   const triggerBookedFlash = () => {};
 
   const appendDebug = (msg) => {
@@ -958,6 +1036,37 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     }
   }
 
+  function playIncomingOrderSwooshCue() {
+    try {
+      if (!dispatchAudioCtx) {
+        dispatchAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = dispatchAudioCtx;
+      const now = ctx.currentTime;
+      const tones = [
+        { freq: 520, duration: 0.08, gain: 0.07, type: "triangle", delay: 0 },
+        { freq: 740, duration: 0.1, gain: 0.08, type: "sine", delay: 0.045 },
+        { freq: 960, duration: 0.09, gain: 0.06, type: "triangle", delay: 0.09 }
+      ];
+      tones.forEach((tone) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const startAt = now + tone.delay;
+        osc.type = tone.type;
+        osc.frequency.setValueAtTime(tone.freq, startAt);
+        osc.frequency.exponentialRampToValueAtTime(tone.freq * 1.16, startAt + tone.duration);
+        gain.gain.setValueAtTime(tone.gain, startAt);
+        gain.gain.exponentialRampToValueAtTime(0.001, startAt + tone.duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startAt);
+        osc.stop(startAt + tone.duration);
+      });
+    } catch (e) {
+      appendDebug("Incoming swoosh blocked: " + String(e));
+    }
+  }
+
   function triggerScreenFlash(type = "success") {
     if (!screenFlash) return;
     screenFlash.classList.remove("screenFlash--success", "screenFlash--failure", "screenFlash--warn");
@@ -1146,13 +1255,8 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     speakAnnouncement(`Great news. Booking successful${suffix}.`);
   }
 
-  function announceIncomingOrder(order) {
-    if (!voiceSettings.announceIncomingOrders) return;
-    const customer = String(order?.customer_name || order?.shipping_name || "Customer").trim();
-    const itemsText = buildOrderLineItemsAnnouncement(order, voiceSettings.maxLineItems);
-    const base = `New incoming order for ${customer}.`;
-    const fullMessage = itemsText ? `${base} Items: ${itemsText}.` : base;
-    speakAnnouncement(fullMessage, { cancelCurrent: false });
+  function announceIncomingOrder() {
+    playIncomingOrderSwooshCue();
   }
 
   const dispatchProgressTargets = [
@@ -6652,7 +6756,14 @@ async function startOrder(orderNo) {
       return;
     }
     if (truckBooked) {
-      const confirmReset = window.confirm("Mark truck collection as not booked?");
+      const confirmReset = await showSiteConfirm({
+        title: "Reset truck booking",
+        message: "Mark truck collection as not booked?",
+        tone: "warn",
+        confirmLabel: "Mark not booked",
+        cancelLabel: "Keep booked",
+        confirmStyle: "danger"
+      });
       if (!confirmReset) return;
       updateTruckBookingState({ booked: false, bookedBy: "manual" });
       statusExplain("Truck marked as not booked.", "warn");
@@ -6852,7 +6963,14 @@ async function startOrder(orderNo) {
     }
     if (actionType === "fulfill-shipping") {
       if (!orderNo) return true;
-      const proceedFulfill = window.confirm(`Proceed with fulfillment for order ${orderNo}?`);
+      const proceedFulfill = await showSiteConfirm({
+        title: `Fulfill order ${orderNo}`,
+        message: `Proceed with fulfillment for order ${orderNo}?`,
+        tone: "warn",
+        confirmLabel: "Proceed",
+        cancelLabel: "Cancel",
+        confirmStyle: "primary"
+      });
       if (!proceedFulfill) return true;
       const order = dispatchOrderCache.get(orderNo);
       if (!order?.id) {
@@ -6868,9 +6986,16 @@ async function startOrder(orderNo) {
 
       const isSplitFulfillment = !fulfillmentState.allRemainingPacked;
       if (isSplitFulfillment) {
-        const proceed = window.confirm(
-          `Not all line items are marked packed for order ${orderNo}. Continuing will create a split fulfillment for only the packed items. Continue?`
-        );
+        const proceed = await showSiteConfirm({
+          title: "Split fulfillment warning",
+          message:
+            `Not all line items are marked packed for order ${orderNo}. ` +
+            "Continuing will create a split fulfillment for only the packed items.",
+          tone: "warn",
+          confirmLabel: "Create split fulfillment",
+          cancelLabel: "Review packed items",
+          confirmStyle: "danger"
+        });
         if (!proceed) return true;
       }
 
