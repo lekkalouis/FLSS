@@ -95,7 +95,7 @@ export function initFlocsView() {
     priceTier: null,
     customerTags: [],
     productType: "spices",
-    showBulkColumns: false,
+    showBulkColumns: true,
     qtyMode: "units",
     cartonUnits: 12,
     priceOverrides: {},
@@ -172,7 +172,7 @@ export function initFlocsView() {
   const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 36, 48, 50, 100, 250];
   const MATRIX_POPCORN_SIZES = ["100ml"];
   const MATRIX_BASE_SIZES = ["200ml"];
-  const MATRIX_BULK_SIZES = ["500g", "1kg", "750g"];
+  const MATRIX_BULK_SIZES = ["500g", "750g", "750g Tub", "1kg"];
   const MATRIX_SIZES = [...MATRIX_POPCORN_SIZES, ...MATRIX_BASE_SIZES, ...MATRIX_BULK_SIZES];
   const SPICE_FLAVOUR_ORDER = [
     "original",
@@ -625,8 +625,13 @@ export function initFlocsView() {
   function normalizeMatrixSize(size) {
     const normalized = String(size || "").toLowerCase().replace(/\s+/g, " ").trim();
     if (normalized === "250ml") return "200ml";
-    if (normalized === "750g tub" || normalized === "750g tubs") return "750g";
+    if (normalized === "750g tubs") return "750g tub";
     return normalized;
+  }
+
+  function isMatrixSize(size) {
+    const normalized = normalizeMatrixSize(size);
+    return MATRIX_SIZES.some((matrixSize) => normalizeMatrixSize(matrixSize) === normalized);
   }
 
   function visibleMatrixSizes() {
@@ -638,7 +643,10 @@ export function initFlocsView() {
 
   function renderProductsHeader() {
     if (!productsHeadRow) return;
-    productsHeadRow.innerHTML = `<th>SKU / Flavour</th><th>Description</th><th>Size & quantity</th>`;
+    const sizeHeaders = visibleMatrixSizes()
+      .map((size) => `<th>${size}</th>`)
+      .join("");
+    productsHeadRow.innerHTML = `<th>SKU / Flavour</th><th>Description</th>${sizeHeaders}`;
   }
 
   function renderBulkToggleState() {
@@ -745,9 +753,10 @@ export function initFlocsView() {
     renderProductsHeader();
     renderBulkToggleState();
     const grouped = groupedProductsForMatrix();
+    const matrixColumnCount = Math.max(activeSizes.length, 1);
     const nonMatrixProducts = filteredProductsForMatrix().filter((product) => {
       const normalizedSize = normalizeMatrixSize(product.size);
-      return !normalizedSize || !MATRIX_SIZES.includes(normalizedSize);
+      return !normalizedSize || !isMatrixSize(normalizedSize);
     });
     if (!grouped.length) {
       const extraRows = nonMatrixProducts.map((product) => {
@@ -758,30 +767,30 @@ export function initFlocsView() {
         return `<tr style="--flavour-color:${flavourColor(product.flavour)}">
           <td>${product.sku || ""}</td>
           <td><span class="flocs-productName">${displayProductTitle(product)}</span></td>
-          <td class="flocs-matrixCell">${qtyControl}</td>
+          <td class="flocs-matrixCell" colspan="${matrixColumnCount}">${qtyControl}</td>
         </tr>`;
       }).join("");
-      const emptyRow = `<tr><td colspan="3" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
+      const emptyRow = `<tr><td colspan="${2 + matrixColumnCount}" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
       productsBody.innerHTML = `${emptyRow}${extraRows}`;
       return;
     }
     const groupedRows = grouped
       .map(([flavour, bySize]) => {
-        const cellLines = activeSizes.map((label) => {
+        const sizeCells = activeSizes.map((label) => {
           const lookup = normalizeMatrixSize(label);
           const product = bySize.get(lookup);
-          if (!product) return "";
+          if (!product) return `<td class="flocs-matrixCell"><span class="flocs-matrixCell--empty">—</span></td>`;
           const key = productKey(product);
           const units = Number(state.items[key] || 0);
           const value = toDisplayQty(units);
-          const qtyControl = renderSizeQtyControl({ key, value, sizeLabel: label });
-          return `<div class="flocs-sizeLine"><div class="flocs-matrixSku">${label}</div>${qtyControl}</div>`;
-        }).filter(Boolean).join("");
+          const qtyControl = renderSizeQtyControl({ key, value });
+          return `<td class="flocs-matrixCell">${qtyControl}</td>`;
+        }).join("");
         return `
           <tr style="--flavour-color:${flavourColor(flavour)}">
             <td><span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span></td>
             <td><span class="flocs-productName">${flavour} products</span></td>
-            <td class="flocs-matrixCell">${cellLines || `<span class="flocs-matrixCell--empty">—</span>`}</td>
+            ${sizeCells}
           </tr>`;
       })
       .join("");
@@ -794,7 +803,7 @@ export function initFlocsView() {
       return `<tr style="--flavour-color:${flavourColor(product.flavour)}">
         <td>${product.sku || ""}</td>
         <td><span class="flocs-productName">${displayProductTitle(product)}</span></td>
-        <td class="flocs-matrixCell">${qtyControl}</td>
+        <td class="flocs-matrixCell" colspan="${matrixColumnCount}">${qtyControl}</td>
       </tr>`;
     }).join("");
 
