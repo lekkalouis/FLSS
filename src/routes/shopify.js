@@ -116,11 +116,12 @@ function signDeliveryPayload(payload) {
 function buildDeliveryCredentials(orderNo) {
   const normalizedOrderNo = normalizeOrderNo(orderNo);
   const iat = Math.floor(Date.now() / 1000);
-  const payload = `${DELIVERY_CODE_VERSION}.${normalizedOrderNo}.${iat}`;
+  const tokenId = crypto.randomUUID();
+  const payload = `${DELIVERY_CODE_VERSION}.${normalizedOrderNo}.${iat}.${tokenId}`;
   const signature = signDeliveryPayload(payload);
   const token = `${toBase64Url(payload)}.${toBase64Url(signature)}`;
   const code = `FLSS-DELIVERY-${token}`;
-  return { normalizedOrderNo, iat, token, code };
+  return { normalizedOrderNo, iat, token, code, tokenId };
 }
 
 function parseCollectionCode(rawCode = "") {
@@ -167,14 +168,15 @@ function parseDeliveryCode(rawCode = "") {
     return { error: "INVALID_SIGNATURE", message: "Delivery code signature is invalid." };
   }
 
-  const [version, encodedOrderNo, issuedAtRaw, ...rest] = payload.split(".");
+  const [version, encodedOrderNo, issuedAtRaw, tokenIdRaw, ...rest] = payload.split(".");
   if (rest.length || version !== DELIVERY_CODE_VERSION) {
     return { error: "INVALID_CODE_VERSION", message: "Delivery code version is invalid." };
   }
 
   const orderNo = normalizeOrderNo(encodedOrderNo);
   const issuedAt = Number.parseInt(issuedAtRaw, 10);
-  if (!orderNo || !Number.isFinite(issuedAt)) {
+  const tokenId = String(tokenIdRaw || "").trim();
+  if (!orderNo || !Number.isFinite(issuedAt) || !tokenId) {
     return { error: "INVALID_CODE_PAYLOAD", message: "Delivery code payload is invalid." };
   }
 
@@ -186,7 +188,18 @@ function parseDeliveryCode(rawCode = "") {
     return { error: "CODE_EXPIRED", message: "Delivery code has expired." };
   }
 
-  return { orderNo, issuedAt, token };
+  return { orderNo, issuedAt, token, tokenId };
+}
+
+function orderNoteAttributeMap(order = {}) {
+  const existingAttrs = Array.isArray(order.note_attributes)
+    ? order.note_attributes.filter((attr) => attr && attr.name)
+    : [];
+  return new Map(existingAttrs.map((attr) => [String(attr.name), String(attr.value || "")]));
+}
+
+function serializeOrderNoteAttributes(attrMap) {
+  return Array.from(attrMap.entries()).map(([name, value]) => ({ name, value: String(value || "") }));
 }
 
 async function appendOrderTag(base, orderId, tagToApply) {
@@ -3614,7 +3627,7 @@ router.post("/shopify/orders/delivery-qr-payload", async (req, res) => {
     const { orderId, orderNo, confirmUrl } = req.body || {};
     if (!orderId) return badRequest(res, "Missing orderId");
 
-    const { normalizedOrderNo, code, token, iat } = buildDeliveryCredentials(orderNo);
+    const { normalizedOrderNo, code, token, iat, tokenId } = buildDeliveryCredentials(orderNo);
     const fallbackOrigin = String(config.FRONTEND_ORIGIN || "").split(",").map((part) => part.trim()).find(Boolean);
     const resolvedConfirmBase = String(confirmUrl || fallbackOrigin || "").trim();
     if (!resolvedConfirmBase) {
@@ -3645,17 +3658,17 @@ router.post("/shopify/orders/delivery-qr-payload", async (req, res) => {
       });
     }
 
-    const existingAttrs = Array.isArray(orderData.order.note_attributes)
-      ? orderData.order.note_attributes.filter((attr) => attr && attr.name)
-      : [];
-    const attrMap = new Map(existingAttrs.map((attr) => [String(attr.name), String(attr.value || "")]));
+    const attrMap = orderNoteAttributeMap(orderData.order);
     attrMap.set("Delivery QR Payload", code);
     attrMap.set("Delivery QR Token", token);
     attrMap.set("Delivery QR Issued At", new Date(iat * 1000).toISOString());
+    attrMap.set("Delivery Token ID", tokenId);
+    attrMap.set("Delivery Token Used", "false");
+    attrMap.delete("Delivery Confirmed At");
     attrMap.delete("Delivery QR PIN");
     attrMap.set("Delivery Confirm URL", confirmTarget);
 
-    const noteAttributes = Array.from(attrMap.entries()).map(([name, value]) => ({ name, value }));
+    const noteAttributes = serializeOrderNoteAttributes(attrMap);
     const updateResp = await shopifyFetch(`${base}/orders/${orderId}.json`, {
       method: "PUT",
       body: JSON.stringify({ order: { id: orderId, note_attributes: noteAttributes } })
@@ -3745,13 +3758,37 @@ router.post("/shopify/delivery/complete-from-code", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const orderLookup = await shopifyFetch(
-      `${base}/orders.json?status=open&name=${encodeURIComponent(`#${parsed.orderNo}`)}&limit=1&fields=id,name`,
+      `${base}/orders.json?name=${encodeURIComponent(`#${parsed.orderNo}`)}&limit=1&fields=id,name,financial_status,fulfillment_status,closed_at,note_attributes`,
       { method: "GET" }
     );
     const lookupData = await orderLookup.json().catch(() => ({}));
     const order = Array.isArray(lookupData.orders) ? lookupData.orders[0] : null;
     if (!order?.id) {
-      return res.status(404).json({ error: "ORDER_NOT_FOUND", message: "No open order found for delivery code." });
+      return res.status(404).json({ error: "ORDER_NOT_FOUND", message: "No order found for delivery code." });
+    }
+
+    const attrMap = orderNoteAttributeMap(order);
+    const expectedTokenId = String(attrMap.get("Delivery Token ID") || "").trim();
+    const tokenUsed = String(attrMap.get("Delivery Token Used") || "").trim().toLowerCase() === "true";
+    const confirmedAt = String(attrMap.get("Delivery Confirmed At") || "").trim();
+
+    if (!expectedTokenId || expectedTokenId !== parsed.tokenId) {
+      return res.status(409).json({
+        ok: false,
+        error: "DELIVERY_TOKEN_MISMATCH",
+        message: "Delivery code is not valid for the latest confirmation token."
+      });
+    }
+
+    if (tokenUsed || confirmedAt) {
+      return res.json({
+        ok: true,
+        alreadyConfirmed: true,
+        orderId: order.id,
+        orderNo: parsed.orderNo,
+        message: "Delivery already confirmed.",
+        confirmedAt: confirmedAt || null
+      });
     }
 
     const fulfillResult = await fulfillOrderByOrderId(base, order.id, "Delivered to customer (QR scan confirmation).");
@@ -3763,8 +3800,33 @@ router.post("/shopify/delivery/complete-from-code", async (req, res) => {
       });
     }
 
+    const consumedAt = new Date().toISOString();
+    attrMap.set("Delivery Token Used", "true");
+    attrMap.set("Delivery Confirmed At", consumedAt);
+    const noteAttributes = serializeOrderNoteAttributes(attrMap);
+    const orderUpdateResp = await shopifyFetch(`${base}/orders/${order.id}.json`, {
+      method: "PUT",
+      body: JSON.stringify({ order: { id: order.id, note_attributes: noteAttributes } })
+    });
+    const orderUpdateBody = await orderUpdateResp.text();
+    if (!orderUpdateResp.ok) {
+      return res.status(orderUpdateResp.status || 502).json({
+        error: "ORDER_UPDATE_FAILED",
+        statusText: orderUpdateResp.statusText,
+        body: orderUpdateBody
+      });
+    }
+
     await appendOrderTag(base, order.id, "stat:delivered");
-    return res.json({ ok: true, orderId: order.id, orderNo: parsed.orderNo, fulfillment: fulfillResult.fulfillment });
+    return res.json({
+      ok: true,
+      alreadyConfirmed: false,
+      orderId: order.id,
+      orderNo: parsed.orderNo,
+      message: "Delivery confirmed.",
+      confirmedAt: consumedAt,
+      fulfillment: fulfillResult.fulfillment
+    });
   } catch (err) {
     console.error("Delivery complete-from-code error:", err);
     return res.status(502).json({
