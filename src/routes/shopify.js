@@ -231,6 +231,34 @@ function serializeOrderNoteAttributes(attrMap) {
   return Array.from(attrMap.entries()).map(([name, value]) => ({ name, value: String(value || "") }));
 }
 
+function buildShippingLine({ shippingMethod, shippingPrice, shippingBaseTotal, shippingService }) {
+  const method = String(shippingMethod || "").trim().toLowerCase();
+  if (!method) return null;
+
+  if (method === "shipping") {
+    const quotedAmount = Number(shippingBaseTotal ?? shippingPrice);
+    const roundedAmount = Number.isFinite(quotedAmount) ? Math.round(quotedAmount) : 0;
+    return {
+      title: shippingService ? `Shipping - ${String(shippingService).trim()}` : "Shipping",
+      price: String(roundedAmount)
+    };
+  }
+
+  if (method === "free_shipping") {
+    return { title: "Free shipping", price: "0" };
+  }
+
+  if (method === "delivery") {
+    return { title: "Delivery", price: "0" };
+  }
+
+  if (method === "pickup" || method === "collection") {
+    return { title: "Pickup/Collection", price: "0" };
+  }
+
+  return null;
+}
+
 async function appendOrderTag(base, orderId, tagToApply) {
   const orderResp = await shopifyFetch(`${base}/orders/${orderId}.json?fields=id,tags`, {
     method: "GET"
@@ -1827,12 +1855,13 @@ router.post("/shopify/draft-orders", async (req, res) => {
       }
     };
 
-    if (Number.isFinite(shippingAmount) && shippingMethod === "shipping") {
-      payload.draft_order.shipping_line = {
-        title: shippingService || "Courier",
-        price: String(shippingAmount)
-      };
-    }
+    const shippingLine = buildShippingLine({
+      shippingMethod,
+      shippingPrice,
+      shippingBaseTotal,
+      shippingService
+    });
+    if (shippingLine) payload.draft_order.shipping_line = shippingLine;
 
     const resp = await shopifyFetch(`${base}/draft_orders.json`, {
       method: "POST",
@@ -2354,14 +2383,13 @@ router.post("/shopify/orders", async (req, res) => {
       orderPayload.order.tags = orderTags.join(", ");
     }
 
-    if (shippingPrice != null && shippingMethod === "shipping") {
-      orderPayload.order.shipping_lines = [
-        {
-          title: shippingService || "Courier",
-          price: String(shippingPrice)
-        }
-      ];
-    }
+    const shippingLine = buildShippingLine({
+      shippingMethod,
+      shippingPrice,
+      shippingBaseTotal,
+      shippingService
+    });
+    if (shippingLine) orderPayload.order.shipping_lines = [shippingLine];
 
     const resp = await shopifyFetch(`${base}/orders.json`, {
       method: "POST",
