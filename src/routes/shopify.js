@@ -259,6 +259,30 @@ function buildShippingLine({ shippingMethod, shippingPrice, shippingBaseTotal, s
   return null;
 }
 
+function resolveShippingSubtotalValue({ shippingMethod, shippingBaseTotal, shippingPrice }) {
+  const method = String(shippingMethod || "").trim().toLowerCase();
+  if (!method) return null;
+
+  if (["free_shipping", "delivery", "pickup", "collection"].includes(method)) {
+    return "0";
+  }
+
+  const rawValue = shippingBaseTotal ?? shippingPrice;
+  if (rawValue == null || rawValue === "") {
+    return method === "shipping" ? "0" : null;
+  }
+
+  if (typeof rawValue === "string") {
+    const trimmed = rawValue.trim();
+    if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
+      return trimmed;
+    }
+  }
+
+  const numericValue = Number(rawValue);
+  return Number.isFinite(numericValue) ? String(numericValue) : method === "shipping" ? "0" : null;
+}
+
 async function appendOrderTag(base, orderId, tagToApply) {
   const orderResp = await shopifyFetch(`${base}/orders/${orderId}.json?fields=id,tags`, {
     method: "GET"
@@ -1873,6 +1897,12 @@ router.post("/shopify/draft-orders", async (req, res) => {
       });
     }
 
+    const shippingSubtotal = resolveShippingSubtotalValue({
+      shippingMethod,
+      shippingBaseTotal,
+      shippingPrice
+    });
+
     const payload = {
       draft_order: {
         customer: customerId ? { id: customerId } : undefined,
@@ -1883,6 +1913,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
         shipping_address: normalizeOrderAddress(shippingAddress),
         note_attributes: [
           ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
+          ...(shippingSubtotal != null ? [{ name: "shipping_subtotal", value: shippingSubtotal }] : []),
           { name: "price_tier", value: tier || "public" },
           { name: "source", value: "FLSS" },
           { name: "flss_pricing_hash", value: pricingHash }
@@ -2377,6 +2408,12 @@ router.post("/shopify/orders", async (req, res) => {
       });
     }
 
+    const shippingSubtotal = resolveShippingSubtotalValue({
+      shippingMethod,
+      shippingBaseTotal,
+      shippingPrice
+    });
+
     const orderPayload = {
       order: {
         customer: { id: customerId },
@@ -2402,6 +2439,7 @@ router.post("/shopify/orders", async (req, res) => {
           ...(shippingQuoteNo
             ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
             : []),
+          ...(shippingSubtotal != null ? [{ name: "shipping_subtotal", value: shippingSubtotal }] : []),
           { name: "price_tier", value: tier || "public" },
           { name: "source", value: "FLSS" }
         ],
