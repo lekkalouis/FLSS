@@ -2002,7 +2002,9 @@
     color:#0f172a;
   }
   .dispatchSiteAlertModal__close,
-  .dispatchSiteAlertModal__ok{
+  .dispatchSiteAlertModal__ok,
+  .dispatchSiteAlertModal__secondary,
+  .dispatchSiteAlertModal__confirm{
     border:1px solid var(--panel-strong);
     background:#f8fafc;
     color:#0f172a;
@@ -2026,9 +2028,39 @@
   .dispatchSiteAlertModal__actions{
     display:flex;
     justify-content:flex-end;
+    gap:.45rem;
+  }
+  .dispatchSiteAlertModal__actions--split{
+    justify-content:space-between;
   }
   .dispatchSiteAlertModal__ok{
     padding:.35rem .7rem;
+  }
+  .dispatchSiteAlertModal__secondary,
+  .dispatchSiteAlertModal__confirm{
+    padding:.45rem .75rem;
+  }
+  .dispatchSiteAlertModal__secondary{
+    background:#e2e8f0;
+    border-color:#cbd5e1;
+    color:#0f172a;
+  }
+  .dispatchSiteAlertModal__confirm--primary{
+    background:#0f766e;
+    border-color:#0f766e;
+    color:#f8fafc;
+  }
+  .dispatchSiteAlertModal__confirm--danger{
+    background:#b91c1c;
+    border-color:#b91c1c;
+    color:#fef2f2;
+  }
+  .dispatchSiteAlertModal__confirm:focus-visible,
+  .dispatchSiteAlertModal__secondary:focus-visible,
+  .dispatchSiteAlertModal__close:focus-visible,
+  .dispatchSiteAlertModal__ok:focus-visible{
+    outline:2px solid #0ea5e9;
+    outline-offset:2px;
   }
 
   .dispatchCol--shipments .dispatchColBody{
