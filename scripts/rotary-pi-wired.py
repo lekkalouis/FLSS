@@ -448,6 +448,8 @@ class RotaryFlssClient:
             "prev": self.settings.min_action_gap_s,
             "qty_increase": min(self.settings.min_action_gap_s, 0.025),
             "qty_decrease": min(self.settings.min_action_gap_s, 0.025),
+            "confirm_hold": max(self.settings.min_action_gap_s, 0.2),
+            "set_packed_qty": max(self.settings.min_action_gap_s, 0.12),
         }
         min_gap = per_action_gap.get(action, self.settings.min_action_gap_s)
         with self.lock:
@@ -594,15 +596,12 @@ def main() -> int:
     # pull_up=True assumes switch/encoder outputs pull to GND when active.
     clk = Button(settings.cw_pin, pull_up=True, bounce_time=0.002)
     dt = Button(settings.ccw_pin, pull_up=True, bounce_time=0.002)
-    sw = Button(settings.sw_pin, pull_up=True, bounce_time=0.05)
+    sw = Button(settings.sw_pin, pull_up=True, bounce_time=0.05, hold_time=settings.sw_hold_time_s)
     print_btn = Button(settings.print_btn_pin, pull_up=True, bounce_time=0.05)
     fulfill_btn = Button(settings.fulfill_btn_pin, pull_up=True, bounce_time=0.05)
 
     mode_lock = threading.Lock()
     quantity_mode = False
-    sw_press_nonce = 0
-    sw_click_count = 0
-
     def _send_rotary_turn(cw: bool) -> None:
         with mode_lock:
             in_quantity_mode = quantity_mode
@@ -612,48 +611,40 @@ def main() -> int:
         client.send_action("next" if cw else "prev")
 
     def _on_sw_pressed() -> None:
-        nonlocal quantity_mode, sw_press_nonce, sw_click_count
+        nonlocal quantity_mode
 
         with mode_lock:
             if quantity_mode:
                 quantity_mode = False
-                sw_press_nonce += 1
-                sw_click_count = 0
                 should_submit_qty = True
-                click_nonce = sw_press_nonce
             else:
-                sw_press_nonce += 1
-                sw_click_count += 1
                 should_submit_qty = False
-                click_nonce = sw_press_nonce
-                click_count = sw_click_count
 
         if should_submit_qty:
-            client.send_action("set_packed_qty", force=True)
+            client.send_action("set_packed_qty")
+
+    def _on_sw_released() -> None:
+        with mode_lock:
+            in_quantity_mode = quantity_mode
+        if in_quantity_mode or sw.is_held:
             return
+        client.send_action("confirm")
 
-        def _handle_multi_click_after_window(nonce: int, count: int) -> None:
-            nonlocal quantity_mode, sw_click_count
-            time.sleep(max(0.0, settings.sw_multi_click_window_s))
-            with mode_lock:
-                if nonce != sw_press_nonce or quantity_mode:
-                    return
-                sw_click_count = 0
-                enter_quantity_mode = count >= 3
-                if enter_quantity_mode:
-                    quantity_mode = True
-            if enter_quantity_mode:
-                client.send_action("confirm_hold", force=True)
+    def _on_sw_held() -> None:
+        nonlocal quantity_mode
+        with mode_lock:
+            if quantity_mode:
                 return
-            client.send_action("confirm")
-
-        threading.Thread(target=_handle_multi_click_after_window, args=(click_nonce, click_count), daemon=True).start()
+            quantity_mode = True
+        client.send_action("confirm_hold")
 
     # Simple edge mapping suitable for many detented encoders.
     # If direction is reversed, swap next/prev here or swap CLK/DT wiring.
     clk.when_pressed = lambda: _send_rotary_turn(cw=True)
     dt.when_pressed = lambda: _send_rotary_turn(cw=False)
     sw.when_pressed = _on_sw_pressed
+    sw.when_released = _on_sw_released
+    sw.when_held = _on_sw_held
     print_btn.when_pressed = lambda: client.send_action("print")
     fulfill_btn.when_pressed = lambda: client.send_action("fulfill")
 
