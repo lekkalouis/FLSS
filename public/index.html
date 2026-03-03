@@ -2951,9 +2951,10 @@
 
   .flHeaderMeta{display:flex;align-items:flex-start;gap:.75rem;flex-wrap:wrap;justify-content:flex-end;}
   .flHeaderEnv{display:flex;gap:.75rem;align-items:flex-start;}
-  .flHeaderTruck{display:flex;gap:.55rem;align-items:flex-start;}
-  .flHeaderTruckMetric{display:flex;flex-direction:column;line-height:1.1;padding:.2rem .45rem;border:1px solid rgba(148,163,184,.35);border-radius:.55rem;background:rgba(255,255,255,.8);min-width:74px;}
-  .flHeaderTruckIcon{font-size:.9rem;line-height:1;color:var(--text-muted);}
+  .flHeaderTruck{display:flex;gap:.7rem;align-items:center;}
+  .flHeaderTruckMetric{display:flex;align-items:center;gap:.3rem;line-height:1.1;padding:0;border:none;background:transparent;min-width:0;}
+  .flHeaderTruckIcon{font-size:1rem;line-height:1;color:#dc2626;display:inline-flex;align-items:center;}
+  .flHeaderTruckIcon svg{width:1.1rem;height:1.1rem;display:block;}
   .flHeaderTruckMetric.is-booked .flHeaderTruckIcon{color:#16a34a;}
   .flHeaderDateTime{font-size:.78rem;color:var(--text-muted);font-weight:600;letter-spacing:.01em;white-space:nowrap;padding-top:.15rem;}
   .flHeaderMetric{display:flex;flex-direction:column;line-height:1.1;}
@@ -2990,12 +2991,18 @@
             <div id="dispatchEnvironmentSummary" class="flHeaderEnv"><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Temp</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span></span><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Humidity</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span></span></div>
             <div id="dispatchTruckSummary" class="flHeaderTruck" aria-label="Truck and parcel summary">
               <span id="dispatchTruckBookedMetric" class="flHeaderTruckMetric" aria-label="Truck booking status">
-                <span id="dispatchTruckStatusIcon" class="flHeaderTruckIcon" aria-hidden="true">🚚</span>
-                <span id="dispatchTruckStatusText" class="flHeaderMetricLabel">Not booked</span>
+                <span id="dispatchTruckStatusIcon" class="flHeaderTruckIcon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2.5 6.5h10v8h-10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12.5 9.5h4.2l2.8 2.8v2.2h-7z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="7" cy="16.8" r="1.7" fill="currentColor"/>
+                    <circle cx="17.4" cy="16.8" r="1.7" fill="currentColor"/>
+                  </svg>
+                </span>
               </span>
               <span class="flHeaderTruckMetric" aria-label="Parcel count today">
                 <span class="flHeaderTruckIcon" aria-hidden="true">📦</span>
-                <span id="dispatchTruckParcelCount" class="flHeaderMetricValue">0</span>
+                <span id="dispatchTruckParcelCount" class="flHeaderMetricValue">- 0</span>
               </span>
             </div>
             <div id="dispatchDateTimeSummary" class="flHeaderDateTime">—</div>

@@ -1952,9 +1952,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
 
   function renderTruckPanel() {
     if (truckParcelCount) truckParcelCount.textContent = String(dailyParcelCount);
-    if (dispatchTruckParcelCount) dispatchTruckParcelCount.textContent = String(dailyParcelCount);
+    if (dispatchTruckParcelCount) dispatchTruckParcelCount.textContent = `- ${dailyParcelCount}`;
     if (dispatchTruckStatusText) dispatchTruckStatusText.textContent = truckBooked ? "Booked" : "Not booked";
-    if (dispatchTruckStatusIcon) dispatchTruckStatusIcon.textContent = "🚚";
     if (dispatchTruckBookedMetric) dispatchTruckBookedMetric.classList.toggle("is-booked", truckBooked);
     if (!truckStatus || !truckBookBtn) return;
     truckStatus.textContent = truckBooked ? "Booked" : "Not booked";
