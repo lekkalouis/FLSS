@@ -158,6 +158,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchProgressLabel = $("dispatchProgressLabel");
   const dispatchLog = $("dispatchLog");
   const dispatchSelectionPanel = $("dispatchSelectionPanel");
+  const dispatchSelectionSidebar = $("dispatchSelectionSidebar");
+  const dispatchSelectionFloat = $("dispatchSelectionFloat");
+  const dispatchSelectionSidebarToggle = $("dispatchSelectionSidebarToggle");
   const dispatchSelectionCount = $("dispatchSelectionCount");
   const dispatchSelectionUnits = $("dispatchSelectionUnits");
   const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
@@ -376,6 +379,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   ];
   let dispatchMobileLaneOptions = [...DISPATCH_MOBILE_BASE_LANE_OPTIONS, { id: "delivery", label: "Delivery" }];
   let dispatchMobileLane = "all";
+  let dispatchSelectionSidebarOpen = true;
   const dispatchPriorityState = new Map();
   let dispatchOrdersLatest = [];
   let dispatchFulfilledLatest = [];
@@ -396,6 +400,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const DAILY_PARCEL_KEY = "fl_daily_parcel_count_v1";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
   const VOICE_SETTINGS_KEY = "fl_voice_settings_v1";
+  const DISPATCH_SELECTION_SIDEBAR_KEY = "fl_dispatch_selection_sidebar_open_v1";
   let dailyParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
@@ -4794,11 +4799,60 @@ async function startOrder(orderNo) {
     }
   }
 
+  function loadDispatchSelectionSidebarPreference() {
+    const stored = localStorage.getItem(DISPATCH_SELECTION_SIDEBAR_KEY);
+    if (stored === "false") {
+      dispatchSelectionSidebarOpen = false;
+      return;
+    }
+    dispatchSelectionSidebarOpen = true;
+  }
+
+  function setDispatchSelectionSidebarOpen(nextOpen, options = {}) {
+    const { persist = true, focusPanel = false, focusToggle = false } = options;
+    dispatchSelectionSidebarOpen = Boolean(nextOpen);
+    if (persist) {
+      localStorage.setItem(DISPATCH_SELECTION_SIDEBAR_KEY, dispatchSelectionSidebarOpen ? "true" : "false");
+    }
+    if (dispatchSelectionSidebar) {
+      dispatchSelectionSidebar.classList.toggle("is-open", dispatchSelectionSidebarOpen);
+      dispatchSelectionSidebar.classList.toggle("is-closed", !dispatchSelectionSidebarOpen);
+    }
+    if (dispatchSelectionSidebarToggle) {
+      dispatchSelectionSidebarToggle.setAttribute("aria-expanded", dispatchSelectionSidebarOpen ? "true" : "false");
+      dispatchSelectionSidebarToggle.textContent = dispatchSelectionSidebarOpen ? "Hide selected orders" : "Show selected orders";
+      dispatchSelectionSidebarToggle.setAttribute(
+        "aria-label",
+        dispatchSelectionSidebarOpen ? "Collapse selected orders sidebar" : "Expand selected orders sidebar"
+      );
+    }
+    if (dispatchSelectionFloat) {
+      dispatchSelectionFloat.hidden = !dispatchSelectionSidebarOpen;
+    }
+    if (focusPanel && dispatchSelectionSidebarOpen) {
+      dispatchSelectionPanel?.focus();
+    }
+    if (focusToggle) {
+      dispatchSelectionSidebarToggle?.focus();
+    }
+  }
+
+  function toggleDispatchSelectionSidebar(options = {}) {
+    setDispatchSelectionSidebarOpen(!dispatchSelectionSidebarOpen, options);
+  }
+
+  function updateDispatchSelectionSidebarVisibility(isScanVisible) {
+    if (!dispatchSelectionPanel) return;
+    const container = dispatchSelectionPanel.parentElement;
+    if (!container) return;
+    container.hidden = !isScanVisible || !dispatchSelectionSidebarOpen;
+  }
+
   function updateDispatchSelectionSummary() {
     if (!dispatchSelectionPanel) return;
     const totals = aggregateDispatchSelection();
     const showScan = document.querySelector(".flView.flView--active")?.id === "viewScan";
-    dispatchSelectionPanel.parentElement.hidden = !showScan;
+    updateDispatchSelectionSidebarVisibility(showScan);
     dispatchSelectionPanel.classList.toggle("is-hidden", totals.orderCount === 0 || !showScan);
     if (dispatchSelectionCount) {
       dispatchSelectionCount.textContent = String(totals.orderCount || 0);
@@ -6419,7 +6473,7 @@ async function startOrder(orderNo) {
     }
 
     if (dispatchTopBar) dispatchTopBar.hidden = !showScan;
-    if (dispatchSelectionPanel) dispatchSelectionPanel.parentElement.hidden = !showScan;
+    updateDispatchSelectionSidebarVisibility(showScan);
   }
 
   const ROUTE_VIEW_MAP = new Map([
@@ -7552,6 +7606,29 @@ async function startOrder(orderNo) {
     }
     const orderNo = card.dataset.orderNo;
     if (orderNo) openDispatchOrderModal(orderNo);
+  });
+
+  loadDispatchSelectionSidebarPreference();
+  setDispatchSelectionSidebarOpen(dispatchSelectionSidebarOpen, { persist: false });
+
+  dispatchSelectionSidebarToggle?.addEventListener("click", () => {
+    const wasOpen = dispatchSelectionSidebarOpen;
+    toggleDispatchSelectionSidebar({ focusPanel: !wasOpen, focusToggle: wasOpen });
+    updateDispatchSelectionSummary();
+  });
+
+  dispatchSelectionSidebarToggle?.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    if (event.key === "ArrowLeft" && dispatchSelectionSidebarOpen) {
+      setDispatchSelectionSidebarOpen(false, { focusToggle: true });
+      updateDispatchSelectionSummary();
+      return;
+    }
+    if (event.key === "ArrowRight" && !dispatchSelectionSidebarOpen) {
+      setDispatchSelectionSidebarOpen(true, { focusPanel: true });
+      updateDispatchSelectionSummary();
+    }
   });
 
   dispatchSelectionClear?.addEventListener("click", () => {
