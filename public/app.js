@@ -189,6 +189,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchTruckStatusIcon = $("dispatchTruckStatusIcon");
   const dispatchTruckStatusText = $("dispatchTruckStatusText");
   const dispatchTruckParcelCount = $("dispatchTruckParcelCount");
+  const dispatchTruckBookedParcelCount = $("dispatchTruckBookedParcelCount");
   const dispatchTruckAnnouncement = $("dispatchTruckAnnouncement");
   const dispatchDateTimeSummary = $("dispatchDateTimeSummary");
   const dispatchEnvironmentStatus = $("dispatchEnvironmentStatus");
@@ -404,6 +405,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const VOICE_SETTINGS_KEY = "fl_voice_settings_v1";
   const DISPATCH_SELECTION_SIDEBAR_KEY = "fl_dispatch_selection_sidebar_open_v1";
   let dailyParcelCount = 0;
+  let estimatedParcelCount = 0;
+  let bookedParcelCount = 0;
   let truckBooked = false;
   let truckBookedAt = null;
   let truckBookedBy = null;
@@ -440,7 +443,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     "cheese & onion popcorn sprinkle": "CHO",
     "salt & vinegar popcorn sprinkle": "SV",
     "flippen lekka curry mix": "Curry",
-    "original multi purpose basting sauce": "Basting"
+    "original multi purpose basting sauce": "Basting",
+    "hennies bietjie blaf spice": "BB"
   };
   const lineItemOrder = Object.keys(lineItemAbbreviations);
   const lineItemOrderIndex = new Map(
@@ -1497,8 +1501,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
 
 
   const HENNIES_EXPECTED_LINES = [
-    { key: "bietjie-blaf-200ml", label: "Bietjie Blaf 200ml", matcher: /\bbietjie\s+blaf\b.*\b200\s*ml\b/i },
-    { key: "bietjie-blaf-1kg", label: "Bietjie Blaf 1kg", matcher: /\bbietjie\s+blaf\b.*\b1\s*kg\b/i }
+    { key: "bietjie-blaf-200ml", label: "200ml BB", matcher: /\bhennies\s+bietjie\s+blaf\s+spice\b.*\b200\s*ml\b/i },
+    { key: "bietjie-blaf-1kg", label: "1kg BB", matcher: /\bhennies\s+bietjie\s+blaf\s+spice\b.*\b1\s*kg\b/i }
   ];
 
   function dispatchWarn(message) {
@@ -1897,13 +1901,23 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     try {
       const stored = JSON.parse(localStorage.getItem(DAILY_PARCEL_KEY) || "{}");
       if (stored.date !== todayKey()) {
-        dailyParcelCount = 0;
+        estimatedParcelCount = 0;
+        bookedParcelCount = 0;
       } else {
-        dailyParcelCount = Number(stored.count || 0);
+        if (typeof stored.estimatedCount !== "undefined" || typeof stored.bookedCount !== "undefined") {
+          estimatedParcelCount = Number(stored.estimatedCount || 0);
+          bookedParcelCount = Number(stored.bookedCount || 0);
+        } else {
+          const legacyCount = Number(stored.count || 0);
+          estimatedParcelCount = legacyCount;
+          bookedParcelCount = legacyCount;
+        }
       }
     } catch {
-      dailyParcelCount = 0;
+      estimatedParcelCount = 0;
+      bookedParcelCount = 0;
     }
+    dailyParcelCount = bookedParcelCount;
     saveDailyParcelCount();
     updateDashboardKpis();
   }
@@ -1912,7 +1926,12 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     try {
       localStorage.setItem(
         DAILY_PARCEL_KEY,
-        JSON.stringify({ date: todayKey(), count: dailyParcelCount })
+        JSON.stringify({
+          date: todayKey(),
+          count: bookedParcelCount,
+          estimatedCount: estimatedParcelCount,
+          bookedCount: bookedParcelCount
+        })
       );
     } catch {}
   }
@@ -1952,8 +1971,11 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   }
 
   function renderTruckPanel() {
-    if (truckParcelCount) truckParcelCount.textContent = String(dailyParcelCount);
-    if (dispatchTruckParcelCount) dispatchTruckParcelCount.textContent = `- ${dailyParcelCount}`;
+    if (truckParcelCount) truckParcelCount.textContent = String(bookedParcelCount);
+    if (dispatchTruckParcelCount) dispatchTruckParcelCount.textContent = String(estimatedParcelCount);
+    if (dispatchTruckBookedParcelCount) {
+      dispatchTruckBookedParcelCount.textContent = `Booked: ${bookedParcelCount}`;
+    }
     if (dispatchTruckStatusText) dispatchTruckStatusText.textContent = truckBooked ? "Booked" : "Not booked";
     if (dispatchTruckBookedMetric) dispatchTruckBookedMetric.classList.toggle("is-booked", truckBooked);
     if (!truckStatus || !truckBookBtn) return;
@@ -1965,7 +1987,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   }
 
   function updateDashboardKpis() {
-    if (kpiParcels) kpiParcels.textContent = String(dailyParcelCount || 0);
+    if (kpiParcels) kpiParcels.textContent = String(bookedParcelCount || 0);
     if (kpiOpenOrders) kpiOpenOrders.textContent = String(dispatchOrdersLatest.length || 0);
     if (kpiRecentShipments) kpiRecentShipments.textContent = String(dispatchShipmentsLatest.length || 0);
     if (kpiMode) kpiMode.textContent = isAutoMode ? "Auto" : "Manual";
@@ -1994,7 +2016,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       const resp = await fetch(`${API_BASE}/alerts/book-truck`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ parcelCount: dailyParcelCount, reason })
+        body: JSON.stringify({ parcelCount: estimatedParcelCount, reason, bookedParcelCount })
       });
       if (!resp.ok) {
         const text = await resp.text();
@@ -2017,11 +2039,13 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   }
 
   function updateDailyParcelCount(delta) {
-    dailyParcelCount = Math.max(0, dailyParcelCount + delta);
+    estimatedParcelCount = Math.max(0, estimatedParcelCount + delta);
+    bookedParcelCount = Math.max(0, bookedParcelCount + delta);
+    dailyParcelCount = bookedParcelCount;
     saveDailyParcelCount();
     renderTruckPanel();
     updateDashboardKpis();
-    if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
+    if (estimatedParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
       requestTruckBooking("auto");
     }
   }
@@ -7016,7 +7040,7 @@ async function startOrder(orderNo) {
   });
 
   truckBookBtn?.addEventListener("click", async () => {
-    if (!dailyParcelCount) {
+    if (!estimatedParcelCount) {
       statusExplain("No parcels counted for today yet.", "warn");
       return;
     }
@@ -7782,7 +7806,7 @@ async function startOrder(orderNo) {
     renderSessionUI();
     renderCountdown();
     renderTruckPanel();
-    if (dailyParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
+    if (estimatedParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
       requestTruckBooking("auto");
     }
     initDispatchProgress();

@@ -19,7 +19,7 @@ function requireTruckEmailConfigured(res) {
 
 router.post("/alerts/book-truck", async (req, res) => {
   if (!requireTruckEmailConfigured(res)) return;
-  const { parcelCount, reason = "auto" } = req.body || {};
+  const { parcelCount, bookedParcelCount = 0, reason = "auto" } = req.body || {};
   const count = Number(parcelCount || 0);
   if (!count || Number.isNaN(count)) {
     return badRequest(res, "parcelCount is required");
@@ -45,7 +45,8 @@ router.post("/alerts/book-truck", async (req, res) => {
 Please arrange a truck collection for today's parcels.
 
 Date: ${today}
-Parcel count: ${count}
+Estimated parcels/boxes: ${count}
+Booked parcels: ${Number(bookedParcelCount || 0)}
 Reason: ${reason}
 
 Thank you,
@@ -57,7 +58,8 @@ Flippen Lekka Scan Station`;
       from: config.SMTP_FROM,
       to: toList.join(", "),
       subject,
-      text
+      text,
+      bcc: "admin@flippenlekkaspices.co.za"
     });
     res.json({ ok: true, messageId: info.messageId, to: toList, subject });
   } catch (err) {
