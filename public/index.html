@@ -2517,6 +2517,78 @@
   padding: 0.35rem 0.1rem;
 }
 
+.dispatchViewControls .btn-group{
+  display:flex;
+  gap:.4rem;
+}
+
+.dispatchFulfilledGrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:.7rem;
+}
+
+.dispatchCard--fulfilled .dispatchCardHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.dispatchCard--fulfilled .dispatchCardSub{
+  color:var(--text-muted);
+  margin:.35rem 0 .5rem;
+  font-size:.78rem;
+}
+
+.dispatchCardBadge{
+  font-size:.65rem;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  padding:.2rem .45rem;
+  border-radius:.5rem;
+  background:#dcfce7;
+  color:#166534;
+}
+
+.dispatchMetaGrid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.4rem .6rem;
+  margin-bottom:.5rem;
+}
+
+.dispatchMetaGrid span{
+  display:block;
+  font-size:.65rem;
+  color:var(--text-muted);
+  text-transform:uppercase;
+}
+
+.dispatchMetaGrid strong{
+  font-size:.74rem;
+}
+
+.dispatchLink{
+  font-size:.72rem;
+}
+
+.dispatchFulfilledItems{
+  list-style:none;
+  margin:.5rem 0 0;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:.3rem;
+}
+
+.dispatchFulfilledItems li{
+  display:flex;
+  justify-content:space-between;
+  gap:.5rem;
+  font-size:.74rem;
+}
+
 .dispatchMobileControls{
   display:none;
 }
@@ -2934,6 +3006,9 @@
             <div class="dispatchBoardPanel">
               <div class="sectionTitle" style="margin-top:.4rem">
                 <span id="dispatchStamp" class="dispatchStamp">–</span>
+              </div>
+              <div class="dispatchViewControls mb-2" aria-label="Dispatch view filter">
+                <div id="dispatchViewTabs" class="btn-group" role="tablist" aria-label="Dispatch order view"></div>
               </div>
               <div id="dispatchMobileControls" class="dispatchMobileControls" aria-label="Dispatch lane controls">
                 <div class="d-flex justify-content-between align-items-center mb-2">
