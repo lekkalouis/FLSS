@@ -111,6 +111,8 @@
     transform:translateY(-1px);
     box-shadow:0 8px 18px rgba(67,56,202,.12);
   }
+  .flNavBtnIcon{display:inline-flex;align-items:center;justify-content:center;line-height:1;}
+  .flNavBtnText{display:inline-flex;align-items:center;line-height:1.1;}
   .flNavBtn--active{
     background:linear-gradient(130deg, var(--accent), var(--accent-strong));
     border-color:transparent;
@@ -2962,6 +2964,16 @@
   .dispatchSelectionOrderCard{border:1px solid rgba(148,163,184,.35);border-radius:.55rem;padding:.45rem .55rem;background:#fff;}
   .dispatchSelectionOrderCardTitle{font-size:.72rem;color:var(--text-muted);}
   .dispatchSelectionOrderCardValue{font-weight:700;font-size:.86rem;color:var(--text-main);}
+  .dispatchRecentSection{margin-top:.75rem;padding-top:.7rem;border-top:1px solid rgba(148,163,184,.35);}
+  .dispatchRecentHeader{font-size:.76rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.45rem;}
+  .dispatchRecentList{display:grid;gap:.45rem;max-height:260px;overflow:auto;padding-right:.1rem;}
+  .dispatchRecentItem{border:1px solid rgba(148,163,184,.35);border-radius:.55rem;background:#fff;padding:.45rem .55rem;display:grid;gap:.2rem;}
+  .dispatchRecentItemTop{display:flex;justify-content:space-between;align-items:center;gap:.4rem;}
+  .dispatchRecentItemOrder{font-weight:700;font-size:.8rem;color:var(--text-main);}
+  .dispatchRecentItemTime{font-size:.68rem;color:var(--text-muted);}
+  .dispatchRecentItemCustomer{font-size:.72rem;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dispatchRecentItemTracking{font-size:.68rem;color:var(--text-muted);}
+  .dispatchRecentEmpty{font-size:.72rem;color:var(--text-muted);}
 
 </style>
   <link rel="stylesheet" href="/views/flocs.css">
@@ -3016,27 +3028,12 @@
         <div class="flView flView--active" id="viewScan">
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
 
-      <div class="dispatchTopBar" id="dispatchTopBar">
-        <div class="dispatchTopRow">
-          <div class="dispatchHeading">Selected Orders</div>
-          <div class="dispatchTopActions">
-            <button class="btn btn-sm btn-outline-warning" id="dispatchRotaryToggle" type="button" aria-pressed="false" title="Disable rotary controller input">Disable rotary</button>
-            <button class="btn btn-sm btn-light dispatchExpandToggle" id="dispatchExpandToggle" type="button" aria-expanded="false" title="Toggle dispatch details">⚙️</button>
-          </div>
-        </div>
-
-
-      </div>
-
       <div id="dispatchBoardContainer" role="application" aria-label="Flippen Lekka Dispatch">
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">
             <div class="dispatchBoardPanel">
               <div class="sectionTitle" style="margin-top:.4rem">
                 <span id="dispatchStamp" class="dispatchStamp">–</span>
-              </div>
-              <div class="dispatchViewControls mb-2" aria-label="Dispatch view filter">
-                <div id="dispatchViewTabs" class="btn-group" role="tablist" aria-label="Dispatch order view"></div>
               </div>
               <div id="dispatchMobileControls" class="dispatchMobileControls" aria-label="Dispatch lane controls">
                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -3080,6 +3077,12 @@
                   <div class="dispatchSelectionBulkActions is-hidden" id="dispatchPrepareDeliveriesContainer">
                     <button id="dispatchPrepareDeliveries" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Prepare deliveries</button>
                   </div>
+                  <section class="dispatchRecentSection" aria-label="Recently shipped">
+                    <div class="dispatchRecentHeader">Recently shipped</div>
+                    <div id="dispatchRecentlyShipped" class="dispatchRecentList">
+                      <div class="dispatchRecentEmpty">Loading recently shipped orders…</div>
+                    </div>
+                  </section>
                 </div>
               </div>
             </div>
