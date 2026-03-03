@@ -109,7 +109,6 @@ export function initFlocsView() {
   const azBar            = document.getElementById("flocs-azBar");
 
   const toast            = document.getElementById("flocs-toast");
-  const quickPanelId     = "flocs-quickAddPanel";
 
   // ===== STATE =====
   const state = {
@@ -202,13 +201,11 @@ export function initFlocsView() {
     String(p.variantId || p.sku || p.title || "").trim();
 
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
-  const QUICK_QTY = [1, 3, 5, 6, 10, 12, 24, 36, 48, 50, 100, 250];
+  const QUICK_QTY = [6, 12, 24];
   const AUTO_QUOTE_DELAY_MS = 3000;
   const REQUIRE_RESOLVED_PRICING = CONFIG?.FLOCS?.REQUIRE_RESOLVED_PRICING !== false;
   let autoQuoteTimer = null;
   const deliveryHintDefault = deliveryHint ? deliveryHint.textContent : "";
-  let activeQtyKey = "";
-  let quickAddPanel = null;
 
   function normalizeTags(tags) {
     if (!tags) return [];
@@ -742,6 +739,9 @@ export function initFlocsView() {
 
   function renderSizeQtyControl({ key, value, sizeLabel = "" }) {
     const sizeTag = sizeLabel ? `<span class="flocs-sizeTag">${sizeLabel}</span>` : "";
+    const quickButtons = QUICK_QTY.map(
+      (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}" title="Quick add ${qty}">${qty}</button>`
+    ).join("");
     return `<div class="flocs-qtyArea">
       ${sizeTag}
       <div class="flocs-qtyWrap">
@@ -749,35 +749,9 @@ export function initFlocsView() {
         <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
         <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}" title="Increase">＋</button>
         <button class="flocs-qtyBtn flocs-qtyBtn--clear" type="button" data-action="clear" data-key="${key}" title="Clear quantity">⨯</button>
+        <div class="flocs-qtyQuick" aria-label="Quick add quantity">${quickButtons}</div>
       </div>
     </div>`;
-  }
-
-  function ensureQuickAddPanel() {
-    if (quickAddPanel || !shell) return;
-    const quickButtons = QUICK_QTY.map(
-      (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-amount="${qty}">${qty}</button>`
-    ).join("");
-    const panel = document.createElement("div");
-    panel.id = quickPanelId;
-    panel.className = "flocs-quickAddPanel";
-    panel.innerHTML = `
-      <div class="flocs-quickAddPanelLabel">Quick add</div>
-      <div class="flocs-qtyQuick">${quickButtons}</div>
-    `;
-    shell.appendChild(panel);
-    quickAddPanel = panel;
-    setQuickPanelState();
-  }
-
-  function setQuickPanelState() {
-    if (!quickAddPanel) return;
-    const hasActiveKey = Boolean(activeQtyKey);
-    quickAddPanel.classList.toggle("is-disabled", !hasActiveKey);
-    quickAddPanel.setAttribute("aria-disabled", hasActiveKey ? "false" : "true");
-    quickAddPanel.querySelectorAll(".flocs-qtyQuickBtn").forEach((btn) => {
-      btn.disabled = !hasActiveKey;
-    });
   }
 
   function applyQtyAction(action, key, amount = 0) {
@@ -2063,8 +2037,6 @@ ${state.customer.email || ""}${
     if (errorsBox) {
       errorsBox.textContent = "";
     }
-    activeQtyKey = "";
-    setQuickPanelState();
     if (createDraftBtn) {
       createDraftBtn.textContent = "Create draft order";
     }
@@ -2288,29 +2260,6 @@ ${state.customer.email || ""}${
     }
 
     if (productsBody) {
-      productsBody.addEventListener("focusin", (e) => {
-        const input = e.target;
-        if (!(input instanceof HTMLInputElement) || !input.classList.contains("flocs-qtyInput")) return;
-        activeQtyKey = String(input.dataset.key || "");
-        setQuickPanelState();
-      });
-
-      productsBody.addEventListener("focusout", (e) => {
-        const input = e.target;
-        if (!(input instanceof HTMLInputElement) || !input.classList.contains("flocs-qtyInput")) return;
-        requestAnimationFrame(() => {
-          const focused = document.activeElement;
-          if (
-            focused instanceof HTMLElement &&
-            (focused.classList.contains("flocs-qtyInput") || quickAddPanel?.contains(focused))
-          ) {
-            return;
-          }
-          activeQtyKey = "";
-          setQuickPanelState();
-        });
-      });
-
       productsBody.addEventListener("input", (e) => {
         const t = e.target;
         if (!(t instanceof HTMLInputElement)) return;
@@ -2334,17 +2283,7 @@ ${state.customer.email || ""}${
         const action = btn.dataset.action;
         const key = btn.dataset.key;
         if (!key) return;
-        activeQtyKey = key;
-        setQuickPanelState();
         applyQtyAction(action, key, Number(btn.dataset.amount || 0));
-      });
-    }
-
-    if (quickAddPanel) {
-      quickAddPanel.addEventListener("click", (e) => {
-        const btn = e.target.closest(".flocs-qtyQuickBtn[data-action='quick-add']");
-        if (!btn || !activeQtyKey) return;
-        applyQtyAction("quick-add", activeQtyKey, Number(btn.dataset.amount || 0));
       });
     }
 
@@ -2460,7 +2399,6 @@ ${state.customer.email || ""}${
 
   // ===== BOOT =====
   function boot() {
-    ensureQuickAddPanel();
     renderProductsTable();
     resetForm();
     hydratePriceTiersForProducts(state.products);
