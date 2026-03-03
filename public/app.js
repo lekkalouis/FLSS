@@ -372,7 +372,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
   const dispatchSelectedOrders = new Set();
-  const DISPATCH_DELIVERY_SPLIT_THRESHOLD = 8;
+  const DISPATCH_DELIVERY_DAY_TUESDAY = 2;
+  const DISPATCH_DELIVERY_DAY_FRIDAY = 5;
   const DISPATCH_MOBILE_BASE_LANE_OPTIONS = [
     { id: "all", label: "All" },
     { id: "shippingAgent", label: "Agent" },
@@ -3500,6 +3501,28 @@ async function startOrder(orderNo) {
     return "shipping";
   }
 
+  function parseOrderDeliveryDate(order) {
+    const deliveryDateRaw = String(order?.delivery_date || "").trim();
+    if (!deliveryDateRaw) return null;
+    const parsed = new Date(deliveryDateRaw);
+    return Number.isFinite(parsed.getTime()) ? parsed : null;
+  }
+
+  function getDeliveryLaneFromSchedule(order, referenceNow = new Date()) {
+    const deliveryDate = parseOrderDeliveryDate(order);
+    if (!deliveryDate) return "deliveryA";
+    const weekday = deliveryDate.getDay();
+    if (weekday === DISPATCH_DELIVERY_DAY_FRIDAY) return "deliveryB";
+
+    const startOfToday = new Date(referenceNow);
+    startOfToday.setHours(0, 0, 0, 0);
+    const isPastDue = deliveryDate.getTime() < startOfToday.getTime();
+    if (weekday === DISPATCH_DELIVERY_DAY_TUESDAY && isPastDue) {
+      return "deliveryB";
+    }
+    return "deliveryA";
+  }
+
   function isAgentOrder(order) {
     const tags = String(order?.tags || "").toLowerCase();
     return /(^|[\s,])agent([\s,]|$)/.test(tags);
@@ -5324,10 +5347,12 @@ async function startOrder(orderNo) {
       { id: "shippingB", label: "Shipping", type: "cards" },
       { id: "export", label: "Export", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" },
-      { id: "delivery", label: "Delivery", type: "cards" }
+      { id: "deliveryA", label: "Delivery 1 · Tuesday", type: "cards" },
+      { id: "deliveryB", label: "Delivery 2 · Friday", type: "cards" }
     ];
     const lanes = {
-      delivery: [],
+      deliveryA: [],
+      deliveryB: [],
       shippingAgent: [],
       shippingNonAgent: [],
       export: [],
@@ -5348,6 +5373,11 @@ async function startOrder(orderNo) {
         }
         return;
       }
+      if (laneId === "delivery") {
+        const scheduledLane = getDeliveryLaneFromSchedule(o);
+        lanes[scheduledLane].push(o);
+        return;
+      }
       (lanes[laneId] || lanes.shippingNonAgent).push(o);
     });
 
@@ -5357,31 +5387,23 @@ async function startOrder(orderNo) {
       shippingChunks[index % shippingLaneCount].push(order);
     });
     const [shippingA, shippingB] = shippingChunks;
-    const shouldSplitDelivery =
-      lanes.export.length === 0 &&
-      (lanes.delivery.length > DISPATCH_DELIVERY_SPLIT_THRESHOLD || !dispatchSelectionSidebarOpen);
-    const deliveryChunks = Array.from({ length: shouldSplitDelivery ? 2 : 1 }, () => []);
-    lanes.delivery.forEach((order, index) => {
-      deliveryChunks[index % deliveryChunks.length].push(order);
-    });
-    const [deliveryA, deliveryB] = deliveryChunks;
-    if (shouldSplitDelivery) {
-      cols.splice(
-        cols.findIndex((col) => col.id === "delivery"),
-        1,
-        { id: "deliveryA", label: "Delivery", type: "cards" },
-        { id: "deliveryB", label: "Delivery 2", type: "cards" }
-      );
-    }
+    const laneOrdersByColId = {
+      shippingAgent: lanes.shippingAgent,
+      shippingA,
+      shippingB,
+      export: lanes.export,
+      pickup: lanes.pickup,
+      deliveryA: lanes.deliveryA,
+      deliveryB: lanes.deliveryB
+    };
+    const visibleCols = cols.filter((col) => (laneOrdersByColId[col.id] || []).length > 0);
+    const activeCols = visibleCols.length ? visibleCols : cols;
+    const hasDeliveryLaneVisible = activeCols.some((col) => normalizeDispatchLaneId(col.id) === "delivery");
     dispatchMobileLaneOptions = [
       ...DISPATCH_MOBILE_BASE_LANE_OPTIONS,
-      { id: "delivery", label: "Delivery" },
-      ...(shouldSplitDelivery
-        ? [
-            { id: "deliveryA", label: "Delivery" },
-            { id: "deliveryB", label: "Delivery 2" }
-          ]
-        : [])
+      ...(hasDeliveryLaneVisible ? [{ id: "delivery", label: "Delivery" }] : []),
+      ...(activeCols.some((col) => col.id === "deliveryA") ? [{ id: "deliveryA", label: "Delivery 1" }] : []),
+      ...(activeCols.some((col) => col.id === "deliveryB") ? [{ id: "deliveryB", label: "Delivery 2" }] : [])
     ];
     if (dispatchMobileLane !== "all" && !dispatchMobileLaneOptions.some((option) => option.id === dispatchMobileLane)) {
       dispatchMobileLane = "all";
@@ -5575,22 +5597,9 @@ async function startOrder(orderNo) {
 
     renderDispatchMobileLaneControls();
 
-    dispatchBoard.innerHTML = cols
+    dispatchBoard.innerHTML = activeCols
       .map((col) => {
-        const laneOrders =
-          col.id === "shippingA"
-            ? shippingA
-            : col.id === "shippingB"
-            ? shippingB
-            : col.id === "export"
-            ? lanes.export
-            : col.id === "shippingAgent"
-            ? lanes.shippingAgent
-            : col.id === "deliveryA"
-            ? deliveryA || []
-            : col.id === "deliveryB"
-            ? deliveryB || []
-            : lanes[col.id] || [];
+        const laneOrders = laneOrdersByColId[col.id] || [];
         const cards = renderLaneCards(laneOrders, col.id);
         return `
           <div class="dispatchCol" data-lane-id="${col.id}">
@@ -7787,6 +7796,64 @@ async function startOrder(orderNo) {
 
 
   let scanStationNext = null;
+  function renderDeliveryDriverPage(initialCode = "") {
+    document.body.innerHTML = `
+      <main style="min-height:100vh;padding:1rem;background:#f8fafc;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;display:flex;align-items:center;justify-content:center;">
+        <section style="width:min(100%,420px);background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:1rem;box-shadow:0 8px 24px rgba(15,23,42,.08);display:grid;gap:.8rem;">
+          <h1 style="font-size:1.2rem;margin:0;">Driver delivery check-in</h1>
+          <p style="margin:0;color:#475569;font-size:.92rem;">Paste or scan the delivery code, then tap confirm to mark the order as delivered.</p>
+          <form id="driverDeliveryForm" style="display:grid;gap:.6rem;">
+            <input id="driverDeliveryCode" type="text" inputmode="text" autocomplete="off" placeholder="Delivery code" value="${escapeHtml(initialCode)}" style="border:1px solid #cbd5e1;border-radius:12px;padding:.75rem .8rem;font-size:1rem;" required>
+            <button id="driverDeliverySubmit" type="submit" style="border:0;border-radius:12px;padding:.78rem .9rem;background:#0ea5e9;color:#fff;font-size:1rem;font-weight:700;">Confirm delivered</button>
+          </form>
+          <div id="driverDeliveryMessage" style="font-size:.95rem;color:#334155;min-height:1.4rem;" aria-live="polite"></div>
+        </section>
+      </main>`;
+
+    const form = document.getElementById("driverDeliveryForm");
+    const input = document.getElementById("driverDeliveryCode");
+    const submitBtn = document.getElementById("driverDeliverySubmit");
+    const message = document.getElementById("driverDeliveryMessage");
+    if (!form || !input || !submitBtn || !message) return;
+
+    const setMessage = (text, color = "#334155") => {
+      message.textContent = text;
+      message.style.color = color;
+    };
+
+    const submitDeliveryCode = async (code) => {
+      const payloadCode = String(code || "").trim();
+      if (!payloadCode) {
+        setMessage("Enter a delivery code first.", "#b45309");
+        return;
+      }
+      submitBtn.disabled = true;
+      setMessage("Confirming delivery…");
+      const result = await handleDeliveryScan(payloadCode);
+      if (result?.outcome === "confirmed") {
+        setMessage(`✅ ${result.message || "Delivery confirmed."}`, "#15803d");
+      } else if (result?.outcome === "already-confirmed") {
+        setMessage(`ℹ️ ${result.message || "Delivery already confirmed."}`, "#0369a1");
+      } else if (result?.outcome === "invalid-code") {
+        setMessage(`❌ ${result.message || "Invalid or expired code."}`, "#b91c1c");
+      } else {
+        setMessage(`⚠️ ${result?.message || "Delivery confirmation failed. Try again."}`, "#b45309");
+      }
+      submitBtn.disabled = false;
+      input.focus();
+      input.select();
+    };
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await submitDeliveryCode(input.value);
+    });
+
+    if (initialCode) {
+      submitDeliveryCode(initialCode);
+    }
+  }
+
   const boot = async () => {
     try {
       await loadConfig();
@@ -7826,24 +7893,7 @@ async function startOrder(orderNo) {
     if (currentPath === "/deliver") {
       const params = new URLSearchParams(window.location.search || "");
       const code = params.get("code") || "";
-      if (code) {
-        const result = await handleDeliveryScan(code);
-        if (result?.outcome === "confirmed") {
-          document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">✅ Delivery confirmed. Thanks driver — this stop has been completed and you can close this page.</div>';
-          setTimeout(() => window.close(), 1200);
-          return;
-        }
-        if (result?.outcome === "already-confirmed") {
-          document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">ℹ️ This delivery was already confirmed earlier. No further action is needed — you can close this page.</div>';
-          setTimeout(() => window.close(), 1200);
-          return;
-        }
-        if (result?.outcome === "invalid-code") {
-          document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">❌ Invalid or expired delivery code. Please rescan the latest QR code or contact dispatch for a new confirmation link.</div>';
-          return;
-        }
-      }
-      document.body.innerHTML = '<div style="font-family:system-ui;padding:24px">⚠️ Delivery confirmation could not be completed. Please try again or contact dispatch.</div>';
+      renderDeliveryDriverPage(code);
       return;
     }
 
