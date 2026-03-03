@@ -8,9 +8,14 @@ import {
   recordPayment,
   upsertCommissionRule
 } from "../services/agentCommissions.js";
+import { config } from "../config.js";
 import { shopifyFetch } from "../services/shopify.js";
 
 const router = express.Router();
+
+function hasShopifyConfig() {
+  return Boolean(config.SHOPIFY_STORE && config.SHOPIFY_CLIENT_ID && config.SHOPIFY_CLIENT_SECRET);
+}
 
 function isoDateDaysAgo(days) {
   const safeDays = Number.isFinite(Number(days)) ? Number(days) : 90;
@@ -19,6 +24,10 @@ function isoDateDaysAgo(days) {
 }
 
 async function fetchOrders(days = 120) {
+  if (!hasShopifyConfig()) {
+    return [];
+  }
+
   const createdAtMin = isoDateDaysAgo(days);
   const fields = [
     "id",
@@ -73,14 +82,36 @@ router.post("/agent-commissions/payments", (req, res) => {
 });
 
 router.get("/agent-commissions/dashboard", async (req, res) => {
+  const shopifyConfigured = hasShopifyConfig();
   try {
     const days = Number(req.query.days || 120);
     const orders = await fetchOrders(days);
     const dashboard = buildCommissionDashboard(orders);
+    dashboard.meta = {
+      degraded: !shopifyConfigured,
+      source: shopifyConfigured ? "shopify_and_local" : "local_only",
+      shopify: {
+        configured: shopifyConfigured,
+        reachable: shopifyConfigured
+      }
+    };
+    if (!shopifyConfigured) {
+      dashboard.warning = "Shopify credentials are not configured. Showing local commission rules/payments only.";
+    }
     return res.json(dashboard);
   } catch (error) {
     console.error("Agent commissions dashboard error", error);
-    return res.status(500).json({ error: String(error?.message || error) });
+    const dashboard = buildCommissionDashboard([]);
+    dashboard.meta = {
+      degraded: true,
+      source: "local_only",
+      shopify: {
+        configured: shopifyConfigured,
+        reachable: false
+      }
+    };
+    dashboard.warning = `Could not fetch Shopify orders: ${String(error?.message || error)}`;
+    return res.json(dashboard);
   }
 });
 

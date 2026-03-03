@@ -28,6 +28,15 @@ async function loadDashboard() {
   if (!resp.ok) throw new Error(data.error || "Could not load dashboard");
 
   const summary = data.summary || {};
+  const existing = document.getElementById("opWarning");
+  if (existing) existing.remove();
+  if (data.warning) {
+    const warning = document.createElement("p");
+    warning.id = "opWarning";
+    warning.className = "op-warning";
+    warning.textContent = data.warning;
+    kpisEl.parentElement?.insertBefore(warning, kpisEl.nextSibling);
+  }
   kpisEl.innerHTML = [
     ["Orders tracked", summary.orderCount || 0],
     ["Total outstanding", fmt.format(summary.totalOutstanding || 0)],
@@ -85,6 +94,7 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
+  if (data.warning) alert(data.warning);
   form.reset();
   await loadDashboard();
 });
