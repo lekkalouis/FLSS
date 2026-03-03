@@ -2,6 +2,7 @@ import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
 import { initPriceManagerView } from "./views/price-manager.js";
 import { initScanStationNext } from "./views/scan-station-next.js";
+import { isHenniesOrderContext } from "./views/customer-specialization.js";
 
 (() => {
   "use strict";
@@ -707,7 +708,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   function mapOrderToDispatchDetails(order) {
     const shipping = order?.shipping_address || {};
     const customer = order?.customer || {};
-    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const lineItems = normalizeDispatchLineItems(order);
 
     let totalGrams = 0;
     lineItems.forEach((lineItem) => {
@@ -1477,6 +1478,76 @@ import { initScanStationNext } from "./views/scan-station-next.js";
     remoteIndicatorState = { ok: status === "connected" || status === "ok", detail: dispatchRemoteStatus.textContent };
   }
 
+
+  const HENNIES_EXPECTED_LINES = [
+    { key: "bietjie-blaf-200ml", label: "Bietjie Blaf 200ml", matcher: /\bbietjie\s+blaf\b.*\b200\s*ml\b/i },
+    { key: "bietjie-blaf-1kg", label: "Bietjie Blaf 1kg", matcher: /\bbietjie\s+blaf\b.*\b1\s*kg\b/i }
+  ];
+
+  function dispatchWarn(message) {
+    const msg = `⚠️ ${String(message || "").trim()}`;
+    appendDebug(msg);
+    logDispatchEvent(msg);
+    console.warn(msg);
+  }
+
+  function lineItemSearchText(item = {}) {
+    return [item?.title, item?.name, item?.variant_title, item?.sku]
+      .map((value) => String(value || "").toLowerCase().trim())
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  function normalizeDispatchLineItems(order) {
+    const rawLineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    if (!Array.isArray(order?.line_items)) {
+      dispatchWarn(`Order ${String(order?.name || order?.id || "unknown")} has invalid line items payload.`);
+    }
+    const lineItems = rawLineItems.filter((item) => item && typeof item === "object");
+    if (lineItems.length !== rawLineItems.length) {
+      dispatchWarn(`Order ${String(order?.name || order?.id || "unknown")} includes malformed line items that were ignored.`);
+    }
+    if (!isHenniesOrderContext(order)) return lineItems;
+
+    const matched = new Set();
+    const matchingIndices = [];
+    lineItems.forEach((item, index) => {
+      const haystack = lineItemSearchText(item);
+      HENNIES_EXPECTED_LINES.forEach((expected) => {
+        if (expected.matcher.test(haystack)) {
+          matched.add(expected.key);
+          matchingIndices.push(index);
+        }
+      });
+    });
+
+    if (matchingIndices.length && matchingIndices.length !== lineItems.length) {
+      dispatchWarn(
+        `Hennies rule check: order ${String(order?.name || order?.id || "unknown")} contains a mixed line-item set (${matchingIndices.length}/${lineItems.length} Bietjie Blaf lines matched).`
+      );
+    }
+
+    const missing = HENNIES_EXPECTED_LINES.filter((expected) => !matched.has(expected.key));
+    if (!missing.length) return lineItems;
+
+    dispatchWarn(
+      `Hennies rule applied to order ${String(order?.name || order?.id || "unknown")}: missing expected lines (${missing.map((item) => item.label).join(", ")}). Placeholder rows were added with quantity 0 for operator review.`
+    );
+
+    const placeholders = missing.map((expected) => ({
+      id: null,
+      title: expected.label,
+      variant_title: "",
+      sku: "",
+      quantity: 0,
+      quantity_remaining: 0,
+      fulfillable_quantity: 0,
+      __isHenniesPlaceholder: true
+    }));
+
+    return [...lineItems, ...placeholders];
+  }
+
   function makePackingKey(item, index) {
     return [
       String(item.title || "").trim(),
@@ -1489,7 +1560,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   function getPackingState(order) {
     const orderNo = String(order?.name || "").replace("#", "").trim();
     if (!orderNo) return null;
-    const lineItems = (order.line_items || []).map((item, index) => {
+    const lineItems = normalizeDispatchLineItems(order).map((item, index) => {
       const quantity = Number(item.quantity) || 0;
       return {
         key: makePackingKey(item, index),
@@ -1541,7 +1612,7 @@ import { initScanStationNext } from "./views/scan-station-next.js";
   function getOrderedPackingItems(order, packingState) {
     if (!order || !packingState) return [];
     const packingByKey = new Map((packingState.items || []).map((item) => [item.key, item]));
-    const orderedLineItems = (order.line_items || [])
+    const orderedLineItems = normalizeDispatchLineItems(order)
       .map((lineItem, index) => ({ ...lineItem, __index: index }))
       .sort(compareDispatchLineItemsForSort);
 
@@ -3439,7 +3510,7 @@ async function startOrder(orderNo) {
   function renderDispatchLineItems(order, packingState) {
     const orderNo = String(order?.name || "").replace("#", "").trim();
     const { fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(order);
-    const lineEntries = (order.line_items || [])
+    const lineEntries = normalizeDispatchLineItems(order)
       .map((item, index) => ({ ...item, __index: index }))
       .sort(compareDispatchLineItemsForSort)
       .map((li) => {
@@ -3569,7 +3640,7 @@ async function startOrder(orderNo) {
   }
 
   function getShippedItemCount(order) {
-    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const lineItems = normalizeDispatchLineItems(order);
     return lineItems.reduce((sum, lineItem) => {
       const ordered = Math.max(0, Number(lineItem?.quantity) || 0);
       if (!ordered) return sum;
@@ -3623,7 +3694,7 @@ async function startOrder(orderNo) {
   }
 
   function getPackedFulfillmentSelection(order, packingState) {
-    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const lineItems = normalizeDispatchLineItems(order);
     const selectedLineItems = [];
     let hasRemainingItems = false;
     let allRemainingPacked = true;
@@ -3717,7 +3788,7 @@ async function startOrder(orderNo) {
   }
 
   function getMissingSeverity(order, packingState) {
-    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const lineItems = normalizeDispatchLineItems(order);
     const inventoryShortItems = lineItems.filter((item) => {
       const remaining = Number(item?.quantity_remaining ?? item?.fulfillable_quantity ?? item?.quantity);
       const inventoryAvailable = Number(item?.inventory_available);
@@ -4052,7 +4123,7 @@ async function startOrder(orderNo) {
   }
 
   function buildDispatchPackingPlan(order) {
-    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    const lineItems = normalizeDispatchLineItems(order);
     const items = lineItems
       .map((item) => {
         const size = getLineItemSize(item);
