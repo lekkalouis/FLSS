@@ -1497,8 +1497,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
 
 
   const HENNIES_EXPECTED_LINES = [
-    { key: "bietjie-blaf-200ml", label: "Bietjie Blaf 200ml", matcher: /\bbietjie\s+blaf\b.*\b200\s*ml\b/i },
-    { key: "bietjie-blaf-1kg", label: "Bietjie Blaf 1kg", matcher: /\bbietjie\s+blaf\b.*\b1\s*kg\b/i }
+    { key: "bietjie-blaf-200ml", label: "200ml BB", matcher: /\bbietjie\s+blaf\b.*\b200\s*ml\b/i },
+    { key: "bietjie-blaf-1kg", label: "1kg BB", matcher: /\bbietjie\s+blaf\b.*\b1\s*kg\b/i }
   ];
 
   function dispatchWarn(message) {
