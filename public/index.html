@@ -1366,12 +1366,14 @@
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(220px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
   gap: .75rem;
   padding: .2rem;
   min-height: 65vh;
   background:var(--panel-muted);
-  overflow:hidden;
+  overflow-x:auto;
+  overflow-y:hidden;
 }
 
 /* column headers */
