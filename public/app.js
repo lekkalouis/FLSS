@@ -3933,10 +3933,21 @@ async function startOrder(orderNo) {
   function getPaymentState(order) {
     const financialStatus = String(order?.financial_status || "").trim().toLowerCase();
     const isPaid = ["paid", "partially_paid"].includes(financialStatus);
-    if (isPaid) return "green";
-    const paymentBeforeDelivery = order?.payment_before_delivery;
-    const requiresPrepayment = paymentBeforeDelivery === null ? true : Boolean(paymentBeforeDelivery);
-    return requiresPrepayment ? "red" : "yellow";
+    const paymentBeforeDeliveryRaw = order?.payment_before_delivery;
+    const paymentBeforeDelivery =
+      typeof paymentBeforeDeliveryRaw === "boolean"
+        ? paymentBeforeDeliveryRaw
+        : (() => {
+            const normalized = String(paymentBeforeDeliveryRaw ?? "").trim().toLowerCase();
+            if (!normalized) return null;
+            if (["1", "true", "yes", "y", "on", "required"].includes(normalized)) return true;
+            if (["0", "false", "no", "n", "off", "not_required"].includes(normalized)) return false;
+            return null;
+          })();
+
+    if (paymentBeforeDelivery === null) return "yellow";
+    if (paymentBeforeDelivery) return isPaid ? "green-lit" : "red-lit";
+    return isPaid ? "green-lit" : "green-dim";
   }
 
   function getDispatchDisplayDate(order) {
