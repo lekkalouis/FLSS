@@ -1,0 +1,4 @@
+gpiozero>=2.0
+adafruit-circuitpython-dht>=4.0
+websockets>=12.0
+RPi.GPIO>=0.7
