@@ -443,7 +443,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     "cheese & onion popcorn sprinkle": "CHO",
     "salt & vinegar popcorn sprinkle": "SV",
     "flippen lekka curry mix": "Curry",
-    "original multi purpose basting sauce": "Basting"
+    "original multi purpose basting sauce": "Basting",
+    "hennies bietjie blaf spice": "BB"
   };
   const lineItemOrder = Object.keys(lineItemAbbreviations);
   const lineItemOrderIndex = new Map(
@@ -1500,8 +1501,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
 
 
   const HENNIES_EXPECTED_LINES = [
-    { key: "bietjie-blaf-200ml", label: "200ml BB", matcher: /\bbietjie\s+blaf\b.*\b200\s*ml\b/i },
-    { key: "bietjie-blaf-1kg", label: "1kg BB", matcher: /\bbietjie\s+blaf\b.*\b1\s*kg\b/i }
+    { key: "bietjie-blaf-200ml", label: "200ml BB", matcher: /\bhennies\s+bietjie\s+blaf\s+spice\b.*\b200\s*ml\b/i },
+    { key: "bietjie-blaf-1kg", label: "1kg BB", matcher: /\bhennies\s+bietjie\s+blaf\s+spice\b.*\b1\s*kg\b/i }
   ];
 
   function dispatchWarn(message) {
