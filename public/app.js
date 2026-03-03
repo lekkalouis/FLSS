@@ -5370,6 +5370,11 @@ async function startOrder(orderNo) {
       const displayDate = getDispatchDisplayDate(o);
       const orderNo = String(o.name || "").replace("#", "").trim();
       const packingState = getPackingState(o);
+      const hasPackableItems = (packingState?.items || []).some((item) => {
+        const quantity = Number(item?.quantity) || 0;
+        const packed = Number(item?.packed) || 0;
+        return quantity > packed;
+      });
       if (orderNo) activeOrders.add(orderNo);
       const { fulfillmentRows, fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(o);
       const lines = renderDispatchLineItems(o, packingState);
@@ -5460,6 +5465,15 @@ async function startOrder(orderNo) {
               : ""
           }
           <div class="dispatchCardLines">${lines}</div>
+          <button
+            class="dispatchCardPackAllBtn"
+            type="button"
+            data-action="pack-order-all"
+            data-order-no="${orderNo}"
+            aria-label="Pack all remaining items for order ${orderNo}"
+            title="Pack all"
+            ${hasPackableItems ? "" : "disabled"}
+          >📦</button>
           <div class="dispatchCardActions">
             ${renderDispatchActions(o, laneId, orderNo, packingState, {
               hasUnfulfilledItems,
@@ -7065,6 +7079,30 @@ async function startOrder(orderNo) {
         allocatePackedToBox(state, item.key, remaining);
         item.packed = item.quantity;
       }
+      if (isPackingComplete(state)) {
+        finalizePacking(state);
+      } else {
+        savePackingState();
+      }
+      refreshDispatchViews(orderNo);
+      return true;
+    }
+    if (actionType === "pack-order-all") {
+      if (!orderNo) return true;
+      const state = dispatchPackingState.get(orderNo);
+      if (!state) return true;
+      if (!state.startTime) state.startTime = new Date().toISOString();
+      let packedAnything = false;
+      (state.items || []).forEach((item) => {
+        const quantity = Number(item?.quantity) || 0;
+        const packed = Number(item?.packed) || 0;
+        const remaining = Math.max(0, quantity - packed);
+        if (remaining <= 0) return;
+        allocatePackedToBox(state, item.key, remaining);
+        item.packed = quantity;
+        packedAnything = true;
+      });
+      if (!packedAnything) return true;
       if (isPackingComplete(state)) {
         finalizePacking(state);
       } else {
