@@ -184,6 +184,11 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const scanDispatchLog = $("scanDispatchLog");
   const dispatchTopBar = $("dispatchTopBar");
   const dispatchEnvironmentSummary = $("dispatchEnvironmentSummary");
+  const dispatchTruckBookedMetric = $("dispatchTruckBookedMetric");
+  const dispatchTruckStatusIcon = $("dispatchTruckStatusIcon");
+  const dispatchTruckStatusText = $("dispatchTruckStatusText");
+  const dispatchTruckParcelCount = $("dispatchTruckParcelCount");
+  const dispatchTruckAnnouncement = $("dispatchTruckAnnouncement");
   const dispatchDateTimeSummary = $("dispatchDateTimeSummary");
   const dispatchEnvironmentStatus = $("dispatchEnvironmentStatus");
   const dispatchRemoteStatus = $("dispatchRemoteStatus");
@@ -1423,6 +1428,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
           <span class="flHeaderMetricValue">${humidityValue}<span class="flHeaderMetricUnit">%</span></span>
         </span>
       `;
+      if (!("nodeType" in dispatchEnvironmentSummary)) {
+        dispatchEnvironmentSummary.textContent = `🌡 ${tempValue}°C · 💧 ${humidityValue}%`;
+      }
 
       const ageText = environmentToRender?.lastUpdatedAt
         ? ` · ${formatDispatchTime(environmentToRender.lastUpdatedAt)}`
@@ -1443,6 +1451,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
           <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span>
         </span>
       `;
+      if (!("nodeType" in dispatchEnvironmentSummary)) {
+        dispatchEnvironmentSummary.textContent = "🌡 —°C · 💧 —%";
+      }
       dispatchEnvironmentStatus.textContent = "Waiting for sensor";
       sensorIndicatorState = { ok: false, detail: "Waiting for sensor" };
     }
@@ -1940,6 +1951,10 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
 
   function renderTruckPanel() {
     if (truckParcelCount) truckParcelCount.textContent = String(dailyParcelCount);
+    if (dispatchTruckParcelCount) dispatchTruckParcelCount.textContent = String(dailyParcelCount);
+    if (dispatchTruckStatusText) dispatchTruckStatusText.textContent = truckBooked ? "Booked" : "Not booked";
+    if (dispatchTruckStatusIcon) dispatchTruckStatusIcon.textContent = "🚚";
+    if (dispatchTruckBookedMetric) dispatchTruckBookedMetric.classList.toggle("is-booked", truckBooked);
     if (!truckStatus || !truckBookBtn) return;
     truckStatus.textContent = truckBooked ? "Booked" : "Not booked";
     truckStatus.classList.toggle("is-booked", truckBooked);
@@ -1986,6 +2001,11 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       }
       updateTruckBookingState({ booked: true, bookedBy: reason });
       statusExplain("Truck collection booked.", "ok");
+      if (dispatchTruckAnnouncement) {
+        dispatchTruckAnnouncement.textContent = "";
+        dispatchTruckAnnouncement.textContent = "Truck has been booked.";
+      }
+      speakAnnouncement("Truck has been booked.");
       logDispatchEvent(`Truck collection booked (${reason}).`);
     } catch (err) {
       statusExplain("Truck booking email failed.", "err");
