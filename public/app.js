@@ -184,6 +184,11 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const scanDispatchLog = $("scanDispatchLog");
   const dispatchTopBar = $("dispatchTopBar");
   const dispatchEnvironmentSummary = $("dispatchEnvironmentSummary");
+  const dispatchTruckBookedMetric = $("dispatchTruckBookedMetric");
+  const dispatchTruckStatusIcon = $("dispatchTruckStatusIcon");
+  const dispatchTruckStatusText = $("dispatchTruckStatusText");
+  const dispatchTruckParcelCount = $("dispatchTruckParcelCount");
+  const dispatchTruckAnnouncement = $("dispatchTruckAnnouncement");
   const dispatchDateTimeSummary = $("dispatchDateTimeSummary");
   const dispatchEnvironmentStatus = $("dispatchEnvironmentStatus");
   const dispatchRemoteStatus = $("dispatchRemoteStatus");
@@ -380,7 +385,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   let dispatchOrdersLatest = [];
   let dispatchFulfilledLatest = [];
   let dispatchShipmentsLatest = [];
-  let dispatchViewMode = "open";
   let dispatchModalOrderNo = null;
   let dispatchModalShipmentId = null;
   let dispatchKnownOrderNos = new Set();
@@ -1423,6 +1427,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
           <span class="flHeaderMetricValue">${humidityValue}<span class="flHeaderMetricUnit">%</span></span>
         </span>
       `;
+      if (!("nodeType" in dispatchEnvironmentSummary)) {
+        dispatchEnvironmentSummary.textContent = `🌡 ${tempValue}°C · 💧 ${humidityValue}%`;
+      }
 
       const ageText = environmentToRender?.lastUpdatedAt
         ? ` · ${formatDispatchTime(environmentToRender.lastUpdatedAt)}`
@@ -1443,6 +1450,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
           <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span>
         </span>
       `;
+      if (!("nodeType" in dispatchEnvironmentSummary)) {
+        dispatchEnvironmentSummary.textContent = "🌡 —°C · 💧 —%";
+      }
       dispatchEnvironmentStatus.textContent = "Waiting for sensor";
       sensorIndicatorState = { ok: false, detail: "Waiting for sensor" };
     }
@@ -1940,6 +1950,10 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
 
   function renderTruckPanel() {
     if (truckParcelCount) truckParcelCount.textContent = String(dailyParcelCount);
+    if (dispatchTruckParcelCount) dispatchTruckParcelCount.textContent = String(dailyParcelCount);
+    if (dispatchTruckStatusText) dispatchTruckStatusText.textContent = truckBooked ? "Booked" : "Not booked";
+    if (dispatchTruckStatusIcon) dispatchTruckStatusIcon.textContent = "🚚";
+    if (dispatchTruckBookedMetric) dispatchTruckBookedMetric.classList.toggle("is-booked", truckBooked);
     if (!truckStatus || !truckBookBtn) return;
     truckStatus.textContent = truckBooked ? "Booked" : "Not booked";
     truckStatus.classList.toggle("is-booked", truckBooked);
@@ -1986,6 +2000,11 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       }
       updateTruckBookingState({ booked: true, bookedBy: reason });
       statusExplain("Truck collection booked.", "ok");
+      if (dispatchTruckAnnouncement) {
+        dispatchTruckAnnouncement.textContent = "";
+        dispatchTruckAnnouncement.textContent = "Truck has been booked.";
+      }
+      speakAnnouncement("Truck has been booked.");
       logDispatchEvent(`Truck collection booked (${reason}).`);
     } catch (err) {
       statusExplain("Truck booking email failed.", "err");
@@ -4682,18 +4701,7 @@ async function startOrder(orderNo) {
 
   function renderDispatchViewTabs() {
     if (!dispatchViewTabs) return;
-    const options = [
-      { id: "open", label: "Open" },
-      { id: "fulfilled", label: "Recently shipped" }
-    ];
-    dispatchViewTabs.innerHTML = options
-      .map((option) => {
-        const isActive = dispatchViewMode === option.id;
-        return `<button class="btn ${isActive ? "btn-primary" : "btn-alt-secondary"}" type="button" data-dispatch-view="${option.id}" aria-pressed="${
-          isActive ? "true" : "false"
-        }">${option.label}</button>`;
-      })
-      .join("");
+    dispatchViewTabs.innerHTML = "";
   }
 
   function formatDispatchDateTime(value) {
@@ -5170,8 +5178,10 @@ async function startOrder(orderNo) {
 
 
   function refreshDispatchViews(orderNo) {
-    if (dispatchViewMode === "fulfilled") renderDispatchFulfilledList(dispatchFulfilledLatest);
-    else renderDispatchBoard(dispatchOrdersLatest);
+    renderDispatchBoard(dispatchOrdersLatest);
+    if (dispatchShipmentsSidebar) {
+      dispatchShipmentsSidebar.innerHTML = renderShipmentList(dispatchShipmentsLatest || []);
+    }
     const modalOrder = orderNo || dispatchModalOrderNo;
     if (dispatchOrderModal?.classList.contains("is-open")) {
       if (!modalOrder || !dispatchOrderCache.get(modalOrder)) {
@@ -6220,14 +6230,19 @@ async function startOrder(orderNo) {
       const isDispatchViewActive = document.querySelector(".flView.flView--active")?.id === "viewDispatch";
       await syncDispatchControllerState(isDispatchViewActive ? "dispatch" : "idle");
       const state = await loadDispatchControllerState();
-      if (dispatchViewMode === "fulfilled") renderDispatchFulfilledList(dispatchFulfilledLatest);
-      else renderDispatchBoard(dispatchOrdersLatest);
+      renderDispatchBoard(dispatchOrdersLatest);
+      if (dispatchShipmentsSidebar) {
+        dispatchShipmentsSidebar.innerHTML = renderShipmentList(dispatchShipmentsLatest || []);
+      }
       applyIncomingDispatchControllerState(state || dispatchControllerState);
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
       renderDateTimeHeaderWidget();
     } catch (e) {
       appendDebug("Dispatch refresh failed: " + String(e));
       if (dispatchBoard) dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">Error loading orders.</div>`;
+      if (dispatchShipmentsSidebar) {
+        dispatchShipmentsSidebar.innerHTML = `<div class="dispatchShipmentEmpty">Unable to load recent shipments.</div>`;
+      }
       if (dispatchStamp) dispatchStamp.textContent = "Dispatch: error";
     }
   }
@@ -7558,19 +7573,6 @@ async function startOrder(orderNo) {
     clearDispatchSelection();
   });
 
-  dispatchViewTabs?.addEventListener("click", (e) => {
-    const button = e.target.closest("button[data-dispatch-view]");
-    if (!button) return;
-    const nextMode = button.dataset.dispatchView;
-    if (!nextMode || dispatchViewMode === nextMode) return;
-    dispatchViewMode = nextMode;
-    renderDispatchViewTabs();
-    if (dispatchViewMode === "fulfilled") {
-      renderDispatchFulfilledList(dispatchFulfilledLatest);
-    } else {
-      renderDispatchBoard(dispatchOrdersLatest);
-    }
-  });
 
   dispatchMobileLaneTabs?.addEventListener("click", (e) => {
     const button = e.target.closest("button[data-mobile-lane]");
