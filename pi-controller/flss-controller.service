@@ -1,0 +1,17 @@
+[Unit]
+Description=FLSS Raspberry Pi Station Controller
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/flss/pi-controller
+Environment=FLSS_CONTROLLER_WS=ws://127.0.0.1:3000/ws/controller
+Environment=FLSS_CONTROLLER_SOURCE=pi-station-01
+ExecStart=/usr/bin/python3 /opt/flss/pi-controller/controller_daemon.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
