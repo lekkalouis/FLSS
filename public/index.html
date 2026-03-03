@@ -1148,15 +1148,44 @@
 }
 
 .dispatchBoardLayout{
-  display:flex;
-  flex-direction:column;
-  gap:.55rem;
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) minmax(280px, 340px);
+  gap:.85rem;
   min-height:100%;
 }
 .dispatchBoardMain{
   display:flex;
   flex-direction:column;
   gap:.85rem;
+}
+.dispatchSelectionSidebar{
+  display:flex;
+  flex-direction:column;
+  gap:.55rem;
+  min-height:100%;
+}
+.dispatchSelectionSidebarToggle{
+  border:1px solid rgba(59,130,246,.45);
+  background:#fff;
+  color:#1d4ed8;
+  border-radius:.55rem;
+  font-weight:700;
+  font-size:.72rem;
+  padding:.32rem .62rem;
+}
+.dispatchSelectionSidebar.is-closed .dispatchSelectionFloat{
+  display:none;
+}
+@media (max-width:980px){
+  .dispatchBoardLayout{
+    grid-template-columns:minmax(0, 1fr);
+  }
+  .dispatchSelectionSidebar{
+    order:-1;
+  }
+  .dispatchSelectionSidebar.is-closed{
+    display:flex;
+  }
 }
 
 .dispatchStatusPanel {
@@ -2996,30 +3025,6 @@
           </div>
         </div>
 
-        <div class="dispatchSelectionFloat" aria-live="polite">
-          <div class="dispatchSelectionPanel" id="dispatchSelectionPanel">
-            <div class="dispatchSelectionHeader">
-              <span>Selected orders</span>
-              <div class="dispatchSelectionActions">
-                <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
-                <button class="dispatchSelectionClear" id="dispatchSelectionClear" type="button">Clear</button>
-              </div>
-            </div>
-            <div class="dispatchSelectionBody">
-              <div class="dispatchSelectionMeta">
-                <div>Total units: <strong id="dispatchSelectionUnits">0</strong></div>
-                <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
-                <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
-                <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
-              </div>
-              <div id="dispatchSelectionOrderCards" class="dispatchSelectionOrderCards"></div>
-              <div id="dispatchSelectionMixes" class="dispatchSelectionMixes"></div>
-              <div class="dispatchSelectionBulkActions is-hidden" id="dispatchPrepareDeliveriesContainer">
-                <button id="dispatchPrepareDeliveries" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Prepare deliveries</button>
-              </div>
-            </div>
-          </div>
-        </div>
 
       </div>
 
@@ -3045,6 +3050,40 @@
               </div>
             </div>
           </div>
+          <aside class="dispatchSelectionSidebar is-open" id="dispatchSelectionSidebar" aria-label="Selected orders panel">
+            <button
+              class="dispatchSelectionSidebarToggle"
+              id="dispatchSelectionSidebarToggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="dispatchSelectionPanel">
+              Hide selected orders
+            </button>
+            <div class="dispatchSelectionFloat" id="dispatchSelectionFloat" aria-live="polite">
+              <div class="dispatchSelectionPanel" id="dispatchSelectionPanel" tabindex="-1">
+                <div class="dispatchSelectionHeader">
+                  <span>Selected orders</span>
+                  <div class="dispatchSelectionActions">
+                    <span class="dispatchSelectionCount" id="dispatchSelectionCount">0</span>
+                    <button class="dispatchSelectionClear" id="dispatchSelectionClear" type="button">Clear</button>
+                  </div>
+                </div>
+                <div class="dispatchSelectionBody">
+                  <div class="dispatchSelectionMeta">
+                    <div>Total units: <strong id="dispatchSelectionUnits">0</strong></div>
+                    <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
+                    <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
+                    <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
+                  </div>
+                  <div id="dispatchSelectionOrderCards" class="dispatchSelectionOrderCards"></div>
+                  <div id="dispatchSelectionMixes" class="dispatchSelectionMixes"></div>
+                  <div class="dispatchSelectionBulkActions is-hidden" id="dispatchPrepareDeliveriesContainer">
+                    <button id="dispatchPrepareDeliveries" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Prepare deliveries</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
       <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
