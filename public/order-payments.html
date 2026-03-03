@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order Payments</title>
+  <link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
+  <link rel="stylesheet" href="/order-payments.css" />
+</head>
+<body>
+  <main class="op-shell">
+    <header class="op-header">
+      <div>
+        <h1>Order Payments</h1>
+        <p>Allocate bank payments to Shopify orders, track outstanding balances, and monitor customer terms.</p>
+      </div>
+      <div class="op-actions">
+        <a class="btn btn-alt-primary" href="/">Back to FLSS</a>
+        <button id="opRefresh" class="btn btn-primary" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <section class="op-kpis" id="opKpis"></section>
+
+    <section class="op-card">
+      <h2>Capture Bank Payment Allocation</h2>
+      <form id="opForm" class="op-form">
+        <input name="amount" type="number" min="0.01" step="0.01" placeholder="Bank payment amount" required />
+        <input name="reference" placeholder="Bank reference" />
+        <input name="receivedAt" type="date" />
+        <select id="opOrder"></select>
+        <input name="allocationAmount" type="number" min="0" step="0.01" placeholder="Allocation amount" />
+        <textarea name="notes" rows="2" placeholder="Notes"></textarea>
+        <button class="btn btn-success" type="submit">Apply allocation to Shopify</button>
+      </form>
+    </section>
+
+    <section class="op-card">
+      <h2>Outstanding / Terms Dashboard</h2>
+      <table class="table table-striped">
+        <thead>
+          <tr><th>Order</th><th>Customer</th><th>Terms</th><th>Due date</th><th>Outstanding</th><th>Local status</th><th>Shopify status</th></tr>
+        </thead>
+        <tbody id="opOrders"></tbody>
+      </table>
+    </section>
+  </main>
+  <script type="module" src="/order-payments.js"></script>
+</body>
+</html>
