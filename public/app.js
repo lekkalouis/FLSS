@@ -3464,9 +3464,43 @@ async function startOrder(orderNo) {
     return /(^|[\s,])export([\s,]|$)/.test(tags);
   }
 
-  function formatDispatchQtyLabel(quantity, shortLabel, order) {
+  function formatGroupedPackQty(quantity, sizeLabel, order) {
     const qty = Number(quantity) || 0;
-    if (!isExportOrder(order) || qty <= 0) {
+    if (!isHenniesOrderContext(order) || qty <= 0) return null;
+    const normalizedSize = normalizeSizeToken(sizeLabel);
+    const groupedBoxSize = normalizedSize === "200ml"
+      ? 96
+      : normalizedSize === "1kg"
+        ? 20
+        : 0;
+    if (!groupedBoxSize) return null;
+    const boxCount = qty / groupedBoxSize;
+    if (!Number.isInteger(boxCount) || boxCount <= 0) return null;
+    const displaySize = normalizedSize === "200ml" || normalizedSize === "1kg"
+      ? normalizedSize
+      : String(sizeLabel || "").trim();
+    return `${boxCount} x (${groupedBoxSize} x ${displaySize})`;
+  }
+
+  function removeLeadingSizeLabel(label, sizeLabel) {
+    const rawLabel = String(label || "").trim();
+    const rawSize = String(sizeLabel || "").trim();
+    if (!rawLabel || !rawSize) return rawLabel;
+    const escapedSize = rawSize.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return rawLabel.replace(new RegExp(`^${escapedSize}\\s*`, "i"), "").trim();
+  }
+
+  function formatDispatchQtyLabel(quantity, shortLabel, order, sizeLabel = "") {
+    const qty = Number(quantity) || 0;
+    if (qty <= 0) {
+      return `${qty} × ${shortLabel}`;
+    }
+    const groupedQty = formatGroupedPackQty(qty, sizeLabel, order);
+    if (groupedQty) {
+      const remainderLabel = removeLeadingSizeLabel(shortLabel, sizeLabel);
+      return remainderLabel ? `${groupedQty} ${remainderLabel}` : groupedQty;
+    }
+    if (!isExportOrder(order)) {
       return `${qty} × ${shortLabel}`;
     }
     const EXPORT_CARTON_UNITS = 12;
@@ -3550,9 +3584,9 @@ async function startOrder(orderNo) {
           (Number.isFinite(fulfillableQty) && fulfillableQty < requestedQty) ||
           (Number.isFinite(inventoryAvailableQty) && inventoryAvailableQty < requestedQty);
         const openQty = Math.max(0, requestedQty - packedCount);
-        const openQtyLabel = openQty > 0 ? formatDispatchQtyLabel(openQty, shortLabel, order) : "";
-        const packedQtyLabel = packedCount > 0 ? formatDispatchQtyLabel(packedCount, shortLabel, order) : "";
-        const fulfilledQtyLabel = fulfilledQty > 0 ? formatDispatchQtyLabel(fulfilledQty, shortLabel, order) : "";
+        const openQtyLabel = openQty > 0 ? formatDispatchQtyLabel(openQty, shortLabel, order, sizeLabel) : "";
+        const packedQtyLabel = packedCount > 0 ? formatDispatchQtyLabel(packedCount, shortLabel, order, sizeLabel) : "";
+        const fulfilledQtyLabel = fulfilledQty > 0 ? formatDispatchQtyLabel(fulfilledQty, shortLabel, order, sizeLabel) : "";
         const qtyLabel = fulfilledQty > 0 && openQtyLabel
           ? `${openQtyLabel} <span class="dispatchLineFulfilledPart">+ ${fulfilledQtyLabel}</span>`
           : openQtyLabel || fulfilledQtyLabel;
