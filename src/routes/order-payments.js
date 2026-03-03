@@ -5,9 +5,14 @@ import {
   createBankPaymentRecord,
   listBankPayments
 } from "../services/orderPayments.js";
+import { config } from "../config.js";
 import { shopifyFetch } from "../services/shopify.js";
 
 const router = express.Router();
+
+function hasShopifyConfig() {
+  return Boolean(config.SHOPIFY_STORE && config.SHOPIFY_CLIENT_ID && config.SHOPIFY_CLIENT_SECRET);
+}
 
 function isoDateDaysAgo(days) {
   const d = Number(days);
@@ -16,6 +21,10 @@ function isoDateDaysAgo(days) {
 }
 
 async function fetchOrders(days = 180) {
+  if (!hasShopifyConfig()) {
+    return [];
+  }
+
   const fields = [
     "id",
     "name",
@@ -64,13 +73,36 @@ async function applyManualPayment(orderId, amount, reference) {
 }
 
 router.get("/order-payments/dashboard", async (req, res) => {
+  const shopifyConfigured = hasShopifyConfig();
   try {
     const days = Number(req.query.days || 180);
     const orders = await fetchOrders(days);
-    return res.json(buildOrderPaymentsDashboard(orders));
+    const dashboard = buildOrderPaymentsDashboard(orders);
+    dashboard.meta = {
+      degraded: !shopifyConfigured,
+      source: shopifyConfigured ? "shopify_and_local" : "local_only",
+      shopify: {
+        configured: shopifyConfigured,
+        reachable: shopifyConfigured
+      }
+    };
+    if (!shopifyConfigured) {
+      dashboard.warning = "Shopify credentials are not configured. Showing local bank payment records only.";
+    }
+    return res.json(dashboard);
   } catch (error) {
     console.error("Order payments dashboard error", error);
-    return res.status(500).json({ error: String(error?.message || error) });
+    const dashboard = buildOrderPaymentsDashboard([]);
+    dashboard.meta = {
+      degraded: true,
+      source: "local_only",
+      shopify: {
+        configured: shopifyConfigured,
+        reachable: false
+      }
+    };
+    dashboard.warning = `Could not fetch Shopify orders: ${String(error?.message || error)}`;
+    return res.json(dashboard);
   }
 });
 
@@ -84,11 +116,41 @@ router.post("/order-payments/allocate", async (req, res) => {
     if (result.error) return res.status(400).json({ error: result.error });
 
     const allocations = result.payment.allocations || [];
-    for (const allocation of allocations) {
-      await applyManualPayment(allocation.orderId, allocation.amount, result.payment.reference);
+    const shopifyConfigured = hasShopifyConfig();
+    const sync = {
+      configured: shopifyConfigured,
+      attempted: allocations.length,
+      succeeded: 0,
+      failed: []
+    };
+
+    if (shopifyConfigured) {
+      for (const allocation of allocations) {
+        try {
+          await applyManualPayment(allocation.orderId, allocation.amount, result.payment.reference);
+          sync.succeeded += 1;
+        } catch (error) {
+          sync.failed.push({
+            orderId: allocation.orderId,
+            amount: allocation.amount,
+            error: String(error?.message || error)
+          });
+        }
+      }
     }
 
-    return res.status(201).json(result);
+    const statusCode = sync.failed.length > 0 ? 202 : 201;
+    const warning = !shopifyConfigured
+      ? "Saved locally only because Shopify credentials are not configured."
+      : sync.failed.length > 0
+        ? "Saved locally, but one or more Shopify transaction sync operations failed."
+        : undefined;
+
+    return res.status(statusCode).json({
+      ...result,
+      sync,
+      warning
+    });
   } catch (error) {
     console.error("Order payments allocation error", error);
     return res.status(500).json({ error: String(error?.message || error) });

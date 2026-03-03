@@ -78,6 +78,15 @@ async function loadDashboard() {
   renderSummary(data.summary);
   renderRules(data.rules);
   renderOrders(data.orders);
+  const existing = document.getElementById("acWarning");
+  if (existing) existing.remove();
+  if (data.warning) {
+    const warning = document.createElement("p");
+    warning.id = "acWarning";
+    warning.className = "ac-warning";
+    warning.textContent = data.warning;
+    summaryGrid.parentElement?.insertBefore(warning, summaryGrid.nextSibling);
+  }
 }
 
 ruleForm.addEventListener("submit", async (event) => {
