@@ -2920,6 +2920,10 @@
 
   .flHeaderMeta{display:flex;align-items:flex-start;gap:.75rem;flex-wrap:wrap;justify-content:flex-end;}
   .flHeaderEnv{display:flex;gap:.75rem;align-items:flex-start;}
+  .flHeaderTruck{display:flex;gap:.55rem;align-items:flex-start;}
+  .flHeaderTruckMetric{display:flex;flex-direction:column;line-height:1.1;padding:.2rem .45rem;border:1px solid rgba(148,163,184,.35);border-radius:.55rem;background:rgba(255,255,255,.8);min-width:74px;}
+  .flHeaderTruckIcon{font-size:.9rem;line-height:1;color:var(--text-muted);}
+  .flHeaderTruckMetric.is-booked .flHeaderTruckIcon{color:#16a34a;}
   .flHeaderDateTime{font-size:.78rem;color:var(--text-muted);font-weight:600;letter-spacing:.01em;white-space:nowrap;padding-top:.15rem;}
   .flHeaderMetric{display:flex;flex-direction:column;line-height:1.1;}
   .flHeaderMetricLabel{font-size:.64rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-weight:700;}
@@ -2943,6 +2947,16 @@
           <div class="flNavTitle">Flippen Lekka Operations</div>
           <div class="flHeaderMeta">
             <div id="dispatchEnvironmentSummary" class="flHeaderEnv"><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Temp</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span></span><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Humidity</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span></span></div>
+            <div id="dispatchTruckSummary" class="flHeaderTruck" aria-label="Truck and parcel summary">
+              <span id="dispatchTruckBookedMetric" class="flHeaderTruckMetric" aria-label="Truck booking status">
+                <span id="dispatchTruckStatusIcon" class="flHeaderTruckIcon" aria-hidden="true">🚚</span>
+                <span id="dispatchTruckStatusText" class="flHeaderMetricLabel">Not booked</span>
+              </span>
+              <span class="flHeaderTruckMetric" aria-label="Parcel count today">
+                <span class="flHeaderTruckIcon" aria-hidden="true">📦</span>
+                <span id="dispatchTruckParcelCount" class="flHeaderMetricValue">0</span>
+              </span>
+            </div>
             <div id="dispatchDateTimeSummary" class="flHeaderDateTime">—</div>
             <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
               <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
@@ -2950,6 +2964,7 @@
           </div>
           <span id="dispatchEnvironmentStatus" class="visually-hidden">Waiting for sensor</span>
           <span id="dispatchRemoteStatus" class="visually-hidden">Remote offline</span>
+          <span id="dispatchTruckAnnouncement" class="visually-hidden" aria-live="polite"></span>
         </div>
         <nav class="flNav" aria-label="Primary">
           <div class="flNavGroup" role="tablist" aria-label="Primary views">
