@@ -365,15 +365,16 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
   const dispatchSelectedOrders = new Set();
-  const dispatchMobileLaneOptions = [
+  const DISPATCH_DELIVERY_SPLIT_THRESHOLD = 8;
+  const DISPATCH_MOBILE_BASE_LANE_OPTIONS = [
     { id: "all", label: "All" },
     { id: "shippingAgent", label: "Agent" },
     { id: "shippingA", label: "Ship A" },
     { id: "shippingB", label: "Ship B" },
     { id: "export", label: "Export" },
-    { id: "pickup", label: "Pickup" },
-    { id: "delivery", label: "Delivery" }
+    { id: "pickup", label: "Pickup" }
   ];
+  let dispatchMobileLaneOptions = [...DISPATCH_MOBILE_BASE_LANE_OPTIONS, { id: "delivery", label: "Delivery" }];
   let dispatchMobileLane = "all";
   const dispatchPriorityState = new Map();
   let dispatchOrdersLatest = [];
@@ -3763,7 +3764,7 @@ async function startOrder(orderNo) {
   }
 
   function renderDispatchActions(order, laneId, orderNo, packingState, options = {}) {
-    const normalizedLane = laneId === "delivery" || laneId === "pickup" ? laneId : "shipping";
+    const normalizedLane = normalizeDispatchLaneId(laneId);
     const disabled = orderNo ? "" : "disabled";
     const docsDropdown = `
       <div class="dispatchDocsDropdown">
@@ -3822,6 +3823,12 @@ async function startOrder(orderNo) {
           : ""
       }
     `;
+  }
+
+  function normalizeDispatchLaneId(laneId) {
+    if (laneId === "pickup") return "pickup";
+    if (String(laneId || "").startsWith("delivery")) return "delivery";
+    return "shipping";
   }
 
   function getMissingSeverity(order, packingState) {
@@ -4776,6 +4783,10 @@ async function startOrder(orderNo) {
         return;
       }
       const laneId = col.dataset.laneId;
+      if (dispatchMobileLane === "delivery") {
+        col.classList.toggle("dispatchCol--mobile-hidden", normalizeDispatchLaneId(laneId) !== "delivery");
+        return;
+      }
       col.classList.toggle("dispatchCol--mobile-hidden", laneId !== dispatchMobileLane);
     });
     if (dispatchMobileControls) {
@@ -5289,6 +5300,33 @@ async function startOrder(orderNo) {
       shippingChunks[index % shippingLaneCount].push(order);
     });
     const [shippingA, shippingB] = shippingChunks;
+    const shouldSplitDelivery = lanes.export.length === 0 && lanes.delivery.length > DISPATCH_DELIVERY_SPLIT_THRESHOLD;
+    const deliveryChunks = Array.from({ length: shouldSplitDelivery ? 2 : 1 }, () => []);
+    lanes.delivery.forEach((order, index) => {
+      deliveryChunks[index % deliveryChunks.length].push(order);
+    });
+    const [deliveryA, deliveryB] = deliveryChunks;
+    if (shouldSplitDelivery) {
+      cols.splice(
+        cols.findIndex((col) => col.id === "delivery"),
+        1,
+        { id: "deliveryA", label: "Delivery", type: "cards" },
+        { id: "deliveryB", label: "Delivery 2", type: "cards" }
+      );
+    }
+    dispatchMobileLaneOptions = [
+      ...DISPATCH_MOBILE_BASE_LANE_OPTIONS,
+      { id: "delivery", label: "Delivery" },
+      ...(shouldSplitDelivery
+        ? [
+            { id: "deliveryA", label: "Delivery" },
+            { id: "deliveryB", label: "Delivery 2" }
+          ]
+        : [])
+    ];
+    if (dispatchMobileLane !== "all" && !dispatchMobileLaneOptions.some((option) => option.id === dispatchMobileLane)) {
+      dispatchMobileLane = "all";
+    }
 
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
@@ -5390,7 +5428,7 @@ async function startOrder(orderNo) {
           <div class="dispatchCardActions">
             ${renderDispatchActions(o, laneId, orderNo, packingState, {
               hasUnfulfilledItems,
-              suppressFulfillAction: Boolean(combinedGroup && isCombinedShipmentEnabled(combinedGroup) && laneId !== "delivery" && laneId !== "pickup")
+              suppressFulfillAction: Boolean(combinedGroup && isCombinedShipmentEnabled(combinedGroup) && normalizeDispatchLaneId(laneId) === "shipping")
             })}
           </div>
         </div>`;
@@ -5420,7 +5458,7 @@ async function startOrder(orderNo) {
       laneOrders.forEach((order) => {
         const orderNo = orderNoFromName(order?.name);
         const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
-        const isShippingLane = laneId !== "delivery" && laneId !== "pickup";
+        const isShippingLane = normalizeDispatchLaneId(laneId) === "shipping";
         if (!combinedGroup || !isShippingLane) {
           chunks.push(cardHTML(order, laneId));
           return;
@@ -5475,15 +5513,18 @@ async function startOrder(orderNo) {
             ? lanes.export
             : col.id === "shippingAgent"
             ? lanes.shippingAgent
+            : col.id === "deliveryA"
+            ? deliveryA || []
+            : col.id === "deliveryB"
+            ? deliveryB || []
             : lanes[col.id] || [];
         const cards = renderLaneCards(laneOrders, col.id);
-        if (!cards) return "";
         return `
           <div class="dispatchCol" data-lane-id="${col.id}">
             <div class="dispatchColHeader">
               <span>${col.label}</span>
             </div>
-            <div class="dispatchColBody">${cards}</div>
+            <div class="dispatchColBody">${cards || '<div class="dispatchBoardEmptyCol">No orders in this lane.</div>'}</div>
           </div>`;
       })
       .join("");
@@ -5881,7 +5922,7 @@ async function startOrder(orderNo) {
 
   function getDispatchQueueOrderIds() {
     if (dispatchBoard) {
-      const laneIdsInTraversalOrder = ["shippingAgent", "shippingA", "shippingB", "export", "pickup", "delivery"];
+      const laneIdsInTraversalOrder = ["shippingAgent", "shippingA", "shippingB", "export", "pickup", "delivery", "deliveryA", "deliveryB"];
       const visited = new Set();
       const queue = [];
       laneIdsInTraversalOrder.forEach((laneId) => {
