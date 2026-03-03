@@ -193,6 +193,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchOverlayProgressSteps = $("dispatchOverlayProgressSteps");
   const dispatchOverlayProgressLabel = $("dispatchOverlayProgressLabel");
   const dispatchMobileControls = $("dispatchMobileControls");
+  const dispatchViewTabs = $("dispatchViewTabs");
   const dispatchMobileLaneTabs = $("dispatchMobileLaneTabs");
   const dispatchMobileLaneLabel = $("dispatchMobileLaneLabel");
 
@@ -376,7 +377,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   let dispatchMobileLane = "all";
   const dispatchPriorityState = new Map();
   let dispatchOrdersLatest = [];
+  let dispatchFulfilledLatest = [];
   let dispatchShipmentsLatest = [];
+  let dispatchViewMode = "open";
   let dispatchModalOrderNo = null;
   let dispatchModalShipmentId = null;
   let dispatchKnownOrderNos = new Set();
@@ -4636,6 +4639,83 @@ async function startOrder(orderNo) {
     return window.matchMedia("(max-width: 900px)").matches;
   }
 
+  function renderDispatchViewTabs() {
+    if (!dispatchViewTabs) return;
+    const options = [
+      { id: "open", label: "Open" },
+      { id: "fulfilled", label: "Recently shipped" }
+    ];
+    dispatchViewTabs.innerHTML = options
+      .map((option) => {
+        const isActive = dispatchViewMode === option.id;
+        return `<button class="btn ${isActive ? "btn-primary" : "btn-alt-secondary"}" type="button" data-dispatch-view="${option.id}" aria-pressed="${
+          isActive ? "true" : "false"
+        }">${option.label}</button>`;
+      })
+      .join("");
+  }
+
+  function formatDispatchDateTime(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return "—";
+    return date.toLocaleString();
+  }
+
+  function renderDispatchFulfilledList(orders) {
+    if (!dispatchBoard) return;
+    dispatchOrderCache.clear();
+    dispatchShipmentCache.clear();
+    dispatchSelectedOrders.clear();
+    updateDispatchSelectionSummary();
+
+    const list = Array.isArray(orders) ? orders.slice() : [];
+    if (!list.length) {
+      dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No recently shipped orders found.</div>`;
+      return;
+    }
+
+    const cards = list
+      .map((order) => {
+        const orderNo = orderNoFromName(order?.name || "") || String(order?.name || "").replace("#", "").trim();
+        const lines = Array.isArray(order?.line_items)
+          ? order.line_items
+              .map((item) => {
+                const title = [item?.title, item?.variant_title].filter(Boolean).join(" — ");
+                const qty = Number(item?.fulfilled_quantity || item?.quantity || 0) || 0;
+                return `<li><span>${title || "Item"}</span><strong>×${qty}</strong></li>`;
+              })
+              .join("")
+          : "";
+        const trackingNumbers = Array.isArray(order?.fulfillment?.tracking_numbers)
+          ? order.fulfillment.tracking_numbers.filter(Boolean)
+          : [];
+        const trackingLabel = trackingNumbers.length ? trackingNumbers.join(", ") : "—";
+        const trackingUrl = order?.fulfillment?.tracking_url || "";
+        const trackingCompany = order?.fulfillment?.tracking_company || "";
+        return `
+          <article class="dispatchCard dispatchCard--fulfilled">
+            <div class="dispatchCardHeader">
+              <div class="dispatchCardTitle">${order?.name || "Order"}</div>
+              <span class="dispatchCardBadge">Fulfilled</span>
+            </div>
+            <div class="dispatchCardSub">${order?.customer_name || "Unknown customer"}</div>
+            <div class="dispatchMetaGrid">
+              <div><span>Order #</span><strong>${orderNo || "—"}</strong></div>
+              <div><span>Fulfilled</span><strong>${formatDispatchDateTime(order?.fulfilled_at)}</strong></div>
+              <div><span>Tracking</span><strong>${trackingLabel}</strong></div>
+              <div><span>Carrier</span><strong>${trackingCompany || "—"}</strong></div>
+            </div>
+            ${trackingUrl ? `<a class="dispatchLink" href="${trackingUrl}" target="_blank" rel="noopener noreferrer">Open tracking</a>` : ""}
+            <ul class="dispatchFulfilledItems">${lines || "<li>No line items</li>"}</ul>
+          </article>
+        `;
+      })
+      .join("");
+
+    dispatchBoard.innerHTML = `<div class="dispatchFulfilledGrid">${cards}</div>`;
+  }
+
   function renderDispatchMobileLaneControls() {
     if (!dispatchMobileControls || !dispatchMobileLaneTabs || !dispatchMobileLaneLabel) return;
     const activeOption =
@@ -5045,7 +5125,8 @@ async function startOrder(orderNo) {
 
 
   function refreshDispatchViews(orderNo) {
-    renderDispatchBoard(dispatchOrdersLatest);
+    if (dispatchViewMode === "fulfilled") renderDispatchFulfilledList(dispatchFulfilledLatest);
+    else renderDispatchBoard(dispatchOrdersLatest);
     const modalOrder = orderNo || dispatchModalOrderNo;
     if (dispatchOrderModal?.classList.contains("is-open")) {
       if (!modalOrder || !dispatchOrderCache.get(modalOrder)) {
@@ -6033,17 +6114,20 @@ async function startOrder(orderNo) {
 
   async function refreshDispatchData() {
     try {
-      const [ordersRes, shipmentsRes] = await Promise.all([
+      const [ordersRes, fulfilledRes, shipmentsRes] = await Promise.all([
         fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`),
+        fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/fulfilled/recent`),
         fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/shipments/recent`)
       ]);
       const data = ordersRes.ok ? await ordersRes.json() : { orders: [] };
+      const fulfilledData = fulfilledRes.ok ? await fulfilledRes.json() : { orders: [] };
       const shipmentsData = shipmentsRes.ok ? await shipmentsRes.json() : { shipments: [] };
       dispatchOrdersLatest = Array.isArray(data)
         ? data
         : Array.isArray(data?.orders)
         ? data.orders
         : [];
+      dispatchFulfilledLatest = Array.isArray(fulfilledData?.orders) ? fulfilledData.orders : [];
       dispatchShipmentsLatest = shipmentsData.shipments || [];
 
       const incomingOrders = [];
@@ -6061,7 +6145,8 @@ async function startOrder(orderNo) {
       const isDispatchViewActive = document.querySelector(".flView.flView--active")?.id === "viewDispatch";
       await syncDispatchControllerState(isDispatchViewActive ? "dispatch" : "idle");
       const state = await loadDispatchControllerState();
-      renderDispatchBoard(dispatchOrdersLatest);
+      if (dispatchViewMode === "fulfilled") renderDispatchFulfilledList(dispatchFulfilledLatest);
+      else renderDispatchBoard(dispatchOrdersLatest);
       applyIncomingDispatchControllerState(state || dispatchControllerState);
       if (dispatchStamp) dispatchStamp.textContent = "Updated " + new Date().toLocaleTimeString();
       renderDateTimeHeaderWidget();
@@ -7398,6 +7483,20 @@ async function startOrder(orderNo) {
     clearDispatchSelection();
   });
 
+  dispatchViewTabs?.addEventListener("click", (e) => {
+    const button = e.target.closest("button[data-dispatch-view]");
+    if (!button) return;
+    const nextMode = button.dataset.dispatchView;
+    if (!nextMode || dispatchViewMode === nextMode) return;
+    dispatchViewMode = nextMode;
+    renderDispatchViewTabs();
+    if (dispatchViewMode === "fulfilled") {
+      renderDispatchFulfilledList(dispatchFulfilledLatest);
+    } else {
+      renderDispatchBoard(dispatchOrdersLatest);
+    }
+  });
+
   dispatchMobileLaneTabs?.addEventListener("click", (e) => {
     const button = e.target.closest("button[data-mobile-lane]");
     if (!button) return;
@@ -7560,6 +7659,7 @@ async function startOrder(orderNo) {
     initDispatchProgress();
     setDispatchProgress(0, "Idle", { silent: true });
     initAddressSearch();
+    renderDispatchViewTabs();
     refreshDispatchData();
     initDispatchControllerEvents();
     setInterval(refreshDispatchData, CONFIG.DISPATCH_POLL_INTERVAL_MS);

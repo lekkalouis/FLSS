@@ -3150,6 +3150,121 @@ router.get("/shopify/shipments/recent", async (req, res) => {
   }
 });
 
+router.get("/shopify/orders/fulfilled/recent", async (req, res) => {
+  try {
+    if (!requireShopifyConfigured(res)) return;
+
+    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const limit = Math.min(Math.max(Number(req.query.limit || 50), 1), 250);
+    const url =
+      `${base}/orders.json?status=any` +
+      `&fulfillment_status=fulfilled` +
+      `&limit=${limit}&order=updated_at+desc`;
+
+    const resp = await shopifyFetch(url, { method: "GET" });
+    if (!resp.ok) {
+      const body = await resp.text();
+      return res.status(resp.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: resp.status,
+        statusText: resp.statusText,
+        body
+      });
+    }
+
+    const data = await resp.json();
+    const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
+
+    const orders = ordersRaw
+      .filter((order) => !order.cancelled_at)
+      .map((order) => {
+        const shipping = order.shipping_address || {};
+        const customer = order.customer || {};
+        const companyName =
+          (shipping.company && shipping.company.trim()) ||
+          (customer?.default_address?.company && customer.default_address.company.trim());
+        const customerName =
+          companyName ||
+          shipping.name ||
+          `${(customer.first_name || "").trim()} ${(customer.last_name || "").trim()}`.trim() ||
+          (order.name ? order.name.replace(/^#/, "") : "");
+
+        const lineItems = Array.isArray(order.line_items)
+          ? order.line_items.map((lineItem) => ({
+              id: lineItem.id,
+              title: lineItem.title || "",
+              variant_title: lineItem.variant_title || "",
+              quantity: Number(lineItem.quantity) || 0,
+              fulfilled_quantity: Number(lineItem.fulfilled_quantity) || Number(lineItem.quantity) || 0
+            }))
+          : [];
+
+        const fulfillments = Array.isArray(order.fulfillments) ? order.fulfillments : [];
+        const latestFulfillment = fulfillments
+          .slice()
+          .sort(
+            (a, b) =>
+              new Date(b.created_at || b.updated_at || 0).getTime() -
+              new Date(a.created_at || a.updated_at || 0).getTime()
+          )[0];
+
+        const trackingNumbers = Array.isArray(latestFulfillment?.tracking_numbers)
+          ? latestFulfillment.tracking_numbers.filter(Boolean)
+          : [];
+        if (!trackingNumbers.length && latestFulfillment?.tracking_number) {
+          trackingNumbers.push(latestFulfillment.tracking_number);
+        }
+
+        const trackingInfo = Array.isArray(latestFulfillment?.tracking_info)
+          ? latestFulfillment.tracking_info
+          : [];
+        const trackingUrl =
+          trackingInfo.find((info) => info.url)?.url || latestFulfillment?.tracking_url || "";
+        const trackingCompany =
+          trackingInfo.find((info) => info.company)?.company ||
+          latestFulfillment?.tracking_company ||
+          "";
+
+        const fulfilledAt =
+          latestFulfillment?.created_at ||
+          latestFulfillment?.updated_at ||
+          order.updated_at ||
+          order.closed_at ||
+          order.processed_at ||
+          order.created_at ||
+          null;
+
+        return {
+          id: order.id,
+          name: order.name,
+          customer_name: customerName,
+          tags: order.tags || "",
+          fulfilled_at: fulfilledAt,
+          line_items: lineItems,
+          fulfillment: latestFulfillment
+            ? {
+                id: latestFulfillment.id,
+                status: latestFulfillment.status || "",
+                shipment_status: latestFulfillment.shipment_status || "",
+                tracking_numbers: trackingNumbers,
+                tracking_url: trackingUrl,
+                tracking_company: trackingCompany
+              }
+            : null
+        };
+      })
+      .sort((a, b) => new Date(b.fulfilled_at || 0).getTime() - new Date(a.fulfilled_at || 0).getTime());
+
+    return res.json({ orders });
+  } catch (err) {
+    console.error("Shopify recent fulfilled orders error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
 router.get("/shopify/fulfillment-events", async (req, res) => {
   try {
     if (!requireShopifyConfigured(res)) return;
