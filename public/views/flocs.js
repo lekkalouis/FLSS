@@ -1,5 +1,6 @@
 import { PRODUCT_LIST } from "./products.js";
 import { normalizeFlavourKey, resolveFlavourColor } from "./flavour-map.js";
+import { isHenniesCustomerContext, normalizeTagList } from "./customer-specialization.js";
 
 let flocsInitialized = false;
 
@@ -127,6 +128,7 @@ export function initFlocsView() {
     lastDraftOrderId: null,
     priceTier: null,
     customerTags: [],
+    customerSpecialization: { isHennies: false },
     productType: "spices",
     showBulkColumns: true,
     qtyMode: "units",
@@ -211,17 +213,21 @@ export function initFlocsView() {
   let quickAddPanel = null;
 
   function normalizeTags(tags) {
-    if (!tags) return [];
-    if (Array.isArray(tags)) {
-      return tags.map((t) => String(t).trim()).filter(Boolean);
-    }
-    if (typeof tags === "string") {
-      return tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
-    }
-    return [];
+    return normalizeTagList(tags).map((tag) => String(tag).trim());
+  }
+
+  function resolveCustomerSpecialization(customer) {
+    if (!customer) return { isHennies: false };
+    const primaryAddress = customerPrimaryAddress(customer);
+    return {
+      isHennies: isHenniesCustomerContext({
+        tags: customer.tags,
+        customerName: customer.name,
+        companyName: customer.companyName,
+        shippingCompany: primaryAddress?.company,
+        shippingName: [primaryAddress?.first_name, primaryAddress?.last_name].filter(Boolean).join(" ")
+      })
+    };
   }
 
   function resolvePriceTier(tags) {
@@ -1716,6 +1722,7 @@ ${state.customer.email || ""}${
     if (customerResults) customerResults.hidden = true;
     if (customerStatus) customerStatus.textContent = `Selected: ${c.name}`;
     state.customerTags = normalizeTags(c.tags);
+    state.customerSpecialization = resolveCustomerSpecialization(c);
     const metafieldTier = normalizeCustomerTier(c.tier);
     state.priceTier = metafieldTier || resolvePriceTier(state.customerTags);
     renderCustomerChips();
@@ -2018,6 +2025,7 @@ ${state.customer.email || ""}${
       state.lastDraftOrderId = null;
     }
     state.customerTags = [];
+    state.customerSpecialization = { isHennies: false };
     state.priceTier = null;
     state.priceOverrides = {};
     state.priceOverrideEnabled = {};
