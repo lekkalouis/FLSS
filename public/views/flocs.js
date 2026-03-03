@@ -816,6 +816,9 @@ export function initFlocsView() {
     }
     const groupedRows = grouped
       .map(([flavour, bySize]) => {
+        const flavourLabel = String(flavour || "").trim();
+        const normalizedFlavour = flavourKey(flavourLabel);
+        const productNameLabel = normalizedFlavour === "other" ? "" : flavourLabel;
         const sizeCells = activeSizes.map((label) => {
           const lookup = normalizeMatrixSize(label);
           const product = bySize.get(lookup);
@@ -829,7 +832,7 @@ export function initFlocsView() {
         return `
           <tr style="--flavour-color:${flavourColor(flavour)}">
             <td><span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span></td>
-            <td><span class="flocs-productName">${flavour} products</span></td>
+            <td><span class="flocs-productName">${productNameLabel}</span></td>
             ${sizeCells}
           </tr>`;
       })
