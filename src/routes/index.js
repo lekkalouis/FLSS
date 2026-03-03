@@ -1,3 +1,4 @@
+import agentCommissionsRouter from "./agent-commissions.js";
 import alertsRouter from "./alerts.js";
 import configRouter from "./config.js";
 import customerAccountsRouter from "./customer-accounts.js";
@@ -14,6 +15,7 @@ import traceabilityRouter from "./traceability.js";
 
 export const apiRouters = [
   { name: "status", router: statusRouter },
+  { name: "agentCommissions", router: agentCommissionsRouter },
   { name: "config", router: configRouter },
   { name: "customerAccounts", router: customerAccountsRouter },
   { name: "dispatchController", router: dispatchControllerRouter },
