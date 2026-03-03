@@ -8,7 +8,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   "use strict";
 
   const CONFIG = {
-    PROGRESS_STEP_DELAY_MS: 450,
+    PROGRESS_STEP_DELAY_MS: 250,
     DISPATCH_POLL_INTERVAL_MS: 60000,
     DISPATCH_CONTROLLER_FALLBACK_POLL_INTERVAL_MS: 5000,
     DISPATCH_EVENTS_RECONNECT_DELAY_MS: 2000,
@@ -201,6 +201,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchMobileControls = $("dispatchMobileControls");
   const dispatchMobileLaneTabs = $("dispatchMobileLaneTabs");
   const dispatchMobileLaneLabel = $("dispatchMobileLaneLabel");
+  const dispatchBoardLayout = dispatchBoard?.closest(".dispatchBoardLayout") || null;
 
   const navScan = $("navScan");
   const navOps = $("navOps");
@@ -4794,6 +4795,9 @@ async function startOrder(orderNo) {
       dispatchSelectionSidebar.classList.toggle("is-open", dispatchSelectionSidebarOpen);
       dispatchSelectionSidebar.classList.toggle("is-closed", !dispatchSelectionSidebarOpen);
     }
+    if (dispatchBoardLayout) {
+      dispatchBoardLayout.classList.toggle("dispatchBoardLayout--selection-collapsed", !dispatchSelectionSidebarOpen);
+    }
     if (dispatchSelectionSidebarToggle) {
       dispatchSelectionSidebarToggle.setAttribute("aria-expanded", dispatchSelectionSidebarOpen ? "true" : "false");
       dispatchSelectionSidebarToggle.textContent = dispatchSelectionSidebarOpen ? "Hide selected orders" : "Show selected orders";
@@ -5329,7 +5333,9 @@ async function startOrder(orderNo) {
       shippingChunks[index % shippingLaneCount].push(order);
     });
     const [shippingA, shippingB] = shippingChunks;
-    const shouldSplitDelivery = lanes.export.length === 0 && lanes.delivery.length > DISPATCH_DELIVERY_SPLIT_THRESHOLD;
+    const shouldSplitDelivery =
+      lanes.export.length === 0 &&
+      (lanes.delivery.length > DISPATCH_DELIVERY_SPLIT_THRESHOLD || !dispatchSelectionSidebarOpen);
     const deliveryChunks = Array.from({ length: shouldSplitDelivery ? 2 : 1 }, () => []);
     lanes.delivery.forEach((order, index) => {
       deliveryChunks[index % deliveryChunks.length].push(order);

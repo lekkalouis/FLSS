@@ -1155,6 +1155,12 @@
   gap:.85rem;
   min-height:100%;
 }
+.dispatchBoardLayout.dispatchBoardLayout--selection-collapsed{
+  grid-template-columns:minmax(0, 1fr);
+}
+.dispatchBoardLayout.dispatchBoardLayout--selection-collapsed .dispatchSelectionSidebar{
+  display:none;
+}
 .dispatchBoardMain{
   display:flex;
   flex-direction:column;
