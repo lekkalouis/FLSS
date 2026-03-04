@@ -357,6 +357,15 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       tag: "Module"
     },
     {
+      id: "product-management",
+      title: "Product Management",
+      description: "Offline-first products, BOM, packaging, compliance, costing and sync queue.",
+      type: "link",
+      target: "/product-management.html",
+      meta: "Admin module",
+      tag: "Module"
+    },
+    {
       id: "shipping-matrix",
       title: "Shipping Matrix",
       description: "Simulate South African shipping costs by centre and weight.",

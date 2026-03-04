@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manufacturing Costing — FLSS</title>
+  <style>
+    body{font-family:Inter,system-ui,sans-serif;background:#f8fafc;color:#0f172a;margin:0}
+    .wrap{max-width:1100px;margin:0 auto;padding:1rem}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;margin-bottom:1rem}
+    .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.6rem}
+    input,button{padding:.55rem .65rem;border-radius:8px;border:1px solid #cbd5e1}
+    button{background:#0284c7;color:#fff;border:none;cursor:pointer}
+    table{width:100%;border-collapse:collapse;font-size:.86rem}
+    th,td{padding:.5rem;border-bottom:1px solid #e2e8f0;text-align:left}
+    .muted{color:#64748b;font-size:.85rem}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Manufacturing Costing</h1>
+    <p class="muted">Capture BOM + factory inputs and compute true SKU cost, profit, and margin.</p>
+
+    <div class="card">
+      <h3>1) Product</h3>
+      <div class="row">
+        <input id="p-id" placeholder="product_id" />
+        <input id="p-sku" placeholder="sku" />
+        <input id="p-name" placeholder="name" />
+        <input id="p-bottle" placeholder="bottle cost" type="number" step="0.01" />
+        <input id="p-cap" placeholder="cap cost" type="number" step="0.01" />
+        <input id="p-label" placeholder="label cost" type="number" step="0.01" />
+        <input id="p-seal" placeholder="seal cost" type="number" step="0.01" />
+        <input id="p-price" placeholder="selling price" type="number" step="0.01" />
+        <input id="p-commission" placeholder="commission %" type="number" step="0.01" />
+        <input id="p-gateway" placeholder="gateway %" type="number" step="0.01" />
+      </div>
+      <button id="save-product">Save product</button>
+    </div>
+
+    <div class="card">
+      <h3>2) Ingredient + recipe line</h3>
+      <div class="row">
+        <input id="i-id" placeholder="ingredient_id" />
+        <input id="i-name" placeholder="ingredient" />
+        <input id="i-price" placeholder="price per kg" type="number" step="0.01" />
+        <input id="r-product" placeholder="recipe product_id" />
+        <input id="r-ingredient" placeholder="recipe ingredient_id" />
+        <input id="r-grams" placeholder="grams used" type="number" step="0.01" />
+      </div>
+      <button id="save-ingredient">Save ingredient</button>
+      <button id="save-recipe">Save recipe line</button>
+    </div>
+
+    <div class="card">
+      <h3>3) Monthly Cost Inputs</h3>
+      <div class="row">
+        <input id="c-month" placeholder="YYYY-MM" />
+        <input id="c-labour" placeholder="labour total" type="number" />
+        <input id="c-overhead" placeholder="overhead total" type="number" />
+        <input id="c-shipping" placeholder="courier total" type="number" />
+        <input id="c-produced" placeholder="units produced" type="number" />
+        <input id="c-shipped" placeholder="units shipped" type="number" />
+        <input id="c-dispatch" placeholder="dispatch per order" type="number" step="0.01" />
+        <input id="c-box-units" placeholder="units per box" type="number" step="1" />
+      </div>
+      <button id="save-cost">Save month inputs</button>
+    </div>
+
+    <div class="card">
+      <h3>4) SKU True Cost</h3>
+      <div class="row">
+        <input id="q-product" placeholder="product_id" />
+        <input id="q-month" placeholder="month YYYY-MM" />
+      </div>
+      <button id="calc-sku">Calculate SKU</button>
+      <pre id="sku-output"></pre>
+    </div>
+
+    <div class="card">
+      <h3>Dashboard</h3>
+      <div class="row"><input id="d-month" placeholder="month YYYY-MM" /><button id="load-dashboard">Load dashboard</button></div>
+      <table>
+        <thead><tr><th>SKU</th><th>BOM</th><th>True Cost</th><th>Selling</th><th>Profit</th><th>Margin %</th></tr></thead>
+        <tbody id="dash-body"></tbody>
+      </table>
+      <pre id="dash-metrics"></pre>
+    </div>
+  </div>
+
+<script>
+const api = '/api/v1/manufacturing';
+const j = (id)=>document.getElementById(id);
+const post = (path,body)=>fetch(api+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+
+j('save-product').onclick=async()=>{await post('/products',{product_id:j('p-id').value,sku:j('p-sku').value,name:j('p-name').value,bottle_cost:j('p-bottle').value,cap_cost:j('p-cap').value,label_cost:j('p-label').value,seal_cost:j('p-seal').value,selling_price:j('p-price').value,commission_pct:j('p-commission').value,gateway_pct:j('p-gateway').value});alert('Saved product');};
+j('save-ingredient').onclick=async()=>{await post('/ingredients',{ingredient_id:j('i-id').value,name:j('i-name').value,price_per_kg:j('i-price').value});alert('Saved ingredient');};
+j('save-recipe').onclick=async()=>{await post('/recipes',{product_id:j('r-product').value,ingredient_id:j('r-ingredient').value,grams_used:j('r-grams').value});alert('Saved recipe line');};
+j('save-cost').onclick=async()=>{await post('/cost-inputs',{month:j('c-month').value,labour_total:j('c-labour').value,overhead_total:j('c-overhead').value,shipping_total:j('c-shipping').value,units_produced:j('c-produced').value,units_shipped:j('c-shipped').value,dispatch_materials_per_order:j('c-dispatch').value,units_per_box:j('c-box-units').value});alert('Saved month');};
+
+j('calc-sku').onclick=async()=>{
+  const res=await fetch(`${api}/sku/${encodeURIComponent(j('q-product').value)}/cost?month=${encodeURIComponent(j('q-month').value)}`);
+  j('sku-output').textContent=JSON.stringify(await res.json(),null,2);
+};
+
+j('load-dashboard').onclick=async()=>{
+  const res=await fetch(`${api}/dashboard?month=${encodeURIComponent(j('d-month').value)}`);
+  const data=await res.json();
+  j('dash-metrics').textContent=JSON.stringify(data.factory_metrics||{},null,2);
+  j('dash-body').innerHTML=(data.per_sku||[]).map(row=>`<tr><td>${row.sku}</td><td>${row.bom_cost.toFixed(2)}</td><td>${row.true_cost.toFixed(2)}</td><td>${row.selling_price.toFixed(2)}</td><td>${row.profit_per_unit.toFixed(2)}</td><td>${row.margin_pct.toFixed(2)}</td></tr>`).join('');
+};
+</script>
+</body>
+</html>

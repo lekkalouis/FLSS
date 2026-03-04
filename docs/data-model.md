@@ -148,3 +148,59 @@ This local state is convenience state and must not be treated as canonical recor
 - Server validates payload shape and required values before upstream API calls.
 - Integrations can return partial data; UI fallbacks prefer rendering with warnings over hard-fail where safe.
 - Route-level errors are surfaced in toasts/status panels and should be monitored in logs for repeated patterns.
+
+
+## 6) Manufacturing costing module
+
+FLSS now includes a manufacturing costing structure that separates BOM, factory, and distribution costs.
+
+### 6.1 Product table
+
+- `product_id`
+- `sku`
+- `name`
+- `bottle_cost`
+- `cap_cost`
+- `label_cost`
+- `seal_cost`
+- `weight_grams`
+- `selling_price`
+- `commission_pct`
+- `gateway_pct`
+
+### 6.2 Ingredient table
+
+- `ingredient_id`
+- `name`
+- `price_per_kg`
+- `supplier`
+
+### 6.3 Recipe table
+
+- `product_id`
+- `ingredient_id`
+- `grams_used`
+
+### 6.4 Cost inputs table (monthly)
+
+- `month`
+- `labour_total`
+- `overhead_total`
+- `shipping_total`
+- `units_produced`
+- `units_shipped`
+- `dispatch_materials_per_order`
+- `units_per_box`
+
+### 6.5 Cost formulas used by `/api/v1/manufacturing/*`
+
+- `ingredient_cost = SUM((grams_used / 1000) * price_per_kg)`
+- `packaging_cost = bottle_cost + cap_cost + label_cost + seal_cost`
+- `labour_per_unit = labour_total / units_produced`
+- `overhead_per_unit = overhead_total / units_produced`
+- `dispatch_materials_per_unit = dispatch_materials_per_order / units_per_box`
+- `shipping_per_unit = shipping_total / units_shipped`
+- `sales_fees = (commission_pct + gateway_pct) * selling_price`
+- `true_cost = ingredient_cost + packaging_cost + labour_per_unit + overhead_per_unit + dispatch_materials_per_unit + shipping_per_unit + sales_fees`
+
+Dashboard outputs expose per-SKU BOM, true cost, selling price, profit/unit, and margin, plus factory-wide labour/overhead/shipping per unit metrics.
