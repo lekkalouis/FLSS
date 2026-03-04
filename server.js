@@ -8,12 +8,15 @@ import { WebSocketServer } from "ws";
 
 import { config } from "./src/config.js";
 import { createApp } from "./src/app.js";
+import { runMigrations } from "./src/db/sqlite.js";
 import { controllerBridge } from "./src/services/controllerBridge.js";
 
 const DEPLOY_BRANCH = "1.9";
 const DEPLOY_REF = `refs/heads/${DEPLOY_BRANCH}`;
 const PID_FILE = path.resolve("flss.pid");
 const UPDATE_SCRIPT = path.resolve("update.bat");
+
+runMigrations();
 
 const { app, allowAllOrigins, allowedOrigins } = createApp();
 const server = createServer(app);

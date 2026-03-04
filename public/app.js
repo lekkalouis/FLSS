@@ -314,12 +314,12 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       tag: "Module"
     },
     {
-      id: "manufacturing",
-      title: "Manufacturing Costing",
-      description: "Compute BOM, labour, overhead, shipping, and true SKU costs.",
+      id: "product-management",
+      title: "Product Management",
+      description: "Offline-first products, BOM, packaging, compliance, costing and sync queue.",
       type: "link",
-      target: "/manufacturing.html",
-      meta: "Product management",
+      target: "/product-management.html",
+      meta: "Admin module",
       tag: "Module"
     },
     {

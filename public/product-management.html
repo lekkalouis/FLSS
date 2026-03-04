@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Product Management — FLSS</title>
+  <style>
+    body{font-family:Inter,system-ui,sans-serif;margin:0;background:#f8fafc;color:#0f172a}
+    .wrap{max-width:1280px;margin:0 auto;padding:1rem}
+    .tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.8rem}
+    .tab{border:1px solid #cbd5e1;padding:.4rem .65rem;border-radius:999px;background:#fff;cursor:pointer}
+    .tab.active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:.8rem;margin-bottom:.7rem}
+    .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem}
+    input,button,select,textarea{padding:.5rem .6rem;border-radius:8px;border:1px solid #cbd5e1}
+    button{background:#0284c7;color:#fff;border:none;cursor:pointer}
+    table{width:100%;border-collapse:collapse;font-size:.85rem}
+    th,td{padding:.45rem;border-bottom:1px solid #e2e8f0;text-align:left}
+    [hidden]{display:none !important}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Product Management (Offline-First)</h1>
+  <div class="tabs" id="tabs"></div>
+
+  <section id="tab-dashboard" class="card"></section>
+
+  <section id="tab-products" class="card" hidden>
+    <h3>Products</h3>
+    <div class="row">
+      <input id="p-sku" placeholder="SKU"><input id="p-title" placeholder="Title"><input id="p-barcode" placeholder="Barcode"><input id="p-status" placeholder="Status draft/active"><input id="p-shopify-variant" placeholder="Shopify variant id">
+      <textarea id="p-ing-text" placeholder="Ingredients text"></textarea><textarea id="p-allergens" placeholder="Allergens"></textarea>
+    </div>
+    <button id="save-product">Save product</button>
+    <table><thead><tr><th>SKU</th><th>Title</th><th>Status</th><th>Shopify Variant</th></tr></thead><tbody id="products-body"></tbody></table>
+  </section>
+
+  <section id="tab-bom" class="card" hidden>
+    <h3>Ingredients / Suppliers / Recipe</h3>
+    <div class="row"><input id="i-name" placeholder="Ingredient name"><input id="i-allergens" placeholder='Allergen JSON e.g ["milk"]'><button id="save-ingredient">Add ingredient</button></div>
+    <div class="row"><input id="s-name" placeholder="Supplier name"><input id="s-email" placeholder="Email"><button id="save-supplier">Add supplier</button></div>
+    <div class="row"><input id="ip-ingredient" placeholder="ingredient_id"><input id="ip-supplier" placeholder="supplier_id"><input id="ip-price" type="number" step="0.01" placeholder="price/kg"><input id="ip-date" placeholder="YYYY-MM-DD"><button id="save-price">Add ingredient price</button></div>
+    <div class="row"><input id="r-product" placeholder="product_id"><input id="r-version" placeholder="v1"><input id="r-date" placeholder="effective YYYY-MM-DD"><textarea id="r-lines" placeholder='[{"ingredient_id":1,"grams_used":40}]'></textarea><button id="save-recipe">Save recipe version</button></div>
+  </section>
+
+  <section id="tab-packaging" class="card" hidden>
+    <h3>Packaging</h3>
+    <div class="row"><input id="pk-name" placeholder="Packaging item"><input id="pk-unit" placeholder="Unit cost"><input id="pk-uom" placeholder="uom"><button id="save-pack-item">Add packaging item</button></div>
+    <div class="row"><input id="pp-product" placeholder="product_id"><input id="pp-name" placeholder="Profile name"><input id="pp-date" placeholder="effective YYYY-MM-DD"><textarea id="pp-lines" placeholder='[{"packaging_item_id":1,"qty":1}]'></textarea><button id="save-pack-profile">Save packaging profile</button></div>
+  </section>
+
+  <section id="tab-pricing" class="card" hidden>
+    <h3>Pricing + Monthly Inputs</h3>
+    <div class="row"><input id="t-name" placeholder="Tier name"><input id="t-gateway" placeholder="Gateway %"><input id="t-commission" placeholder="Commission %"><button id="save-tier">Save tier</button></div>
+    <div class="row"><input id="pr-product" placeholder="product_id"><input id="pr-tier" placeholder="tier_id"><input id="pr-price" placeholder="Price"><input id="pr-date" placeholder="effective YYYY-MM-DD"><button id="save-product-price">Add product price</button></div>
+    <div class="row"><input id="c-period" placeholder="YYYY-MM"><input id="c-labour" placeholder="labour"><input id="c-overhead" placeholder="overhead"><input id="c-dispatch" placeholder="dispatch"><input id="c-shipping" placeholder="shipping"><input id="c-produced" placeholder="units produced"><input id="c-shipped" placeholder="units shipped"><button id="save-cost-input">Save period</button></div>
+  </section>
+
+  <section id="tab-cost" class="card" hidden>
+    <h3>Cost Breakdown</h3>
+    <div class="row"><input id="q-product" placeholder="product_id"><input id="q-date" placeholder="YYYY-MM-DD"><input id="q-tier" placeholder="tier_id"><button id="run-cost">Compute true cost</button></div>
+    <pre id="cost-out"></pre>
+  </section>
+
+  <section id="tab-sync" class="card" hidden>
+    <h3>Sync + Backups</h3>
+    <div class="row"><button id="sync-now">Sync now</button><button id="backup-now">Export snapshot</button></div>
+    <pre id="sync-out"></pre>
+  </section>
+</div>
+<script>
+const API='/api/v1/product-management';
+const j=(id)=>document.getElementById(id);
+const tabs=['dashboard','products','bom','packaging','pricing','cost','sync'];
+const tabsEl=j('tabs');
+function showTab(name){tabs.forEach(t=>{j('tab-'+t).hidden=t!==name;});document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));if(name==='dashboard')loadDashboard();if(name==='products')loadProducts();if(name==='sync')loadSync();}
+tabs.forEach((t,i)=>{const b=document.createElement('button');b.className='tab'+(i===0?' active':'');b.textContent=t;b.dataset.tab=t;b.onclick=()=>showTab(t);tabsEl.appendChild(b);});
+const post=(path,body)=>fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+
+async function loadProducts(){const data=await fetch(API+'/products').then(r=>r.json());j('products-body').innerHTML=(data.products||[]).map(p=>`<tr><td>${p.sku}</td><td>${p.title}</td><td>${p.status}</td><td>${p.shopify_variant_id||''}</td></tr>`).join('');}
+async function loadDashboard(){const date=new Date().toISOString().slice(0,10);const data=await fetch(`${API}/dashboard?as_of_date=${date}`).then(r=>r.json());j('tab-dashboard').innerHTML=`<h3>Dashboard alerts</h3><p>Missing BOM: ${(data.alerts?.missing_bom||[]).length} | Missing Packaging: ${(data.alerts?.missing_packaging||[]).length} | Low Margin: ${(data.alerts?.low_margin||[]).length}</p><pre>${JSON.stringify(data.alerts,null,2)}</pre>`;}
+async function loadSync(){j('sync-out').textContent=JSON.stringify(await fetch(API+'/sync/status').then(r=>r.json()),null,2);}
+
+j('save-product').onclick=async()=>{await post('/products',{sku:j('p-sku').value,title:j('p-title').value,barcode:j('p-barcode').value,status:j('p-status').value,shopify_variant_id:j('p-shopify-variant').value,compliance_ingredients_text:j('p-ing-text').value,compliance_allergens:j('p-allergens').value});loadProducts();};
+j('save-ingredient').onclick=async()=>post('/ingredients',{name:j('i-name').value,allergen_flags:JSON.parse(j('i-allergens').value||'[]')});
+j('save-supplier').onclick=async()=>post('/suppliers',{name:j('s-name').value,email:j('s-email').value});
+j('save-price').onclick=async()=>post('/ingredient-prices',{ingredient_id:Number(j('ip-ingredient').value),supplier_id:Number(j('ip-supplier').value)||null,price_per_kg:Number(j('ip-price').value),effective_from:j('ip-date').value});
+j('save-recipe').onclick=async()=>post('/recipes',{product_id:Number(j('r-product').value),version:j('r-version').value,effective_from:j('r-date').value,lines:JSON.parse(j('r-lines').value||'[]')});
+j('save-pack-item').onclick=async()=>post('/packaging-items',{name:j('pk-name').value,unit_cost:Number(j('pk-unit').value),uom:j('pk-uom').value});
+j('save-pack-profile').onclick=async()=>post('/packaging-profiles',{product_id:Number(j('pp-product').value),name:j('pp-name').value,effective_from:j('pp-date').value,lines:JSON.parse(j('pp-lines').value||'[]')});
+j('save-tier').onclick=async()=>post('/price-tiers',{name:j('t-name').value,gateway_fee_pct:Number(j('t-gateway').value),commission_pct:Number(j('t-commission').value)});
+j('save-product-price').onclick=async()=>post('/product-prices',{product_id:Number(j('pr-product').value),tier_id:Number(j('pr-tier').value),price:Number(j('pr-price').value),effective_from:j('pr-date').value});
+j('save-cost-input').onclick=async()=>post('/cost-inputs',{period:j('c-period').value,labour_total:Number(j('c-labour').value),overhead_total:Number(j('c-overhead').value),dispatch_total:Number(j('c-dispatch').value),shipping_total:Number(j('c-shipping').value),units_produced:Number(j('c-produced').value),units_shipped:Number(j('c-shipped').value)});
+
+j('run-cost').onclick=async()=>{const r=await fetch(`${API}/cost/${Number(j('q-product').value)}?as_of_date=${encodeURIComponent(j('q-date').value)}&tier_id=${Number(j('q-tier').value)}`).then(x=>x.json());j('cost-out').textContent=JSON.stringify(r,null,2);};
+j('sync-now').onclick=async()=>{j('sync-out').textContent=JSON.stringify(await post('/sync/now',{}),null,2);};
+j('backup-now').onclick=async()=>{j('sync-out').textContent=JSON.stringify(await post('/backups/snapshot',{}),null,2);};
+
+showTab('dashboard');
+</script>
+</body>
+</html>

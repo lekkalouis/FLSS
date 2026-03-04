@@ -54,6 +54,11 @@ export const config = {
 
   FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
 
+  LOCAL_DB_PATH: process.env.LOCAL_DB_PATH || "data/flss-products.sqlite",
+  ASSETS_PATH: process.env.ASSETS_PATH || "data/assets",
+  BACKUPS_PATH: process.env.BACKUPS_PATH || "data/backups",
+  SYNC_ENABLED: process.env.SYNC_ENABLED || "true",
+
   ROTARY_TOKEN: process.env.ROTARY_TOKEN || "",
   ROTARY_DEBOUNCE_MS: numberOrDefault(process.env.ROTARY_DEBOUNCE_MS, 40, { min: 1 }),
   REMOTE_TOKEN: process.env.REMOTE_TOKEN || "",
