@@ -1026,8 +1026,6 @@
       box-shadow:0 18px 60px rgba(32,34,35,.18);
       z-index:40;
       display:none;
-    }
-
       cursor:pointer;
     }
     #viewFlocs .flocs-convertBtn{

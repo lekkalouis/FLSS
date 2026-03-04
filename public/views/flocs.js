@@ -3,6 +3,7 @@ import { normalizeFlavourKey, resolveFlavourColor } from "./flavour-map.js";
 import { isHenniesCustomerContext, normalizeTagList } from "./customer-specialization.js";
 
 let flocsInitialized = false;
+let flocsInitPromise = null;
 
 const MATRIX_POPCORN_SIZES = ["100ml"];
 const MATRIX_BASE_SIZES = ["200ml"];
@@ -37,8 +38,9 @@ export function flavourSortIndexForType(flavour, productType = "spices") {
 }
 
 export function initFlocsView() {
-  if (flocsInitialized) return;
+  if (flocsInitialized) return flocsInitPromise || Promise.resolve();
   flocsInitialized = true;
+  flocsInitPromise = (async () => {
   "use strict";
 
   // ===== CONFIG =====
@@ -2720,17 +2722,15 @@ ${state.customer.email || ""}${
   }
 
   // ===== BOOT =====
-  function boot() {
+  async function boot() {
     renderProductsTable();
     resetForm();
     hydratePriceTiersForProducts(state.products);
     initEvents();
-    preloadCustomers();
+    await preloadCustomers();
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-  } else {
-    boot();
-  }
+  await boot();
+  })();
+  return flocsInitPromise;
 }

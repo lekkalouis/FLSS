@@ -1244,12 +1244,12 @@
 
 .dispatchBoardLayout{
   display:grid;
-  grid-template-columns:minmax(0, 1fr) minmax(280px, 340px);
+  grid-template-columns:minmax(0, 1fr);
   gap:.85rem;
   min-height:100%;
 }
 .dispatchBoardLayout.dispatchBoardLayout--selection-collapsed{
-  grid-template-columns:minmax(0, 1fr) 150px;
+  grid-template-columns:minmax(0, 1fr);
 }
 .dispatchBoardMain{
   display:flex;
@@ -1260,10 +1260,23 @@
   display:flex;
   flex-direction:column;
   gap:.55rem;
-  min-height:100%;
-  align-self:start;
-  position:sticky;
-  top:.55rem;
+  position:fixed;
+  top:0;
+  right:0;
+  height:100vh;
+  width:min(420px, 96vw);
+  z-index:1400;
+  padding:.7rem .7rem .9rem;
+  border-left:1px solid rgba(148,163,184,.35);
+  background:rgba(248,250,252,.98);
+  box-shadow:-12px 0 28px rgba(15,23,42,.18);
+  transform:translateX(calc(100% - 2.25rem));
+  transition:transform .24s ease;
+  backdrop-filter:blur(2px);
+  overflow:visible;
+}
+.dispatchSelectionSidebar.is-open{
+  transform:translateX(0);
 }
 .dispatchSelectionSidebarToggle{
   border:1px solid rgba(59,130,246,.45);
@@ -1273,17 +1286,20 @@
   font-weight:700;
   font-size:.72rem;
   padding:.32rem .62rem;
-}
-.dispatchSelectionSidebarToggle.is-drawer{
+  position:absolute;
+  left:-1.9rem;
+  top:.7rem;
+  z-index:2;
   width:1.8rem;
   min-width:1.8rem;
   height:1.8rem;
-  margin-left:auto;
-  padding:0;
   border-radius:999px;
+  padding:0;
   display:inline-flex;
   align-items:center;
   justify-content:center;
+}
+.dispatchSelectionSidebarToggle.is-drawer{
   font-size:.95rem;
   box-shadow:0 6px 14px rgba(37,99,235,.18);
 }
@@ -1291,6 +1307,9 @@
   display:flex;
   flex-direction:column;
   gap:.55rem;
+  min-height:0;
+  overflow:auto;
+  padding-right:.1rem;
 }
 .dispatchSelectionSidebar.is-closed .dispatchSelectionSidebarContent{
   display:none;
@@ -1308,11 +1327,23 @@
     grid-template-columns:minmax(0, 1fr);
   }
   .dispatchSelectionSidebar{
-    order:0;
-    position:static;
+    width:min(420px, 100vw);
+  }
+  .dispatchSelectionSidebarToggle{
+    left:.45rem;
+    top:.45rem;
   }
   .dispatchSelectionSidebar.is-closed{
     display:flex;
+  }
+}
+body.dispatch-sidebar-open #dispatchBoardContainer{
+  margin-right:min(420px, 96vw);
+  transition:margin-right .24s ease;
+}
+@media (max-width:980px){
+  body.dispatch-sidebar-open #dispatchBoardContainer{
+    margin-right:0;
   }
 }
 
@@ -2805,11 +2836,12 @@
   display:flex;
   flex-direction:column;
   gap:.45rem;
+  text-align:center;
 }
 .dispatchLegendHeader{
   display:flex;
   align-items:center;
-  justify-content:space-between;
+  justify-content:center;
   gap:.5rem;
 }
 .dispatchLegendTitle{
@@ -2837,14 +2869,17 @@
   display:flex;
   flex-direction:column;
   gap:.45rem;
+  align-items:center;
 }
 .dispatchLegend.is-collapsed .dispatchLegendBody{
   display:none;
 }
 .dispatchLegendRow{
   display:flex;
-  flex-wrap:wrap;
+  flex-direction:column;
+  flex-wrap:nowrap;
   align-items:center;
+  justify-content:center;
   gap:.45rem .7rem;
 }
 .dispatchLegendLabel{
@@ -2853,11 +2888,13 @@
   letter-spacing:.05em;
   text-transform:uppercase;
   color:#475569;
-  min-width:90px;
+  min-width:auto;
+  text-align:center;
 }
 .dispatchLegendItems{
   display:flex;
   flex-wrap:wrap;
+  justify-content:center;
   gap:.35rem .6rem;
 }
 .dispatchLegendKey{
@@ -3265,7 +3302,56 @@
   .dispatchRecentItemTime{font-size:.68rem;color:var(--text-muted);}
   .dispatchRecentItemCustomer{font-size:.72rem;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .dispatchRecentItemTracking{font-size:.68rem;color:var(--text-muted);}
-  .dispatchRecentEmpty{font-size:.72rem;color:var(--text-muted);}
+.dispatchRecentEmpty{font-size:.72rem;color:var(--text-muted);}
+.dispatchFulfillmentControls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.5rem;
+  margin:.35rem 0 .65rem;
+}
+.dispatchFulfillmentControls .form-control,
+.dispatchFulfillmentControls .form-select{
+  max-width:360px;
+}
+.dispatchFulfillmentBoard{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0,1fr));
+  gap:.75rem;
+}
+.dispatchFulfillmentLane{
+  border:1px solid rgba(148,163,184,.3);
+  border-radius:.7rem;
+  background:#fff;
+  min-height:220px;
+  display:flex;
+  flex-direction:column;
+}
+.dispatchFulfillmentLaneHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.4rem;
+  padding:.45rem .55rem;
+  border-bottom:1px solid rgba(148,163,184,.22);
+  font-size:.7rem;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  color:#475569;
+}
+.dispatchFulfillmentLaneCount{
+  font-size:.66rem;
+  font-weight:700;
+  color:#0f172a;
+}
+.dispatchFulfillmentLaneBody{
+  display:grid;
+  gap:.45rem;
+  padding:.5rem;
+}
+@media (max-width:1100px){
+  .dispatchFulfillmentBoard{ grid-template-columns:1fr; }
+}
   @media (max-width:1200px){
     .flHeaderMeta{
       flex-wrap:wrap;
@@ -3289,6 +3375,11 @@
   }
 
   /* Modern header rework */
+  .flSide{
+    position:sticky;
+    top:0;
+    z-index:1200;
+  }
   .flSideHeader{
     position:relative;
     display:flex;
@@ -3316,6 +3407,13 @@
     gap:.2rem;
     min-width:0;
   }
+  .flHeaderTitleRow{
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+    min-width:0;
+    flex-wrap:wrap;
+  }
   .flHeaderSub{
     font-size:.72rem;
     color:#64748b;
@@ -3336,6 +3434,25 @@
     flex-wrap:wrap;
     gap:.42rem;
     margin-left:auto;
+  }
+  .flNavGroup--top{
+    display:flex;
+    align-items:center;
+    gap:.4rem;
+    flex-wrap:wrap;
+  }
+  .flNavGroup--top .flNavBtn{
+    border-radius:.62rem;
+    padding:.36rem .6rem;
+    font-size:.72rem;
+    border:1px solid rgba(148,163,184,.38);
+    background:#fff;
+    color:#1f2937;
+  }
+  .flNavGroup--top .flNavBtn--active{
+    border-color:rgba(59,130,246,.55);
+    color:#1d4ed8;
+    background:rgba(37,99,235,.1);
   }
   .flHeaderEnv,
   .flHeaderTruck,
@@ -3376,6 +3493,9 @@
     background:transparent;
     padding:0;
     min-height:auto;
+  }
+  .flScanStationHidden{
+    display:none !important;
   }
   .flNav.flNav--modern{
     border-radius:.78rem;
@@ -3469,6 +3589,16 @@
     .flHeaderSub{
       font-size:.67rem;
     }
+    .flHeaderTitleRow{
+      flex-direction:column;
+      align-items:stretch;
+      gap:.35rem;
+    }
+    .flNavGroup--top{
+      flex-wrap:nowrap;
+      overflow:auto;
+      padding-bottom:.2rem;
+    }
     .flHeaderMeta{
       display:grid;
       grid-template-columns:repeat(2, minmax(0,1fr));
@@ -3508,8 +3638,16 @@
         <div class="flSideHeader">
           <div class="flHeaderTop">
             <div class="flHeaderBrand">
-              <div class="flNavTitle">Flippen Lekka Operations</div>
-              <div class="flHeaderSub">Dispatch control, scanning, and order capture</div>
+              <div class="flHeaderTitleRow">
+                <div class="flNavTitle">Flippen Lekka Operations</div>
+                <div class="flNavGroup flNavGroup--top" role="tablist" aria-label="Primary views">
+                  <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true" data-route="/"><span class="flNavBtnText">Orders</span></button>
+                  <button id="navFulfillment" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillment" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnText">Fulfillment</span></button>
+                  <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnText">Stock take</span></button>
+                  <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
+                </div>
+              </div>
+              <div class="flHeaderSub">Dispatch control, order capture, and fulfillment tracking</div>
             </div>
           <div class="flHeaderMeta">
             <div id="dispatchEnvironmentSummary" class="flHeaderEnv"><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Temp</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span></span><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Humidity</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span></span></div>
@@ -3548,26 +3686,16 @@
                 <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
               </div>
             </div>
+            <button id="navNewOrder" class="flNavBtn flNavBtn--primary" type="button" data-route="/flocs" aria-label="Create a new order">+ New Order</button>
           </div>
           </div>
           <span id="dispatchEnvironmentStatus" class="visually-hidden">Waiting for sensor</span>
           <span id="dispatchRemoteStatus" class="visually-hidden">Remote offline</span>
           <span id="dispatchTruckAnnouncement" class="visually-hidden" aria-live="polite"></span>
-          <nav class="flNav flNav--modern" aria-label="Primary">
-            <div class="flNavGroup" role="tablist" aria-label="Primary views">
-              <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true" data-route="/"><span class="flNavBtnIcon" aria-hidden="true">O</span><span class="flNavBtnText">Orders</span></button>
-              <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnIcon" aria-hidden="true">S</span><span class="flNavBtnText">Stock take</span></button>
-              <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnIcon" aria-hidden="true">$</span><span class="flNavBtnText">Price manager</span></button>
-            </div>
-            <div class="flNavStatus">
-              <div class="flNavScanInputWrap">
-                <span>Scan station</span>
-                <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan or enter Barcode" />
-                <button id="multiShipmentBtn" class="multiShipmentBtn" type="button" hidden aria-label="Create multi-shipment" title="Select 2+ delivery orders to create a multi-shipment">MS</button>
-              </div>
-              <button id="navNewOrder" class="flNavBtn flNavBtn--primary" type="button" data-route="/flocs" aria-label="Create a new order">+ New Order</button>
-            </div>
-          </nav>
+          <div class="flScanStationHidden" aria-hidden="true">
+            <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan or enter Barcode" tabindex="-1" />
+            <button id="multiShipmentBtn" class="multiShipmentBtn" type="button" hidden tabindex="-1">MS</button>
+          </div>
         </div>
       </aside>
       <main class="flMain">
@@ -3578,10 +3706,7 @@
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">
             <div class="dispatchBoardPanel">
-              <div class="sectionTitle" style="margin-top:.4rem">
-                <span id="dispatchStamp" class="dispatchStamp">–</span>
-              </div>
-              <div id="dispatchMobileControls" class="dispatchMobileControls" aria-label="Dispatch lane controls">
+<div id="dispatchMobileControls" class="dispatchMobileControls" aria-label="Dispatch lane controls">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <strong class="fs-sm text-muted text-uppercase">Mobile lanes</strong>
                   <span id="dispatchMobileLaneLabel" class="badge bg-primary-subtle text-primary-emphasis">All lanes</span>
@@ -3616,7 +3741,7 @@
               type="button"
               aria-expanded="true"
               aria-controls="dispatchSelectionSidebarContent">
-              Hide sidebar
+              <
             </button>
             <div class="dispatchSelectionSidebarContent" id="dispatchSelectionSidebarContent" aria-live="polite">
               <div class="dispatchSelectionFloat" id="dispatchSelectionFloat">
@@ -3643,13 +3768,7 @@
                   </div>
                 </div>
               </div>
-              <section class="dispatchRecentSection dispatchRecentPanel" aria-label="Recently fulfilled orders">
-                <div class="dispatchRecentHeader">Recently fulfilled orders</div>
-                <div id="dispatchRecentlyShipped" class="dispatchRecentList">
-                  <div class="dispatchRecentEmpty">Loading recently fulfilled orders…</div>
-                </div>
-              </section>
-            </div>
+</div>
           </aside>
         </div>
       </div>
@@ -3696,7 +3815,30 @@
       </div>
         </div>
 
-        <div class="flView" id="viewOps" hidden></div>
+        
+        <div class="flView" id="viewFulfillment" hidden>
+          <div class="dispatchBoardPanel">
+            <div class="sectionTitle" style="margin-top:.4rem; justify-content:flex-start;">
+              <span>Fulfillment history</span>
+            </div>
+            <div class="dispatchFulfillmentControls" aria-label="Fulfillment filters">
+              <input id="dispatchFulfillmentSearch" type="search" class="form-control form-control-sm" placeholder="Search order, customer, tracking, city" />
+              <select id="dispatchFulfillmentType" class="form-select form-select-sm">
+                <option value="">All types</option>
+                <option value="shipping">Shipping</option>
+                <option value="delivery">Delivery</option>
+                <option value="pickup">Pickup / Collection</option>
+              </select>
+            </div>
+            <section class="dispatchRecentSection dispatchRecentPanel" aria-label="Recently fulfilled orders">
+              <div class="dispatchRecentHeader">Recently fulfilled orders</div>
+              <div id="dispatchFulfillmentBoard" class="dispatchFulfillmentBoard">
+                <div class="dispatchRecentEmpty">Loading recently fulfilled orders...</div>
+              </div>
+            </section>
+          </div>
+        </div>
+<div class="flView" id="viewOps" hidden></div>
 
         <div class="flView" id="viewDocs" hidden>
           <div class="docsModule" id="docsModuleRoot">
@@ -4295,4 +4437,6 @@
 </script>
 </body> 
 </html>
+
+
 

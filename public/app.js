@@ -180,7 +180,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchSelectionTime = $("dispatchSelectionTime");
   const dispatchSelectionMixes = $("dispatchSelectionMixes");
   const dispatchSelectionOrderCards = $("dispatchSelectionOrderCards");
-  const dispatchRecentlyShipped = $("dispatchRecentlyShipped");
+  const dispatchFulfillmentSearch = $("dispatchFulfillmentSearch");
+  const dispatchFulfillmentType = $("dispatchFulfillmentType");
+  const dispatchFulfillmentBoard = $("dispatchFulfillmentBoard");
   const dispatchSelectionClear = $("dispatchSelectionClear");
   const dispatchPrepareDeliveriesContainer = $("dispatchPrepareDeliveriesContainer");
   const dispatchPrepareDeliveries = $("dispatchPrepareDeliveries");
@@ -229,6 +231,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const navFlowcharts = $("navFlowcharts");
   const navFlocs = $("navFlocs");
   const navNewOrder = $("navNewOrder");
+  const navFulfillment = $("navFulfillment");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
   const navDispatchSettings = $("navDispatchSettings");
@@ -244,6 +247,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const docsSubnav = $("docsSubnav");
   const viewFlowcharts = $("viewFlowcharts");
   const viewFlocs = $("viewFlocs");
+  const viewFulfillment = $("viewFulfillment");
   const viewStock = $("viewStock");
   const viewPriceManager = $("viewPriceManager");
   const viewDispatchSettings = $("viewDispatchSettings");
@@ -4843,31 +4847,99 @@ async function startOrder(orderNo) {
   }
 
   function renderDispatchRecentlyShipped(orders) {
-    if (!dispatchRecentlyShipped) return;
-    const list = Array.isArray(orders) ? orders.slice(0, 12) : [];
-    if (!list.length) {
-      dispatchRecentlyShipped.innerHTML = '<div class="dispatchRecentEmpty">No recently shipped orders found.</div>';
-      return;
-    }
+    if (!dispatchFulfillmentBoard) return;
+    const allOrders = Array.isArray(orders) ? orders : [];
+    const searchTerm = String(dispatchFulfillmentSearch?.value || "").trim().toLowerCase();
+    const laneFilterValue = String(dispatchFulfillmentType?.value || "").trim();
+    const typeFilter = laneFilterValue ? normalizeDispatchLaneId(laneFilterValue) : "";
+    const laneDefs = [
+      { id: "shipping", label: "Shipping" },
+      { id: "delivery", label: "Delivery" },
+      { id: "pickup", label: "Pickup / Collection" }
+    ];
 
-    dispatchRecentlyShipped.innerHTML = list
-      .map((order) => {
-        const orderLabel = order?.name || "Order";
-        const customer = order?.customer_name || "Unknown customer";
-        const fulfilledAt = formatDispatchDateTime(order?.fulfilled_at);
+    const filtered = allOrders
+      .filter((order) => {
+        const lane = normalizeDispatchLaneId(laneFromOrder(order));
+        if (typeFilter && lane !== typeFilter) return false;
+        if (!searchTerm) return true;
         const trackingNumbers = Array.isArray(order?.fulfillment?.tracking_numbers)
           ? order.fulfillment.tracking_numbers.filter(Boolean)
           : [];
-        const trackingLabel = trackingNumbers.length ? trackingNumbers.join(", ") : "—";
+        const city = order?.shipping_address?.city || "";
+        const province = order?.shipping_address?.province || "";
+        const haystack = [
+          order?.name,
+          order?.order_number,
+          order?.customer_name,
+          order?.shipping_address?.company,
+          city,
+          province,
+          trackingNumbers.join(" "),
+          order?.tags
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(searchTerm);
+      })
+      .sort((a, b) => {
+        const aTime = new Date(a?.fulfilled_at || a?.updated_at || 0).getTime();
+        const bTime = new Date(b?.fulfilled_at || b?.updated_at || 0).getTime();
+        return bTime - aTime;
+      });
+
+    if (!filtered.length) {
+      dispatchFulfillmentBoard.innerHTML = '<div class="dispatchRecentEmpty">No fulfilled orders match your filters.</div>';
+      return;
+    }
+
+    const grouped = new Map(laneDefs.map((lane) => [lane.id, []]));
+    filtered.forEach((order) => {
+      const laneId = normalizeDispatchLaneId(laneFromOrder(order));
+      if (!grouped.has(laneId)) grouped.set(laneId, []);
+      grouped.get(laneId).push(order);
+    });
+
+    dispatchFulfillmentBoard.innerHTML = laneDefs
+      .map((lane) => {
+        const laneOrders = grouped.get(lane.id) || [];
+        const cards = laneOrders
+          .slice(0, 60)
+          .map((order) => {
+            const orderLabel = escapeHtml(order?.name || "Order");
+            const customer = escapeHtml(order?.customer_name || "Unknown customer");
+            const fulfilledAt = escapeHtml(formatDispatchDateTime(order?.fulfilled_at || order?.updated_at));
+            const trackingNumbers = Array.isArray(order?.fulfillment?.tracking_numbers)
+              ? order.fulfillment.tracking_numbers.filter(Boolean)
+              : [];
+            const trackingLabel = escapeHtml(trackingNumbers.length ? trackingNumbers.join(", ") : "-");
+            const city = order?.shipping_address?.city || "";
+            const province = order?.shipping_address?.province || "";
+            const destination = escapeHtml([city, province].filter(Boolean).join(", ") || "Destination not set");
+            return `
+              <article class="dispatchRecentItem">
+                <div class="dispatchRecentItemTop">
+                  <div class="dispatchRecentItemOrder">${orderLabel}</div>
+                  <div class="dispatchRecentItemTime">${fulfilledAt}</div>
+                </div>
+                <div class="dispatchRecentItemCustomer" title="${customer}">${customer}</div>
+                <div class="dispatchRecentItemTracking">To: ${destination}</div>
+                <div class="dispatchRecentItemTracking">Tracking: ${trackingLabel}</div>
+              </article>
+            `;
+          })
+          .join("");
         return `
-          <article class="dispatchRecentItem">
-            <div class="dispatchRecentItemTop">
-              <div class="dispatchRecentItemOrder">${orderLabel}</div>
-              <div class="dispatchRecentItemTime">${fulfilledAt}</div>
+          <section class="dispatchFulfillmentLane" data-lane="${lane.id}">
+            <header class="dispatchFulfillmentLaneHeader">
+              <span>${lane.label}</span>
+              <span class="dispatchFulfillmentLaneCount">${laneOrders.length}</span>
+            </header>
+            <div class="dispatchFulfillmentLaneBody">
+              ${cards || '<div class="dispatchRecentEmpty">No orders in this lane.</div>'}
             </div>
-            <div class="dispatchRecentItemCustomer" title="${customer}">${customer}</div>
-            <div class="dispatchRecentItemTracking">Tracking: ${trackingLabel}</div>
-          </article>
+          </section>
         `;
       })
       .join("");
@@ -4988,13 +5060,14 @@ async function startOrder(orderNo) {
     }
     if (dispatchSelectionSidebarToggle) {
       dispatchSelectionSidebarToggle.setAttribute("aria-expanded", dispatchSelectionSidebarOpen ? "true" : "false");
-      dispatchSelectionSidebarToggle.textContent = dispatchSelectionSidebarOpen ? "Hide sidebar" : ">";
+      dispatchSelectionSidebarToggle.textContent = dispatchSelectionSidebarOpen ? "<" : ">";
       dispatchSelectionSidebarToggle.setAttribute(
         "aria-label",
         dispatchSelectionSidebarOpen ? "Collapse right sidebar" : "Expand right sidebar"
       );
       dispatchSelectionSidebarToggle.classList.toggle("is-drawer", !dispatchSelectionSidebarOpen);
     }
+    document.body.classList.toggle("dispatch-sidebar-open", dispatchSelectionSidebarOpen);
     if (dispatchSelectionSidebarContent) {
       dispatchSelectionSidebarContent.hidden = !dispatchSelectionSidebarOpen;
     }
@@ -5012,6 +5085,10 @@ async function startOrder(orderNo) {
 
   function updateDispatchSelectionSidebarVisibility(isScanVisible) {
     const container = dispatchSelectionSidebarContent;
+    if (dispatchSelectionSidebar) {
+      dispatchSelectionSidebar.hidden = !isScanVisible;
+    }
+    document.body.classList.toggle("dispatch-sidebar-open", Boolean(isScanVisible && dispatchSelectionSidebarOpen));
     if (!container) return;
     container.hidden = !isScanVisible || !dispatchSelectionSidebarOpen;
   }
@@ -6419,7 +6496,7 @@ async function startOrder(orderNo) {
     const initialLoad = dispatchOrdersLatest.length === 0;
     if (initialLoad) {
       if (dispatchBoard) dispatchBoard.innerHTML = renderInlineLoader("Loading open orders...");
-      if (dispatchRecentlyShipped) dispatchRecentlyShipped.innerHTML = renderInlineLoader("Loading recently fulfilled orders...");
+      if (dispatchFulfillmentBoard) dispatchFulfillmentBoard.innerHTML = renderInlineLoader("Loading recently fulfilled orders...");
     }
     try {
       const [ordersRes, fulfilledRes, shipmentsRes] = await Promise.all([
@@ -6461,8 +6538,8 @@ async function startOrder(orderNo) {
     } catch (e) {
       appendDebug("Dispatch refresh failed: " + String(e));
       if (dispatchBoard) dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">Error loading orders.</div>`;
-      if (dispatchRecentlyShipped) {
-        dispatchRecentlyShipped.innerHTML = `<div class="dispatchRecentEmpty">Could not load recently fulfilled orders.</div>`;
+      if (dispatchFulfillmentBoard) {
+        dispatchFulfillmentBoard.innerHTML = `<div class="dispatchRecentEmpty">Could not load recently fulfilled orders.</div>`;
       }
       if (dispatchStamp) dispatchStamp.textContent = "Dispatch: error";
     }
@@ -6554,6 +6631,7 @@ async function startOrder(orderNo) {
     const showDocs = view === "docs";
     const showFlowcharts = view === "flowcharts";
     const showFlocs = view === "flocs";
+    const showFulfillment = view === "fulfillment-history";
     const showStock = view === "stock";
     const showPriceManager = view === "price-manager";
     const showDispatchSettings = view === "dispatch-settings";
@@ -6580,6 +6658,10 @@ async function startOrder(orderNo) {
     if (viewFlocs) {
       viewFlocs.hidden = !showFlocs;
       viewFlocs.classList.toggle("flView--active", showFlocs);
+    }
+    if (viewFulfillment) {
+      viewFulfillment.hidden = !showFulfillment;
+      viewFulfillment.classList.toggle("flView--active", showFulfillment);
     }
     if (viewStock) {
       viewStock.hidden = !showStock;
@@ -6612,6 +6694,7 @@ async function startOrder(orderNo) {
     navFlowcharts?.classList.toggle("flNavBtn--active", showFlowcharts);
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
     navNewOrder?.classList.toggle("flNavBtn--active", showFlocs);
+    navFulfillment?.classList.toggle("flNavBtn--active", showFulfillment);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navDispatchSettings?.classList.toggle("flNavBtn--active", showDispatchSettings);
@@ -6623,6 +6706,7 @@ async function startOrder(orderNo) {
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
     navFlowcharts?.setAttribute("aria-selected", showFlowcharts ? "true" : "false");
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
+    navFulfillment?.setAttribute("aria-selected", showFulfillment ? "true" : "false");
     if (navNewOrder) {
       if (showFlocs) {
         navNewOrder.setAttribute("aria-current", "page");
@@ -6644,6 +6728,8 @@ async function startOrder(orderNo) {
       statusExplain("Viewing operator documentation", "info");
     } else if (showFlocs) {
       statusExplain("Order capture ready.", "info");
+    } else if (showFulfillment) {
+      statusExplain("Fulfillment history loaded.", "info");
     } else if (showFlowcharts) {
       statusExplain("Flowchart logic reference loaded.", "info");
     } else if (showStock) {
@@ -6673,6 +6759,7 @@ async function startOrder(orderNo) {
     ["/docs", "docs"],
     ["/flowcharts", "flowcharts"],
     ["/flocs", "flocs"],
+    ["/fulfillment-history", "fulfillment-history"],
     ["/stock", "stock"],
     ["/price-manager", "price-manager"],
     ["/dispatch-settings", "dispatch-settings"],
@@ -6687,6 +6774,7 @@ async function startOrder(orderNo) {
     docs: "/docs",
     flowcharts: "/flowcharts",
     flocs: "/flocs",
+    "fulfillment-history": "/fulfillment-history",
     stock: "/stock",
     "price-manager": "/price-manager",
     "dispatch-settings": "/dispatch-settings",
@@ -6903,25 +6991,35 @@ async function startOrder(orderNo) {
     return VIEW_ROUTE_MAP[view] || "/";
   }
 
-  function initViewIfNeeded(view) {
+  async function initViewIfNeeded(view) {
     const init = viewInitializers[view];
-    if (init) init();
+    if (!init) return;
+    if (view === "flocs") {
+      showPageLoader("Loading customer data...");
+      try {
+        await init();
+      } finally {
+        hidePageLoader();
+      }
+      return;
+    }
+    await init();
   }
 
-  function renderRoute(path) {
+  async function renderRoute(path) {
     const view = viewForPath(path);
     switchMainView(view);
-    initViewIfNeeded(view);
+    await initViewIfNeeded(view);
   }
 
-  function navigateTo(path, { replace = false } = {}) {
+  async function navigateTo(path, { replace = false } = {}) {
     const next = normalizePath(path);
     if (replace) {
       window.history.replaceState({}, "", next);
     } else {
       window.history.pushState({}, "", next);
     }
-    renderRoute(next);
+    await renderRoute(next);
   }
 
   const NAV_COLLAPSE_KEY = "fl_nav_collapsed";
@@ -7827,6 +7925,14 @@ async function startOrder(orderNo) {
     clearDispatchSelection();
   });
 
+  dispatchFulfillmentSearch?.addEventListener("input", () => {
+    renderDispatchRecentlyShipped(dispatchFulfilledLatest);
+  });
+
+  dispatchFulfillmentType?.addEventListener("change", () => {
+    renderDispatchRecentlyShipped(dispatchFulfilledLatest);
+  });
+
   dispatchMobileLaneTabs?.addEventListener("click", (e) => {
     const button = e.target.closest("button[data-mobile-lane]");
     if (!button) return;
@@ -8050,12 +8156,6 @@ async function startOrder(orderNo) {
       renderDispatchLegend();
       setDispatchProgress(0, "Idle", { silent: true });
       initAddressSearch();
-      await refreshDispatchData();
-      initDispatchControllerEvents();
-      setInterval(refreshDispatchData, CONFIG.DISPATCH_POLL_INTERVAL_MS);
-      setInterval(pollDispatchControllerSelection, CONFIG.DISPATCH_CONTROLLER_FALLBACK_POLL_INTERVAL_MS);
-      refreshServerStatus();
-      setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
       renderDateTimeHeaderWidget();
       setInterval(renderDateTimeHeaderWidget, 1000);
       renderModuleDashboard();
@@ -8068,8 +8168,18 @@ async function startOrder(orderNo) {
         return;
       }
 
-      renderRoute(window.location.pathname);
+      await renderRoute(window.location.pathname);
       scanStationNext = initScanStationNext({ scanInput });
+      initDispatchControllerEvents();
+      void refreshDispatchData().catch((error) => {
+        appendDebug("Initial dispatch refresh failed: " + String(error));
+      });
+      setInterval(() => {
+        void refreshDispatchData();
+      }, CONFIG.DISPATCH_POLL_INTERVAL_MS);
+      setInterval(pollDispatchControllerSelection, CONFIG.DISPATCH_CONTROLLER_FALLBACK_POLL_INTERVAL_MS);
+      refreshServerStatus();
+      setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
 
       window.addEventListener("popstate", () => {
         renderRoute(window.location.pathname);
@@ -8088,5 +8198,7 @@ async function startOrder(orderNo) {
 
   boot();
 })();
+
+
 
 
