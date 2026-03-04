@@ -5,5 +5,4 @@ data/
 
 !public/data/
 !public/data/purchase-order-catalog.generated.json
-.env
-.env
+

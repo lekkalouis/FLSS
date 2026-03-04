@@ -107,6 +107,17 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       .toUpperCase();
     return fallback || key.slice(0, 3).toUpperCase();
   };
+  const flavourLabel = (flavour) => {
+    const key = flavourKey(flavour);
+    return FLAVOUR_DISPLAY_NAMES[key] || key.replace(/\b\w/g, (match) => match.toUpperCase()) || "Unknown";
+  };
+
+  const DISPATCH_STATUS_LEGEND_ITEMS = [
+    { className: "dispatchCardMissingDot--green-lit", label: "Paid / ready" },
+    { className: "dispatchCardMissingDot--green-dim", label: "No prepay needed" },
+    { className: "dispatchCardMissingDot--yellow", label: "Payment rule missing" },
+    { className: "dispatchCardMissingDot--red-lit", label: "Prepay required / unpaid" }
+  ];
 
   const loadConfig = async () => {
     const res = await fetch(`${API_BASE}/config`, { headers: { Accept: "application/json" } });
@@ -116,6 +127,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   };
 
   const $ = (id) => document.getElementById(id);
+  const pageLoader = $("pageLoader");
+  const pageLoaderMessage = $("pageLoaderMessage");
   const scanInput = $("scanInput");
   const uiOrderNo = $("uiOrderNo");
   const uiParcelCount = $("uiParcelCount");
@@ -158,6 +171,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchSelectionPanel = $("dispatchSelectionPanel");
   const dispatchSelectionSidebar = $("dispatchSelectionSidebar");
   const dispatchSelectionFloat = $("dispatchSelectionFloat");
+  const dispatchSelectionSidebarContent = $("dispatchSelectionSidebarContent");
   const dispatchSelectionSidebarToggle = $("dispatchSelectionSidebarToggle");
   const dispatchSelectionCount = $("dispatchSelectionCount");
   const dispatchSelectionUnits = $("dispatchSelectionUnits");
@@ -202,6 +216,11 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchMobileControls = $("dispatchMobileControls");
   const dispatchMobileLaneTabs = $("dispatchMobileLaneTabs");
   const dispatchMobileLaneLabel = $("dispatchMobileLaneLabel");
+  const dispatchLegend = $("dispatchLegend");
+  const dispatchLegendToggle = $("dispatchLegendToggle");
+  const dispatchLegendContent = $("dispatchLegendContent");
+  const dispatchLegendStatus = $("dispatchLegendStatus");
+  const dispatchLegendFlavours = $("dispatchLegendFlavours");
   const dispatchBoardLayout = dispatchBoard?.closest(".dispatchBoardLayout") || null;
 
   const navScan = $("navScan");
@@ -209,6 +228,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const navDocs = $("navDocs");
   const navFlowcharts = $("navFlowcharts");
   const navFlocs = $("navFlocs");
+  const navNewOrder = $("navNewOrder");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
   const navDispatchSettings = $("navDispatchSettings");
@@ -236,6 +256,25 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const adminLogsPreview = $("adminLogsPreview");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
+
+  let globalLoaderCount = 0;
+
+  function showPageLoader(message = "Loading data...") {
+    globalLoaderCount += 1;
+    if (pageLoaderMessage) pageLoaderMessage.textContent = String(message || "Loading data...");
+    if (pageLoader) pageLoader.classList.add("is-visible");
+  }
+
+  function hidePageLoader() {
+    globalLoaderCount = Math.max(0, globalLoaderCount - 1);
+    if (globalLoaderCount === 0 && pageLoader) {
+      pageLoader.classList.remove("is-visible");
+    }
+  }
+
+  function renderInlineLoader(message = "Loading...") {
+    return `<div class="dispatchInlineLoader"><span class="loaderDot" aria-hidden="true"></span><span>${escapeHtml(message)}</span></div>`;
+  }
 
   const btnBookNow = $("btnBookNow");
   const modeToggle = $("modeToggle");
@@ -385,6 +424,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   let dispatchMobileLaneOptions = [...DISPATCH_MOBILE_BASE_LANE_OPTIONS, { id: "delivery", label: "Delivery" }];
   let dispatchMobileLane = "all";
   let dispatchSelectionSidebarOpen = true;
+  let dispatchLegendOpen = true;
   const dispatchPriorityState = new Map();
   let dispatchOrdersLatest = [];
   let dispatchFulfilledLatest = [];
@@ -405,6 +445,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
   const VOICE_SETTINGS_KEY = "fl_voice_settings_v1";
   const DISPATCH_SELECTION_SIDEBAR_KEY = "fl_dispatch_selection_sidebar_open_v1";
+  const DISPATCH_LEGEND_OPEN_KEY = "fl_dispatch_legend_open_v1";
   let dailyParcelCount = 0;
   let estimatedParcelCount = 0;
   let bookedParcelCount = 0;
@@ -429,6 +470,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const lineItemAbbreviations = {
     "original multi-purpose spice": "",
     "original multi-purpose spice - tub": "",
+     "750g original multi-purpose spice bag": "WS",
     "hot & spicy multi-purpose spice": "H",
     "worcester sauce spice": "WS",
     "worcester sauce spice - tub": "WS",
@@ -440,7 +482,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     "butter popcorn sprinkle": "BUT",
     "sour cream & chives popcorn sprinkle": "SCC",
     "chutney popcorn sprinkle": "CHUT",
-    "parmesan popcorn sprinkle": "PAR",
+    "parmesan cheese popcorn sprinkle": "PAR",
     "cheese & onion popcorn sprinkle": "CHO",
     "salt & vinegar popcorn sprinkle": "SV",
     "flippen lekka curry mix": "Curry",
@@ -842,6 +884,27 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
         ? order.parcel_count
         : null;
     return fromMeta || getPackingParcelCount(packingState) || getAutoParcelCountForOrder(order?.line_items || []) || null;
+  }
+
+  function getSetParcelCountForOpenOrder(order) {
+    const fromMetaOrOrder =
+      typeof order?.parcel_count_from_meta === "number" && order.parcel_count_from_meta > 0
+        ? order.parcel_count_from_meta
+        : typeof order?.parcel_count === "number" && order.parcel_count > 0
+        ? order.parcel_count
+        : null;
+    if (fromMetaOrOrder != null) return fromMetaOrOrder;
+    const fromTag =
+      typeof order?.parcel_count_from_tag === "number" && order.parcel_count_from_tag > 0
+        ? order.parcel_count_from_tag
+        : null;
+    return fromTag || 0;
+  }
+
+  function syncEstimatedParcelCountFromOpenOrders(orders = dispatchOrdersLatest) {
+    const list = Array.isArray(orders) ? orders : [];
+    estimatedParcelCount = list.reduce((sum, order) => sum + getSetParcelCountForOpenOrder(order), 0);
+    saveDailyParcelCount();
   }
 
   async function createCombinedShipmentFromSelection(orderNos = Array.from(dispatchSelectedOrders)) {
@@ -1500,6 +1563,16 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     remoteIndicatorState = { ok: status === "connected" || status === "ok", detail: dispatchRemoteStatus.textContent };
   }
 
+  function isDispatchControllerConnected(state = dispatchControllerState) {
+    const remoteStatus = String(state?.remote?.status || "")
+      .trim()
+      .toLowerCase();
+    if (remoteStatus) {
+      return remoteStatus === "connected" || remoteStatus === "ok";
+    }
+    return Boolean(remoteIndicatorState?.ok);
+  }
+
 
   const HENNIES_EXPECTED_LINES = [
     { key: "bietjie-blaf-200ml", label: "200ml BB", matcher: /\bhennies\s+bietjie\s+blaf\s+spice\b.*\b200\s*ml\b/i },
@@ -1886,6 +1959,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       return !target.has(orderNo);
     });
     target.forEach((orderNo) => dispatchSelectedOrders.delete(orderNo));
+    syncEstimatedParcelCountFromOpenOrders(dispatchOrdersLatest);
+    renderTruckPanel();
     renderDispatchBoard(dispatchOrdersLatest);
     updateDashboardKpis();
   }
@@ -1975,7 +2050,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     if (truckParcelCount) truckParcelCount.textContent = String(bookedParcelCount);
     if (dispatchTruckParcelCount) dispatchTruckParcelCount.textContent = String(estimatedParcelCount);
     if (dispatchTruckBookedParcelCount) {
-      dispatchTruckBookedParcelCount.textContent = `Booked: ${bookedParcelCount}`;
+      dispatchTruckBookedParcelCount.textContent = String(bookedParcelCount);
+      const bookedCard = dispatchTruckBookedParcelCount.closest(".flHeaderBoxCard");
+      if (bookedCard) bookedCard.hidden = bookedParcelCount <= 0;
     }
     if (dispatchTruckStatusText) dispatchTruckStatusText.textContent = truckBooked ? "Booked" : "Not booked";
     if (dispatchTruckBookedMetric) dispatchTruckBookedMetric.classList.toggle("is-booked", truckBooked);
@@ -2040,7 +2117,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   }
 
   function updateDailyParcelCount(delta) {
-    estimatedParcelCount = Math.max(0, estimatedParcelCount + delta);
     bookedParcelCount = Math.max(0, bookedParcelCount + delta);
     dailyParcelCount = bookedParcelCount;
     saveDailyParcelCount();
@@ -4813,6 +4889,60 @@ async function startOrder(orderNo) {
       .join("");
   }
 
+  function renderDispatchLegend() {
+    if (dispatchLegendStatus) {
+      dispatchLegendStatus.innerHTML = DISPATCH_STATUS_LEGEND_ITEMS
+        .map(
+          (entry) =>
+            `<span class="dispatchLegendKey"><span class="dispatchCardMissingDot dispatchLegendDot ${entry.className}" aria-hidden="true"></span><span>${escapeHtml(
+              entry.label
+            )}</span></span>`
+        )
+        .join("");
+    }
+
+    if (dispatchLegendFlavours) {
+      const flavourKeys = [...FLAVOUR_SORT_ORDER.keys()];
+      dispatchLegendFlavours.innerHTML = flavourKeys
+        .map((key) => {
+          const color = getDispatchFlavourColor(key);
+          const label = flavourLabel(key);
+          return `<span class="dispatchLegendKey"><span class="dispatchLegendFlavourSwatch" style="--dispatch-flavour-color:${color}" title="${escapeHtml(
+            label
+          )}" aria-hidden="true"></span><span>${escapeHtml(label)}</span></span>`;
+        })
+        .join("");
+    }
+  }
+
+  function loadDispatchLegendPreference() {
+    const stored = localStorage.getItem(DISPATCH_LEGEND_OPEN_KEY);
+    if (stored === "false") {
+      dispatchLegendOpen = false;
+      return;
+    }
+    dispatchLegendOpen = true;
+  }
+
+  function setDispatchLegendOpen(nextOpen, options = {}) {
+    const { persist = true } = options;
+    dispatchLegendOpen = Boolean(nextOpen);
+    if (persist) {
+      localStorage.setItem(DISPATCH_LEGEND_OPEN_KEY, dispatchLegendOpen ? "true" : "false");
+    }
+    if (dispatchLegend) {
+      dispatchLegend.classList.toggle("is-collapsed", !dispatchLegendOpen);
+    }
+    if (dispatchLegendContent) {
+      dispatchLegendContent.hidden = !dispatchLegendOpen;
+    }
+    if (dispatchLegendToggle) {
+      dispatchLegendToggle.setAttribute("aria-expanded", dispatchLegendOpen ? "true" : "false");
+      dispatchLegendToggle.textContent = dispatchLegendOpen ? "Hide" : "Show";
+      dispatchLegendToggle.setAttribute("aria-label", dispatchLegendOpen ? "Collapse legend" : "Expand legend");
+    }
+  }
+
   function applyDispatchMobileLaneFilter() {
     if (!dispatchBoard) return;
     const isMobile = isMobileDispatchViewport();
@@ -4858,14 +4988,15 @@ async function startOrder(orderNo) {
     }
     if (dispatchSelectionSidebarToggle) {
       dispatchSelectionSidebarToggle.setAttribute("aria-expanded", dispatchSelectionSidebarOpen ? "true" : "false");
-      dispatchSelectionSidebarToggle.textContent = dispatchSelectionSidebarOpen ? "Hide selected orders" : "Show selected orders";
+      dispatchSelectionSidebarToggle.textContent = dispatchSelectionSidebarOpen ? "Hide sidebar" : ">";
       dispatchSelectionSidebarToggle.setAttribute(
         "aria-label",
-        dispatchSelectionSidebarOpen ? "Collapse selected orders sidebar" : "Expand selected orders sidebar"
+        dispatchSelectionSidebarOpen ? "Collapse right sidebar" : "Expand right sidebar"
       );
+      dispatchSelectionSidebarToggle.classList.toggle("is-drawer", !dispatchSelectionSidebarOpen);
     }
-    if (dispatchSelectionFloat) {
-      dispatchSelectionFloat.hidden = !dispatchSelectionSidebarOpen;
+    if (dispatchSelectionSidebarContent) {
+      dispatchSelectionSidebarContent.hidden = !dispatchSelectionSidebarOpen;
     }
     if (focusPanel && dispatchSelectionSidebarOpen) {
       dispatchSelectionPanel?.focus();
@@ -4880,8 +5011,7 @@ async function startOrder(orderNo) {
   }
 
   function updateDispatchSelectionSidebarVisibility(isScanVisible) {
-    if (!dispatchSelectionPanel) return;
-    const container = dispatchSelectionPanel.parentElement;
+    const container = dispatchSelectionSidebarContent;
     if (!container) return;
     container.hidden = !isScanVisible || !dispatchSelectionSidebarOpen;
   }
@@ -4956,10 +5086,13 @@ async function startOrder(orderNo) {
                 return `<td class="${qty === 0 ? "dispatchMixCell--missing" : ""}">${qty === 0 ? "" : qty}</td>`;
               })
               .join("");
-            return `<tr><th scope="row" class="dispatchMixMatrixFlavour">${flavour}</th>${cells}</tr>`;
+            const tagColor = getDispatchFlavourColor(flavour);
+            const tagLabel = flavourAbbrev(flavour);
+            const title = String(flavour || "Unknown");
+            return `<tr><th scope="row" class="dispatchMixMatrixFlavour"><span class="dispatchMixFlavourTag" style="--dispatch-flavour-color:${tagColor}" title="${title}">${tagLabel}</span></th>${cells}</tr>`;
           })
           .join("");
-        dispatchSelectionMixes.innerHTML = `<table class="dispatchMixMatrix"><thead><tr><th scope="col">Flavour</th>${header}</tr></thead><tbody>${rows}</tbody></table>`;
+        dispatchSelectionMixes.innerHTML = `<table class="dispatchMixMatrix"><thead><tr><th scope="col">Tag</th>${header}</tr></thead><tbody>${rows}</tbody></table>`;
       }
     }
 
@@ -5326,6 +5459,9 @@ async function startOrder(orderNo) {
 
   function renderDispatchBoard(orders) {
     if (!dispatchBoard) return;
+    syncEstimatedParcelCountFromOpenOrders(orders);
+    renderTruckPanel();
+    updateDashboardKpis();
 
     const now = Date.now();
     const maxAgeMs = MAX_ORDER_AGE_HOURS * 60 * 60 * 1000;
@@ -5358,8 +5494,8 @@ async function startOrder(orderNo) {
       { id: "shippingB", label: "Shipping", type: "cards" },
       { id: "export", label: "Export", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" },
-      { id: "deliveryA", label: "Delivery 1 · Tuesday", type: "cards" },
-      { id: "deliveryB", label: "Delivery 2 · Friday", type: "cards" }
+      { id: "deliveryA", label: "Delivery 1", type: "cards" },
+      { id: "deliveryB", label: "Delivery 2", type: "cards" }
     ];
     const lanes = {
       deliveryA: [],
@@ -6081,9 +6217,10 @@ async function startOrder(orderNo) {
   function applyIncomingDispatchControllerState(state) {
     if (!state || typeof state !== "object") return;
     dispatchControllerState = state;
-    if (typeof dispatchRotaryInputEnabled !== "undefined" && !dispatchRotaryInputEnabled) {
-      renderEnvironmentHeaderWidget(state.environment || null);
-      renderRemoteStatusBadge(state.remote || null);
+    renderEnvironmentHeaderWidget(state.environment || null);
+    renderRemoteStatusBadge(state.remote || null);
+    const controllerConnected = isDispatchControllerConnected(state);
+    if ((typeof dispatchRotaryInputEnabled !== "undefined" && !dispatchRotaryInputEnabled) || !controllerConnected) {
       syncDispatchSelectionUI();
       updateDashboardKpis();
       return;
@@ -6095,8 +6232,6 @@ async function startOrder(orderNo) {
     } else if (selectedLineItemChanged) {
       syncDispatchRotaryFocus({ keepKey: true });
     }
-    renderEnvironmentHeaderWidget(state.environment || null);
-    renderRemoteStatusBadge(state.remote || null);
     syncDispatchSelectionUI();
     updateDashboardKpis();
   }
@@ -6281,6 +6416,11 @@ async function startOrder(orderNo) {
   }
 
   async function refreshDispatchData() {
+    const initialLoad = dispatchOrdersLatest.length === 0;
+    if (initialLoad) {
+      if (dispatchBoard) dispatchBoard.innerHTML = renderInlineLoader("Loading open orders...");
+      if (dispatchRecentlyShipped) dispatchRecentlyShipped.innerHTML = renderInlineLoader("Loading recently fulfilled orders...");
+    }
     try {
       const [ordersRes, fulfilledRes, shipmentsRes] = await Promise.all([
         fetch(`${CONFIG.SHOPIFY.PROXY_BASE}/orders/open`),
@@ -6321,6 +6461,9 @@ async function startOrder(orderNo) {
     } catch (e) {
       appendDebug("Dispatch refresh failed: " + String(e));
       if (dispatchBoard) dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">Error loading orders.</div>`;
+      if (dispatchRecentlyShipped) {
+        dispatchRecentlyShipped.innerHTML = `<div class="dispatchRecentEmpty">Could not load recently fulfilled orders.</div>`;
+      }
       if (dispatchStamp) dispatchStamp.textContent = "Dispatch: error";
     }
   }
@@ -6468,6 +6611,7 @@ async function startOrder(orderNo) {
     navDocs?.classList.toggle("flNavBtn--active", showDocs);
     navFlowcharts?.classList.toggle("flNavBtn--active", showFlowcharts);
     navFlocs?.classList.toggle("flNavBtn--active", showFlocs);
+    navNewOrder?.classList.toggle("flNavBtn--active", showFlocs);
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
     navDispatchSettings?.classList.toggle("flNavBtn--active", showDispatchSettings);
@@ -6479,6 +6623,13 @@ async function startOrder(orderNo) {
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
     navFlowcharts?.setAttribute("aria-selected", showFlowcharts ? "true" : "false");
     navFlocs?.setAttribute("aria-selected", showFlocs ? "true" : "false");
+    if (navNewOrder) {
+      if (showFlocs) {
+        navNewOrder.setAttribute("aria-current", "page");
+      } else {
+        navNewOrder.removeAttribute("aria-current");
+      }
+    }
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
     navDispatchSettings?.setAttribute("aria-selected", showDispatchSettings ? "true" : "false");
@@ -7645,11 +7796,17 @@ async function startOrder(orderNo) {
 
   loadDispatchSelectionSidebarPreference();
   setDispatchSelectionSidebarOpen(dispatchSelectionSidebarOpen, { persist: false });
+  loadDispatchLegendPreference();
+  setDispatchLegendOpen(dispatchLegendOpen, { persist: false });
 
   dispatchSelectionSidebarToggle?.addEventListener("click", () => {
     const wasOpen = dispatchSelectionSidebarOpen;
     toggleDispatchSelectionSidebar({ focusPanel: !wasOpen, focusToggle: wasOpen });
     updateDispatchSelectionSummary();
+  });
+
+  dispatchLegendToggle?.addEventListener("click", () => {
+    setDispatchLegendOpen(!dispatchLegendOpen);
   });
 
   dispatchSelectionSidebarToggle?.addEventListener("keydown", (event) => {
@@ -7866,62 +8023,70 @@ async function startOrder(orderNo) {
   }
 
   const boot = async () => {
+    showPageLoader("Initializing app...");
     try {
-      await loadConfig();
-    } catch (err) {
-      console.error(err);
-      alert("Unable to load configuration from the server. Please refresh or contact support.");
-      return;
-    }
+      try {
+        await loadConfig();
+      } catch (err) {
+        console.error(err);
+        alert("Unable to load configuration from the server. Please refresh or contact support.");
+        return;
+      }
 
-    loadBookedOrders();
-    loadPackingState();
-    loadDispatchPriorityState();
-    loadModePreference();
-    loadDailyParcelCount();
-    loadTruckBooking();
-    updateModeToggle();
-    renderSessionUI();
-    renderCountdown();
-    renderTruckPanel();
-    if (estimatedParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
-      requestTruckBooking("auto");
-    }
-    initDispatchProgress();
-    setDispatchProgress(0, "Idle", { silent: true });
-    initAddressSearch();
-    refreshDispatchData();
-    initDispatchControllerEvents();
-    setInterval(refreshDispatchData, CONFIG.DISPATCH_POLL_INTERVAL_MS);
-    setInterval(pollDispatchControllerSelection, CONFIG.DISPATCH_CONTROLLER_FALLBACK_POLL_INTERVAL_MS);
-    refreshServerStatus();
-    setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
-    renderDateTimeHeaderWidget();
-    setInterval(renderDateTimeHeaderWidget, 1000);
-    renderModuleDashboard();
+      loadBookedOrders();
+      loadPackingState();
+      loadDispatchPriorityState();
+      loadModePreference();
+      loadDailyParcelCount();
+      loadTruckBooking();
+      updateModeToggle();
+      renderSessionUI();
+      renderCountdown();
+      renderTruckPanel();
+      if (estimatedParcelCount > CONFIG.TRUCK_ALERT_THRESHOLD && !truckBooked) {
+        requestTruckBooking("auto");
+      }
+      initDispatchProgress();
+      renderDispatchLegend();
+      setDispatchProgress(0, "Idle", { silent: true });
+      initAddressSearch();
+      await refreshDispatchData();
+      initDispatchControllerEvents();
+      setInterval(refreshDispatchData, CONFIG.DISPATCH_POLL_INTERVAL_MS);
+      setInterval(pollDispatchControllerSelection, CONFIG.DISPATCH_CONTROLLER_FALLBACK_POLL_INTERVAL_MS);
+      refreshServerStatus();
+      setInterval(refreshServerStatus, CONFIG.SERVER_STATUS_POLL_INTERVAL_MS);
+      renderDateTimeHeaderWidget();
+      setInterval(renderDateTimeHeaderWidget, 1000);
+      renderModuleDashboard();
 
-    const currentPath = normalizePath(window.location.pathname);
-    if (currentPath === "/deliver") {
-      const params = new URLSearchParams(window.location.search || "");
-      const code = params.get("code") || "";
-      renderDeliveryDriverPage(code);
-      return;
-    }
+      const currentPath = normalizePath(window.location.pathname);
+      if (currentPath === "/deliver") {
+        const params = new URLSearchParams(window.location.search || "");
+        const code = params.get("code") || "";
+        renderDeliveryDriverPage(code);
+        return;
+      }
 
-    renderRoute(window.location.pathname);
-    scanStationNext = initScanStationNext({ scanInput });
-
-    window.addEventListener("popstate", () => {
       renderRoute(window.location.pathname);
-    });
+      scanStationNext = initScanStationNext({ scanInput });
 
-    if (location.protocol === "file:") {
-      alert("Open via http://localhost/... (not file://). Run a local server.");
+      window.addEventListener("popstate", () => {
+        renderRoute(window.location.pathname);
+      });
+
+      if (location.protocol === "file:") {
+        alert("Open via http://localhost/... (not file://). Run a local server.");
+      }
+
+      window.__fl = window.__fl || {};
+      window.__fl.bookNow = doBookingNow;
+    } finally {
+      hidePageLoader();
     }
-
-    window.__fl = window.__fl || {};
-    window.__fl.bookNow = doBookingNow;
   };
 
   boot();
 })();
+
+

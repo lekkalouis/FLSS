@@ -57,6 +57,7 @@ export function initFlocsView() {
   const customerResults  = document.getElementById("flocs-customerResults");
   const customerStatus   = document.getElementById("flocs-customerStatus");
   const customerChips    = document.getElementById("flocs-selectedCustomerChips");
+  const clearCustomerBtn = document.getElementById("flocs-clearCustomerBtn");
   const customerCreateToggle = document.getElementById("flocs-customerCreateToggle");
   const customerCreatePanel = document.getElementById("flocs-customerCreatePanel");
   const customerCreateStatus = document.getElementById("flocs-customerCreateStatus");
@@ -137,7 +138,9 @@ export function initFlocsView() {
     azLetters: [],
     customers: [],
     loadingCustomers: false,
-    spaceTapTimes: []
+    spaceTapTimes: [],
+    customerCandidateId: null,
+    orderTagsText: ""
   };
 
   const CUSTOMER_QUICK_PICK_EXCLUDED_SEGMENTS = new Set(["local", "private"]);
@@ -199,11 +202,58 @@ export function initFlocsView() {
     }, 4500);
   }
 
+  function flashQuoteReady() {
+    if (!shell) return;
+    shell.classList.remove("flocs-shell--flash-green");
+    void shell.offsetWidth;
+    shell.classList.add("flocs-shell--flash-green");
+    window.setTimeout(() => {
+      shell.classList.remove("flocs-shell--flash-green");
+    }, 900);
+  }
+
+  function showQuoteReadyPrompt() {
+    if (!shell) return;
+    const existing = document.getElementById("flocs-quoteReadyPrompt");
+    if (existing) existing.remove();
+    const prompt = document.createElement("div");
+    prompt.id = "flocs-quoteReadyPrompt";
+    prompt.className = "flocs-quoteReadyPrompt";
+    prompt.innerHTML = `
+      <div class="flocs-quoteReadyPromptCard">
+        <div class="flocs-quoteReadyPromptTitle">Shipping quote ready</div>
+        <div class="flocs-quoteReadyPromptText">Create this as a draft order or a live order now.</div>
+        <div class="flocs-quoteReadyPromptActions">
+          <button type="button" class="flocs-btn primary" data-action="draft">Create draft order</button>
+          <button type="button" class="flocs-btn" data-action="live">Create live order</button>
+          <button type="button" class="flocs-miniBtn" data-action="dismiss">Dismiss</button>
+        </div>
+      </div>
+    `;
+    prompt.addEventListener("click", async (event) => {
+      const target = event.target instanceof HTMLElement ? event.target.closest("[data-action]") : null;
+      if (!target) return;
+      const action = target.getAttribute("data-action");
+      if (action === "draft") {
+        prompt.remove();
+        await createDraftOrder();
+        return;
+      }
+      if (action === "live") {
+        prompt.remove();
+        await createOrderNow();
+        return;
+      }
+      prompt.remove();
+    });
+    shell.appendChild(prompt);
+  }
+
   const productKey = (p) =>
     String(p.variantId || p.sku || p.title || "").trim();
 
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
-  const QUICK_QTY = [6, 12, 24];
+  const QUICK_QTY = [5, 6, 10, 12, 24];
   const AUTO_QUOTE_DELAY_MS = 3000;
   const REQUIRE_RESOLVED_PRICING = CONFIG?.FLOCS?.REQUIRE_RESOLVED_PRICING !== false;
   let autoQuoteTimer = null;
@@ -340,6 +390,38 @@ export function initFlocsView() {
     return next;
   }
 
+  function customerMatchScore(customer, query) {
+    const q = String(query || "").trim().toLowerCase();
+    if (!q) return 0;
+    const name = String(customer?.name || "").toLowerCase();
+    const company = String(customer?.companyName || "").toLowerCase();
+    const email = String(customer?.email || "").toLowerCase();
+    const phone = String(customer?.phone || "").toLowerCase();
+    if (name === q) return 1000;
+    if (company === q) return 980;
+    if (email === q) return 960;
+    if (phone === q) return 940;
+    if (name.startsWith(q)) return 900;
+    if (company.startsWith(q)) return 880;
+    if (email.startsWith(q)) return 860;
+    if (phone.startsWith(q)) return 840;
+    if (name.includes(q)) return 700;
+    if (company.includes(q)) return 680;
+    if (email.includes(q)) return 660;
+    if (phone.includes(q)) return 640;
+    return 0;
+  }
+
+  function resolveCustomerCandidate(customers = []) {
+    const list = Array.isArray(customers) ? customers : [];
+    if (!list.length) return null;
+    const quickSearch = String(customerQuickSearch?.value || "").trim();
+    if (!quickSearch) return list[0];
+    return list
+      .map((customer) => ({ customer, score: customerMatchScore(customer, quickSearch) }))
+      .sort((a, b) => b.score - a.score)[0]?.customer || list[0];
+  }
+
   function renderCustomerQuickPicker(customers = []) {
     if (customerResults) customerResults.hidden = false;
     const filtered = filteredQuickPickCustomers(customers);
@@ -348,10 +430,13 @@ export function initFlocsView() {
       customerResults.innerHTML = `<div class="flocs-customerEmpty">No customers match the current filters.</div>`;
       customerResults._data = [];
       customerResults._allData = Array.isArray(customers) ? customers : [];
+      state.customerCandidateId = null;
       customerStatus.textContent = "No match yet. Refine search.";
       return;
     }
 
+    const candidate = resolveCustomerCandidate(filtered);
+    state.customerCandidateId = String(candidate?.id || "");
     const selectedId = String(state.customer?.id || "");
     customerResults.innerHTML = filtered
       .map((customer, idx) => {
@@ -359,8 +444,9 @@ export function initFlocsView() {
         const province = customerProvinceLabel(customer);
         const location = [city, province].filter(Boolean).join(", ") || "Location unavailable";
         const isActive = selectedId && String(customer?.id || "") === selectedId;
+        const isCandidate = state.customerCandidateId && String(customer?.id || "") === state.customerCandidateId;
         return `
-        <button type="button" class="flocs-customerItem${isActive ? " is-active" : ""}" data-idx="${idx}">
+        <button type="button" class="flocs-customerItem${isActive ? " is-active" : ""}${isCandidate ? " is-candidate" : ""}" data-idx="${idx}">
           <strong>${customer.name || "Unnamed"}</strong>
           <div class="flocs-customerItem-meta">${location}</div>
         </button>
@@ -369,7 +455,11 @@ export function initFlocsView() {
       .join("");
     customerResults._data = filtered;
     customerResults._allData = Array.isArray(customers) ? customers : [];
-    customerStatus.textContent = "Click a row to select customer.";
+    if (candidate?.name) {
+      customerStatus.textContent = `Suggested: ${candidate.name}. Press Enter or Tab to select.`;
+    } else {
+      customerStatus.textContent = "Click a row to select customer.";
+    }
   }
 
   function normalizePriceTiers(product) {
@@ -978,6 +1068,35 @@ export function initFlocsView() {
     renderAddressSelect(addrSelect, addrPreview, "shippingAddressIndex");
   }
 
+  function renderInvoiceAddressOptions(selectedIndex) {
+    if (!state.customer) {
+      return `<option value="">Select a customer first…</option>`;
+    }
+    const addresses = Array.isArray(state.customer.addresses) ? state.customer.addresses : [];
+    if (!addresses.length) {
+      return `<option value="">No addresses on customer</option>`;
+    }
+    return addresses
+      .map((address, idx) => {
+        const labelParts = [];
+        if (address.company) labelParts.push(address.company);
+        const name = `${address.first_name || ""} ${address.last_name || ""}`.trim();
+        if (name) labelParts.push(name);
+        if (address.city) labelParts.push(address.city);
+        if (address.zip) labelParts.push(address.zip);
+        const selected = Number(selectedIndex) === idx ? " selected" : "";
+        return `<option value="${idx}"${selected}>${labelParts.join(" · ") || `Address ${idx + 1}`}</option>`;
+      })
+      .join("");
+  }
+
+  function parseOrderTags(rawText) {
+    return String(rawText || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+  }
+
   // ===== UI: invoice preview =====
   function renderInvoice() {
     if (!invoice) return;
@@ -1074,6 +1193,29 @@ ${state.customer.email || ""}${
           PO: <strong>${po}</strong><br/>
           Delivery: ${deliveryLabel}
         </div>
+      </div>
+
+      <div class="flocs-invoiceInlineControls">
+        <label class="flocs-invoiceInlineField">
+          <span class="flocs-invoiceInlineLabel">PO Number</span>
+          <input id="flocs-invoice-po" class="flocs-input" type="text" value="${state.po || ""}" placeholder="PO / reference (optional)" />
+        </label>
+        <label class="flocs-invoiceInlineField">
+          <span class="flocs-invoiceInlineLabel">Ship To Address</span>
+          <select id="flocs-invoice-shipAddress" class="flocs-select" ${!state.customer ? "disabled" : ""}>
+            ${renderInvoiceAddressOptions(state.shippingAddressIndex)}
+          </select>
+        </label>
+        <label class="flocs-invoiceInlineField">
+          <span class="flocs-invoiceInlineLabel">Bill To Address</span>
+          <select id="flocs-invoice-billAddress" class="flocs-select" ${!state.customer ? "disabled" : ""}>
+            ${renderInvoiceAddressOptions(state.billingAddressIndex)}
+          </select>
+        </label>
+        <label class="flocs-invoiceInlineField flocs-invoiceInlineField--wide">
+          <span class="flocs-invoiceInlineLabel">Order Tags</span>
+          <input id="flocs-invoice-tags" class="flocs-input" type="text" value="${state.orderTagsText || ""}" placeholder="tag-one, tag-two, priority" />
+        </label>
       </div>
 
       <div class="flocs-invoiceCols">
@@ -1421,6 +1563,8 @@ ${state.customer.email || ""}${
 
       validate();
       renderInvoice();
+      flashQuoteReady();
+      showQuoteReadyPrompt();
     } catch (e) {
       console.error("SWE quote error:", e);
       shippingSummary.textContent = "Quote error: " + String(e?.message || e);
@@ -1473,7 +1617,7 @@ ${state.customer.email || ""}${
   }
 
   async function searchCustomersNow() {
-    const q = (customerSearch.value || "").trim().toLowerCase();
+    const q = ((customerQuickSearch?.value || "") || (customerSearch?.value || "")).trim().toLowerCase();
     const source = Array.isArray(state.customers) ? state.customers : [];
 
     if (state.loadingCustomers) {
@@ -1671,6 +1815,50 @@ ${state.customer.email || ""}${
     return addrs.length ? 0 : null;
   }
 
+  function firstInvoiceInputTarget() {
+    if (!invoice) return null;
+    return invoice.querySelector("#flocs-invoice-po, #flocs-invoice-shipAddress, #flocs-invoice-billAddress, #flocs-invoice-tags");
+  }
+
+  function focusPrimaryQtyInput() {
+    if (!productsBody) return;
+    const primary = state.products.find((product) => {
+      const flavour = String(product?.flavour || "").trim().toLowerCase();
+      const size = normalizeMatrixSize(product?.size);
+      return flavour === "original" && size === "200ml";
+    });
+    const primaryKey = primary ? productKey(primary) : "";
+    const selector = primaryKey
+      ? `.flocs-qtyInput[data-key="${CSS.escape(primaryKey)}"]`
+      : ".flocs-qtyInput";
+    const input = productsBody.querySelector(selector) || productsBody.querySelector(".flocs-qtyInput");
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+      input.select();
+    }
+  }
+
+  async function selectCustomerForInput(customer, { focusQty = false } = {}) {
+    if (!customer) return false;
+    if (customerStatus) customerStatus.textContent = "Loading customer details…";
+    const hydrated = await hydrateCustomerCustomFields(customer);
+    applySelectedCustomer(hydrated);
+    if (focusQty) {
+      window.requestAnimationFrame(() => focusPrimaryQtyInput());
+    }
+    return true;
+  }
+
+  async function selectCurrentCustomerCandidate(options = {}) {
+    const list = customerResults?._data || [];
+    if (!list.length) return false;
+    const candidateId = String(state.customerCandidateId || "");
+    const candidate = candidateId
+      ? list.find((entry) => String(entry?.id || "") === candidateId)
+      : list[0];
+    return selectCustomerForInput(candidate || list[0], options);
+  }
+
   function applySelectedCustomer(c) {
     state.customer = c;
 
@@ -1698,6 +1886,7 @@ ${state.customer.email || ""}${
 
     if (customerResults) customerResults.hidden = true;
     if (customerStatus) customerStatus.textContent = `Selected: ${c.name}`;
+    if (clearCustomerBtn) clearCustomerBtn.disabled = false;
     state.customerTags = normalizeTags(c.tags);
     state.customerSpecialization = resolveCustomerSpecialization(c);
     const metafieldTier = normalizeCustomerTier(c.tier);
@@ -1711,6 +1900,37 @@ ${state.customer.email || ""}${
     hydratePriceTiersForProducts(state.products);
     updateDeliveryPrompt(hasDeliveryMethod);
     scheduleAutoQuote();
+  }
+
+  function clearSelectedCustomer() {
+    if (!state.customer) return;
+    state.customer = null;
+    state.shippingAddressIndex = null;
+    state.billingAddressIndex = null;
+    state.shippingQuote = null;
+    state.customerTags = [];
+    state.customerSpecialization = { isHennies: false };
+    state.priceTier = null;
+    state.delivery = "shipping";
+    if (deliveryGroup) syncDeliveryGroup();
+    if (shippingSummary) shippingSummary.textContent = "No shipping quote yet.";
+    if (customerStatus) customerStatus.textContent = "Customer cleared. Select another customer.";
+    if (clearCustomerBtn) clearCustomerBtn.disabled = true;
+    state.customerCandidateId = null;
+    renderCustomerChips();
+    renderProductsTable();
+    renderBillingAddressSelect();
+    renderShippingAddressSelect();
+    renderInvoice();
+    validate();
+
+    const pickerSource = customerResults?._allData || state.customers || [];
+    if (pickerSource.length) {
+      renderCustomerQuickPicker(pickerSource);
+    } else if (customerResults) {
+      customerResults.hidden = false;
+      customerResults.innerHTML = `<div class="flocs-customerEmpty">No customers loaded yet.</div>`;
+    }
   }
 
   function addProductToOrder(product) {
@@ -1779,9 +1999,12 @@ ${state.customer.email || ""}${
     const shippingAddress =
       addr || null;
 
+    const orderTags = parseOrderTags(state.orderTagsText);
     const payload = {
       customerId: state.customer.id,
       poNumber: state.po || null,
+      orderTags,
+      tags: orderTags,
       deliveryDate: state.deliveryDate || null,
       shippingMethod: delivery,
       shippingPrice,
@@ -1917,9 +2140,12 @@ ${state.customer.email || ""}${
     const shippingAddress =
       addr || null;
 
+    const orderTags = parseOrderTags(state.orderTagsText);
     const payload = {
       customerId: state.customer.id,
       poNumber: state.po || null,
+      orderTags,
+      tags: orderTags,
       deliveryDate: state.deliveryDate || null,
       shippingMethod: delivery,
       shippingPrice,
@@ -2007,11 +2233,14 @@ ${state.customer.email || ""}${
     state.priceOverrides = {};
     state.priceOverrideEnabled = {};
     state.azLetters = [];
+    state.customerCandidateId = null;
+    state.orderTagsText = "";
     state.productType = "spices";
     state.qtyMode = "units";
     state.cartonUnits = 12;
 
     if (customerSearch) customerSearch.value = "";
+    if (customerQuickSearch) customerQuickSearch.value = "";
     updateAzBarActive([]);
     if (poInput) poInput.value = "";
     if (deliveryDateInput) deliveryDateInput.value = "";
@@ -2022,6 +2251,9 @@ ${state.customer.email || ""}${
     if (customerStatus) {
       customerStatus.textContent =
         "Search by name, email, company, or phone";
+    }
+    if (clearCustomerBtn) {
+      clearCustomerBtn.disabled = true;
     }
     if (deliveryGroup) {
       syncDeliveryGroup();
@@ -2144,16 +2376,25 @@ ${state.customer.email || ""}${
       const active = document.activeElement;
       if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
       if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
-      if (!customerSearch) return;
-      customerSearch.hidden = true;
-      customerSearch.value = `${customerSearch.value || ""}${e.key}`;
-      searchCustomersDebounced();
+      if (!customerQuickSearch) return;
+      customerQuickSearch.value = `${customerQuickSearch.value || ""}${e.key}`;
+      renderCustomerQuickPicker(customerResults?._allData || state.customers || []);
       customerResults.hidden = false;
+      customerQuickSearch.focus();
+      customerQuickSearch.selectionStart = customerQuickSearch.value.length;
+      customerQuickSearch.selectionEnd = customerQuickSearch.value.length;
     });
 
     if (customerQuickSearch) {
       customerQuickSearch.addEventListener("input", () => {
         renderCustomerQuickPicker(customerResults?._allData || []);
+      });
+      customerQuickSearch.addEventListener("keydown", async (event) => {
+        if (event.key !== "Enter" && event.key !== "Tab") return;
+        const hasCandidate = Boolean(state.customerCandidateId) || Boolean(customerResults?._data?.length);
+        if (!hasCandidate) return;
+        event.preventDefault();
+        await selectCurrentCustomerCandidate({ focusQty: true });
       });
     }
 
@@ -2177,9 +2418,7 @@ ${state.customer.email || ""}${
         const list = customerResults._data;
         const c = list[idx];
         if (!c) return;
-        customerStatus.textContent = "Loading customer details…";
-        const hydrated = await hydrateCustomerCustomFields(c);
-        applySelectedCustomer(hydrated);
+        await selectCustomerForInput(c, { focusQty: true });
       });
     }
 
@@ -2195,6 +2434,12 @@ ${state.customer.email || ""}${
       });
     }
 
+    if (clearCustomerBtn) {
+      clearCustomerBtn.addEventListener("click", () => {
+        clearSelectedCustomer();
+      });
+    }
+
     if (customerCreateToggle) {
       customerCreateToggle.addEventListener("click", () => {
         const isHidden = customerCreatePanel?.hidden !== false;
@@ -2202,11 +2447,45 @@ ${state.customer.email || ""}${
       });
     }
 
-    if (poInput) {
-      poInput.addEventListener("input", () => {
-        state.po = poInput.value || "";
-        renderInvoice();
-        validate();
+    if (invoice) {
+      invoice.addEventListener("input", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.id === "flocs-invoice-po" && target instanceof HTMLInputElement) {
+          state.po = target.value || "";
+          validate();
+          return;
+        }
+        if (target.id === "flocs-invoice-tags" && target instanceof HTMLInputElement) {
+          state.orderTagsText = target.value || "";
+          return;
+        }
+      });
+      invoice.addEventListener("change", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.id === "flocs-invoice-po" && target instanceof HTMLInputElement) {
+          state.po = target.value || "";
+          renderInvoice();
+          validate();
+          return;
+        }
+        if (target.id === "flocs-invoice-shipAddress" && target instanceof HTMLSelectElement) {
+          if (!state.customer) return;
+          state.shippingAddressIndex = target.value === "" ? null : Number(target.value);
+          renderCustomerChips();
+          renderInvoice();
+          validate();
+          scheduleAutoQuote();
+          return;
+        }
+        if (target.id === "flocs-invoice-billAddress" && target instanceof HTMLSelectElement) {
+          if (!state.customer) return;
+          state.billingAddressIndex = target.value === "" ? null : Number(target.value);
+          renderCustomerChips();
+          renderInvoice();
+          validate();
+        }
       });
     }
 
@@ -2295,6 +2574,38 @@ ${state.customer.email || ""}${
         const key = btn.dataset.key;
         if (!key) return;
         applyQtyAction(action, key, Number(btn.dataset.amount || 0));
+      });
+
+      productsBody.addEventListener("keydown", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement) || !target.classList.contains("flocs-qtyInput")) return;
+        if (event.key !== "Tab") return;
+        const inputs = Array.from(productsBody.querySelectorAll(".flocs-qtyInput"));
+        if (!inputs.length) return;
+        const currentIndex = inputs.indexOf(target);
+        if (currentIndex < 0) return;
+        event.preventDefault();
+        if (event.shiftKey) {
+          const prev = inputs[currentIndex - 1];
+          if (prev) {
+            prev.focus();
+            prev.select();
+            return;
+          }
+          target.focus();
+          target.select();
+          return;
+        }
+        const next = inputs[currentIndex + 1];
+        if (next) {
+          next.focus();
+          next.select();
+          return;
+        }
+        const invoiceTarget = firstInvoiceInputTarget();
+        if (invoiceTarget instanceof HTMLElement) {
+          invoiceTarget.focus();
+        }
       });
     }
 
