@@ -36,7 +36,14 @@
     </section>
 
     <section class="op-card">
-      <h2>Outstanding / Terms Dashboard</h2>
+      <div class="op-card-head">
+        <h2>Outstanding / Terms Dashboard</h2>
+        <form id="opNameFilterForm" class="op-filter-form">
+          <input id="opNameFilter" type="search" placeholder="Filter by customer or order name" aria-label="Filter by customer or order name" />
+          <button class="btn btn-sm btn-alt-primary" type="submit">Apply name filter</button>
+          <button id="opNameFilterReset" class="btn btn-sm btn-alt-secondary" type="button">Clear</button>
+        </form>
+      </div>
       <table class="table table-striped">
         <thead>
           <tr><th>Order</th><th>Customer</th><th>Terms</th><th>Due date</th><th>Outstanding</th><th>Local status</th><th>Shopify status</th></tr>

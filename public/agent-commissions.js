@@ -5,8 +5,18 @@ const paymentOrder = document.getElementById("paymentOrder");
 const refreshBtn = document.getElementById("refreshBtn");
 const ruleForm = document.getElementById("ruleForm");
 const paymentForm = document.getElementById("paymentForm");
+const toggleRulesBtn = document.getElementById("toggleRulesBtn");
+const rulesPanel = document.getElementById("rulesPanel");
+const dateFiltersForm = document.getElementById("acDateFilters");
+const dateFromInput = document.getElementById("acDateFrom");
+const dateToInput = document.getElementById("acDateTo");
+const dateResetBtn = document.getElementById("acDateReset");
 
 let dashboard = null;
+let filters = {
+  from: "",
+  to: ""
+};
 
 const fmt = new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" });
 
@@ -17,6 +27,25 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function asDateOnly(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function inRange(value, from, to) {
+  const date = asDateOnly(value);
+  if (!date) return false;
+  if (from && date < from) return false;
+  if (to && date > to) return false;
+  return true;
+}
+
+function round2(value) {
+  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 }
 
 function renderSummary(summary) {
@@ -54,7 +83,7 @@ function renderOrders(orders) {
       <td>${escapeHtml(order.customerName)}</td>
       <td>${escapeHtml(order.agentName || "-")}</td>
       <td>${fmt.format(order.netAmount)}</td>
-      <td>${order.commissionRate.toFixed(2)}%</td>
+      <td>${Number(order.commissionRate || 0).toFixed(2)}%</td>
       <td>${fmt.format(order.commissionAmount)}</td>
       <td>${fmt.format(order.allocatedAmount)}</td>
       <td>${fmt.format(order.outstandingAmount)}</td>
@@ -65,9 +94,82 @@ function renderOrders(orders) {
 
   const options = orders
     .filter((order) => order.outstandingAmount > 0)
-    .map((order) => `<option value="${order.orderId}">${escapeHtml(order.orderName)} — ${fmt.format(order.outstandingAmount)} outstanding</option>`)
+    .map((order) => `<option value="${order.orderId}">${escapeHtml(order.orderName)} - ${fmt.format(order.outstandingAmount)} outstanding</option>`)
     .join("");
   paymentOrder.innerHTML = `<option value="">No allocation</option>${options}`;
+}
+
+function buildFilteredOrders(data, from, to) {
+  const orders = Array.isArray(data?.orders) ? data.orders : [];
+  const payments = Array.isArray(data?.payments) ? data.payments : [];
+  const filteredOrders = orders.filter((order) => inRange(order.createdAt, from, to));
+
+  const allocatedByOrder = new Map();
+  for (const payment of payments) {
+    if (!inRange(payment.receivedAt || payment.createdAt, from, to)) continue;
+    for (const allocation of payment.allocations || []) {
+      const orderId = String(allocation?.orderId || "");
+      const amount = Number(allocation?.amount || 0);
+      if (!orderId || !Number.isFinite(amount) || amount <= 0) continue;
+      allocatedByOrder.set(orderId, round2((allocatedByOrder.get(orderId) || 0) + amount));
+    }
+  }
+
+  return filteredOrders.map((order) => {
+    const commissionAmount = round2(order.commissionAmount);
+    const allocatedAmount = round2(allocatedByOrder.get(String(order.orderId)) || 0);
+    const outstandingAmount = round2(Math.max(0, commissionAmount - allocatedAmount));
+    let paymentStatus = "unpaid";
+    if (commissionAmount <= 0 || allocatedAmount >= commissionAmount) paymentStatus = "paid";
+    else if (allocatedAmount > 0) paymentStatus = "partial";
+
+    return {
+      ...order,
+      allocatedAmount,
+      outstandingAmount,
+      paymentStatus
+    };
+  });
+}
+
+function summaryFromOrders(orders) {
+  const summary = {
+    totalOrders: 0,
+    netSales: 0,
+    commissionDue: 0,
+    commissionAllocated: 0,
+    commissionOutstanding: 0,
+    paidOrders: 0,
+    partialOrders: 0,
+    unpaidOrders: 0
+  };
+
+  for (const order of orders) {
+    summary.totalOrders += 1;
+    summary.netSales += Number(order.netAmount || 0);
+    summary.commissionDue += Number(order.commissionAmount || 0);
+    summary.commissionAllocated += Number(order.allocatedAmount || 0);
+    summary.commissionOutstanding += Number(order.outstandingAmount || 0);
+    if (order.paymentStatus === "paid") summary.paidOrders += 1;
+    if (order.paymentStatus === "partial") summary.partialOrders += 1;
+    if (order.paymentStatus === "unpaid") summary.unpaidOrders += 1;
+  }
+
+  summary.netSales = round2(summary.netSales);
+  summary.commissionDue = round2(summary.commissionDue);
+  summary.commissionAllocated = round2(summary.commissionAllocated);
+  summary.commissionOutstanding = round2(summary.commissionOutstanding);
+  return summary;
+}
+
+function applyFiltersAndRender() {
+  if (!dashboard) return;
+  const from = filters.from ? asDateOnly(filters.from) : null;
+  const to = filters.to ? asDateOnly(filters.to) : null;
+  const orders = buildFilteredOrders(dashboard, from, to);
+  renderSummary(summaryFromOrders(orders));
+  renderOrders(orders);
+  renderRules(dashboard.rules || []);
 }
 
 async function loadDashboard() {
@@ -75,9 +177,7 @@ async function loadDashboard() {
   const data = await resp.json();
   if (!resp.ok) throw new Error(data.error || "Failed to load dashboard");
   dashboard = data;
-  renderSummary(data.summary);
-  renderRules(data.rules);
-  renderOrders(data.orders);
+  applyFiltersAndRender();
   const existing = document.getElementById("acWarning");
   if (existing) existing.remove();
   if (data.warning) {
@@ -140,6 +240,36 @@ rulesBody.addEventListener("click", async (event) => {
   if (!confirm("Delete this rule?")) return;
   await fetch(`/api/v1/agent-commissions/rules/${button.dataset.ruleDelete}`, { method: "DELETE" });
   await loadDashboard();
+});
+
+toggleRulesBtn?.addEventListener("click", () => {
+  if (!rulesPanel) return;
+  const isHidden = rulesPanel.hasAttribute("hidden");
+  if (isHidden) {
+    rulesPanel.removeAttribute("hidden");
+    toggleRulesBtn.textContent = "Hide rules";
+    toggleRulesBtn.setAttribute("aria-expanded", "true");
+  } else {
+    rulesPanel.setAttribute("hidden", "hidden");
+    toggleRulesBtn.textContent = "Show rules";
+    toggleRulesBtn.setAttribute("aria-expanded", "false");
+  }
+});
+
+dateFiltersForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  filters = {
+    from: String(dateFromInput?.value || ""),
+    to: String(dateToInput?.value || "")
+  };
+  applyFiltersAndRender();
+});
+
+dateResetBtn?.addEventListener("click", () => {
+  filters = { from: "", to: "" };
+  if (dateFromInput) dateFromInput.value = "";
+  if (dateToInput) dateToInput.value = "";
+  applyFiltersAndRender();
 });
 
 refreshBtn.addEventListener("click", () => loadDashboard().catch((error) => alert(error.message)));

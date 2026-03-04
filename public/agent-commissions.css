@@ -6,6 +6,11 @@ body { background:#f8fafc; }
 .ac-kpi h3{ margin:0; font-size:.85rem; color:#64748b; }
 .ac-kpi p{ margin:.25rem 0 0; font-size:1.1rem; font-weight:700; }
 .ac-card{ background:#fff; border:1px solid #dbe2ea; border-radius:.75rem; padding:1rem; }
+.ac-card-head{ display:flex; justify-content:space-between; align-items:center; gap:.75rem; flex-wrap:wrap; margin-bottom:.5rem; }
+.ac-card-head h2{ margin:0; }
+.ac-filter-form{ display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.ac-filter-form input{ min-width:145px; }
+.ac-filter-note{ margin:0 0 .75rem; color:#64748b; font-size:.85rem; }
 .ac-form{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.5rem; margin-bottom:.75rem; }
 .ac-form input,.ac-form select,.ac-form textarea{ border:1px solid #cbd5e1; border-radius:.5rem; padding:.45rem .55rem; }
 .ac-form--payment{ grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
@@ -15,3 +20,8 @@ body { background:#f8fafc; }
 .ac-badge--unpaid{ background:#fee2e2; color:#991b1b; }
 
 .ac-warning{ margin:.25rem 0 0; padding:.55rem .75rem; border:1px solid #f59e0b; background:#fffbeb; color:#92400e; border-radius:.5rem; font-size:.9rem; }
+
+@media (max-width:720px){
+  .ac-filter-form{ width:100%; }
+  .ac-filter-form input{ flex:1 1 160px; }
+}

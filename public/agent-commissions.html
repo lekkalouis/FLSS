@@ -23,7 +23,30 @@
     <section class="ac-grid" id="summaryGrid"></section>
 
     <section class="ac-card">
-      <h2>Customer Commission Rules</h2>
+      <div class="ac-card-head">
+        <h2>Commission Orders</h2>
+        <form id="acDateFilters" class="ac-filter-form">
+          <input id="acDateFrom" name="dateFrom" type="date" aria-label="From date" />
+          <input id="acDateTo" name="dateTo" type="date" aria-label="To date" />
+          <button class="btn btn-sm btn-alt-primary" type="submit">Apply date filter</button>
+          <button id="acDateReset" class="btn btn-sm btn-alt-secondary" type="button">Clear</button>
+        </form>
+      </div>
+      <p class="ac-filter-note">Date filter uses order date for commissions and payment received date for allocations.</p>
+      <table class="table table-striped">
+        <thead>
+          <tr><th>Order</th><th>Customer</th><th>Agent</th><th>Net</th><th>Rate</th><th>Commission</th><th>Allocated</th><th>Outstanding</th><th>Status</th></tr>
+        </thead>
+        <tbody id="ordersBody"></tbody>
+      </table>
+    </section>
+
+    <section class="ac-card">
+      <div class="ac-card-head">
+        <h2>Customer Commission Rules</h2>
+        <button id="toggleRulesBtn" class="btn btn-sm btn-alt-primary" type="button" aria-expanded="false">Show rules</button>
+      </div>
+      <div id="rulesPanel" class="ac-collapsed" hidden>
       <form id="ruleForm" class="ac-form">
         <input name="customerName" placeholder="Customer name" />
         <input name="customerEmail" type="email" placeholder="Customer email" />
@@ -36,6 +59,7 @@
         <thead><tr><th>Customer</th><th>Agent</th><th>Rate</th><th></th></tr></thead>
         <tbody id="rulesBody"></tbody>
       </table>
+      </div>
     </section>
 
     <section class="ac-card">
@@ -51,15 +75,6 @@
       </form>
     </section>
 
-    <section class="ac-card">
-      <h2>Commission Orders</h2>
-      <table class="table table-striped">
-        <thead>
-          <tr><th>Order</th><th>Customer</th><th>Agent</th><th>Net</th><th>Rate</th><th>Commission</th><th>Allocated</th><th>Outstanding</th><th>Status</th></tr>
-        </thead>
-        <tbody id="ordersBody"></tbody>
-      </table>
-    </section>
   </main>
   <script type="module" src="/agent-commissions.js"></script>
 </body>

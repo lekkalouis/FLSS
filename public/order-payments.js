@@ -3,6 +3,12 @@ const ordersEl = document.getElementById("opOrders");
 const refreshBtn = document.getElementById("opRefresh");
 const form = document.getElementById("opForm");
 const orderSelect = document.getElementById("opOrder");
+const nameFilterForm = document.getElementById("opNameFilterForm");
+const nameFilterInput = document.getElementById("opNameFilter");
+const nameFilterResetBtn = document.getElementById("opNameFilterReset");
+
+let dashboard = null;
+let nameFilter = "";
 
 const fmt = new Intl.NumberFormat("en-ZA", { style: "currency", currency: "ZAR" });
 
@@ -22,21 +28,19 @@ function asDate(value) {
   return d.toLocaleDateString("en-ZA");
 }
 
-async function loadDashboard() {
-  const resp = await fetch("/api/v1/order-payments/dashboard");
-  const data = await resp.json();
-  if (!resp.ok) throw new Error(data.error || "Could not load dashboard");
+function filteredOrders() {
+  const orders = Array.isArray(dashboard?.outstandingOrders) ? dashboard.outstandingOrders : [];
+  if (!nameFilter) return orders;
+  const needle = nameFilter.toLowerCase();
+  return orders.filter((o) => {
+    const orderName = String(o.orderName || "").toLowerCase();
+    const customerName = String(o.customerName || "").toLowerCase();
+    return orderName.includes(needle) || customerName.includes(needle);
+  });
+}
 
-  const summary = data.summary || {};
-  const existing = document.getElementById("opWarning");
-  if (existing) existing.remove();
-  if (data.warning) {
-    const warning = document.createElement("p");
-    warning.id = "opWarning";
-    warning.className = "op-warning";
-    warning.textContent = data.warning;
-    kpisEl.parentElement?.insertBefore(warning, kpisEl.nextSibling);
-  }
+function render() {
+  const summary = dashboard?.summary || {};
   kpisEl.innerHTML = [
     ["Orders tracked", summary.orderCount || 0],
     ["Total outstanding", fmt.format(summary.totalOutstanding || 0)],
@@ -47,7 +51,7 @@ async function loadDashboard() {
     .map(([label, val]) => `<article class="op-kpi"><h3>${label}</h3><p>${val}</p></article>`)
     .join("");
 
-  const orders = Array.isArray(data.outstandingOrders) ? data.outstandingOrders : [];
+  const orders = filteredOrders();
   ordersEl.innerHTML = orders
     .map(
       (o) => `<tr>
@@ -64,8 +68,26 @@ async function loadDashboard() {
 
   orderSelect.innerHTML = `<option value="">No order allocation</option>${orders
     .filter((o) => o.shopifyOutstanding > 0)
-    .map((o) => `<option value="${esc(o.orderId)}" data-name="${esc(o.orderName)}">${esc(o.orderName)} — ${fmt.format(o.shopifyOutstanding)} outstanding</option>`)
+    .map((o) => `<option value="${esc(o.orderId)}" data-name="${esc(o.orderName)}">${esc(o.orderName)} - ${fmt.format(o.shopifyOutstanding)} outstanding</option>`)
     .join("")}`;
+}
+
+async function loadDashboard() {
+  const resp = await fetch("/api/v1/order-payments/dashboard");
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || "Could not load dashboard");
+
+  dashboard = data;
+  const existing = document.getElementById("opWarning");
+  if (existing) existing.remove();
+  if (data.warning) {
+    const warning = document.createElement("p");
+    warning.id = "opWarning";
+    warning.className = "op-warning";
+    warning.textContent = data.warning;
+    kpisEl.parentElement?.insertBefore(warning, kpisEl.nextSibling);
+  }
+  render();
 }
 
 form.addEventListener("submit", async (event) => {
@@ -97,6 +119,18 @@ form.addEventListener("submit", async (event) => {
   if (data.warning) alert(data.warning);
   form.reset();
   await loadDashboard();
+});
+
+nameFilterForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  nameFilter = String(nameFilterInput?.value || "").trim();
+  render();
+});
+
+nameFilterResetBtn?.addEventListener("click", () => {
+  nameFilter = "";
+  if (nameFilterInput) nameFilterInput.value = "";
+  render();
 });
 
 refreshBtn.addEventListener("click", () => loadDashboard().catch((error) => alert(error.message)));
