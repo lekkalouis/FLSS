@@ -2,20 +2,22 @@
 
 Base URL: `/api/v1`.
 
-This reference mirrors the mounted routers in `src/routes/` and includes every active endpoint currently exposed by the app.
+This reference mirrors mounted routers in `src/routes/` and lists all active endpoints exposed by the app.
 
-## Health and configuration
+## Health and runtime config
 
 - `GET /healthz` — process liveness.
-- `GET /statusz` — integration readiness summary (Shopify, ParcelPerfect, PrintNode, SMTP, runtime).
+- `GET /statusz` — integration/runtime readiness summary.
 - `GET /config` — frontend/runtime config projection.
 
-## Environment and remote station data
+## Controller and dispatch runtime
 
-- `POST /environment/ingest` — ingest environment sample payloads.
-- `GET /environment` — latest aggregated environment data.
+### Controller bridge
 
-## Dispatch controller API
+- `GET /controller/status`
+- `GET /controller/events`
+
+### Dispatch controller
 
 - `GET /dispatch/state`
 - `POST /dispatch/state`
@@ -31,6 +33,11 @@ This reference mirrors the mounted routers in `src/routes/` and includes every a
 - `POST /dispatch/print`
 - `POST /dispatch/fulfill`
 
+## Environment telemetry
+
+- `POST /environment/ingest` — ingest environment sample payloads.
+- `GET /environment` — latest aggregated environment data.
+
 ## Documentation topics
 
 - `GET /docs`
@@ -40,7 +47,7 @@ This reference mirrors the mounted routers in `src/routes/` and includes every a
 
 - `POST /pp` — quote/book proxy.
 - `GET /pp/place?q=<search>` — place lookup.
-- `POST /pp/matrix` — shipping matrix simulation endpoint.
+- `POST /pp/matrix` — shipping matrix simulator endpoint.
 
 ## PrintNode
 
@@ -76,6 +83,21 @@ This reference mirrors the mounted routers in `src/routes/` and includes every a
 - `GET /notification-templates`
 - `POST /notification-templates`
 - `DELETE /notification-templates/:id`
+
+## Agent commissions
+
+- `GET /agent-commissions/rules`
+- `POST /agent-commissions/rules`
+- `DELETE /agent-commissions/rules/:id`
+- `GET /agent-commissions/payments`
+- `POST /agent-commissions/payments`
+- `GET /agent-commissions/dashboard`
+
+## Order payments
+
+- `GET /order-payments/dashboard`
+- `GET /order-payments/bank-payments`
+- `POST /order-payments/allocate`
 
 ## Traceability
 
@@ -128,6 +150,7 @@ This reference mirrors the mounted routers in `src/routes/` and includes every a
 ### Shipments and fulfillments
 
 - `GET /shopify/shipments/recent`
+- `GET /shopify/orders/fulfilled/recent`
 - `GET /shopify/fulfillment-events`
 - `POST /shopify/fulfill`
 - `POST /shopify/ready-for-pickup`
