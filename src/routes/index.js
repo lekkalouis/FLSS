@@ -7,6 +7,7 @@ import dispatchControllerRouter from "./dispatch.controller.js";
 import docsRouter from "./docs.js";
 import environmentRouter from "./environment.js";
 import liquidTemplatesRouter from "./liquidTemplates.js";
+import manufacturingRouter from "./manufacturing.js";
 import notificationTemplatesRouter from "./notificationTemplates.js";
 import orderPaymentsRouter from "./order-payments.js";
 import parcelPerfectRouter from "./parcelperfect.js";
@@ -25,6 +26,7 @@ export const apiRouters = [
   { name: "environment", router: environmentRouter },
   { name: "docs", router: docsRouter },
   { name: "liquidTemplates", router: liquidTemplatesRouter },
+  { name: "manufacturing", router: manufacturingRouter },
   { name: "notificationTemplates", router: notificationTemplatesRouter },
   { name: "orderPayments", router: orderPaymentsRouter },
   { name: "parcelPerfect", router: parcelPerfectRouter },

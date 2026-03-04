@@ -314,6 +314,15 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       tag: "Module"
     },
     {
+      id: "manufacturing",
+      title: "Manufacturing Costing",
+      description: "Compute BOM, labour, overhead, shipping, and true SKU costs.",
+      type: "link",
+      target: "/manufacturing.html",
+      meta: "Product management",
+      tag: "Module"
+    },
+    {
       id: "shipping-matrix",
       title: "Shipping Matrix",
       description: "Simulate South African shipping costs by centre and weight.",
