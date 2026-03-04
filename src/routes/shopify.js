@@ -362,6 +362,7 @@ const ORDER_PARCEL_NAMESPACE = "custom";
 const ORDER_PARCEL_KEY = "parcel_count";
 const CUSTOMER_META_NAMESPACE = "custom";
 const CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY = "payment-before-delivery";
+const CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY = "payment_before_delivery";
 const ORDER_PARCEL_CACHE_TTL_MS = 2 * 60 * 1000;
 const ORDER_PARCEL_REST_FALLBACK_CAP = 20;
 const SEARCH_TIER_ENRICHMENT_CAP = 80;
@@ -412,6 +413,7 @@ function cacheOrderParcelCount(orderId, value) {
 function normalizeCustomerMetafields(metafields = []) {
   const getValue = (key) =>
     metafields.find((mf) => mf.namespace === CUSTOMER_META_NAMESPACE && mf.key === key)?.value || null;
+  const getFirstValue = (keys = []) => keys.map((key) => getValue(key)).find((value) => value != null) || null;
 
   return {
     delivery_method: getValue("delivery_method"),
@@ -421,7 +423,10 @@ function normalizeCustomerMetafields(metafields = []) {
     company_name: getValue("company_name"),
     vat_number: getValue("vat_number"),
     payment_terms: getValue("payment_terms"),
-    payment_before_delivery: getValue(CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY)
+    payment_before_delivery: getFirstValue([
+      CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY,
+      CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY
+    ])
   };
 }
 
@@ -447,7 +452,9 @@ async function fetchCustomerPaymentBeforeDeliveryMap(base, customerIds = []) {
         const metaData = await metaResp.json();
         const metafields = Array.isArray(metaData.metafields) ? metaData.metafields : [];
         const paymentBeforeDelivery = metafields.find(
-          (mf) => mf?.namespace === CUSTOMER_META_NAMESPACE && mf?.key === CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY
+          (mf) =>
+            mf?.namespace === CUSTOMER_META_NAMESPACE &&
+            [CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY, CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY].includes(mf?.key)
         );
         map.set(String(customerId), parseBooleanLike(paymentBeforeDelivery?.value));
       } catch {
