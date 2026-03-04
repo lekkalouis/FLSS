@@ -8,6 +8,8 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 
 import { config, getFrontendOrigin } from "./config.js";
+import { initProductDb } from "./services/productDb.js";
+import { startSyncWorker } from "./services/productSync.js";
 import { apiRouters } from "./routes/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -91,6 +93,8 @@ export function createApp() {
 
   app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
 
+  initProductDb();
+  startSyncWorker();
   mountApiRouters(app);
 
   const publicDir = path.join(__dirname, "..", "public");

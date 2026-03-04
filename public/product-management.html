@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Product Management — FLSS</title>
+  <style>
+    body{font-family:Inter,system-ui,sans-serif;background:#f8fafc;margin:0;color:#0f172a}
+    .wrap{max-width:1200px;margin:0 auto;padding:1rem}
+    .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:.9rem;margin-bottom:.9rem}
+    .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.5rem}
+    input,select,button{padding:.5rem .6rem;border:1px solid #cbd5e1;border-radius:8px}
+    button{background:#0284c7;color:#fff;border:none;cursor:pointer}
+    table{width:100%;border-collapse:collapse;font-size:.84rem}
+    th,td{padding:.4rem;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}
+    pre{background:#0f172a;color:#e2e8f0;padding:.7rem;border-radius:8px;overflow:auto}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Offline-First Product Management</h1>
+  <div class="card">
+    <h3>Product + mapping</h3>
+    <div class="row">
+      <input id="p-id" placeholder="id (blank=create)" />
+      <input id="p-sku" placeholder="sku" />
+      <input id="p-title" placeholder="title" />
+      <input id="p-status" placeholder="status active/draft" />
+      <input id="p-barcode" placeholder="barcode" />
+      <input id="p-variant" placeholder="shopify_variant_id" />
+      <input id="p-margin" placeholder="target margin %" type="number" step="0.01" />
+      <button id="save-product">Save Product</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Quick setup rows (ingredients, BOM, packaging, pricing, cost period)</h3>
+    <div class="row">
+      <select id="table">
+        <option>ingredients</option><option>suppliers</option><option>ingredient_prices</option>
+        <option>bom_recipes</option><option>bom_lines</option><option>packaging_items</option>
+        <option>packaging_profiles</option><option>packaging_lines</option><option>price_tiers</option>
+        <option>product_prices</option><option>cost_inputs_period</option><option>compliance_profiles</option>
+      </select>
+      <input id="payload" placeholder='JSON payload e.g. {"name":"Salt","allergen_flags":"[]"}' />
+      <button id="save-row">Save Row</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Cost breakdown + compliance + sync</h3>
+    <div class="row">
+      <input id="c-product-id" placeholder="product_id" />
+      <input id="c-date" placeholder="as_of_date YYYY-MM-DD" />
+      <input id="c-tier" placeholder="tier code" value="public" />
+      <button id="run-cost">Compute True Cost</button>
+      <button id="run-compliance">Generate Compliance</button>
+      <button id="sync-now">Sync Now</button>
+      <button id="backup">Daily Backup</button>
+      <button id="export">Export Snapshot ZIP</button>
+    </div>
+    <pre id="out">Ready.</pre>
+  </div>
+
+  <div class="card">
+    <h3>Dashboard alerts</h3>
+    <div class="row">
+      <input id="d-date" placeholder="as_of_date" />
+      <button id="load-dashboard">Load Dashboard</button>
+      <button id="load-sync">Load Sync Status</button>
+    </div>
+    <table><thead><tr><th>SKU</th><th>True Cost</th><th>Selling</th><th>Margin%</th><th>Alerts</th></tr></thead><tbody id="dash"></tbody></table>
+  </div>
+</div>
+<script>
+const API='/api/v1/product-management';
+const $=(id)=>document.getElementById(id);
+const pretty=(v)=>JSON.stringify(v,null,2);
+async function post(url,body){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});return r.json();}
+
+$('save-product').onclick=async()=>{
+  const body={id:$('p-id').value||undefined,sku:$('p-sku').value,title:$('p-title').value,status:$('p-status').value||'active',barcode:$('p-barcode').value||null,shopify_variant_id:$('p-variant').value||null,target_margin_pct:Number($('p-margin').value||0)};
+  $('out').textContent=pretty(await post(`${API}/products`,body));
+};
+$('save-row').onclick=async()=>{
+  let data={};try{data=JSON.parse($('payload').value||'{}');}catch{alert('Invalid JSON');return;}
+  $('out').textContent=pretty(await post(`${API}/${$('table').value}`,data));
+};
+$('run-cost').onclick=async()=>{const r=await fetch(`${API}/products/${encodeURIComponent($('c-product-id').value)}/cost?as_of_date=${encodeURIComponent($('c-date').value||new Date().toISOString().slice(0,10))}&tier=${encodeURIComponent($('c-tier').value||'public')}`);$('out').textContent=pretty(await r.json());};
+$('run-compliance').onclick=async()=>{$('out').textContent=pretty(await post(`${API}/products/${encodeURIComponent($('c-product-id').value)}/compliance/generate`,{}));};
+$('sync-now').onclick=async()=>{$('out').textContent=pretty(await post(`${API}/sync/now`,{}));};
+$('backup').onclick=async()=>{$('out').textContent=pretty(await post(`${API}/backups/daily`,{}));};
+$('export').onclick=async()=>{$('out').textContent=pretty(await post(`${API}/backups/export`,{}));};
+
+$('load-dashboard').onclick=async()=>{
+  const date=$('d-date').value||new Date().toISOString().slice(0,10);
+  const r=await fetch(`${API}/dashboard?as_of_date=${encodeURIComponent(date)}&tier=public`);const data=await r.json();
+  const alertBy=new Map();
+  (data.alerts||[]).forEach(a=>{const arr=alertBy.get(a.product_id)||[];arr.push(a.type);alertBy.set(a.product_id,arr)});
+  $('dash').innerHTML=(data.rows||[]).map(row=>`<tr><td>${row.product.sku}</td><td>${row.cost_layers.true_cost}</td><td>${row.pricing.selling_price}</td><td>${row.pricing.margin_pct}</td><td>${(alertBy.get(row.product.id)||[]).join(', ')}</td></tr>`).join('');
+};
+$('load-sync').onclick=async()=>{const r=await fetch(`${API}/sync/status`);$('out').textContent=pretty(await r.json());};
+</script>
+</body>
+</html>

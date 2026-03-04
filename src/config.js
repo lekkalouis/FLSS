@@ -86,7 +86,12 @@ export const config = {
   UI_ORIGIN_NOTIFY: process.env.UI_ORIGIN_NOTIFY,
   UI_ORIGIN_EMAIL: process.env.UI_ORIGIN_EMAIL,
   UI_ORIGIN_NOTES: process.env.UI_ORIGIN_NOTES,
-  UI_FEATURE_MULTI_SHIP: process.env.UI_FEATURE_MULTI_SHIP
+  UI_FEATURE_MULTI_SHIP: process.env.UI_FEATURE_MULTI_SHIP,
+
+  LOCAL_DB_PATH: process.env.LOCAL_DB_PATH || "data/flss-products.sqlite",
+  ASSETS_PATH: process.env.ASSETS_PATH || "data/assets/products",
+  BACKUPS_PATH: process.env.BACKUPS_PATH || "data/backups",
+  SYNC_ENABLED: process.env.SYNC_ENABLED || "true",
 };
 
 export function getFrontendOrigin() {
