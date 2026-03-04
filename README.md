@@ -1,19 +1,20 @@
 # Flippen Lekka Scan Station (FLSS)
 
-FLSS is a Node + Express operations platform for order capture, dispatch workflows, shipping bookings, label printing, inventory actions, pricing tiers, template management, and batch traceability.
+FLSS is a Node + Express operations platform for order capture, dispatch workflows, shipping bookings, label printing, inventory actions, pricing tiers, templates, commissions, payment allocation, and traceability.
 
 - **Backend API base:** `/api/v1`
 - **Primary SPA shell:** `http://localhost:3000`
+- **WebSocket endpoint:** `/ws/controller`
 - **Static utility pages:** served from `public/*.html`
 
-## What is in the app today
+## App scope (current)
 
 ### Internal SPA routes (single shell)
 
 - `/` — **Orders / Scan Station**
 - `/ops` — **Dispatch Board**
 - `/docs` — **Docs browser** (renders `README.md` + `docs/*.md`)
-- `/flowcharts` — **Dispatch and packing flow guidance**
+- `/flowcharts` — **Dispatch/packing flow guidance**
 - `/flocs` — **Order Capture (FLOCS)**
 - `/stock` — **Stock tools**
 - `/price-manager` — **Price Manager**
@@ -21,53 +22,63 @@ FLSS is a Node + Express operations platform for order capture, dispatch workflo
 - `/logs` — **Ops logs panel** (admin-unlocked)
 - `/admin` and `/changelog` — internal utility views
 
-### Static pages and tools
+### Standalone pages and tools
 
 - `/shipping-matrix.html` — ParcelPerfect quote matrix simulator
 - `/order-capture-custom.html` — password-gated custom order capture page
 - `/customer-accounts.html` — customer self-service demo flows
-- `/purchase-orders.html` — create tagged purchase-order draft orders
+- `/purchase-orders.html` — tagged purchase-order draft order flow
 - `/liquid-templates.html` — template CRUD + preview
 - `/notification-templates.html` — notification template CRUD + preview
 - `/traceability.html` — batch traceability report generator
+- `/pos.html` — POS/order capture utility
+- `/station-controller.html` — station/controller control + monitoring
+- `/agent-commissions.html` — commission rules, dashboard, payment logging
+- `/order-payments.html` — bank payment matching/allocation workflow
 
-## Docs access in the app
+## Living docs
 
-The **Documentation** route is available from the **footer navigation** alongside **Admin** and **Changelog**. It loads all markdown files from `docs/` plus `README.md` via `/api/v1/docs`.
+The in-app docs route (`/docs`) loads markdown from this repository.
 
-Core living references to keep current are:
-- `docs/operator-manual.md` (end-to-end operational flows)
-- `docs/button-action-map.md` (button/control → action mapping)
-- `docs/data-model.md` (entity and ownership model)
-- `docs/api-reference.md` (full API route surface)
+Core docs to keep current:
 
----
+- `docs/operator-manual.md` — operating workflows
+- `docs/button-action-map.md` — control-to-action map
+- `docs/architecture.md` — architecture and integration boundaries
+- `docs/data-model.md` — source-of-truth and entity model
+- `docs/api-reference.md` — complete route surface
 
-## Architecture
+## Architecture snapshot
+
+For full details, see `docs/architecture.md`.
 
 ```mermaid
 flowchart LR
-  subgraph Browser
-    SPA[Main SPA routes]
-    Static[Standalone HTML tools]
+  subgraph Client
+    SPA[SPA shell]
+    Tools[Standalone pages]
+    Controller[Remote controller clients]
   end
 
-  subgraph Server[Express API + static server]
-    API[/api/v1 routers/]
-    Public[public/ static files]
-    Docs[docs loader]
+  subgraph Server[Express + WebSocket]
+    API[/api/v1 routes]
+    WS[/ws/controller]
+    Static[public/ static assets]
+    Docs[Docs loader]
   end
 
-  subgraph Services
-    Shopify[(Shopify Admin API)]
+  subgraph Integrations
+    Shopify[(Shopify)]
     ParcelPerfect[(ParcelPerfect)]
     PrintNode[(PrintNode)]
     SMTP[(SMTP)]
   end
 
   SPA --> API
-  Static --> API
-  Server --> Public
+  Tools --> API
+  Controller --> API
+  Controller --> WS
+  Server --> Static
   Server --> Docs
   API --> Shopify
   API --> ParcelPerfect
@@ -75,22 +86,43 @@ flowchart LR
   API --> SMTP
 ```
 
----
-
-## API modules
+## API modules (complete)
 
 All routes below are mounted at `/api/v1`.
 
-### Core
+### Core runtime
 
 - `GET /healthz` — liveness
-- `GET /statusz` — integration health/status summary
-- `GET /config` — UI/runtime config projection
+- `GET /statusz` — integration and runtime status summary
+- `GET /config` — frontend/runtime config projection
+
+### Controller and dispatch runtime
+
+- `GET /controller/status`
+- `GET /controller/events`
+- `GET /dispatch/state`
+- `POST /dispatch/state`
+- `GET /dispatch/environment`
+- `POST /dispatch/environment`
+- `POST /dispatch/remote/heartbeat`
+- `GET /dispatch/remote/status`
+- `POST /dispatch/remote/action`
+- `GET /dispatch/events`
+- `POST /dispatch/next`
+- `POST /dispatch/prev`
+- `POST /dispatch/confirm`
+- `POST /dispatch/print`
+- `POST /dispatch/fulfill`
+
+### Environment telemetry
+
+- `POST /environment/ingest`
+- `GET /environment`
 
 ### Documentation
 
-- `GET /docs` — docs topic index
-- `GET /docs/:slug` — markdown by slug
+- `GET /docs`
+- `GET /docs/:slug`
 
 ### ParcelPerfect
 
@@ -108,7 +140,7 @@ All routes below are mounted at `/api/v1`.
 
 - `POST /alerts/book-truck` — truck booking email
 
-### Customer accounts
+### Customer accounts demo
 
 - `POST /customer-accounts/register`
 - `POST /customer-accounts/login`
@@ -121,32 +153,101 @@ All routes below are mounted at `/api/v1`.
 
 ### Template management
 
-- Liquid templates:
-  - `GET /liquid-templates`
-  - `POST /liquid-templates`
-  - `DELETE /liquid-templates/:id`
-- Notification templates:
-  - `GET /notification-templates`
-  - `POST /notification-templates`
-  - `DELETE /notification-templates/:id`
+Liquid templates:
+
+- `GET /liquid-templates`
+- `POST /liquid-templates`
+- `DELETE /liquid-templates/:id`
+
+Notification templates:
+
+- `GET /notification-templates`
+- `POST /notification-templates`
+- `DELETE /notification-templates/:id`
+
+### Agent commissions
+
+- `GET /agent-commissions/rules`
+- `POST /agent-commissions/rules`
+- `DELETE /agent-commissions/rules/:id`
+- `GET /agent-commissions/payments`
+- `POST /agent-commissions/payments`
+- `GET /agent-commissions/dashboard`
+
+### Order payments
+
+- `GET /order-payments/dashboard`
+- `GET /order-payments/bank-payments`
+- `POST /order-payments/allocate`
 
 ### Traceability
 
 - `GET /traceability/template.xlsx` — sample workbook template
 - `POST /traceability/report` — batch traceability report generation
 
-### Shopify proxy groups (high-level)
+### Shopify proxy groups
 
-- Customers, products, collections, payment term options
-- Tiered pricing + price tier metafield fetch/upsert
-- Draft order creation/completion + purchase-order helpers
-- Orders (create/list/open/by-name/cash/tag updates)
-- Fulfillment + recent shipments + fulfill-from-code collection flow
-- Inventory levels/locations/set/transfer
-- Pricing resolve and draft reconciliation endpoints
-- Customer notification endpoint for collection readiness
+Customers and metadata:
 
----
+- `GET /shopify/customers/search`
+- `GET /shopify/customers/recent`
+- `GET /shopify/customers/:id/metafields`
+- `GET /shopify/payment-terms/options`
+- `GET /shopify/customers/by-access-code`
+- `POST /shopify/customers`
+
+Products and pricing tiers:
+
+- `GET /shopify/products/search`
+- `GET /shopify/products/collection`
+- `POST /shopify/variants/price-tiers`
+- `POST /shopify/variants/price-tiers/fetch`
+
+Draft orders, purchase-order helpers, and pricing resolution:
+
+- `POST /shopify/draft-orders`
+- `POST /shopify/draft-orders/complete`
+- `POST /shopify/draft-orders/purchase-order`
+- `POST /draft-orders/purchase-order`
+- `POST /shopify/purchase-orders`
+- `GET /shopify/purchase-orders/open`
+- `GET /shopify/purchase-orders/raw-materials`
+- `POST /pricing/resolve`
+- `POST /pricing/reconcile-draft-order`
+- `GET /pricing/status/:draftOrderId`
+
+Orders and dispatch flows:
+
+- `POST /shopify/orders`
+- `POST /shopify/orders/cash`
+- `GET /shopify/orders/by-name/:name`
+- `POST /shopify/orders/parcel-count`
+- `GET /shopify/orders/open`
+- `GET /shopify/orders/list`
+- `POST /shopify/orders/run-flow`
+- `POST /shopify/orders/tag`
+- `POST /shopify/orders/delivery-qr-payload`
+
+Shipments and fulfillments:
+
+- `GET /shopify/shipments/recent`
+- `GET /shopify/orders/fulfilled/recent`
+- `GET /shopify/fulfillment-events`
+- `POST /shopify/fulfill`
+- `POST /shopify/ready-for-pickup`
+- `POST /shopify/collection/fulfill-from-code`
+- `POST /shopify/delivery/complete-from-code`
+
+Inventory:
+
+- `GET /shopify/inventory-levels`
+- `GET /shopify/locations`
+- `POST /shopify/inventory-levels/set`
+- `POST /shopify/inventory-levels/transfer`
+
+Notifications:
+
+- `POST /shopify/notify-collection`
 
 ## Environment configuration
 
@@ -218,52 +319,3 @@ UI_ORIGIN_EMAIL=
 UI_ORIGIN_NOTES=
 UI_FEATURE_MULTI_SHIP=true
 ```
-
----
-
-## Local development
-
-```bash
-npm install
-npm run dev
-```
-
-Open `http://localhost:3000`.
-
-### Test suite
-
-```bash
-npm test
-```
-
-### Utility scripts
-
-```bash
-npm run po:catalog:generate
-npm run traceability:template:generate
-```
-
----
-
-## Admin unlock shortcut (SPA)
-
-Some nav entries are hidden by default and can be toggled in-browser:
-
-- **Shortcut:** `Shift + Alt + A`
-- Toggles visibility for flowcharts/price-manager/dispatch-settings/logs menus.
-- Uses `localStorage` key `fl_admin_unlocked`.
-
----
-
-## Documentation map
-
-- Build/run and deployment: `docs/build-guide.md`
-- Operator manual: `docs/operator-manual.md`
-- Configuration deep reference: `docs/config-reference.md`
-- Endpoints and payload guide: `docs/api-reference.md`
-- Feature + data model: `docs/data-model.md`
-- Traceability workflow details: `docs/traceability-workflow.md`
-- Cloudflare tunnel publishing: `docs/cloudflare-tunnel.md`
-- Shopify theme tier rendering approach: `docs/price-tiers-theme.md`
-- Raspberry Pi station controller concept: `docs/raspberry-pi-station-controller-schematic.md`
-- Raspberry Pi all-in-one kiosk deployment: `docs/raspberry-pi-all-in-one-setup.md`

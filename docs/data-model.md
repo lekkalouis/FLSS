@@ -1,95 +1,95 @@
 # FLSS Data Model (Current)
 
-FLSS is an orchestration layer. Most business records live in Shopify (plus ParcelPerfect/PrintNode/SMTP for fulfillment side effects). This document describes the practical data model used by the app.
+FLSS is an orchestration layer. Canonical order/commercial records mostly live in Shopify, while FLSS also keeps local operational state for dispatch/controller, templates, commissions, and payment allocation workflows.
 
 ## 1) Source-of-truth boundaries
 
-- **Shopify (authoritative):** customers, products/variants, draft orders, orders, fulfillments, inventory, variant metafields.
-- **ParcelPerfect:** quote, booking, waybill/tracking and place lookup responses.
-- **PrintNode:** printer inventory and print job execution status.
-- **SMTP provider:** outgoing alert/notification acceptance and delivery lifecycle.
-- **FLSS local browser state:** UI preferences, selections, short-lived draft context, stock logs, admin unlock flags.
+## 1.1 Shopify (primary authority)
 
-## 2) Core entities
+Authoritative entities:
+
+- Customers and customer metadata
+- Products, variants, and variant metafields (including price tiers)
+- Draft orders and orders
+- Fulfillment and shipment-adjacent order state
+- Inventory levels and locations
+
+## 1.2 FLSS local persistence and runtime state
+
+Locally managed records/state include:
+
+- Dispatch controller state + event history (app operational state)
+- Environment telemetry samples and latest aggregate values
+- Agent commission rules and recorded commission payments
+- Order payment allocation records and bank payment matching data
+- Liquid and notification templates used by app tooling
+- UI/localStorage convenience state (operator preferences, temporary form state)
+
+## 1.3 External side-effect systems
+
+- **ParcelPerfect:** quote + booking envelopes used during shipping workflows
+- **PrintNode:** print job requests/results
+- **SMTP:** outbound notification actions
+
+These systems are operational dependencies, not canonical order databases.
+
+## 2) Core entity models
 
 ## 2.1 Customer
 
 Primary fields used by FLSS:
 
-- `id`
-- `first_name`, `last_name`, `email`, `phone`
-- `company`, VAT/tax metadata
-- shipping + billing addresses
-- tags / segments / tier
-- custom metafields (delivery notes, access code, payment terms)
+- `id`, `first_name`, `last_name`, `email`, `phone`
+- default address fields
+- tags and selected metafields (for tier/access behavior)
 
-Used in flows:
+Ownership: Shopify.
 
-- customer search/create,
-- customer account lookup by access code,
-- order capture population and pricing tier resolution.
-
-## 2.2 Product and Variant
+## 2.2 Product / Variant
 
 Primary fields:
 
-- product: `id`, `title`, `handle`, `productType`, `tags`
-- variant: `id`, `sku`, `barcode`, `price`, `inventoryItemId`, `inventoryQuantity`
-- tier metafield: `custom.price_tiers` (JSON object keyed by tier)
+- product identity and title/type
+- variant identity, SKU, barcode, option values
+- price fields and tier metafield payload (`custom.price_tiers`)
 
-Used in flows:
+Ownership: Shopify.
 
-- scan lookup,
-- FLOCS quantity matrix,
-- POS scanning,
-- price manager writes,
-- stock and transfer actions.
+## 2.3 Draft Order and Order
 
-## 2.3 DraftOrder
+Commonly used fields:
 
-Typical fields referenced:
+- `id`, `name`, timestamps
+- `line_items[]` (variant, qty, pricing context)
+- customer reference
+- shipping/delivery method context
+- tags/note attributes (dispatch and workflow markers)
+- payment/financial status fields
 
-- `id`, `name`
-- `customer`
-- `line_items`
-- `shipping_line`
-- `note`, `tags`
-- pricing/reconciliation status from `/pricing/status/:draftOrderId`
+Ownership: Shopify.
 
-Lifecycle:
+## 2.4 Fulfillment and dispatch state projection
 
-1. Created from FLOCS or PO tools.
-2. Optionally reconciled/price-resolved.
-3. Completed into final order.
+FLSS consumes and mutates order-adjacent state used by dispatch/scan flows:
 
-## 2.4 Order
+- fulfillment events/recent shipments
+- ready-for-pickup and delivery-complete transitions
+- parcel count tags/attributes
+- dispatch progression steps and operator actions
 
-Operational fields:
+Canonical order state remains Shopify; FLSS tracks runtime progress locally for UI/workflow continuity.
 
-- `id`, `name`, `orderNumber`
-- `financialStatus`, `fulfillmentStatus`
-- `lineItems`, `shippingAddress`, `shippingLine`
-- `tags` (dispatch and operational flags)
-- parcel metadata (`parcelCount`, booking references)
+## 2.5 Shipment booking envelope (ParcelPerfect)
 
-Lifecycle in FLSS:
-
-1. Created directly or from draft conversion.
-2. Appears in open order/dispatch lists.
-3. Booking/label/fulfillment actions applied.
-4. Optional pickup or delivery completion actions.
-
-## 2.5 Shipment booking record (ParcelPerfect response envelope)
-
-Key runtime fields consumed by UI/workflows:
+Important fields consumed by FLSS:
 
 - booking reference / waybill
-- service code and display label
-- origin/destination place IDs
-- quote/booking cost
-- tracking URL/code where provided
+- service code + service label
+- origin and destination place IDs
+- shipping cost/quote values
+- tracking URL/code where available
 
-These are attached to order context and used for label + downstream status updates.
+Used for label generation, status display, and downstream fulfillment actions.
 
 ## 2.6 Inventory level
 
@@ -97,22 +97,94 @@ Fields:
 
 - `inventoryItemId`
 - `locationId`
-- `available` (qty)
+- `available`
 
 Mutation paths:
 
-- set absolute quantity (`/shopify/inventory-levels/set`)
-- transfer between locations (`/shopify/inventory-levels/transfer`)
+- absolute set (`/shopify/inventory-levels/set`)
+- transfer (`/shopify/inventory-levels/transfer`)
 
-## 2.7 Traceability report structures
+Ownership: Shopify.
+
+## 2.7 Template records (local)
+
+### Liquid template record
+
+Typical attributes:
+
+- local `id`
+- `name`
+- `content`
+- timestamps/metadata where applicable
+
+### Notification template record
+
+Typical attributes:
+
+- local `id`
+- template key/name
+- subject/body content
+- timestamps/metadata where applicable
+
+Ownership: FLSS local store.
+
+## 2.8 Agent commission records (local + Shopify-derived inputs)
+
+### Commission rule
+
+Typical fields:
+
+- `id`
+- agent identifier / matching rules
+- commission type/rate and constraints
+
+### Commission payment
+
+Typical fields:
+
+- payment `id`
+- agent reference
+- amount/date/reference
+- notes or provenance metadata
+
+Dashboard outputs combine Shopify order-derived totals with local rules/payments.
+
+## 2.9 Order payments allocation model
+
+Operational entities:
+
+- bank payment transaction rows
+- candidate Shopify orders to allocate against
+- allocation actions/results (partial/full/unmatched)
+
+Canonical payment status remains in Shopify/order systems; FLSS stores allocation workflow artifacts for operator tooling.
+
+## 2.10 Environment + controller state
+
+Environment sample fields generally include:
+
+- `temperatureC`
+- `humidityPct`
+- sample timestamp / last updated timestamp
+- status/freshness markers
+
+Controller state includes:
+
+- current stage/step
+- remote source heartbeat metadata
+- event feed entries for audit/visibility in ops UI
+
+Ownership: FLSS runtime/local state.
+
+## 2.11 Traceability report structures
 
 ### Input model
 
 - `batchNumber`
-- `flavour`
-- optional workbook files (PO and COA/COC)
+- `flavor`
+- optional workbook payloads (PO and COA/COC)
 
-### Output model (composed)
+### Output model (composed view)
 
 - batch/week metadata
 - matched Shopify sales lines
@@ -120,31 +192,24 @@ Mutation paths:
 - COA/COC enriched fields
 - incoming vehicle inspection checklist projections
 
-## 3) FLSS internal state model
+Output is generated reporting data and should be treated as derived artifacts.
 
-Local keys/state used by frontend modules include:
+## 3) Relationship map across flows
 
-- navigation collapse preference,
-- admin unlock flag,
-- dispatch notes and selected dispatch groups,
-- daily parcel counters and truck-booking marker,
-- stock activity rows in localStorage,
-- per-view temporary form state (FLOCS quantities, selected customer, etc.).
+1. **Customer + variant pricing metadata** determine order pricing context.
+2. **FLOCS/POS/Order Capture** create draft or direct orders in Shopify.
+3. **Orders** feed scan station and dispatch workflows.
+4. **ParcelPerfect booking envelopes** augment order operations for shipping/labels.
+5. **PrintNode actions** consume booking/order context to produce physical documents.
+6. **Inventory operations** adjust Shopify stock positions.
+7. **Commissions and payment allocation** consume Shopify order/payment context and store local workflow state.
+8. **Traceability** joins Shopify sales with uploaded QA workbook data.
+9. **Environment/controller telemetry** provides operational context for dispatch/station views.
 
-This local state is convenience state and must not be treated as canonical records.
+## 4) Data quality and validation
 
-## 4) Cross-flow relationship map
-
-1. **Customer + Variant tier** drive pricing context in FLOCS.
-2. **FLOCS/POS line items** create draft or direct orders.
-3. **Orders** feed Dispatch + Scan Station booking/fulfillment workflows.
-4. **Shipment booking** augments orders with operational logistics metadata.
-5. **Inventory levels** are adjusted from Stock tools and indirectly affected by order fulfillment.
-6. **Traceability** joins order/sales data with external QA workbook inputs.
-
-## 5) Data quality and validation notes
-
-- UI validates required fields before API submission where possible.
-- Server validates payload shape and required values before upstream API calls.
-- Integrations can return partial data; UI fallbacks prefer rendering with warnings over hard-fail where safe.
-- Route-level errors are surfaced in toasts/status panels and should be monitored in logs for repeated patterns.
+- UI performs required-field validation before API calls where possible.
+- API routes validate payload shape and required fields before upstream calls.
+- Local modules return explicit errors for malformed records (rules/payments/templates/allocations).
+- Integrations can degrade independently; status endpoints and dashboard warnings surface degraded mode.
+- Local convenience state (browser localStorage/UI cache) is non-canonical and can be reset without affecting authoritative records.
