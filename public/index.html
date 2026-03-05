@@ -3836,13 +3836,32 @@ body.dispatch-sidebar-open{
     gap:.42rem;
     margin-left:auto;
   }
-  .flHeaderTop #navNewOrder{
+  .flSideHeader #navNewOrder{
     position:absolute;
     left:50%;
-    top:50%;
-    transform:translate(-50%, -50%);
-    margin-right:0;
-    z-index:2;
+    bottom:-2.1rem;
+    transform:translateX(-50%);
+    z-index:8;
+    margin:0;
+    width:4.2rem;
+    height:4.2rem;
+    border-radius:999px;
+    padding:0;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:2rem;
+    font-weight:600;
+    line-height:1;
+    border:2px solid rgba(37,99,235,.45);
+    background:#fff;
+    color:#1d4ed8;
+    box-shadow:0 16px 30px rgba(15,23,42,.16), 0 0 0 5px #fff;
+  }
+  .flSideHeader #navNewOrder:hover{
+    background:#eff6ff;
+    border-color:rgba(37,99,235,.75);
+    color:#1d4ed8;
   }
   .flNavGroup--top{
     display:flex;
@@ -3978,7 +3997,7 @@ body.dispatch-sidebar-open{
     box-shadow:0 10px 20px rgba(15,23,42,.2);
   }
   .flNav--modern .flNavBtn--newOrder{
-    margin-right:2.5rem;
+    margin-right:0;
   }
   .flNav--modern .flNavBtn--primary:hover{
     background:linear-gradient(120deg,#1e293b,#334155);
@@ -3990,13 +4009,6 @@ body.dispatch-sidebar-open{
       display:flex;
       flex-direction:column;
       align-items:stretch;
-    }
-    .flHeaderTop #navNewOrder{
-      position:static;
-      left:auto;
-      top:auto;
-      transform:none;
-      align-self:flex-start;
     }
     .flHeaderMeta{
       justify-content:flex-start;
@@ -4036,9 +4048,11 @@ body.dispatch-sidebar-open{
       align-items:stretch;
       width:100%;
     }
-    .flHeaderTop #navNewOrder{
-      width:100%;
-      justify-content:center;
+    .flSideHeader #navNewOrder{
+      width:3.5rem;
+      height:3.5rem;
+      bottom:-1.75rem;
+      font-size:1.7rem;
     }
     .flHeaderEnv,
     .flHeaderTruck,
@@ -4075,6 +4089,10 @@ body.dispatch-sidebar-open{
       justify-content:flex-start;
       width:100%;
     }
+  }
+
+  .flMain{
+    padding-top:2.9rem;
   }
 
 </style>
@@ -4136,7 +4154,7 @@ body.dispatch-sidebar-open{
                 <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
               </div>
             </div>
-            <button id="navNewOrder" class="flNavBtn flNavBtn--primary flNavBtn--newOrder" type="button" data-route="/flocs" aria-label="Create a new order">+ New Order</button>
+            <button id="navNewOrder" class="flNavBtn flNavBtn--primary flNavBtn--newOrder" type="button" data-route="/flocs" aria-label="Create a new order" title="Create a new order">+</button>
           </div>
           </div>
           <span id="dispatchEnvironmentStatus" class="visually-hidden">Waiting for sensor</span>
