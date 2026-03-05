@@ -1344,9 +1344,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     return spoken.join(", ");
   }
 
-  function announceBookingSuccess(orderNo) {
-    const suffix = orderNo ? ` for order ${orderNo}` : "";
-    speakAnnouncement(`Great news. Booking successful${suffix}.`);
+  function announceBookingSuccess() {
+    speakAnnouncement("Booking successful.");
   }
 
   function announceIncomingOrder() {
