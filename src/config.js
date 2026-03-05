@@ -91,7 +91,8 @@ export const config = {
   UI_ORIGIN_NOTIFY: process.env.UI_ORIGIN_NOTIFY,
   UI_ORIGIN_EMAIL: process.env.UI_ORIGIN_EMAIL,
   UI_ORIGIN_NOTES: process.env.UI_ORIGIN_NOTES,
-  UI_FEATURE_MULTI_SHIP: process.env.UI_FEATURE_MULTI_SHIP
+  UI_FEATURE_MULTI_SHIP: process.env.UI_FEATURE_MULTI_SHIP,
+  GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY || ""
 };
 
 export function getFrontendOrigin() {

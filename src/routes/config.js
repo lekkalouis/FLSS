@@ -36,6 +36,7 @@ router.get("/config", (_req, res) => {
     PP_ENDPOINT: `${API_BASE}/pp`,
     SHOPIFY: { PROXY_BASE: `${API_BASE}/shopify` },
     FLOW_TRIGGER_TAG: config.SHOPIFY_FLOW_TAG || "dispatch_flow",
+    GOOGLE_MAPS_API_KEY: config.GOOGLE_MAPS_API_KEY || "",
     FEATURE_FLAGS: {
       MULTI_SHIP: config.UI_FEATURE_MULTI_SHIP
         ? String(config.UI_FEATURE_MULTI_SHIP).toLowerCase() !== "false"

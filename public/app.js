@@ -218,6 +218,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchMobileControls = $("dispatchMobileControls");
   const dispatchMobileLaneTabs = $("dispatchMobileLaneTabs");
   const dispatchMobileLaneLabel = $("dispatchMobileLaneLabel");
+  const dispatchRefreshOrdersBtn = $("dispatchRefreshOrdersBtn");
+  const dispatchSelectModeBtn = $("dispatchSelectModeBtn");
   const dispatchLegend = $("dispatchLegend");
   const dispatchLegendToggle = $("dispatchLegendToggle");
   const dispatchLegendContent = $("dispatchLegendContent");
@@ -428,9 +430,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const DISPATCH_DELIVERY_DAY_FRIDAY = 5;
   const DISPATCH_MOBILE_BASE_LANE_OPTIONS = [
     { id: "all", label: "All" },
-    { id: "shippingAgent", label: "Agent" },
-    { id: "shippingA", label: "Ship A" },
-    { id: "shippingB", label: "Ship B" },
+    { id: "shipping", label: "Shipping" },
     { id: "export", label: "Export" },
     { id: "pickup", label: "Pickup" }
   ];
@@ -438,6 +438,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   let dispatchMobileLane = "all";
   let dispatchSelectionSidebarOpen = true;
   let dispatchLegendOpen = true;
+  let dispatchSelectModeActive = false;
   const dispatchPriorityState = new Map();
   let dispatchOrdersLatest = [];
   let dispatchFulfilledLatest = [];
@@ -1460,13 +1461,37 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     return `${minutes}m ${seconds}s`;
   }
 
+  function getIsoWeekNumber(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return null;
+    const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const weekday = utcDate.getUTCDay() || 7;
+    utcDate.setUTCDate(utcDate.getUTCDate() + 4 - weekday);
+    const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+    return Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
+  }
+
+  function formatDailyBatchCode(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return "------/--";
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = String(date.getFullYear()).slice(-2);
+    const isoWeek = getIsoWeekNumber(date);
+    const week = isoWeek == null ? "--" : String(isoWeek).padStart(2, "0");
+    return `${day}${month}${year}/${week}`;
+  }
+
   function renderDateTimeHeaderWidget() {
     if (!dispatchDateTimeSummary) return;
     const now = new Date();
-    const weekday = now.toLocaleDateString(undefined, { weekday: "long" });
-    const isoDate = now.toLocaleDateString("en-CA");
-    const time = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    dispatchDateTimeSummary.textContent = `${weekday}, ${isoDate} · ${time}`;
+    const dateLabel = now.toLocaleDateString(undefined, {
+      weekday: "long",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+    dispatchDateTimeSummary.textContent = `${dateLabel} | Batch Code: ${formatDailyBatchCode(now)}`;
   }
 
   function setStatusClass(el, status) {
@@ -5045,6 +5070,13 @@ async function startOrder(orderNo) {
     }
   }
 
+  function setDispatchSelectModeActive(nextActive) {
+    dispatchSelectModeActive = Boolean(nextActive);
+    if (!dispatchSelectModeBtn) return;
+    dispatchSelectModeBtn.setAttribute("aria-pressed", dispatchSelectModeActive ? "true" : "false");
+    dispatchSelectModeBtn.classList.toggle("is-active", dispatchSelectModeActive);
+    dispatchSelectModeBtn.textContent = dispatchSelectModeActive ? "Selecting" : "Select orders";
+  }
   function loadDispatchSelectionSidebarPreference() {
     const stored = localStorage.getItem(DISPATCH_SELECTION_SIDEBAR_KEY);
     if (stored === "false") {
@@ -5076,11 +5108,10 @@ async function startOrder(orderNo) {
       );
       dispatchSelectionSidebarToggle.classList.toggle("is-drawer", !dispatchSelectionSidebarOpen);
     }
-    document.body.classList.toggle("dispatch-sidebar-open", dispatchSelectionSidebarOpen);
-    if (dispatchSelectionSidebarContent) {
-      dispatchSelectionSidebarContent.hidden = !dispatchSelectionSidebarOpen;
-    }
-    if (focusPanel && dispatchSelectionSidebarOpen) {
+    const isScanVisible = document.querySelector(".flView.flView--active")?.id === "viewScan";
+    const hasSelection = dispatchSelectedOrders.size > 0;
+    updateDispatchSelectionSidebarVisibility(isScanVisible, hasSelection);
+    if (focusPanel && dispatchSelectionSidebarOpen && hasSelection && isScanVisible) {
       dispatchSelectionPanel?.focus();
     }
     if (focusToggle) {
@@ -5092,21 +5123,22 @@ async function startOrder(orderNo) {
     setDispatchSelectionSidebarOpen(!dispatchSelectionSidebarOpen, options);
   }
 
-  function updateDispatchSelectionSidebarVisibility(isScanVisible) {
+  function updateDispatchSelectionSidebarVisibility(isScanVisible, hasSelection = false) {
     const container = dispatchSelectionSidebarContent;
+    const shouldShow = Boolean(isScanVisible && hasSelection);
     if (dispatchSelectionSidebar) {
-      dispatchSelectionSidebar.hidden = !isScanVisible;
+      dispatchSelectionSidebar.hidden = !shouldShow;
     }
-    document.body.classList.toggle("dispatch-sidebar-open", Boolean(isScanVisible && dispatchSelectionSidebarOpen));
+    document.body.classList.toggle("dispatch-sidebar-open", Boolean(shouldShow && dispatchSelectionSidebarOpen));
     if (!container) return;
-    container.hidden = !isScanVisible || !dispatchSelectionSidebarOpen;
+    container.hidden = !shouldShow || !dispatchSelectionSidebarOpen;
   }
 
   function updateDispatchSelectionSummary() {
     if (!dispatchSelectionPanel) return;
     const totals = aggregateDispatchSelection();
     const showScan = document.querySelector(".flView.flView--active")?.id === "viewScan";
-    updateDispatchSelectionSidebarVisibility(showScan);
+    updateDispatchSelectionSidebarVisibility(showScan, totals.orderCount > 0);
     dispatchSelectionPanel.classList.toggle("is-hidden", totals.orderCount === 0 || !showScan);
     if (dispatchSelectionCount) {
       dispatchSelectionCount.textContent = String(totals.orderCount || 0);
@@ -5119,7 +5151,7 @@ async function startOrder(orderNo) {
     }
     if (dispatchSelectionWeight) {
       dispatchSelectionWeight.textContent =
-        totals.totalWeightKg > 0 ? `${totals.totalWeightKg.toFixed(2)} kg` : "—";
+        totals.totalWeightKg > 0 ? `${totals.totalWeightKg.toFixed(2)} kg` : "-";
     }
     if (dispatchSelectionTime) {
       dispatchSelectionTime.textContent = formatDispatchDuration(totals.totalTimeMin);
@@ -5127,14 +5159,42 @@ async function startOrder(orderNo) {
     const selectedDeliveryOrderCount = getSelectedDeliveryOrderNos().length;
     updateMultiShipmentButtonVisibility();
     if (dispatchSelectionOrderCards) {
-      dispatchSelectionOrderCards.innerHTML = (totals.selectedOrders || [])
+      const rows = (totals.selectedOrders || [])
         .map((entry) => `
-          <article class="dispatchSelectionOrderCard">
-            <div class="dispatchSelectionOrderCardTitle">${entry.orderNo} · ${entry.customer}</div>
-            <div class="dispatchSelectionOrderCardValue">${entry.destination}</div>
-            <div class="dispatchSelectionOrderCardTitle">${entry.weightKg > 0 ? `${entry.weightKg.toFixed(2)} kg` : "—"} · ${entry.parcels} parcels · ${entry.units} units</div>
-          </article>`)
+          <tr>
+            <td>#${escapeHtml(entry.orderNo)}</td>
+            <td>${escapeHtml(entry.customer)}</td>
+            <td>${entry.weightKg > 0 ? `${entry.weightKg.toFixed(2)} kg` : "-"}</td>
+            <td>${entry.parcels}</td>
+            <td>${entry.units}</td>
+          </tr>`)
         .join("");
+      if (!rows) {
+        dispatchSelectionOrderCards.innerHTML = `<div class="dispatchSelectionOrderEmpty">No orders selected.</div>`;
+      } else {
+        const totalWeightLabel = totals.totalWeightKg > 0 ? `${totals.totalWeightKg.toFixed(2)} kg` : "-";
+        dispatchSelectionOrderCards.innerHTML = `
+          <table class="dispatchSelectionOrderTable">
+            <thead>
+              <tr>
+                <th scope="col">Order</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Weight</th>
+                <th scope="col">Boxes</th>
+                <th scope="col">Units</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2">Totals</td>
+                <td>${totalWeightLabel}</td>
+                <td>${totals.totalBoxes || 0}</td>
+                <td>${totals.totalUnits || 0}</td>
+              </tr>
+            </tfoot>
+          </table>`;
+      }
     }
     if (dispatchPrepareDeliveriesContainer) {
       dispatchPrepareDeliveriesContainer.classList.toggle("is-hidden", selectedDeliveryOrderCount === 0);
@@ -5175,7 +5235,7 @@ async function startOrder(orderNo) {
             const tagColor = getDispatchFlavourColor(flavour);
             const tagLabel = flavourAbbrev(flavour);
             const title = String(flavour || "Unknown");
-            return `<tr><th scope="row" class="dispatchMixMatrixFlavour"><span class="dispatchMixFlavourTag" style="--dispatch-flavour-color:${tagColor}" title="${title}">${tagLabel}</span></th>${cells}</tr>`;
+            return `<tr><th scope="row" class="dispatchMixMatrixFlavour"><span class="dispatchMixFlavourCell" title="${escapeHtml(title)}"><span class="dispatchMixFlavourSwatch dispatchLegendFlavourSwatch" style="--dispatch-flavour-color:${tagColor}"></span><span class="dispatchMixFlavourLabel">${escapeHtml(tagLabel)}</span></span></th>${cells}</tr>`;
           })
           .join("");
         dispatchSelectionMixes.innerHTML = `<table class="dispatchMixMatrix"><thead><tr><th scope="col">Tag</th>${header}</tr></thead><tbody>${rows}</tbody></table>`;
@@ -5568,6 +5628,8 @@ async function startOrder(orderNo) {
     const list = filtered;
     rebuildAutomaticCombinedShipments(list);
     if (!list.length) {
+      dispatchBoard.style.setProperty("--dispatch-col-count", "1");
+      dispatchBoard.style.removeProperty("--dispatch-col-template");
       dispatchBoard.innerHTML = `<div class="dispatchBoardEmpty">No open shipping / delivery / collections right now.</div>`;
       dispatchSelectedOrders.clear();
       updateDispatchSelectionSummary();
@@ -5575,9 +5637,7 @@ async function startOrder(orderNo) {
     }
 
     const cols = [
-      { id: "shippingAgent", label: "Shipping (Agent)", type: "cards" },
-      { id: "shippingA", label: "Shipping", type: "cards" },
-      { id: "shippingB", label: "Shipping", type: "cards" },
+      { id: "shipping", label: "Shipping", type: "cards" },
       { id: "export", label: "Export", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" },
       { id: "deliveryA", label: "Delivery 1", type: "cards" },
@@ -5614,23 +5674,37 @@ async function startOrder(orderNo) {
       (lanes[laneId] || lanes.shippingNonAgent).push(o);
     });
 
-    const shippingLaneCount = 2;
+    const shippingLaneCount = 4;
     const shippingChunks = Array.from({ length: shippingLaneCount }, () => []);
     lanes.shippingNonAgent.forEach((order, index) => {
       shippingChunks[index % shippingLaneCount].push(order);
     });
-    const [shippingA, shippingB] = shippingChunks;
+    const [shippingA, shippingB, shippingC, shippingD] = shippingChunks;
     const laneOrdersByColId = {
-      shippingAgent: lanes.shippingAgent,
-      shippingA,
-      shippingB,
+      shipping: [...lanes.shippingAgent, ...lanes.shippingNonAgent],
       export: lanes.export,
       pickup: lanes.pickup,
       deliveryA: lanes.deliveryA,
       deliveryB: lanes.deliveryB
     };
-    const visibleCols = cols.filter((col) => (laneOrdersByColId[col.id] || []).length > 0);
+    const hasAnyShippingOrders = lanes.shippingAgent.length > 0 || lanes.shippingNonAgent.length > 0;
+    const alwaysVisibleLaneIds = hasAnyShippingOrders ? new Set(["shipping"]) : new Set();
+    const visibleCols = cols.filter(
+      (col) => alwaysVisibleLaneIds.has(col.id) || (laneOrdersByColId[col.id] || []).length > 0
+    );
     const activeCols = visibleCols.length ? visibleCols : cols;
+    dispatchBoard.style.setProperty("--dispatch-col-count", String(Math.max(1, activeCols.length)));
+    const hasShippingCol = activeCols.some((col) => col.id === "shipping");
+    const nonShippingColCount = hasShippingCol ? activeCols.filter((col) => col.id !== "shipping").length : 0;
+    const shippingWeight = hasShippingCol ? Math.max(nonShippingColCount * 2, 2) : 1;
+    const dispatchColTemplate = activeCols
+      .map((col) => (col.id === "shipping" ? `minmax(0, ${shippingWeight}fr)` : "minmax(0, 1fr)"))
+      .join(" ");
+    if (dispatchColTemplate) {
+      dispatchBoard.style.setProperty("--dispatch-col-template", dispatchColTemplate);
+    } else {
+      dispatchBoard.style.removeProperty("--dispatch-col-template");
+    }
     const hasDeliveryLaneVisible = activeCols.some((col) => normalizeDispatchLaneId(col.id) === "delivery");
     dispatchMobileLaneOptions = [
       ...DISPATCH_MOBILE_BASE_LANE_OPTIONS,
@@ -5832,6 +5906,39 @@ async function startOrder(orderNo) {
 
     dispatchBoard.innerHTML = activeCols
       .map((col) => {
+        if (col.id === "shipping") {
+          const shippingSubLanes = [
+            ...(lanes.shippingAgent.length ? [{ id: "shippingAgent", label: "Agent", orders: lanes.shippingAgent }] : []),
+            { id: "shippingA", label: "Lane A", orders: shippingA },
+            { id: "shippingB", label: "Lane B", orders: shippingB },
+            { id: "shippingC", label: "Lane C", orders: shippingC },
+            { id: "shippingD", label: "Lane D", orders: shippingD }
+          ];
+          const shippingSubLaneColCount = Math.max(1, shippingSubLanes.length);
+          const subLanes = shippingSubLanes
+            .map((subLane) => {
+              const subCards = renderLaneCards(subLane.orders, subLane.id);
+              return `
+                <div class="dispatchSubLane" data-sub-lane-id="${subLane.id}">
+                  <div class="dispatchSubLaneHeader">
+                    <span class="dispatchSubLaneTitle">${subLane.label}</span>
+                    <span class="dispatchSubLaneCount">${subLane.orders.length}</span>
+                  </div>
+                  <div class="dispatchSubLaneBody">${subCards || '<div class="dispatchBoardEmptyCol">No orders in this lane.</div>'}</div>
+                </div>
+              `;
+            })
+            .join("");
+          return `
+            <div class="dispatchCol" data-lane-id="${col.id}">
+              <div class="dispatchColHeader">
+                <span>${col.label}</span>
+              </div>
+              <div class="dispatchColBody">
+                <div class="dispatchSubLanes dispatchSubLanes--shipping" style="--dispatch-sub-cols:${shippingSubLaneColCount};">${subLanes}</div>
+              </div>
+            </div>`;
+        }
         const laneOrders = laneOrdersByColId[col.id] || [];
         const cards = renderLaneCards(laneOrders, col.id);
         return `
@@ -6237,7 +6344,14 @@ async function startOrder(orderNo) {
 
   function getDispatchQueueOrderIds() {
     if (dispatchBoard) {
-      const laneIdsInTraversalOrder = ["shippingAgent", "shippingA", "shippingB", "export", "pickup", "delivery", "deliveryA", "deliveryB"];
+      const laneIdsInTraversalOrder = [
+        "shipping",
+        "export",
+        "pickup",
+        "delivery",
+        "deliveryA",
+        "deliveryB"
+      ];
       const visited = new Set();
       const queue = [];
       laneIdsInTraversalOrder.forEach((laneId) => {
@@ -6757,7 +6871,7 @@ async function startOrder(orderNo) {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
 
-    updateDispatchSelectionSidebarVisibility(showScan);
+    updateDispatchSelectionSidebarVisibility(showScan, dispatchSelectedOrders.size > 0);
   }
 
   const ROUTE_VIEW_MAP = new Map([
@@ -7875,7 +7989,7 @@ async function startOrder(orderNo) {
     if (card && !e.target.closest("button") && !e.target.closest("input") && !e.target.closest("label")) {
       const orderNo = String(card.dataset.orderNo || "").trim();
       if (!orderNo) return;
-      const isMultiToggle = e.ctrlKey || e.metaKey;
+      const isMultiToggle = dispatchSelectModeActive || e.ctrlKey || e.metaKey;
       if (isMultiToggle) {
         if (dispatchSelectedOrders.has(orderNo)) dispatchSelectedOrders.delete(orderNo);
         else dispatchSelectedOrders.add(orderNo);
@@ -7884,14 +7998,23 @@ async function startOrder(orderNo) {
         dispatchSelectedOrders.add(orderNo);
       }
       syncDispatchSelectionUI();
-      const input = card.querySelector(".dispatchParcelCountInput");
-      if (input) {
-        input.focus();
-        input.select();
-      }
+      return;
+    }
+
+    if (dispatchSelectedOrders.size) {
+      clearDispatchSelection();
     }
   });
 
+  document.addEventListener("click", (e) => {
+    if (!dispatchSelectedOrders.size) return;
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest(".dispatchCard")) return;
+    if (target.closest(".dispatchSelectionSidebar")) return;
+    if (target.closest(".dispatchOrderModal") || target.closest(".dispatchShipmentModal")) return;
+    clearDispatchSelection();
+  });
   dispatchBoard?.addEventListener("dblclick", (e) => {
     const card = e.target.closest(".dispatchCard");
     if (!card || e.target.closest("button") || e.target.closest("input") || e.target.closest("label")) {
@@ -7905,6 +8028,7 @@ async function startOrder(orderNo) {
   setDispatchSelectionSidebarOpen(dispatchSelectionSidebarOpen, { persist: false });
   loadDispatchLegendPreference();
   setDispatchLegendOpen(dispatchLegendOpen, { persist: false });
+  setDispatchSelectModeActive(dispatchSelectModeActive);
 
   dispatchSelectionSidebarToggle?.addEventListener("click", () => {
     const wasOpen = dispatchSelectionSidebarOpen;
@@ -7930,6 +8054,13 @@ async function startOrder(orderNo) {
     }
   });
 
+  dispatchRefreshOrdersBtn?.addEventListener("click", async () => {
+    await refreshDispatchData();
+  });
+
+  dispatchSelectModeBtn?.addEventListener("click", () => {
+    setDispatchSelectModeActive(!dispatchSelectModeActive);
+  });
   dispatchSelectionClear?.addEventListener("click", () => {
     clearDispatchSelection();
   });
@@ -8166,7 +8297,7 @@ async function startOrder(orderNo) {
       setDispatchProgress(0, "Idle", { silent: true });
       initAddressSearch();
       renderDateTimeHeaderWidget();
-      setInterval(renderDateTimeHeaderWidget, 1000);
+      setInterval(renderDateTimeHeaderWidget, 60000);
       renderModuleDashboard();
 
       const currentPath = normalizePath(window.location.pathname);
@@ -8207,6 +8338,8 @@ async function startOrder(orderNo) {
 
   boot();
 })();
+
+
 
 
 

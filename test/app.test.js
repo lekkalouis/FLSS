@@ -469,6 +469,7 @@ let dispatchRotaryFocusKey = '';
 let dispatchLastHandledConfirmAt = '';
 let dispatchLastHandledPrintRequestAt = '';
 let dispatchLastHandledFulfillRequestAt = '';
+let remoteIndicatorState = { ok: true, detail: '' };
 let dispatchOrderCache = new Map();
 let refreshDispatchViews = () => {};
 let renderEnvironmentHeaderWidget = () => {};
@@ -483,6 +484,7 @@ ${extractFunctionSource(appJs, 'dispatchRotaryKeyForRow')}
 ${extractFunctionSource(appJs, 'getDispatchRotaryRows')}
 ${extractFunctionSource(appJs, 'syncDispatchRotarySelectionUI')}
 ${extractFunctionSource(appJs, 'syncDispatchRotaryFocus')}
+${extractFunctionSource(appJs, 'isDispatchControllerConnected')}
 ${extractFunctionSource(appJs, 'applyDispatchControllerState')}
 ${extractFunctionSource(appJs, 'applyIncomingDispatchControllerState')}
 

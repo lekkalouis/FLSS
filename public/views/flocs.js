@@ -4,6 +4,7 @@ import { isHenniesCustomerContext, normalizeTagList } from "./customer-specializ
 
 let flocsInitialized = false;
 let flocsInitPromise = null;
+let googlePlacesScriptPromise = null;
 
 const MATRIX_POPCORN_SIZES = ["100ml"];
 const MATRIX_BASE_SIZES = ["200ml"];
@@ -46,8 +47,10 @@ export function initFlocsView() {
   // ===== CONFIG =====
   const CONFIG = {
     SHOPIFY: { PROXY_BASE: "/api/v1/shopify" },
+    UI_CONFIG_ENDPOINT: "/api/v1/config",
     PP_ENDPOINT: "/api/v1/pp",
-    BOX_DIM: { dim1: 40, dim2: 40, dim3: 30, massKg: 5 } // fallback parcel
+    BOX_DIM: { dim1: 40, dim2: 40, dim3: 30, massKg: 5 }, // fallback parcel
+    GOOGLE_MAPS_API_KEY: ""
   };
 
   // ===== DOM =====
@@ -58,7 +61,10 @@ export function initFlocsView() {
   const customerSort = document.getElementById("flocs-customerSort");
   const customerResults  = document.getElementById("flocs-customerResults");
   const customerStatus   = document.getElementById("flocs-customerStatus");
+  const customerSegmentFilters = document.getElementById("flocs-customerSegmentFilters");
   const customerChips    = document.getElementById("flocs-selectedCustomerChips");
+  const resetSearchBtn   = document.getElementById("flocs-resetSearchBtn");
+  const chatSearchResetBtn = document.getElementById("flocs-chatSearchResetBtn");
   const clearCustomerBtn = document.getElementById("flocs-clearCustomerBtn");
   const customerCreateToggle = document.getElementById("flocs-customerCreateToggle");
   const customerCreatePanel = document.getElementById("flocs-customerCreatePanel");
@@ -73,6 +79,7 @@ export function initFlocsView() {
   const customerCompany  = document.getElementById("flocs-customerCompany");
   const customerVat      = document.getElementById("flocs-customerVat");
   const customerPaymentTerms = document.getElementById("flocs-customerPaymentTerms");
+  const customerPaymentBeforeShipping = document.getElementById("flocs-customerPaymentBeforeShipping");
   const customerDeliveryNotes = document.getElementById("flocs-customerDeliveryNotes");
   const customerDelivery = document.getElementById("flocs-customerDelivery");
   const customerAddr1    = document.getElementById("flocs-customerAddr1");
@@ -101,6 +108,7 @@ export function initFlocsView() {
   const qtyModeGroup     = document.getElementById("flocs-qtyModeGroup");
   const cartonSizeGroup  = document.getElementById("flocs-cartonSizeGroup");
   const clearAllQtyBtn   = document.getElementById("flocs-clearAllQtyBtn");
+  const quickQtyToggleBtn = document.getElementById("flocs-toggleQuickQtyBtn");
   const calcShipBtn      = document.getElementById("flocs-calcShip");
   const shippingSummary  = document.getElementById("flocs-shippingSummary");
   const errorsBox        = document.getElementById("flocs-errors");
@@ -131,8 +139,9 @@ export function initFlocsView() {
     priceTier: null,
     customerTags: [],
     customerSpecialization: { isHennies: false },
-    productType: "spices",
+    productType: "combined",
     showBulkColumns: true,
+    showQuickQtyButtons: true,
     qtyMode: "units",
     cartonUnits: 12,
     priceOverrides: {},
@@ -142,23 +151,56 @@ export function initFlocsView() {
     loadingCustomers: false,
     spaceTapTimes: [],
     customerCandidateId: null,
-    orderTagsText: ""
+    orderTagsText: "",
+    customerLetterFilter: "",
+    customerSegment: ""
   };
 
   const CUSTOMER_QUICK_PICK_EXCLUDED_SEGMENTS = new Set(["local", "private"]);
+  const CUSTOMER_SEGMENT_FILTERS = new Set([
+    "agent",
+    "retail",
+    "export",
+    "chain_joeys",
+    "chain_boer_butcher",
+    "chain_spar",
+    "chain_ok_foods",
+    "chain_pick_n_pay",
+    "chain_famous_kalahari",
+    "chain_laeveld"
+  ]);
+  const CUSTOMER_CHAIN_ITEM_CLASS = Object.freeze({
+    chain_joeys: "is-chain-joeys",
+    chain_boer_butcher: "is-chain-boer-butcher",
+    chain_spar: "is-chain-spar",
+    chain_ok_foods: "is-chain-ok-foods",
+    chain_pick_n_pay: "is-chain-pick-n-pay",
+    chain_famous_kalahari: "is-chain-famous-kalahari",
+    chain_laeveld: "is-chain-laeveld"
+  });
 
   const flavourKey = (flavour) => normalizeFlavourKey(flavour);
-  const flavourColor = (flavour) =>
-    resolveFlavourColor(flavour, { productType: state.productType });
+  const flavourColor = (flavour, productType = state.productType) =>
+    resolveFlavourColor(flavour, {
+      productType: productType === "combined" ? "spices" : productType
+    });
   const flavourTag = (flavour) =>
     flavour
       ? `<span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span>`
       : "—";
   let priceTierLoading = false;
+  let autoCustomerSelectVersion = 0;
 
   // ===== HELPERS =====
   const money = (v) =>
     v == null || isNaN(v) ? "R0.00" : "R" + Number(v).toFixed(2);
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
 
   const debounce = (fn, ms) => {
     let t;
@@ -168,12 +210,102 @@ export function initFlocsView() {
     };
   };
 
-  const normalizeAzLetters = (value) =>
-    String(value || "")
-      .toUpperCase()
-      .replace(/[^A-Z]/g, "")
-      .slice(0, 4)
-      .split("");
+  async function loadUiConfig() {
+    try {
+      const response = await fetch(CONFIG.UI_CONFIG_ENDPOINT, { headers: { Accept: "application/json" } });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const key = String(payload?.GOOGLE_MAPS_API_KEY || "").trim();
+      if (key) CONFIG.GOOGLE_MAPS_API_KEY = key;
+    } catch {
+      // Non-blocking enhancement.
+    }
+  }
+
+  async function ensureGooglePlacesLibrary() {
+    const apiKey = String(CONFIG.GOOGLE_MAPS_API_KEY || "").trim();
+    if (!apiKey) return null;
+    if (window.google?.maps?.places?.Autocomplete) return window.google;
+    if (!googlePlacesScriptPromise) {
+      googlePlacesScriptPromise = new Promise((resolve, reject) => {
+        const existing = document.getElementById("flocs-google-places-script");
+        if (existing) {
+          existing.addEventListener("load", () => resolve(window.google || null), { once: true });
+          existing.addEventListener("error", () => reject(new Error("Failed to load Google Places script.")), {
+            once: true
+          });
+          return;
+        }
+        const script = document.createElement("script");
+        script.id = "flocs-google-places-script";
+        script.async = true;
+        script.defer = true;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
+        script.addEventListener("load", () => resolve(window.google || null), { once: true });
+        script.addEventListener("error", () => reject(new Error("Failed to load Google Places script.")), {
+          once: true
+        });
+        document.head.appendChild(script);
+      });
+    }
+    try {
+      await googlePlacesScriptPromise;
+    } catch {
+      return null;
+    }
+    return window.google?.maps?.places?.Autocomplete ? window.google : null;
+  }
+
+  function addressPart(place, type, short = false) {
+    const parts = Array.isArray(place?.address_components) ? place.address_components : [];
+    const match = parts.find((entry) => Array.isArray(entry?.types) && entry.types.includes(type));
+    if (!match) return "";
+    return String(short ? match.short_name : match.long_name || "").trim();
+  }
+
+  function fillCustomerAddressFromPlace(place) {
+    if (!place) return;
+    const streetNumber = addressPart(place, "street_number");
+    const route = addressPart(place, "route");
+    const premise = addressPart(place, "premise");
+    const subpremise = addressPart(place, "subpremise");
+    const suburb =
+      addressPart(place, "sublocality_level_1") ||
+      addressPart(place, "sublocality") ||
+      addressPart(place, "neighborhood");
+    const city = addressPart(place, "locality") || addressPart(place, "postal_town");
+    const province = addressPart(place, "administrative_area_level_1");
+    const zip = addressPart(place, "postal_code");
+    const country = addressPart(place, "country");
+
+    const line1 = [streetNumber, route].filter(Boolean).join(" ").trim() || premise || place?.name || "";
+    const line2 = [subpremise, suburb].filter(Boolean).join(", ");
+
+    if (customerAddr1 && line1) customerAddr1.value = line1;
+    if (customerAddr2 && line2) customerAddr2.value = line2;
+    if (customerCity && city) customerCity.value = city;
+    if (customerProvince && province) customerProvince.value = province;
+    if (customerZip && zip) customerZip.value = zip;
+    if (customerCountry && country) customerCountry.value = country;
+  }
+
+  async function initCustomerAddressAutocomplete() {
+    if (!(customerAddr1 instanceof HTMLInputElement)) return;
+    const googleApi = await ensureGooglePlacesLibrary();
+    if (!googleApi?.maps?.places?.Autocomplete) {
+      console.warn("Google Places autocomplete unavailable: missing GOOGLE_MAPS_API_KEY or blocked by CSP.");
+      return;
+    }
+    const autocomplete = new googleApi.maps.places.Autocomplete(customerAddr1, {
+      types: ["address"],
+      componentRestrictions: { country: "za" },
+      fields: ["address_components", "formatted_address", "name"]
+    });
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      fillCustomerAddressFromPlace(place);
+    });
+  }
 
   const updateAzBarActive = (letters = []) => {
     if (!azBar) return;
@@ -187,6 +319,39 @@ export function initFlocsView() {
       if (target) target.classList.add("is-active");
     });
   };
+
+  function activeCustomerSearchInput() {
+    if (customerQuickSearch && !customerQuickSearch.hidden) return customerQuickSearch;
+    if (customerSearch && !customerSearch.hidden) return customerSearch;
+    return customerSearch || customerQuickSearch || null;
+  }
+
+  function customerSearchQuery() {
+    return String(activeCustomerSearchInput()?.value || "").trim();
+  }
+
+  function customerOrderCount(customer) {
+    const raw = Number(customer?.orders_count ?? customer?.ordersCount ?? 0);
+    if (!Number.isFinite(raw) || raw <= 0) return 0;
+    return Math.floor(raw);
+  }
+
+  function compareCustomersByOrders(a, b) {
+    const byOrders = customerOrderCount(b) - customerOrderCount(a);
+    if (byOrders !== 0) return byOrders;
+    return String(a?.name || "").localeCompare(String(b?.name || ""), undefined, {
+      sensitivity: "base"
+    });
+  }
+
+  function keyboardDrivenInput(event) {
+    const inputType = String(event?.inputType || "");
+    return (
+      inputType.startsWith("insertText") ||
+      inputType.startsWith("deleteContentBackward") ||
+      inputType.startsWith("deleteContentForward")
+    );
+  }
 
   function showToast(msg, tone = "ok") {
     if (!toast) return;
@@ -256,7 +421,7 @@ export function initFlocsView() {
 
   const PRICE_TAGS = ["agent", "retail", "retailer", "export", "private", "fkb"];
   const QUICK_QTY = [5, 6, 10, 12, 24];
-  const AUTO_QUOTE_DELAY_MS = 3000;
+  const AUTO_QUOTE_DELAY_MS = 5000;
   const REQUIRE_RESOLVED_PRICING = CONFIG?.FLOCS?.REQUIRE_RESOLVED_PRICING !== false;
   let autoQuoteTimer = null;
   const deliveryHintDefault = deliveryHint ? deliveryHint.textContent : "";
@@ -336,6 +501,93 @@ export function initFlocsView() {
     return "retailer";
   }
 
+  function normalizeCustomerSegmentFilter(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (CUSTOMER_SEGMENT_FILTERS.has(normalized)) return normalized;
+    return "";
+  }
+
+  const SPAR_CHAIN_REGEX = /\b(?:super[\s-]*spar|spar)\b/;
+
+  function customerMatchesChain(customer, segment) {
+    const haystack = [
+      customer?.name,
+      customer?.companyName,
+      customer?.email,
+      customer?.phone,
+      normalizeTags(customer?.tags).join(" "),
+      ...(Array.isArray(customer?.addresses) ? customer.addresses.map((addr) => addr?.company) : []),
+      customer?.default_address?.company
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    if (segment === "chain_joeys") return /\bjoey'?s\b/.test(haystack);
+    if (segment === "chain_boer_butcher") return /\bboer\s*(?:&|and)?\s*butcher\b/.test(haystack);
+    if (segment === "chain_spar") return SPAR_CHAIN_REGEX.test(haystack);
+    if (segment === "chain_ok_foods") return /\bok(?:\s|-)?foods?\b/.test(haystack);
+    if (segment === "chain_pick_n_pay") {
+      return /\bpnp\b|\bp\s*n\s*p\b|\bpick\s*['’]?\s*n\s*['’]?\s*pay\b/.test(haystack);
+    }
+    if (segment === "chain_famous_kalahari") {
+      return /\bfamous\s+kalahari\s+biltong\b|\bkalahari\s+biltong\b/.test(haystack);
+    }
+    if (segment === "chain_laeveld") return /\blaeveld(?:\s+biltong)?\b/.test(haystack);
+    return false;
+  }
+
+  function customerSegmentMatchesFilter(customer, segment = state.customerSegment) {
+    const resolved = normalizeCustomerSegmentFilter(segment);
+    if (!resolved) return false;
+    if (resolved.startsWith("chain_")) return customerMatchesChain(customer, resolved);
+    const tags = normalizeTags(customer?.tags).map((tag) => String(tag).toLowerCase());
+    if (resolved === "retail") return tags.includes("retailer");
+    const segmentValue = customerSegment(customer);
+    if (resolved === "agent") return segmentValue === "agent";
+    if (resolved === "export") return segmentValue === "export";
+    return segmentValue !== "agent" && segmentValue !== "export";
+  }
+
+  function customerSegmentQueryValue(segment = state.customerSegment) {
+    const resolved = normalizeCustomerSegmentFilter(segment);
+    if (resolved === "agent") return "agent";
+    if (resolved === "export") return "export";
+    return "retail";
+  }
+
+  function customerSegmentLabel(segment = state.customerSegment) {
+    const resolved = normalizeCustomerSegmentFilter(segment);
+    if (!resolved) return "No group";
+    if (resolved === "agent") return "Agent";
+    if (resolved === "export") return "Export";
+    if (resolved === "chain_joeys") return "Joey's";
+    if (resolved === "chain_boer_butcher") return "Boer & Butcher";
+    if (resolved === "chain_spar") return "SPAR";
+    if (resolved === "chain_ok_foods") return "OK Foods";
+    if (resolved === "chain_pick_n_pay") return "Pick n Pay";
+    if (resolved === "chain_famous_kalahari") return "Famous Kalahari Biltong";
+    if (resolved === "chain_laeveld") return "Laeveld Biltong";
+    return "Retail";
+  }
+
+  function customerChainItemClass(segment = state.customerSegment) {
+    const resolved = normalizeCustomerSegmentFilter(segment);
+    return CUSTOMER_CHAIN_ITEM_CLASS[resolved] || "";
+  }
+
+  function renderCustomerSegmentFilters() {
+    if (!customerSegmentFilters) return;
+    const active = normalizeCustomerSegmentFilter(state.customerSegment);
+    customerSegmentFilters
+      .querySelectorAll("button[data-segment]")
+      .forEach((btn) => {
+        const segment = normalizeCustomerSegmentFilter(btn.dataset.segment || "");
+        btn.classList.toggle("is-active", segment === active);
+        btn.disabled = Boolean(state.loadingCustomers);
+      });
+  }
+
   function renderProvinceFilterOptions(customers = []) {
     if (!customerProvinceFilter) return;
     const provinces = Array.from(
@@ -350,34 +602,50 @@ export function initFlocsView() {
 
   function filteredQuickPickCustomers(customers = []) {
     let next = Array.isArray(customers) ? [...customers] : [];
-    next = next.filter((customer) => !CUSTOMER_QUICK_PICK_EXCLUDED_SEGMENTS.has(customerSegment(customer)));
+    const activeSegment = normalizeCustomerSegmentFilter(state.customerSegment);
+    const quickSearch = customerSearchQuery().toLowerCase();
+    if (activeSegment) {
+      next = next.filter((customer) => customerSegmentMatchesFilter(customer));
+    } else if (!quickSearch) {
+      next = [];
+    }
+    const letterFilter = String(state.customerLetterFilter || "").toLowerCase();
+    if (!letterFilter) {
+      next = next.filter((customer) => !CUSTOMER_QUICK_PICK_EXCLUDED_SEGMENTS.has(customerSegment(customer)));
+    }
 
     if (customerProvinceFilter?.value) {
       const activeProvince = customerProvinceFilter.value.toLowerCase();
       next = next.filter((customer) => customerProvinceLabel(customer).toLowerCase() === activeProvince);
     }
 
-    const quickSearch = (customerQuickSearch?.value || "").trim().toLowerCase();
-    if (quickSearch) {
+    if (letterFilter) {
       next = next.filter((customer) => {
-        const haystack = [
-          customer?.name,
-          customer?.companyName,
-          customerCityLabel(customer),
-          customerProvinceLabel(customer),
-          customer?.phone
-        ]
-          .filter(Boolean)
-          .join(" ")
+        const name = String(customer?.name || customer?.companyName || "")
+          .trim()
           .toLowerCase();
-        return haystack.includes(quickSearch);
+        return name.startsWith(letterFilter);
       });
+    } else {
+      if (quickSearch) {
+        next = next.filter((customer) => {
+          const haystack = [
+            customer?.name,
+            customer?.companyName,
+            customerCityLabel(customer),
+            customerProvinceLabel(customer),
+            customer?.phone
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return haystack.includes(quickSearch);
+        });
+      }
     }
 
-    const sortBy = customerSort?.value === "city" ? "city" : "name";
+    const sortBy = customerSort?.value === "city" ? "city" : "orders";
     next.sort((a, b) => {
-      const aName = String(a?.name || "");
-      const bName = String(b?.name || "");
       if (sortBy === "city") {
         const byCity = String(customerCityLabel(a) || "").localeCompare(
           String(customerCityLabel(b) || ""),
@@ -386,7 +654,7 @@ export function initFlocsView() {
         );
         if (byCity !== 0) return byCity;
       }
-      return aName.localeCompare(bName, undefined, { sensitivity: "base" });
+      return compareCustomersByOrders(a, b);
     });
 
     return next;
@@ -417,11 +685,15 @@ export function initFlocsView() {
   function resolveCustomerCandidate(customers = []) {
     const list = Array.isArray(customers) ? customers : [];
     if (!list.length) return null;
-    const quickSearch = String(customerQuickSearch?.value || "").trim();
-    if (!quickSearch) return list[0];
+    const quickSearch = customerSearchQuery();
+    if (!quickSearch) return list.slice().sort(compareCustomersByOrders)[0] || null;
     return list
       .map((customer) => ({ customer, score: customerMatchScore(customer, quickSearch) }))
-      .sort((a, b) => b.score - a.score)[0]?.customer || list[0];
+      .sort((a, b) => {
+        const scoreDelta = b.score - a.score;
+        if (scoreDelta !== 0) return scoreDelta;
+        return compareCustomersByOrders(a.customer, b.customer);
+      })[0]?.customer || list.slice().sort(compareCustomersByOrders)[0];
   }
 
   function renderCustomerQuickPicker(customers = []) {
@@ -440,28 +712,27 @@ export function initFlocsView() {
     const candidate = resolveCustomerCandidate(filtered);
     state.customerCandidateId = String(candidate?.id || "");
     const selectedId = String(state.customer?.id || "");
+    const chainItemClass = customerChainItemClass();
     customerResults.innerHTML = filtered
       .map((customer, idx) => {
         const city = customerCityLabel(customer);
         const province = customerProvinceLabel(customer);
         const location = [city, province].filter(Boolean).join(", ") || "Location unavailable";
+        const orders = customerOrderCount(customer);
+        const ordersLabel = `${orders} order${orders === 1 ? "" : "s"}`;
         const isActive = selectedId && String(customer?.id || "") === selectedId;
         const isCandidate = state.customerCandidateId && String(customer?.id || "") === state.customerCandidateId;
         return `
-        <button type="button" class="flocs-customerItem${isActive ? " is-active" : ""}${isCandidate ? " is-candidate" : ""}" data-idx="${idx}">
+        <button type="button" class="flocs-customerItem${chainItemClass ? ` ${chainItemClass}` : ""}${isActive ? " is-active" : ""}${isCandidate ? " is-candidate" : ""}" data-idx="${idx}">
           <strong>${customer.name || "Unnamed"}</strong>
-          <div class="flocs-customerItem-meta">${location}</div>
+          <div class="flocs-customerItem-meta">${location} · ${ordersLabel}</div>
         </button>
       `;
       })
       .join("");
     customerResults._data = filtered;
     customerResults._allData = Array.isArray(customers) ? customers : [];
-    if (candidate?.name) {
-      customerStatus.textContent = `Suggested: ${candidate.name}. Press Enter or Tab to select.`;
-    } else {
-      customerStatus.textContent = "Click a row to select customer.";
-    }
+    customerStatus.textContent = "Click a row to select customer.";
   }
 
   function normalizePriceTiers(product) {
@@ -541,6 +812,7 @@ export function initFlocsView() {
       const escaped = sku.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       title = title.replace(new RegExp(`^${escaped}\\s*[–-]\\s*`, "i"), "");
     }
+    title = title.replace(/\s*-\s*OTHER\b/i, "").trim();
     return title || sku;
   }
 
@@ -566,9 +838,10 @@ export function initFlocsView() {
       customerCreatePanel.hidden = !visible;
     }
     if (customerCreateToggle) {
-      customerCreateToggle.textContent = visible
-        ? "Hide new customer form"
-        : "Add new customer";
+      const label = visible ? "Hide new customer form" : "Add new customer";
+      customerCreateToggle.innerHTML = `<span aria-hidden="true">${visible ? "-" : "+"}</span>`;
+      customerCreateToggle.setAttribute("title", label);
+      customerCreateToggle.setAttribute("aria-label", label);
     }
     if (visible && customerFirst) {
       customerFirst.focus();
@@ -591,6 +864,13 @@ export function initFlocsView() {
     const idx =
       state.billingAddressIndex != null ? state.billingAddressIndex : 0;
     return state.customer.addresses[idx] || null;
+  }
+
+  function resolveInvoiceEmail(customer) {
+    const accounts = String(customer?.accountEmail || "").trim();
+    if (accounts.includes("@")) return accounts;
+    const primary = String(customer?.email || "").trim();
+    return primary.includes("@") ? primary : null;
   }
 
   function formatAddress(addr) {
@@ -744,9 +1024,23 @@ export function initFlocsView() {
 
   function visibleMatrixSizes() {
     if (state.productType === "popcorn") return [...MATRIX_POPCORN_SIZES];
+    if (state.productType === "combined") {
+      const sizes = [...MATRIX_BASE_SIZES];
+      if (state.showBulkColumns) sizes.push(...MATRIX_BULK_SIZES);
+      return sizes;
+    }
     const sizes = [...MATRIX_BASE_SIZES];
     if (state.showBulkColumns) sizes.push(...MATRIX_BULK_SIZES);
     return sizes;
+  }
+
+  function quoteSummaryText() {
+    const fromBadge = String(shippingSummary?.textContent || "").trim();
+    if (fromBadge) return fromBadge;
+    const delivery = currentDelivery();
+    if (delivery === "free_shipping") return "Free Shipping selected - shipping cost will be R0.";
+    if (delivery !== "shipping") return "Delivery type is pickup/delivery - no courier shipping.";
+    return "No shipping quote yet.";
   }
 
   function renderProductsHeader() {
@@ -754,7 +1048,7 @@ export function initFlocsView() {
     const sizeHeaders = visibleMatrixSizes()
       .map((size) => `<th>${size}</th>`)
       .join("");
-    productsHeadRow.innerHTML = `<th>SKU / Flavour</th><th>Description</th>${sizeHeaders}`;
+    productsHeadRow.innerHTML = `<th>Flippen Lekka Spice</th>${sizeHeaders}`;
   }
 
   function renderBulkToggleState() {
@@ -762,34 +1056,48 @@ export function initFlocsView() {
     if (bulkColumnsToggle) bulkColumnsToggle.checked = Boolean(state.showBulkColumns);
   }
 
+  function renderQuickQtyToggleButton() {
+    if (!quickQtyToggleBtn) return;
+    quickQtyToggleBtn.textContent = state.showQuickQtyButtons ? "Hide quick qty" : "Show quick qty";
+    quickQtyToggleBtn.setAttribute("aria-pressed", state.showQuickQtyButtons ? "true" : "false");
+  }
+
   function isPopcornSprinkleProduct(product) {
     const title = String(product?.title || "").toLowerCase();
     return title.includes("popcorn sprinkle");
   }
 
-  function filteredProductsForMatrix() {
-    const type = state.productType === "popcorn" ? "popcorn" : "spices";
-    return state.products.filter((product) =>
-      type === "popcorn"
-        ? isPopcornSprinkleProduct(product)
-        : !isPopcornSprinkleProduct(product)
-    );
+  function matrixProductType(product) {
+    return isPopcornSprinkleProduct(product) ? "popcorn" : "spices";
   }
 
-  function flavourSortIndex(flavour) {
-    return flavourSortIndexForType(flavour, state.productType);
+  function filteredProductsForMatrix() {
+    if (state.productType === "popcorn") {
+      return state.products.filter((product) => isPopcornSprinkleProduct(product));
+    }
+    if (state.productType === "spices") {
+      return state.products.filter((product) => !isPopcornSprinkleProduct(product));
+    }
+    return [...state.products];
+  }
+
+  function flavourSortIndex(flavour, productType = state.productType) {
+    const type = productType === "combined" ? "spices" : productType;
+    return flavourSortIndexForType(flavour, type);
   }
 
   function groupedProductsForMatrix() {
     const grouped = new Map();
     for (const product of filteredProductsForMatrix()) {
+      const productType = matrixProductType(product);
       const flavour = String(product.flavour || "Other").trim() || "Other";
-      if (!grouped.has(flavour)) grouped.set(flavour, []);
-      grouped.get(flavour).push(product);
+      const key = state.productType === "combined" ? `${productType}::${flavour}` : flavour;
+      if (!grouped.has(key)) grouped.set(key, { flavour, productType, products: [] });
+      grouped.get(key).products.push(product);
     }
 
-    return Array.from(grouped.entries())
-      .map(([flavour, products]) => {
+    return Array.from(grouped.values())
+      .map(({ flavour, productType, products }) => {
         const bySize = new Map();
         products
           .slice()
@@ -805,12 +1113,15 @@ export function initFlocsView() {
               bySize.set(normalizedSize, product);
             }
           });
-        return [flavour, bySize];
+        return { flavour, productType, bySize };
       })
       .sort((a, b) => {
-        const flavourCmp = flavourSortIndex(a[0]) - flavourSortIndex(b[0]);
+        if (state.productType === "combined" && a.productType !== b.productType) {
+          return a.productType === "spices" ? -1 : 1;
+        }
+        const flavourCmp = flavourSortIndex(a.flavour, a.productType) - flavourSortIndex(b.flavour, b.productType);
         if (flavourCmp !== 0) return flavourCmp;
-        return String(a[0]).localeCompare(String(b[0]), undefined, {
+        return String(a.flavour).localeCompare(String(b.flavour), undefined, {
           sensitivity: "base"
         });
       });
@@ -840,6 +1151,9 @@ export function initFlocsView() {
     const quickButtons = QUICK_QTY.map(
       (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}" title="Quick add ${qty}">${qty}</button>`
     ).join("");
+    const quickControls = state.showQuickQtyButtons
+      ? `<div class="flocs-qtyQuick" aria-label="Quick add quantity">${quickButtons}</div>`
+      : "";
     return `<div class="flocs-qtyArea">
       ${sizeTag}
       <div class="flocs-qtyWrap">
@@ -847,7 +1161,7 @@ export function initFlocsView() {
         <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
         <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}" title="Increase">＋</button>
         <button class="flocs-qtyBtn flocs-qtyBtn--clear" type="button" data-action="clear" data-key="${key}" title="Clear quantity">⨯</button>
-        <div class="flocs-qtyQuick" aria-label="Quick add quantity">${quickButtons}</div>
+        ${quickControls}
       </div>
     </div>`;
   }
@@ -881,67 +1195,154 @@ export function initFlocsView() {
 
   function renderProductsTable() {
     if (!productsBody) return;
+    if (productTypeFilter) productTypeFilter.hidden = true;
     const activeSizes = visibleMatrixSizes();
     renderProductsHeader();
     renderBulkToggleState();
+    renderQuickQtyToggleButton();
     const grouped = groupedProductsForMatrix();
     const matrixColumnCount = Math.max(activeSizes.length, 1);
     const nonMatrixProducts = filteredProductsForMatrix().filter((product) => {
       const normalizedSize = normalizeMatrixSize(product.size);
       return !normalizedSize || !isMatrixSize(normalizedSize);
     });
-    if (!grouped.length) {
-      const extraRows = nonMatrixProducts.map((product) => {
-        const key = productKey(product);
-        const units = Number(state.items[key] || 0);
-        const value = toDisplayQty(units);
-        const qtyControl = renderSizeQtyControl({ key, value, sizeLabel: product.size || "Standard" });
-        return `<tr style="--flavour-color:${flavourColor(product.flavour)}">
-          <td>${product.sku || ""}</td>
-          <td><span class="flocs-productName">${displayProductTitle(product)}</span></td>
-          <td class="flocs-matrixCell" colspan="${matrixColumnCount}">${qtyControl}</td>
-        </tr>`;
-      }).join("");
-      const emptyRow = `<tr><td colspan="${2 + matrixColumnCount}" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
-      productsBody.innerHTML = `${emptyRow}${extraRows}`;
-      return;
-    }
-    const groupedRows = grouped
-      .map(([flavour, bySize]) => {
+    const nonMatrixPrioritySku = new Map([
+      ["FLBS001", 0],
+      ["GBOX", 1]
+    ]);
+    nonMatrixProducts.sort((a, b) => {
+      const aSku = String(a?.sku || "").trim().toUpperCase();
+      const bSku = String(b?.sku || "").trim().toUpperCase();
+      const aPriority = nonMatrixPrioritySku.has(aSku) ? nonMatrixPrioritySku.get(aSku) : Number.POSITIVE_INFINITY;
+      const bPriority = nonMatrixPrioritySku.has(bSku) ? nonMatrixPrioritySku.get(bSku) : Number.POSITIVE_INFINITY;
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      return aSku.localeCompare(bSku, undefined, { sensitivity: "base" });
+    });
+    const groupedRowsSource = grouped.filter((entry) => flavourKey(entry.flavour) !== "other");
+    const renderNonMatrixIdentity = (product) => {
+      const sku = String(product?.sku || "").trim().toUpperCase();
+      if (sku === "FLBS001") {
+        return `<span class="flocs-flavourTag flocs-flavourTag--black">BASTING SAUCE</span>`;
+      }
+      if (sku === "GBOX") {
+        return `<span class="flocs-flavourTag flocs-flavourTag--neutral">GBOX</span>`;
+      }
+      const label = sku || String(product?.flavour || "").trim() || "ITEM";
+      return `<span class="flocs-flavourTag" style="--flavour-color:${flavourColor(product.flavour, matrixProductType(product))}">${label}</span>`;
+    };
+    const nonMatrixDisplayTitle = (product) => {
+      const sku = String(product?.sku || "").trim().toUpperCase();
+      if (sku === "FLBS001") return "";
+      return displayProductTitle(product);
+    };
+    const nonMatrixSizeLabel = (product) => {
+      const sku = String(product?.sku || "").trim().toUpperCase();
+      if (sku === "FLBS001" || sku === "GBOX") return "";
+      return product.size || displayProductTitle(product) || "Standard";
+    };
+
+    const groupedRowEntries = groupedRowsSource
+      .map(({ flavour, productType, bySize }) => {
         const flavourLabel = String(flavour || "").trim();
-        const normalizedFlavour = flavourKey(flavourLabel);
-        const productNameLabel = normalizedFlavour === "other" ? "" : flavourLabel;
-        const sizeCells = activeSizes.map((label) => {
-          const lookup = normalizeMatrixSize(label);
+        const displayFlavour = flavourLabel || "Other";
+        const flavourIdentity = `<span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour, productType)}">${displayFlavour}</span>`;
+        const sizeCells = activeSizes.map((label, index) => {
+          let lookup = normalizeMatrixSize(label);
+          if (state.productType === "combined" && productType === "popcorn" && index === 0) {
+            lookup = normalizeMatrixSize(MATRIX_POPCORN_SIZES[0]);
+          }
           const product = bySize.get(lookup);
-          if (!product) return `<td class="flocs-matrixCell"><span class="flocs-matrixCell--empty">—</span></td>`;
+          if (!product) return `<td class="flocs-matrixCell"><span class="flocs-matrixCell--empty">-</span></td>`;
           const key = productKey(product);
           const units = Number(state.items[key] || 0);
           const value = toDisplayQty(units);
           const qtyControl = renderSizeQtyControl({ key, value });
           return `<td class="flocs-matrixCell">${qtyControl}</td>`;
         }).join("");
-        return `
-          <tr style="--flavour-color:${flavourColor(flavour)}">
-            <td><span class="flocs-flavourTag" style="--flavour-color:${flavourColor(flavour)}">${flavour}</span></td>
-            <td><span class="flocs-productName">${productNameLabel}</span></td>
+        return {
+          productType,
+          html: `
+          <tr style="--flavour-color:${flavourColor(flavour, productType)}">
+            <td><div class="flocs-productIdentity">${flavourIdentity}</div></td>
             ${sizeCells}
-          </tr>`;
+          </tr>`
+        };
       })
-      .join("");
+      .filter((entry) => entry && entry.html);
 
-    const extraRows = nonMatrixProducts.map((product) => {
+    const buildNonMatrixRowEntry = (product) => {
       const key = productKey(product);
       const units = Number(state.items[key] || 0);
       const value = toDisplayQty(units);
-      const qtyControl = renderSizeQtyControl({ key, value, sizeLabel: product.size || "Standard" });
-      return `<tr style="--flavour-color:${flavourColor(product.flavour)}">
-        <td>${product.sku || ""}</td>
-        <td><span class="flocs-productName">${displayProductTitle(product)}</span></td>
+      const sizeLabel = nonMatrixSizeLabel(product);
+      const qtyControl = renderSizeQtyControl({ key, value, sizeLabel });
+      const title = nonMatrixDisplayTitle(product);
+      const sku = String(product?.sku || "").trim().toUpperCase();
+      const forcedSectionType =
+        state.productType === "combined" && (sku === "FLBS001" || sku === "GBOX")
+          ? "popcorn"
+          : matrixProductType(product);
+      return {
+        productType: forcedSectionType,
+        html: `<tr style="--flavour-color:${flavourColor(product.flavour, matrixProductType(product))}">
+        <td>
+          <div class="flocs-productIdentity">
+            ${renderNonMatrixIdentity(product)}
+            ${title ? `<span class="flocs-productName">${title}</span>` : ""}
+          </div>
+        </td>
         <td class="flocs-matrixCell" colspan="${matrixColumnCount}">${qtyControl}</td>
-      </tr>`;
-    }).join("");
+      </tr>`
+      };
+    };
 
+    const extraRowEntries = [];
+    nonMatrixProducts.forEach((product) => {
+      const entry = buildNonMatrixRowEntry(product);
+      if (entry?.html) extraRowEntries.push(entry);
+    });
+
+    const emptyRow = `<tr><td colspan="${1 + matrixColumnCount}" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
+
+    if (state.productType === "combined") {
+      const sectionOrder = [
+        { key: "spices", label: "Spices" },
+        { key: "popcorn", label: "Popcorn Sprinkle" }
+      ];
+      const renderCombinedSectionHeader = (sectionKey) => {
+        if (sectionKey !== "popcorn") return "";
+        const sizeHeaders = activeSizes
+          .map((_, index) => (index === 0 ? "<th>100ml</th>" : "<th></th>"))
+          .join("");
+        return `<tr class="flocs-productsSubHeadRow"><th>Popcorn Sprinkle</th>${sizeHeaders}</tr>`;
+      };
+      const combinedRows = sectionOrder
+        .map((section) => {
+          const rows = [
+            ...groupedRowEntries
+              .filter((entry) => entry.productType === section.key)
+              .map((entry) => entry.html),
+            ...extraRowEntries
+              .filter((entry) => entry.productType === section.key)
+              .map((entry) => entry.html)
+          ];
+          if (!rows.length) return "";
+          return `${renderCombinedSectionHeader(section.key)}${rows.join("")}`;
+        })
+        .filter(Boolean)
+        .join("");
+      productsBody.innerHTML = combinedRows || emptyRow;
+      return;
+    }
+
+    if (!groupedRowEntries.length) {
+      const extraRows = extraRowEntries.map((entry) => entry.html).join("");
+      productsBody.innerHTML = `${emptyRow}${extraRows}`;
+      return;
+    }
+
+    const groupedRows = groupedRowEntries.map((entry) => entry.html).join("");
+    const extraRows = extraRowEntries.map((entry) => entry.html).join("");
     productsBody.innerHTML = `${groupedRows}${extraRows}`;
   }
 
@@ -1108,9 +1509,15 @@ export function initFlocsView() {
 
     const delivery = currentDelivery();
     const totals = computeTotals(items);
+    const quoteSummary = quoteSummaryText();
+    const manualQuoteDisabled =
+      delivery !== "shipping" ||
+      !state.customer ||
+      !shipAddr ||
+      !items.length ||
+      Boolean(calcShipBtn?.disabled);
 
     const customerName = state.customer ? state.customer.name : "—";
-    const po = state.po || "—";
     const deliveryLabel =
       delivery === ""
         ? "Not selected"
@@ -1119,12 +1526,19 @@ export function initFlocsView() {
         : delivery === "pickup"
         ? "Pickup at Flippen Lekka"
         : delivery === "delivery"
-        ? "Delivery (own vehicle)"
+        ? "Delivery"
         : "Shipping via SWE";
+    const sweCarrierLogo =
+      delivery === "shipping"
+        ? `<div class="flocs-invoiceCarrier"><img class="flocs-invoiceCarrierLogo" src="/img/download.jpg" alt="SWE courier logo" loading="lazy" /></div>`
+        : "";
+    const deliveryDateValue = String(state.deliveryDate || "");
 
     const billToText = state.customer
       ? `${customerName}
 ${state.customer.email || ""}${
+          state.customer.accountEmail ? `\nAccounts: ${state.customer.accountEmail}` : ""
+        }${
           state.customer.phone ? "\n" + state.customer.phone : ""
         }${
           state.customer.companyName ? "\n" + state.customer.companyName : ""
@@ -1190,30 +1604,22 @@ ${state.customer.email || ""}${
         <div>
           <div class="flocs-invoiceBrand">Flippen Lekka Holdings (Pty) Ltd</div>
           <div class="flocs-invoiceSub">Draft order preview</div>
+          <div class="flocs-invoiceSub flocs-invoiceSub--delivery">Delivery: ${deliveryLabel}</div>
+          ${sweCarrierLogo}
         </div>
-        <div class="flocs-invoiceSub" style="text-align:right">
-          PO: <strong>${po}</strong><br/>
-          Delivery: ${deliveryLabel}
+        <div class="flocs-invoiceHeaderMeta">
+          <label class="flocs-invoiceHeaderField">
+            <span class="flocs-invoiceInlineLabel">PO Number</span>
+            <input id="flocs-invoice-po" class="flocs-input" type="text" value="${state.po || ""}" placeholder="PO / reference (optional)" />
+          </label>
+          <label class="flocs-invoiceHeaderField">
+            <span class="flocs-invoiceInlineLabel">Delivery date</span>
+            <input id="flocs-invoice-delivery-date" class="flocs-input" type="date" value="${deliveryDateValue}" />
+          </label>
         </div>
       </div>
 
-      <div class="flocs-invoiceInlineControls">
-        <label class="flocs-invoiceInlineField">
-          <span class="flocs-invoiceInlineLabel">PO Number</span>
-          <input id="flocs-invoice-po" class="flocs-input" type="text" value="${state.po || ""}" placeholder="PO / reference (optional)" />
-        </label>
-        <label class="flocs-invoiceInlineField">
-          <span class="flocs-invoiceInlineLabel">Ship To Address</span>
-          <select id="flocs-invoice-shipAddress" class="flocs-select" ${!state.customer ? "disabled" : ""}>
-            ${renderInvoiceAddressOptions(state.shippingAddressIndex)}
-          </select>
-        </label>
-        <label class="flocs-invoiceInlineField">
-          <span class="flocs-invoiceInlineLabel">Bill To Address</span>
-          <select id="flocs-invoice-billAddress" class="flocs-select" ${!state.customer ? "disabled" : ""}>
-            ${renderInvoiceAddressOptions(state.billingAddressIndex)}
-          </select>
-        </label>
+      <div class="flocs-invoiceMetaControls">
         <label class="flocs-invoiceInlineField flocs-invoiceInlineField--wide">
           <span class="flocs-invoiceInlineLabel">Order Tags</span>
           <input id="flocs-invoice-tags" class="flocs-input" type="text" value="${state.orderTagsText || ""}" placeholder="tag-one, tag-two, priority" />
@@ -1222,11 +1628,21 @@ ${state.customer.email || ""}${
 
       <div class="flocs-invoiceCols">
         <div class="flocs-invoiceCol">
-          <div class="flocs-invoiceColTitle">Bill to</div>
+          <div class="flocs-invoiceColTitleRow">
+            <div class="flocs-invoiceColTitle">Bill to</div>
+            <select id="flocs-invoice-billAddress" class="flocs-select flocs-invoiceSelect" ${!state.customer ? "disabled" : ""}>
+              ${renderInvoiceAddressOptions(state.billingAddressIndex)}
+            </select>
+          </div>
           ${billToText}
         </div>
         <div class="flocs-invoiceCol">
-          <div class="flocs-invoiceColTitle">${shipToLabel}</div>
+          <div class="flocs-invoiceColTitleRow">
+            <div class="flocs-invoiceColTitle">${shipToLabel}</div>
+            <select id="flocs-invoice-shipAddress" class="flocs-select flocs-invoiceSelect" ${!state.customer ? "disabled" : ""}>
+              ${renderInvoiceAddressOptions(state.shippingAddressIndex)}
+            </select>
+          </div>
           ${shipToText}
         </div>
       </div>
@@ -1263,6 +1679,21 @@ ${state.customer.email || ""}${
 
       <div class="flocs-invoiceNote">
         ${pricingNote}${overrideNote}${unresolvedPricingCount ? ` • ${unresolvedPricingCount} line(s) missing tier pricing` : ""}. Final pricing and tax are still controlled in Shopify.
+      </div>
+
+      <div class="flocs-invoiceQuoteBox">
+        <div class="flocs-invoiceQuoteBody">
+          <div class="flocs-invoiceQuoteTitle">Shipping quote summary</div>
+          <div class="flocs-invoiceQuoteText">${escapeHtml(quoteSummary)}</div>
+        </div>
+        <button
+          id="flocs-invoice-quoteNow"
+          class="flocs-miniBtn flocs-invoiceQuoteBtn"
+          type="button"
+          ${manualQuoteDisabled ? "disabled" : ""}
+        >
+          Get quote now
+        </button>
       </div>
     `;
   }
@@ -1304,7 +1735,7 @@ ${state.customer.email || ""}${
     setShellReady(ready);
     if (previewTag) {
       if (!state.customer) {
-        previewTag.textContent = "Waiting for customer…";
+        previewTag.textContent = "Select customer to begin.";
       } else if (!items.length) {
         previewTag.textContent = "Add item quantities…";
       } else if (currentDelivery() === "shipping" && !state.shippingQuote) {
@@ -1437,6 +1868,7 @@ ${state.customer.email || ""}${
 
     calcShipBtn.disabled = true;
     shippingSummary.textContent = "Fetching SWE quote…";
+    renderInvoice();
 
     const destplace = await lookupPlaceCodeForAddress(addr);
     if (!destplace) {
@@ -1444,8 +1876,8 @@ ${state.customer.email || ""}${
       shippingSummary.textContent = "Quote error: missing destination place code.";
       state.shippingQuote = null;
       validate();
-      renderInvoice();
       calcShipBtn.disabled = false;
+      renderInvoice();
       return;
     }
 
@@ -1575,6 +2007,7 @@ ${state.customer.email || ""}${
       renderInvoice();
     } finally {
       calcShipBtn.disabled = false;
+      renderInvoice();
     }
   }
 
@@ -1582,7 +2015,14 @@ ${state.customer.email || ""}${
   const searchCustomersDebounced = debounce(searchCustomersNow, 300);
 
   async function preloadCustomers() {
+    if (state.loadingCustomers) return;
+    if (Array.isArray(state.customers) && state.customers.length) {
+      await searchCustomersNow();
+      return;
+    }
+
     state.loadingCustomers = true;
+    renderCustomerSegmentFilters();
     if (customerStatus) customerStatus.textContent = "Loading customers…";
     if (customerResults) {
       customerResults.hidden = false;
@@ -1606,7 +2046,9 @@ ${state.customer.email || ""}${
       state.customers = allCustomers;
       renderProvinceFilterOptions(state.customers);
       await searchCustomersNow();
-      if (customerStatus) customerStatus.textContent = `Loaded ${state.customers.length} customers.`;
+      if (customerStatus && !state.customer) {
+        customerStatus.textContent = `Loaded ${state.customers.length} customers.`;
+      }
     } catch (e) {
       console.error("Customer preload error:", e);
       if (customerResults) {
@@ -1615,19 +2057,38 @@ ${state.customer.email || ""}${
       if (customerStatus) customerStatus.textContent = "Error loading customers.";
     } finally {
       state.loadingCustomers = false;
+      renderCustomerSegmentFilters();
     }
   }
 
-  async function searchCustomersNow() {
-    const q = ((customerQuickSearch?.value || "") || (customerSearch?.value || "")).trim().toLowerCase();
+  async function searchCustomersNow({ autoSelect = false } = {}) {
+    const q = customerSearchQuery().toLowerCase();
     const source = Array.isArray(state.customers) ? state.customers : [];
+    const activeSegment = normalizeCustomerSegmentFilter(state.customerSegment);
 
     if (state.loadingCustomers) {
       if (customerStatus) customerStatus.textContent = "Loading customers…";
       return;
     }
 
+    if (!activeSegment && !q) {
+      if (customerResults) {
+        customerResults.hidden = false;
+        customerResults.innerHTML =
+          `<div class="flocs-customerEmpty">Select a customer group or chain, or type to search all customers.</div>`;
+        customerResults._data = [];
+        customerResults._allData = source;
+      }
+      if (customerStatus && !state.customer) {
+        customerStatus.textContent = "Select a customer group, or type to search all customers.";
+      }
+      return;
+    }
+
     let list = source;
+    if (activeSegment) {
+      list = list.filter((customer) => customerSegmentMatchesFilter(customer));
+    }
     if (q) {
       list = source.filter((customer) => {
         const haystack = [
@@ -1641,7 +2102,8 @@ ${state.customer.email || ""}${
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
-        return haystack.includes(q);
+        if (!haystack.includes(q)) return false;
+        return activeSegment ? customerSegmentMatchesFilter(customer) : true;
       });
     }
 
@@ -1656,7 +2118,36 @@ ${state.customer.email || ""}${
 
     renderProvinceFilterOptions(list.length ? list : source);
     renderCustomerQuickPicker(list);
+    if (autoSelect) {
+      autoSelectCustomerDebounced();
+    }
   }
+
+  async function autoSelectClosestCustomerCandidate() {
+    const query = customerSearchQuery();
+    if (!query) return false;
+    const list = customerResults?._data || [];
+    if (!list.length) return false;
+
+    const candidateId = String(state.customerCandidateId || "");
+    const candidate = candidateId
+      ? list.find((entry) => String(entry?.id || "") === candidateId)
+      : list[0];
+    if (!candidate) return false;
+
+    const candidateKey = String(candidate?.id || "");
+    const currentKey = String(state.customer?.id || "");
+    if (candidateKey && currentKey && candidateKey === currentKey) return true;
+
+    const version = ++autoCustomerSelectVersion;
+    const selected = await selectCustomerForInput(candidate, { focusQty: true });
+    if (version !== autoCustomerSelectVersion) return false;
+    return selected;
+  }
+
+  const autoSelectCustomerDebounced = debounce(() => {
+    autoSelectClosestCustomerCandidate();
+  }, 220);
 
 
   async function hydrateCustomerCustomFields(customer) {
@@ -1668,12 +2159,24 @@ ${state.customer.email || ""}${
       return {
         ...customer,
         ...(payload?.metafields || {}),
-        delivery_method: payload?.metafields?.delivery_method || customer.delivery_method || null,
+        delivery_method:
+          payload?.metafields?.delivery_method ||
+          payload?.metafields?.delivery_type ||
+          customer.delivery_method ||
+          customer.delivery_type ||
+          null,
         deliveryInstructions:
           payload?.metafields?.delivery_instructions || customer.deliveryInstructions || null,
         companyName: payload?.metafields?.company_name || customer.companyName || null,
+        accountEmail: payload?.metafields?.account_email || customer.accountEmail || null,
+        accountContact: payload?.metafields?.account_contact || customer.accountContact || null,
         vatNumber: payload?.metafields?.vat_number || customer.vatNumber || null,
         paymentTerms: payload?.metafields?.payment_terms || customer.paymentTerms || null,
+        paymentBeforeShippingRequired:
+          payload?.metafields?.payment_before_shipping ??
+          payload?.metafields?.payment_before_delivery ??
+          customer.paymentBeforeShippingRequired ??
+          null,
         tier: payload?.metafields?.tier || customer.tier || null,
         customFieldsLoaded: true
       };
@@ -1694,6 +2197,7 @@ ${state.customer.email || ""}${
     const tier = customerTier?.value || "";
     const vatNumber = customerVat?.value?.trim() || "";
     const paymentTerms = customerPaymentTerms?.value || "";
+    const paymentBeforeShippingRequired = Boolean(customerPaymentBeforeShipping?.checked);
     const deliveryInstructions = customerDeliveryNotes?.value?.trim() || "";
     const deliveryMethod = customerDelivery?.value || "";
     const address1 = customerAddr1?.value?.trim() || "";
@@ -1728,6 +2232,7 @@ ${state.customer.email || ""}${
       tier,
       vatNumber,
       paymentTerms,
+      paymentBeforeShippingRequired,
       deliveryInstructions,
       deliveryMethod,
       address: address1 || address2 || city || province || zip || country
@@ -1794,6 +2299,7 @@ ${state.customer.email || ""}${
     if (customerCompany) customerCompany.value = "";
     if (customerVat) customerVat.value = "";
     if (customerPaymentTerms) customerPaymentTerms.value = "";
+    if (customerPaymentBeforeShipping) customerPaymentBeforeShipping.checked = false;
     if (customerDeliveryNotes) customerDeliveryNotes.value = "";
     if (customerDelivery) customerDelivery.value = "";
     if (customerAddr1) customerAddr1.value = "";
@@ -1819,7 +2325,9 @@ ${state.customer.email || ""}${
 
   function firstInvoiceInputTarget() {
     if (!invoice) return null;
-    return invoice.querySelector("#flocs-invoice-po, #flocs-invoice-shipAddress, #flocs-invoice-billAddress, #flocs-invoice-tags");
+    return invoice.querySelector(
+      "#flocs-invoice-po, #flocs-invoice-delivery-date, #flocs-invoice-tags, #flocs-invoice-billAddress, #flocs-invoice-shipAddress"
+    );
   }
 
   function focusPrimaryQtyInput() {
@@ -1864,12 +2372,8 @@ ${state.customer.email || ""}${
   function applySelectedCustomer(c) {
     state.customer = c;
 
-    const hasDeliveryMethod = !!c.delivery_method;
-    if (hasDeliveryMethod) {
-      state.delivery = normalizeDeliveryMethod(c.delivery_method);
-    } else {
-      state.delivery = "";
-    }
+    const resolvedDelivery = normalizeDeliveryMethod(c.delivery_method);
+    state.delivery = resolvedDelivery || "shipping";
 
     const tags = normalizeTags(c.tags).map((tag) => tag.toLowerCase());
     state.qtyMode = tags.includes("export") ? "cartons" : "units";
@@ -1900,7 +2404,7 @@ ${state.customer.email || ""}${
     renderInvoice();
     validate();
     hydratePriceTiersForProducts(state.products);
-    updateDeliveryPrompt(hasDeliveryMethod);
+    updateDeliveryPrompt(true);
     scheduleAutoQuote();
   }
 
@@ -1932,6 +2436,38 @@ ${state.customer.email || ""}${
     } else if (customerResults) {
       customerResults.hidden = false;
       customerResults.innerHTML = `<div class="flocs-customerEmpty">No customers loaded yet.</div>`;
+    }
+  }
+
+  function resetCustomerSearch(options = {}) {
+    const { focus = false } = options;
+    if (customerSearch) customerSearch.value = "";
+    if (customerQuickSearch) customerQuickSearch.value = "";
+    state.azLetters = [];
+    state.customerLetterFilter = "";
+    state.customerCandidateId = null;
+    updateAzBarActive([]);
+
+    const source = Array.isArray(state.customers) ? state.customers : [];
+    if (source.length) {
+      renderCustomerQuickPicker(source);
+      if (customerResults) customerResults.hidden = false;
+    } else if (customerResults) {
+      customerResults.hidden = false;
+      customerResults.innerHTML = `<div class="flocs-customerEmpty">No customers loaded yet.</div>`;
+      customerResults._data = [];
+      customerResults._allData = [];
+    }
+
+    if (customerStatus && !state.customer) {
+      customerStatus.textContent = "Search reset. Start typing to find a customer.";
+    } else if (customerStatus && state.customer) {
+      customerStatus.textContent = `Selected: ${state.customer.name}`;
+    }
+
+    if (focus) {
+      const quickInput = activeCustomerSearchInput();
+      quickInput?.focus();
     }
   }
 
@@ -2002,6 +2538,7 @@ ${state.customer.email || ""}${
       addr || null;
 
     const orderTags = parseOrderTags(state.orderTagsText);
+    const invoiceEmail = resolveInvoiceEmail(state.customer);
     const payload = {
       customerId: state.customer.id,
       poNumber: state.po || null,
@@ -2016,6 +2553,7 @@ ${state.customer.email || ""}${
       estimatedParcels,
       vatNumber: state.customer?.vatNumber || null,
       companyName: state.customer?.companyName || null,
+      invoiceEmail,
       billingAddress,
       shippingAddress,
       customerTags: state.customerTags,
@@ -2143,6 +2681,7 @@ ${state.customer.email || ""}${
       addr || null;
 
     const orderTags = parseOrderTags(state.orderTagsText);
+    const invoiceEmail = resolveInvoiceEmail(state.customer);
     const payload = {
       customerId: state.customer.id,
       poNumber: state.po || null,
@@ -2157,6 +2696,7 @@ ${state.customer.email || ""}${
       estimatedParcels,
       vatNumber: state.customer?.vatNumber || null,
       companyName: state.customer?.companyName || null,
+      invoiceEmail,
       billingAddress,
       shippingAddress,
       customerTags: state.customerTags,
@@ -2201,6 +2741,10 @@ ${state.customer.email || ""}${
         `Order ${data.order?.name || data.order?.id || ""} created.`,
         "ok"
       );
+      const openUrl = data.order?.adminUrl || null;
+      if (openUrl) {
+        window.open(openUrl, "_blank", "noopener");
+      }
       resetForm();
     } catch (e) {
       console.error("Order create exception:", e);
@@ -2235,9 +2779,10 @@ ${state.customer.email || ""}${
     state.priceOverrides = {};
     state.priceOverrideEnabled = {};
     state.azLetters = [];
+    state.customerLetterFilter = "";
     state.customerCandidateId = null;
     state.orderTagsText = "";
-    state.productType = "spices";
+    state.productType = "combined";
     state.qtyMode = "units";
     state.cartonUnits = 12;
 
@@ -2300,6 +2845,8 @@ ${state.customer.email || ""}${
     validate();
     renderConvertButton();
     updateDeliveryPrompt(true);
+    renderQuickQtyToggleButton();
+    renderCustomerSegmentFilters();
   }
 
   async function convertDraftToOrder() {
@@ -2357,7 +2904,8 @@ ${state.customer.email || ""}${
     if (state.spaceTapTimes.length >= 2) {
       state.spaceTapTimes = [];
       event.preventDefault();
-      if (customerQuickSearch) customerQuickSearch.focus();
+      const quickInput = activeCustomerSearchInput();
+      quickInput?.focus();
       if (customerResults) customerResults.hidden = false;
       return true;
     }
@@ -2366,10 +2914,21 @@ ${state.customer.email || ""}${
 
   // ===== EVENT WIRING =====
   function initEvents() {
+    const syncChatSearchResetButton = () => {
+      if (!chatSearchResetBtn) return;
+      chatSearchResetBtn.disabled = customerSearchQuery().length === 0 && !state.customerLetterFilter;
+    };
+
+    syncChatSearchResetButton();
+
     if (customerSearch) {
-      customerSearch.addEventListener("input", () =>
-        searchCustomersDebounced()
-      );
+      customerSearch.addEventListener("input", (event) => {
+        state.customerLetterFilter = "";
+        state.azLetters = [];
+        updateAzBarActive([]);
+        searchCustomersDebounced({ autoSelect: keyboardDrivenInput(event) });
+        syncChatSearchResetButton();
+      });
     }
 
     document.addEventListener("keydown", (e) => {
@@ -2378,26 +2937,48 @@ ${state.customer.email || ""}${
       const active = document.activeElement;
       if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
       if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
-      if (!customerQuickSearch) return;
-      customerQuickSearch.value = `${customerQuickSearch.value || ""}${e.key}`;
+      const quickInput = activeCustomerSearchInput();
+      if (!quickInput) return;
+      e.preventDefault();
+      quickInput.value = `${quickInput.value || ""}${e.key}`;
+      state.customerLetterFilter = "";
+      state.azLetters = [];
+      updateAzBarActive([]);
       renderCustomerQuickPicker(customerResults?._allData || state.customers || []);
+      autoSelectCustomerDebounced();
       customerResults.hidden = false;
-      customerQuickSearch.focus();
-      customerQuickSearch.selectionStart = customerQuickSearch.value.length;
-      customerQuickSearch.selectionEnd = customerQuickSearch.value.length;
+      syncChatSearchResetButton();
+      if (!quickInput.hidden) {
+        quickInput.focus();
+        quickInput.selectionStart = quickInput.value.length;
+        quickInput.selectionEnd = quickInput.value.length;
+      }
     });
 
+    const handleCustomerSearchCommit = async (event) => {
+      if (event.key !== "Enter" && event.key !== "Tab") return;
+      const hasCandidate = Boolean(state.customerCandidateId) || Boolean(customerResults?._data?.length);
+      if (!hasCandidate) return;
+      event.preventDefault();
+      await selectCurrentCustomerCandidate({ focusQty: true });
+    };
+
+    if (customerSearch) {
+      customerSearch.addEventListener("keydown", handleCustomerSearchCommit);
+    }
+
     if (customerQuickSearch) {
-      customerQuickSearch.addEventListener("input", () => {
+      customerQuickSearch.addEventListener("input", (event) => {
+        state.customerLetterFilter = "";
+        state.azLetters = [];
+        updateAzBarActive([]);
         renderCustomerQuickPicker(customerResults?._allData || []);
+        if (keyboardDrivenInput(event)) {
+          autoSelectCustomerDebounced();
+        }
+        syncChatSearchResetButton();
       });
-      customerQuickSearch.addEventListener("keydown", async (event) => {
-        if (event.key !== "Enter" && event.key !== "Tab") return;
-        const hasCandidate = Boolean(state.customerCandidateId) || Boolean(customerResults?._data?.length);
-        if (!hasCandidate) return;
-        event.preventDefault();
-        await selectCurrentCustomerCandidate({ focusQty: true });
-      });
+      customerQuickSearch.addEventListener("keydown", handleCustomerSearchCommit);
     }
 
     if (customerProvinceFilter) {
@@ -2442,10 +3023,44 @@ ${state.customer.email || ""}${
       });
     }
 
+    if (resetSearchBtn) {
+      resetSearchBtn.addEventListener("click", () => {
+        resetCustomerSearch({ focus: true });
+        syncChatSearchResetButton();
+      });
+    }
+
+    if (chatSearchResetBtn) {
+      chatSearchResetBtn.addEventListener("click", () => {
+        resetCustomerSearch({ focus: true });
+        syncChatSearchResetButton();
+      });
+    }
+
     if (customerCreateToggle) {
       customerCreateToggle.addEventListener("click", () => {
         const isHidden = customerCreatePanel?.hidden !== false;
         setCustomerCreateVisible(isHidden);
+      });
+    }
+
+    if (customerSegmentFilters) {
+      customerSegmentFilters.addEventListener("click", async (event) => {
+        const button = event.target instanceof HTMLElement ? event.target.closest("button[data-segment]") : null;
+        if (!button) return;
+        const nextSegment = normalizeCustomerSegmentFilter(button.dataset.segment || "");
+        if (state.loadingCustomers) return;
+        state.customerSegment = nextSegment;
+        state.customerLetterFilter = "";
+        state.azLetters = [];
+        state.customerCandidateId = null;
+        if (customerSearch) customerSearch.value = "";
+        if (customerQuickSearch) customerQuickSearch.value = "";
+        if (customerProvinceFilter) customerProvinceFilter.value = "";
+        updateAzBarActive([]);
+        renderCustomerSegmentFilters();
+        await searchCustomersNow();
+        syncChatSearchResetButton();
       });
     }
 
@@ -2456,6 +3071,10 @@ ${state.customer.email || ""}${
         if (target.id === "flocs-invoice-po" && target instanceof HTMLInputElement) {
           state.po = target.value || "";
           validate();
+          return;
+        }
+        if (target.id === "flocs-invoice-delivery-date" && target instanceof HTMLInputElement) {
+          state.deliveryDate = target.value || "";
           return;
         }
         if (target.id === "flocs-invoice-tags" && target instanceof HTMLInputElement) {
@@ -2470,6 +3089,11 @@ ${state.customer.email || ""}${
           state.po = target.value || "";
           renderInvoice();
           validate();
+          return;
+        }
+        if (target.id === "flocs-invoice-delivery-date" && target instanceof HTMLInputElement) {
+          state.deliveryDate = target.value || "";
+          renderInvoice();
           return;
         }
         if (target.id === "flocs-invoice-shipAddress" && target instanceof HTMLSelectElement) {
@@ -2488,6 +3112,11 @@ ${state.customer.email || ""}${
           renderInvoice();
           validate();
         }
+      });
+      invoice.addEventListener("click", (event) => {
+        const target = event.target instanceof HTMLElement ? event.target.closest("#flocs-invoice-quoteNow") : null;
+        if (!target) return;
+        requestShippingQuote();
       });
     }
 
@@ -2653,6 +3282,13 @@ ${state.customer.email || ""}${
       });
     }
 
+    if (quickQtyToggleBtn) {
+      quickQtyToggleBtn.addEventListener("click", () => {
+        state.showQuickQtyButtons = !state.showQuickQtyButtons;
+        renderProductsTable();
+      });
+    }
+
     if (bulkColumnsToggle) {
       bulkColumnsToggle.addEventListener("change", () => {
         state.showBulkColumns = Boolean(bulkColumnsToggle.checked);
@@ -2660,7 +3296,7 @@ ${state.customer.email || ""}${
       });
     }
 
-    if (azBar && customerSearch) {
+    if (azBar) {
       azBar.addEventListener("click", (e) => {
         const btn = e.target.closest("[data-letter]");
         if (!btn) return;
@@ -2668,31 +3304,15 @@ ${state.customer.email || ""}${
           .toUpperCase()
           .trim();
         if (!letter) return;
-        const currentValue = customerSearch.value || "";
-        let currentLetters =
-          state.azLetters && state.azLetters.length
-            ? [...state.azLetters]
-            : normalizeAzLetters(currentValue);
-        const normalizedValue = normalizeAzLetters(currentValue);
-        let nextLetters = [];
-
-        const maxLetters = 4;
-        if (
-          currentLetters.length === 1 &&
-          currentLetters[0] === letter &&
-          normalizedValue.length === 1
-        ) {
-          nextLetters = [];
-        } else if (currentLetters.length < maxLetters) {
-          nextLetters = [...currentLetters, letter];
-        } else {
-          nextLetters = [...currentLetters.slice(1), letter];
-        }
-
-        state.azLetters = nextLetters;
-        customerSearch.value = nextLetters.join("");
-        updateAzBarActive(nextLetters);
-        searchCustomersNow();
+        const current = String(state.customerLetterFilter || "").toUpperCase();
+        const nextLetter = current === letter ? "" : letter;
+        state.customerLetterFilter = nextLetter;
+        state.azLetters = nextLetter ? [nextLetter] : [];
+        if (customerSearch) customerSearch.value = "";
+        if (customerQuickSearch) customerQuickSearch.value = "";
+        updateAzBarActive(state.azLetters);
+        renderCustomerQuickPicker(customerResults?._allData || state.customers || []);
+        syncChatSearchResetButton();
       });
     }
 
@@ -2723,8 +3343,11 @@ ${state.customer.email || ""}${
 
   // ===== BOOT =====
   async function boot() {
+    renderCustomerSegmentFilters();
     renderProductsTable();
     resetForm();
+    await loadUiConfig();
+    await initCustomerAddressAutocomplete();
     hydratePriceTiersForProducts(state.products);
     initEvents();
     await preloadCustomers();

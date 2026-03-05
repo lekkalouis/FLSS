@@ -26,6 +26,9 @@ import {
 } from "../services/pricingResolver.js";
 
 const router = Router();
+const LIVE_ORDER_LOCATION_ID = 67495329839;
+const ORDER_STATUS_TAG_PREFIX = "stat:";
+const ORDER_STATUS_TAG_DEFAULT = `${ORDER_STATUS_TAG_PREFIX}new`;
 
 function normalizeTagList(tags) {
   if (!tags) return [];
@@ -39,6 +42,34 @@ function normalizeTagList(tags) {
       .filter(Boolean);
   }
   return [];
+}
+
+function dedupeTagsCaseInsensitive(tags = []) {
+  const seen = new Set();
+  const deduped = [];
+  tags.forEach((tag) => {
+    const cleaned = String(tag || "").trim();
+    if (!cleaned) return;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    deduped.push(cleaned);
+  });
+  return deduped;
+}
+
+function isOrderStatusTag(tag) {
+  return String(tag || "")
+    .trim()
+    .toLowerCase()
+    .startsWith(ORDER_STATUS_TAG_PREFIX);
+}
+
+function upsertOrderStatusTag(tags = [], statusTag = ORDER_STATUS_TAG_DEFAULT) {
+  const withoutStatus = dedupeTagsCaseInsensitive(tags).filter((tag) => !isOrderStatusTag(tag));
+  const desired = String(statusTag || "").trim();
+  if (desired) withoutStatus.push(desired);
+  return dedupeTagsCaseInsensitive(withoutStatus);
 }
 
 function normalizeOrderAddress(address) {
@@ -301,10 +332,20 @@ async function appendOrderTag(base, orderId, tagToApply) {
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
-  if (!existingTags.includes(tagToApply)) existingTags.push(tagToApply);
+  const normalizedTag = String(tagToApply || "").trim();
+  let updatedTags = isOrderStatusTag(normalizedTag)
+    ? upsertOrderStatusTag(existingTags, normalizedTag)
+    : (() => {
+        const next = [...existingTags];
+        if (!next.map((tag) => tag.toLowerCase()).includes(normalizedTag.toLowerCase())) next.push(normalizedTag);
+        return dedupeTagsCaseInsensitive(next);
+      })();
+  if (normalizedTag.toLowerCase() === "delivery_prepared") {
+    updatedTags = upsertOrderStatusTag(updatedTags, "stat:prepared");
+  }
   const updateResp = await shopifyFetch(`${base}/orders/${orderId}.json`, {
     method: "PUT",
-    body: JSON.stringify({ order: { id: orderId, tags: existingTags.join(", ") } })
+    body: JSON.stringify({ order: { id: orderId, tags: updatedTags.join(", ") } })
   });
   if (!updateResp.ok) {
     const body = await updateResp.text();
@@ -315,7 +356,7 @@ async function appendOrderTag(base, orderId, tagToApply) {
       body
     };
   }
-  return { ok: true, tags: existingTags };
+  return { ok: true, tags: updatedTags };
 }
 
 async function fulfillOrderByOrderId(base, orderId, message = "Collected at dispatch station.") {
@@ -363,6 +404,14 @@ const ORDER_PARCEL_KEY = "parcel_count";
 const CUSTOMER_META_NAMESPACE = "custom";
 const CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY = "payment-before-delivery";
 const CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY = "payment_before_delivery";
+const CUSTOMER_PAYMENT_BEFORE_SHIPPING_KEY = "payment-before-shipping";
+const CUSTOMER_PAYMENT_BEFORE_SHIPPING_FALLBACK_KEY = "payment_before_shipping";
+const CUSTOMER_PAYMENT_BEFORE_SHIPPING_KEYS = [
+  CUSTOMER_PAYMENT_BEFORE_SHIPPING_KEY,
+  CUSTOMER_PAYMENT_BEFORE_SHIPPING_FALLBACK_KEY,
+  CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY,
+  CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY
+];
 const ORDER_PARCEL_CACHE_TTL_MS = 2 * 60 * 1000;
 const ORDER_PARCEL_REST_FALLBACK_CAP = 20;
 const SEARCH_TIER_ENRICHMENT_CAP = 80;
@@ -414,19 +463,22 @@ function normalizeCustomerMetafields(metafields = []) {
   const getValue = (key) =>
     metafields.find((mf) => mf.namespace === CUSTOMER_META_NAMESPACE && mf.key === key)?.value || null;
   const getFirstValue = (keys = []) => keys.map((key) => getValue(key)).find((value) => value != null) || null;
+  const resolvedDeliveryMethod = getFirstValue(["delivery_method", "delivery_type"]);
+  const resolvedDeliveryType = getFirstValue(["delivery_type", "delivery_method"]);
+  const paymentBeforeShipping = getFirstValue(CUSTOMER_PAYMENT_BEFORE_SHIPPING_KEYS);
 
   return {
-    delivery_method: getValue("delivery_method"),
-    delivery_type: getValue("delivery_type"),
+    delivery_method: resolvedDeliveryMethod,
+    delivery_type: resolvedDeliveryType,
     tier: normalizeCustomerTier(getValue("tier")),
     delivery_instructions: getValue("delivery_instructions"),
     company_name: getValue("company_name"),
+    account_email: getValue("account_email"),
+    account_contact: getValue("account_contact"),
     vat_number: getValue("vat_number"),
     payment_terms: getValue("payment_terms"),
-    payment_before_delivery: getFirstValue([
-      CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY,
-      CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY
-    ])
+    payment_before_shipping: paymentBeforeShipping,
+    payment_before_delivery: paymentBeforeShipping
   };
 }
 
@@ -437,6 +489,12 @@ function parseBooleanLike(value) {
   if (["1", "true", "yes", "y", "on", "required"].includes(normalized)) return true;
   if (["0", "false", "no", "n", "off", "not_required"].includes(normalized)) return false;
   return null;
+}
+
+function normalizeEmailValue(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized || !normalized.includes("@")) return null;
+  return normalized;
 }
 
 async function fetchCustomerPaymentBeforeDeliveryMap(base, customerIds = []) {
@@ -454,7 +512,7 @@ async function fetchCustomerPaymentBeforeDeliveryMap(base, customerIds = []) {
         const paymentBeforeDelivery = metafields.find(
           (mf) =>
             mf?.namespace === CUSTOMER_META_NAMESPACE &&
-            [CUSTOMER_PAYMENT_BEFORE_DELIVERY_KEY, CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY].includes(mf?.key)
+            CUSTOMER_PAYMENT_BEFORE_SHIPPING_KEYS.includes(mf?.key)
         );
         map.set(String(customerId), parseBooleanLike(paymentBeforeDelivery?.value));
       } catch {
@@ -480,25 +538,45 @@ async function fetchCustomerCustomMetafields(base, customerId) {
 async function ensureCustomerDeliveryType(base, customerId, deliveryType, currentMetafields = null) {
   const normalized = String(deliveryType || "").trim().toLowerCase();
   if (!customerId || !normalized) return;
-  const allowed = ["shipping", "pickup", "delivery", "local"];
+  const allowed = ["shipping", "free_shipping", "pickup", "delivery", "local"];
   if (!allowed.includes(normalized)) return;
 
   const current = currentMetafields || (await fetchCustomerCustomMetafields(base, customerId));
   const existingDeliveryType = String(current?.delivery_type || "").trim();
   const existingDeliveryMethod = String(current?.delivery_method || "").trim();
-  if (existingDeliveryType || existingDeliveryMethod) return;
-
-  await shopifyFetch(`${base}/customers/${customerId}/metafields.json`, {
-    method: "POST",
-    body: JSON.stringify({
-      metafield: {
-        namespace: CUSTOMER_META_NAMESPACE,
-        key: "delivery_type",
-        type: "single_line_text_field",
-        value: normalized
-      }
-    })
-  });
+  const upserts = [];
+  if (!existingDeliveryMethod) {
+    upserts.push(
+      shopifyFetch(`${base}/customers/${customerId}/metafields.json`, {
+        method: "POST",
+        body: JSON.stringify({
+          metafield: {
+            namespace: CUSTOMER_META_NAMESPACE,
+            key: "delivery_method",
+            type: "single_line_text_field",
+            value: normalized
+          }
+        })
+      })
+    );
+  }
+  if (!existingDeliveryType) {
+    upserts.push(
+      shopifyFetch(`${base}/customers/${customerId}/metafields.json`, {
+        method: "POST",
+        body: JSON.stringify({
+          metafield: {
+            namespace: CUSTOMER_META_NAMESPACE,
+            key: "delivery_type",
+            type: "single_line_text_field",
+            value: normalized
+          }
+        })
+      })
+    );
+  }
+  if (!upserts.length) return;
+  await Promise.all(upserts);
 }
 
 function buildWholesaleDiscount(lineItems = [], tier = "") {
@@ -584,7 +662,7 @@ async function resolveDraftLineTargetPrice({ lineItem, tier, retailPriceMap }) {
   return { targetPrice: basePrice ?? fallbackRetail ?? 0, basePrice: basePrice ?? fallbackRetail ?? 0, ruleMatched: 'base_price_fallback' };
 }
 
-function buildOrderTags({ shippingMethod, customerTags }) {
+function buildOrderTags({ shippingMethod, customerTags, extraTags }) {
   const orderTags = ["FLSS", "Wholesale"];
   if (shippingMethod && shippingMethod !== "shipping") {
     orderTags.push(`delivery_${shippingMethod}`);
@@ -598,7 +676,13 @@ function buildOrderTags({ shippingMethod, customerTags }) {
   ["agent", "retail", "retailer", "private", "fkb"].forEach((tag) => {
     if (normalizedCustomerTags.includes(tag)) orderTags.push(tag);
   });
-  return Array.from(new Set(orderTags));
+  const normalizedExtraTags = normalizeTagList(extraTags);
+  const statusTagFromExtra = normalizedExtraTags.filter((tag) => isOrderStatusTag(tag)).slice(-1)[0] || null;
+  normalizedExtraTags
+    .filter((tag) => !isOrderStatusTag(tag))
+    .forEach((tag) => orderTags.push(tag));
+  const deduped = dedupeTagsCaseInsensitive(orderTags);
+  return upsertOrderStatusTag(deduped, statusTagFromExtra || ORDER_STATUS_TAG_DEFAULT);
 }
 
 function selectOrderParcelMetafield(metafields = []) {
@@ -861,8 +945,13 @@ function normalizeCustomer(customer, metafields = {}, options = {}) {
     tier: normalizeCustomerTier(metafields.tier),
     deliveryInstructions: metafields.delivery_instructions || null,
     companyName: metafields.company_name || null,
+    accountEmail: metafields.account_email || null,
+    accountContact: metafields.account_contact || null,
     vatNumber: metafields.vat_number || null,
     paymentTerms: metafields.payment_terms || null,
+    paymentBeforeShippingRequired: parseBooleanLike(
+      metafields.payment_before_shipping ?? metafields.payment_before_delivery
+    ),
     customFieldsLoaded: Boolean(options.customFieldsLoaded)
   };
 }
@@ -960,8 +1049,23 @@ router.get("/shopify/customers/recent", async (req, res) => {
 
     const limit = Math.min(Math.max(Number(req.query.limit || 100), 1), 250);
     const pageInfo = String(req.query.pageInfo || "").trim();
+    const segment = String(req.query.segment || "").trim().toLowerCase();
+    const segmentQueryMap = {
+      agent: "tag:agent",
+      retail: "tag:retail OR tag:retailer",
+      export: "tag:export"
+    };
+    const segmentQuery = segmentQueryMap[segment] || "";
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const url = pageInfo
+    const url = segmentQuery
+      ? pageInfo
+        ? `${base}/customers/search.json?limit=${limit}&page_info=${encodeURIComponent(pageInfo)}` +
+          `&fields=id,first_name,last_name,email,phone,addresses,default_address,tags,orders_count`
+        : `${base}/customers/search.json?limit=${limit}` +
+          `&query=${encodeURIComponent(segmentQuery)}` +
+          `&order=orders_count desc` +
+          `&fields=id,first_name,last_name,email,phone,addresses,default_address,tags,orders_count`
+      : pageInfo
       ? `${base}/customers.json?limit=${limit}&page_info=${encodeURIComponent(pageInfo)}` +
         `&fields=id,first_name,last_name,email,phone,addresses,default_address,tags,orders_count`
       : `${base}/customers.json?limit=${limit}` +
@@ -1077,6 +1181,7 @@ router.post("/shopify/customers", async (req, res) => {
       tier,
       vatNumber,
       paymentTerms,
+      paymentBeforeShippingRequired,
       deliveryInstructions,
       deliveryMethod,
       address
@@ -1088,6 +1193,8 @@ router.post("/shopify/customers", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+    const normalizedAccountEmail = normalizeEmailValue(accountEmail);
+    const normalizedAccountContact = String(accountContact || "").trim() || null;
     const metafields = [];
     if (deliveryMethod) {
       metafields.push({
@@ -1113,20 +1220,20 @@ router.post("/shopify/customers", async (req, res) => {
         value: company
       });
     }
-    if (accountEmail) {
+    if (normalizedAccountEmail) {
       metafields.push({
         namespace: "custom",
         key: "account_email",
         type: "single_line_text_field",
-        value: String(accountEmail)
+        value: normalizedAccountEmail
       });
     }
-    if (accountContact) {
+    if (normalizedAccountContact) {
       metafields.push({
         namespace: "custom",
         key: "account_contact",
         type: "single_line_text_field",
-        value: String(accountContact)
+        value: normalizedAccountContact
       });
     }
     if (tier) {
@@ -1151,6 +1258,17 @@ router.post("/shopify/customers", async (req, res) => {
         key: "payment_terms",
         type: "single_line_text_field",
         value: String(paymentTerms)
+      });
+    }
+    const paymentBeforeShipping = parseBooleanLike(paymentBeforeShippingRequired);
+    if (paymentBeforeShipping != null) {
+      CUSTOMER_PAYMENT_BEFORE_SHIPPING_KEYS.forEach((key) => {
+        metafields.push({
+          namespace: "custom",
+          key,
+          type: "single_line_text_field",
+          value: paymentBeforeShipping ? "true" : "false"
+        });
       });
     }
 
@@ -1209,8 +1327,12 @@ router.post("/shopify/customers", async (req, res) => {
         delivery_method: deliveryMethod || null,
         delivery_instructions: deliveryInstructions || null,
         company_name: company || null,
+        account_email: normalizedAccountEmail,
+        account_contact: normalizedAccountContact,
         vat_number: vatNumber || null,
         payment_terms: paymentTerms || null,
+        payment_before_shipping: paymentBeforeShipping == null ? null : paymentBeforeShipping,
+        payment_before_delivery: paymentBeforeShipping == null ? null : paymentBeforeShipping,
         tier: tier || null
       },
       { customFieldsLoaded: true }
@@ -1740,7 +1862,10 @@ router.post("/shopify/draft-orders", async (req, res) => {
       shippingService,
       estimatedParcels,
       deliveryDate,
-      customerTags
+      invoiceEmail,
+      customerTags,
+      orderTags: requestOrderTags,
+      tags: requestTags
     } = req.body || {};
 
     if (!customerId) {
@@ -1752,6 +1877,7 @@ router.post("/shopify/draft-orders", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
+    const resolvedInvoiceEmail = normalizeEmailValue(invoiceEmail || customerMetafields?.account_email || null);
     const tierResolution = resolveCustomerTier({
       customerTier: customerMetafields?.tier || priceTier,
       customerTags: normalizeTagList(customerTags),
@@ -1854,11 +1980,16 @@ router.post("/shopify/draft-orders", async (req, res) => {
       }))
     });
 
+    const extraOrderTags = [
+      ...normalizeTagList(requestOrderTags),
+      ...normalizeTagList(requestTags)
+    ];
     const orderTags = buildOrderTags({
       shippingMethod,
-      customerTags
+      customerTags,
+      extraTags: extraOrderTags
     });
-    if (tier) orderTags.push(tier);
+    const mergedOrderTags = dedupeTagsCaseInsensitive(orderTags);
 
     const draftMetafields = [];
     if (deliveryDate) {
@@ -1883,6 +2014,17 @@ router.post("/shopify/draft-orders", async (req, res) => {
         key: "payment_terms",
         type: "single_line_text_field",
         value: String(customerMetafields.payment_terms)
+      });
+    }
+    const paymentBeforeShippingRequired = parseBooleanLike(
+      customerMetafields?.payment_before_shipping ?? customerMetafields?.payment_before_delivery
+    );
+    if (paymentBeforeShippingRequired != null) {
+      draftMetafields.push({
+        namespace: "custom",
+        key: CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY,
+        type: "single_line_text_field",
+        value: paymentBeforeShippingRequired ? "true" : "false"
       });
     }
     const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
@@ -1913,8 +2055,9 @@ router.post("/shopify/draft-orders", async (req, res) => {
     const payload = {
       draft_order: {
         customer: customerId ? { id: customerId } : undefined,
+        email: resolvedInvoiceEmail || undefined,
         line_items: resolvedLines,
-        tags: orderTags.join(", "),
+        tags: mergedOrderTags.join(", "),
         note: poNumber ? `PO: ${poNumber}` : undefined,
         billing_address: normalizeOrderAddress(billingAddress),
         shipping_address: normalizeOrderAddress(shippingAddress),
@@ -2328,10 +2471,13 @@ router.post("/shopify/orders", async (req, res) => {
       vatNumber,
       companyName,
       paymentTerms,
+      invoiceEmail,
       billingAddress,
       shippingAddress,
       lineItems,
-      customerTags
+      customerTags,
+      orderTags: requestOrderTags,
+      tags: requestTags
     } = req.body || {};
 
     if (!customerId) {
@@ -2343,6 +2489,7 @@ router.post("/shopify/orders", async (req, res) => {
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
     const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
+    const resolvedInvoiceEmail = normalizeEmailValue(invoiceEmail || customerMetafields?.account_email || null);
     const tierResolution = resolveCustomerTier({
       customerTier: customerMetafields?.tier || null,
       customerTags: normalizeTagList(customerTags),
@@ -2396,6 +2543,17 @@ router.post("/shopify/orders", async (req, res) => {
         value: String(resolvedPaymentTerms)
       });
     }
+    const paymentBeforeShippingRequired = parseBooleanLike(
+      customerMetafields?.payment_before_shipping ?? customerMetafields?.payment_before_delivery
+    );
+    if (paymentBeforeShippingRequired != null) {
+      metafields.push({
+        namespace: "custom",
+        key: CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY,
+        type: "single_line_text_field",
+        value: paymentBeforeShippingRequired ? "true" : "false"
+      });
+    }
     const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
     if (Number.isFinite(shippingAmount)) {
       metafields.push({
@@ -2424,6 +2582,7 @@ router.post("/shopify/orders", async (req, res) => {
     const orderPayload = {
       order: {
         customer: { id: customerId },
+        email: resolvedInvoiceEmail || undefined,
         note: noteParts.join(" | "),
         line_items: lineItems.map((li) => {
           const entry = {
@@ -2451,17 +2610,23 @@ router.post("/shopify/orders", async (req, res) => {
           { name: "source", value: "FLSS" }
         ],
         metafields: metafields.length ? metafields : undefined,
-        financial_status: "pending"
+        financial_status: "pending",
+        location_id: LIVE_ORDER_LOCATION_ID
       }
     };
 
+    const extraOrderTags = [
+      ...normalizeTagList(requestOrderTags),
+      ...normalizeTagList(requestTags)
+    ];
     const orderTags = buildOrderTags({
       shippingMethod,
-      customerTags
+      customerTags,
+      extraTags: extraOrderTags
     });
-    if (tier) orderTags.push(tier);
-    if (orderTags.length) {
-      orderPayload.order.tags = orderTags.join(", ");
+    const mergedOrderTags = dedupeTagsCaseInsensitive(orderTags);
+    if (mergedOrderTags.length) {
+      orderPayload.order.tags = mergedOrderTags.join(", ");
     }
 
     const shippingLine = buildShippingLine({
@@ -2495,12 +2660,16 @@ router.post("/shopify/orders", async (req, res) => {
     }
 
     const order = data.order || {};
+    const adminUrl = order.id
+      ? `https://${config.SHOPIFY_STORE}.myshopify.com/admin/orders/${order.id}`
+      : null;
     return res.json({
       ok: true,
       order: {
         id: order.id,
         name: order.name,
-        orderNumber: order.order_number
+        orderNumber: order.order_number,
+        adminUrl
       }
     });
   } catch (err) {
@@ -2995,46 +3164,17 @@ router.post("/shopify/orders/run-flow", async (req, res) => {
     if (!tagToApply) return badRequest(res, "Missing flow tag");
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const orderResp = await shopifyFetch(`${base}/orders/${orderId}.json?fields=id,tags`, {
-      method: "GET"
-    });
-    if (!orderResp.ok) {
-      const body = await orderResp.text();
-      return res.status(orderResp.status).json({
+    const result = await appendOrderTag(base, orderId, tagToApply);
+    if (!result.ok) {
+      return res.status(result.status || 502).json({
         error: "SHOPIFY_UPSTREAM",
-        status: orderResp.status,
-        statusText: orderResp.statusText,
-        body
+        status: result.status || 502,
+        statusText: result.statusText || "Tag update failed",
+        body: result.body
       });
     }
 
-    const orderData = await orderResp.json();
-    const existingTags = String(orderData?.order?.tags || "")
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-
-    if (!existingTags.includes(tagToApply)) {
-      existingTags.push(tagToApply);
-    }
-
-    const tagString = existingTags.join(", ");
-    const updateResp = await shopifyFetch(`${base}/orders/${orderId}.json`, {
-      method: "PUT",
-      body: JSON.stringify({ order: { id: orderId, tags: tagString } })
-    });
-
-    if (!updateResp.ok) {
-      const body = await updateResp.text();
-      return res.status(updateResp.status).json({
-        error: "SHOPIFY_UPSTREAM",
-        status: updateResp.status,
-        statusText: updateResp.statusText,
-        body
-      });
-    }
-
-    return res.json({ ok: true, tag: tagToApply, tags: tagString });
+    return res.json({ ok: true, tag: tagToApply, tags: (result.tags || []).join(", ") });
   } catch (err) {
     console.error("Shopify run-flow error:", err);
     return res.status(502).json({
@@ -3906,7 +4046,9 @@ router.post("/shopify/orders/delivery-qr-payload", async (req, res) => {
     let confirmTarget;
     try {
       const baseUrl = new URL(resolvedConfirmBase);
-      baseUrl.pathname = "/deliver";
+      const basePath = String(baseUrl.pathname || "").replace(/\/+$/g, "");
+      const normalizedBasePath = basePath && basePath !== "/" ? basePath : "";
+      baseUrl.pathname = `${normalizedBasePath}/deliver`;
       baseUrl.search = "";
       baseUrl.hash = "";
       confirmTarget = `${baseUrl.toString()}?code=${encodeURIComponent(code)}`;

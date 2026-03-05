@@ -26,6 +26,12 @@
     --shadow-soft:0 18px 40px rgba(15,23,42,.08);
     --shadow-strong:0 24px 60px rgba(15,23,42,.12);
     --print-scale:1.0; /* safe inner scaling for printers that overscan */
+    --dispatch-sidebar-width:min(560px, 96vw);
+    --dispatch-sidebar-gap:.85rem;
+    --dispatch-lane-shipping-min:620px;
+    --dispatch-lane-delivery-min:360px;
+    --dispatch-lane-pickup-min:220px;
+    --dispatch-lane-pickup-max:300px;
   }
   *{box-sizing:border-box}
   body{
@@ -247,9 +253,27 @@
   }
   .flFooterNav{
     display:flex;
-    justify-content:flex-end;
+    align-items:flex-end;
+    justify-content:space-between;
+    flex-wrap:wrap;
     gap:.55rem;
     padding:0 1rem 1rem;
+  }
+  .flFooterLegend{
+    flex:1 1 460px;
+    min-width:260px;
+    max-width:760px;
+  }
+  .flFooterLegend .dispatchLegend{
+    margin:0;
+  }
+  .flFooterLinks{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:.55rem;
+    flex-wrap:wrap;
+    margin-left:auto;
   }
   .flAdminShell,
   .flChangelogShell{
@@ -1169,19 +1193,22 @@
   text-align:left;
   font-weight:700;
 }
-.dispatchMixFlavourTag{
-  display:inline-flex;
+.dispatchMixFlavourCell{
+  display:flex;
   align-items:center;
-  justify-content:center;
-  min-width:2.1rem;
-  padding:.16rem .42rem;
-  border-radius:999px;
-  border:1px solid color-mix(in srgb, var(--dispatch-flavour-color, #334155) 55%, #0f172a);
-  background:color-mix(in srgb, var(--dispatch-flavour-color, #334155) 18%, #ffffff);
-  color:#0f172a;
-  font-size:.62rem;
-  font-weight:800;
-  letter-spacing:.05em;
+  gap:.35rem;
+}
+.dispatchMixFlavourSwatch{
+  width:1.05rem;
+  min-width:1.05rem;
+  height:.48rem;
+}
+.dispatchMixFlavourLabel{
+  font-size:.6rem;
+  font-weight:700;
+  color:#334155;
+  text-transform:uppercase;
+  letter-spacing:.04em;
 }
 .dispatchMixCell--missing{
   color:#b91c1c;
@@ -1215,6 +1242,38 @@
   border-color:rgba(34,197,94,.55);
   background:rgba(34,197,94,.16);
   color:#065f46;
+}
+.dispatchSelectionBtn--select{
+  border-color:rgba(59,130,246,.35);
+  color:#1d4ed8;
+  background:rgba(59,130,246,.09);
+}
+.dispatchSelectionBtn--select.is-active{
+  border-color:rgba(16,185,129,.5);
+  color:#065f46;
+  background:rgba(16,185,129,.12);
+}
+.dispatchBoardToolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.55rem;
+  margin:.4rem 0 .5rem;
+  padding:.35rem .5rem;
+  border-radius:.55rem;
+  border:1px solid rgba(148,163,184,.24);
+  background:linear-gradient(120deg, rgba(239,246,255,.75), rgba(236,253,245,.78));
+}
+.dispatchBoardToolbarActions{
+  display:flex;
+  align-items:center;
+  gap:.35rem;
+  flex-wrap:wrap;
+}
+.dispatchBoardToolbarHint{
+  font-size:.66rem;
+  color:#475569;
+  font-weight:600;
 }
 .dispatchColHeader{
   display:flex;
@@ -1264,7 +1323,7 @@
   top:0;
   right:0;
   height:100vh;
-  width:min(420px, 96vw);
+  width:var(--dispatch-sidebar-width);
   z-index:1400;
   padding:.7rem .7rem .9rem;
   border-left:1px solid rgba(148,163,184,.35);
@@ -1287,8 +1346,8 @@
   font-size:.72rem;
   padding:.32rem .62rem;
   position:absolute;
-  left:-1.9rem;
-  top:.7rem;
+  right:.55rem;
+  top:.55rem;
   z-index:2;
   width:1.8rem;
   min-width:1.8rem;
@@ -1302,6 +1361,10 @@
 .dispatchSelectionSidebarToggle.is-drawer{
   font-size:.95rem;
   box-shadow:0 6px 14px rgba(37,99,235,.18);
+}
+.dispatchSelectionSidebar.is-closed .dispatchSelectionSidebarToggle{
+  left:.3rem;
+  right:auto;
 }
 .dispatchSelectionSidebarContent{
   display:flex;
@@ -1323,14 +1386,14 @@
   box-shadow:0 12px 26px rgba(15,23,42,.12);
 }
 @media (max-width:980px){
+  :root{
+    --dispatch-sidebar-width:min(560px, 100vw);
+  }
   .dispatchBoardLayout{
     grid-template-columns:minmax(0, 1fr);
   }
-  .dispatchSelectionSidebar{
-    width:min(420px, 100vw);
-  }
   .dispatchSelectionSidebarToggle{
-    left:.45rem;
+    right:.45rem;
     top:.45rem;
   }
   .dispatchSelectionSidebar.is-closed{
@@ -1338,8 +1401,14 @@
   }
 }
 body.dispatch-sidebar-open #dispatchBoardContainer{
-  margin-right:min(420px, 96vw);
+  margin-right:calc(var(--dispatch-sidebar-width) + var(--dispatch-sidebar-gap));
   transition:margin-right .24s ease;
+}
+body.dispatch-sidebar-open{
+  --dispatch-lane-shipping-min:560px;
+  --dispatch-lane-delivery-min:320px;
+  --dispatch-lane-pickup-min:200px;
+  --dispatch-lane-pickup-max:260px;
 }
 @media (max-width:980px){
   body.dispatch-sidebar-open #dispatchBoardContainer{
@@ -1517,14 +1586,24 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
 /* lanes across the screen */
 #dispatchBoardGrid {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(220px, 1fr);
-  gap: .75rem;
+  grid-template-columns:var(--dispatch-col-template, repeat(var(--dispatch-col-count, 4), minmax(0, 1fr)));
+  grid-auto-flow:row;
+  grid-auto-columns:minmax(0, 1fr);
+  align-items:start;
+  gap: .6rem;
   padding: .2rem;
   min-height: 65vh;
   background:var(--panel-muted);
-  overflow-x:auto;
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
   overflow-y:hidden;
+}
+#dispatchBoardGrid[data-main-layout="shipping-delivery"]{
+  grid-template-columns:minmax(0, 2fr) minmax(0, 1fr);
+}
+#dispatchBoardGrid[data-main-layout="single"]{
+  grid-template-columns:minmax(0, 1fr);
 }
 
 /* column headers */
@@ -2718,16 +2797,117 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
   overflow: visible;
   max-height: none;
   padding-right: 0;
+  display:flex;
+  flex-direction:column;
+  gap:.55rem;
 }
 
 /* lane separation */
 .dispatchCol {
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
+  background:#f8fafc;
   border-radius: 12px;
-  padding: 0.85rem;
+  padding: 0.72rem;
   border: 1px solid var(--panel-strong);
+  box-shadow:0 4px 10px rgba(15,23,42,.06);
+  min-width:0;
+  width:100%;
+}
+.dispatchCol[data-lane-id="shipping"]{
+  min-width:0;
+}
+.dispatchCol[data-lane-id="delivery"]{
+  min-width:0;
+}
+.dispatchCol[data-lane-id="pickup"]{
+  min-width:0;
+  max-width:none;
+}
+.dispatchCol[data-lane-id="pickup"] .dispatchCard{
+  padding:.55rem .58rem;
+}
+.dispatchColHeader{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:.35rem;
+  margin-bottom:.25rem;
+}
+.dispatchColHeaderMain{
+  display:flex;
+  align-items:center;
+  gap:.18rem;
+  min-width:0;
+}
+.dispatchColTitleIcon{
+  width:1.35rem;
+  height:1.35rem;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:color-mix(in srgb, var(--lane-accent) 16%, #ffffff);
+  color:var(--lane-accent);
+  border:1px solid color-mix(in srgb, var(--lane-accent) 50%, #e2e8f0);
+}
+.dispatchColTitle{
+  font-size:.71rem;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:#334155;
+  white-space:nowrap;
+}
+.dispatchSubLanes{
+  display:grid;
+  gap:.42rem;
+  grid-template-columns:repeat(var(--dispatch-sub-cols, 1), minmax(0, 1fr));
+  min-width:0;
+}
+.dispatchSubLanes--shipping{
+  overflow-x:auto;
+  overflow-y:hidden;
+  align-items:start;
+}
+.dispatchSubLane{
+  border:1px dashed rgba(148,163,184,.45);
+  border-radius:.62rem;
+  background:#fff;
+  padding:.38rem .42rem;
+  min-width:0;
+}
+.dispatchSubLaneHeader{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:.35rem;
+  margin-bottom:.25rem;
+  padding-bottom:.14rem;
+  border-bottom:1px dashed rgba(148,163,184,.35);
+}
+.dispatchSubLaneTitle{
+  font-size:.6rem;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:#334155;
+}
+.dispatchSubLaneCount{
+  margin-left:auto;
+  font-size:.62rem;
+  font-weight:800;
+  color:#64748b;
+}
+.dispatchSubLaneBody{
+  display:flex;
+  flex-direction:column;
+  gap:.5rem;
+  min-width:0;
+}
+.dispatchSubLaneBody .dispatchCard{
+  min-width:0;
+  max-width:100%;
 }
 
 .dispatchBoardEmpty {
@@ -2828,26 +3008,26 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
   display:none;
 }
 .dispatchLegend{
-  margin:.2rem 0 .7rem;
-  padding:.5rem .6rem;
+  margin:.15rem 0 .45rem;
+  padding:.34rem .45rem;
   border:1px solid rgba(148,163,184,.35);
-  border-radius:.65rem;
+  border-radius:.55rem;
   background:#f8fafc;
   display:flex;
   flex-direction:column;
-  gap:.45rem;
-  text-align:center;
+  gap:.3rem;
+  text-align:left;
 }
 .dispatchLegendHeader{
   display:flex;
   align-items:center;
-  justify-content:center;
-  gap:.5rem;
+  justify-content:space-between;
+  gap:.35rem;
 }
 .dispatchLegendTitle{
-  font-size:.7rem;
+  font-size:.62rem;
   font-weight:800;
-  letter-spacing:.06em;
+  letter-spacing:.05em;
   text-transform:uppercase;
   color:#475569;
 }
@@ -2855,11 +3035,11 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
   border:1px solid rgba(148,163,184,.5);
   background:#fff;
   color:#334155;
-  border-radius:.45rem;
-  font-size:.64rem;
+  border-radius:.4rem;
+  font-size:.58rem;
   font-weight:700;
-  padding:.15rem .45rem;
-  line-height:1.3;
+  padding:.1rem .34rem;
+  line-height:1.15;
 }
 .dispatchLegendToggle:hover{
   border-color:rgba(99,102,241,.45);
@@ -2868,47 +3048,49 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
 .dispatchLegendBody{
   display:flex;
   flex-direction:column;
-  gap:.45rem;
-  align-items:center;
+  gap:.22rem;
+  align-items:stretch;
 }
 .dispatchLegend.is-collapsed .dispatchLegendBody{
   display:none;
 }
 .dispatchLegendRow{
   display:flex;
-  flex-direction:column;
+  flex-direction:row;
   flex-wrap:nowrap;
   align-items:center;
-  justify-content:center;
-  gap:.45rem .7rem;
+  justify-content:flex-start;
+  gap:.3rem .45rem;
 }
 .dispatchLegendLabel{
-  font-size:.62rem;
+  font-size:.56rem;
   font-weight:800;
-  letter-spacing:.05em;
+  letter-spacing:.04em;
   text-transform:uppercase;
   color:#475569;
-  min-width:auto;
-  text-align:center;
+  min-width:4.3rem;
+  text-align:left;
+  line-height:1.1;
 }
 .dispatchLegendItems{
   display:flex;
   flex-wrap:wrap;
-  justify-content:center;
-  gap:.35rem .6rem;
+  justify-content:flex-start;
+  gap:.22rem .4rem;
 }
 .dispatchLegendKey{
   display:inline-flex;
   align-items:center;
-  gap:.35rem;
-  font-size:.68rem;
+  gap:.24rem;
+  font-size:.6rem;
   color:#334155;
+  line-height:1.1;
 }
 .dispatchLegendDot{
   position:static;
-  width:.62rem;
-  height:.62rem;
-  flex:0 0 .62rem;
+  width:.5rem;
+  height:.5rem;
+  flex:0 0 .5rem;
 }
 .dispatchLegendFlavourTag{
   min-width:2.1rem;
@@ -2916,12 +3098,23 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
 }
 .dispatchLegendFlavourSwatch{
   display:inline-flex;
-  width:1.9rem;
-  height:.58rem;
+  width:1.35rem;
+  height:.42rem;
   border-radius:999px;
   border:1px solid var(--dispatch-flavour-color, #334155);
   background:var(--dispatch-flavour-color, #334155);
-  flex:0 0 1.9rem;
+  flex:0 0 1.35rem;
+}
+
+@media (max-width:760px){
+  .dispatchLegendRow{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:.2rem;
+  }
+  .dispatchLegendLabel{
+    min-width:0;
+  }
 }
 
   .dispatchStamp{
@@ -3029,13 +3222,48 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
   }
   @media (max-width:900px){
     #dispatchBoardGrid{
-      grid-template-columns:1fr;
+      grid-auto-flow:column;
+      grid-auto-columns:minmax(240px, 1fr);
+      grid-template-columns:repeat(var(--dispatch-col-count, 4), minmax(240px, 1fr));
       gap:.6rem;
-      overflow:visible;
+      width:100%;
+      overflow-x:auto;
+      overflow-y:hidden;
       min-height:auto;
+    }
+    #dispatchBoardContainer{
+      padding:.75rem;
+    }
+    .dispatchCol,
+    .dispatchCol[data-lane-id="shipping"],
+    .dispatchCol[data-lane-id="delivery"],
+    .dispatchCol[data-lane-id="pickup"]{
+      min-width:0;
+      max-width:none;
+      width:100%;
+    }
+    .dispatchCol{
+      padding:.58rem;
+    }
+    .dispatchColBody{
+      min-width:0;
     }
     .dispatchCol--mobile-hidden{
       display:none;
+    }
+    .dispatchBoardToolbar{
+      flex-direction:column;
+      align-items:stretch;
+    }
+    .dispatchBoardToolbarActions{
+      width:100%;
+    }
+    .dispatchBoardToolbarHint{
+      font-size:.64rem;
+    }
+    .dispatchSelectionOrderTable{
+      min-width:0;
+      font-size:.72rem;
     }
     .dispatchMobileControls{
       display:block;
@@ -3058,6 +3286,22 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
       justify-content:stretch;
       gap:.4rem;
     }
+    .dispatchCard{
+      padding:.55rem .58rem;
+    }
+    .dispatchParcelLabel{
+      font-size:.76rem;
+    }
+    .dispatchParcelAdjustBtn{
+      width:2rem;
+      height:2rem;
+    }
+    .dispatchParcelCountInput{
+      width:3.8rem;
+      min-height:2rem;
+      font-size:16px;
+      padding:.2rem .32rem;
+    }
     .dispatchCardActions > button,
     .dispatchCardActions > .dispatchDocsDropdown{
       flex:1 1 calc(50% - .2rem);
@@ -3065,7 +3309,17 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
     .dispatchCardActions .dispatchDocsDropdown .dispatchBoxBtn,
     .dispatchCardActions > button{
       width:100%;
-      min-height:38px;
+      min-height:42px;
+      font-size:.75rem;
+    }
+    .dispatchSubLanes,
+    .dispatchSubLanes--delivery{
+      grid-template-columns:1fr;
+    }
+    .dispatchSubLanes--shipping{
+      grid-template-columns:repeat(var(--dispatch-sub-cols, 1), minmax(240px, 1fr));
+      overflow-x:auto;
+      overflow-y:hidden;
     }
   }
   @media (max-width:760px){
@@ -3242,7 +3496,18 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
 
 
   .flHeaderMeta{display:flex;align-items:center;gap:.4rem;flex-wrap:nowrap;justify-content:flex-end;flex:0 1 auto;min-width:0;order:3;}
-  .flHeaderEnv{display:flex;gap:.55rem;align-items:flex-start;padding:.24rem .38rem;border-radius:.5rem;background:#f8fafc;border:1px solid rgba(148,163,184,.2);}
+  .flHeaderEnv{display:flex;flex-direction:column;gap:.3rem;align-items:stretch;padding:.24rem .38rem;border-radius:.5rem;background:#f8fafc;border:1px solid rgba(148,163,184,.2);}
+  .flHeaderEnvTop{display:flex;align-items:center;justify-content:space-between;gap:.4rem;min-width:0;}
+  .flHeaderEnvMetrics{display:flex;gap:.55rem;align-items:flex-start;min-width:0;}
+  .flHeaderEnvTop .flHeaderTruckButton{flex:0 0 auto;}
+  .flHeaderEnvConnections{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.3rem;
+    padding-top:.18rem;
+    border-top:1px dashed rgba(148,163,184,.35);
+  }
   .flHeaderTruck{display:flex;gap:.45rem;align-items:center;padding:.24rem .34rem;border-radius:.5rem;background:#f8fafc;border:1px solid rgba(148,163,184,.2);}
   .flHeaderTruckButton{
     border:1px solid rgba(220,38,38,.38);
@@ -3289,19 +3554,102 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
   .flHeaderMetricLabel{font-size:.64rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);font-weight:700;}
   .flHeaderMetricValue{font-size:.98rem;font-weight:800;color:var(--text-main);}
   .flHeaderMetricUnit{font-size:.72rem;font-weight:700;color:var(--text-muted);margin-left:.12rem;}
-  .dispatchSelectionOrderCards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.5rem;margin-top:.5rem;}
-  .dispatchSelectionOrderCard{border:1px solid rgba(148,163,184,.35);border-radius:.55rem;padding:.45rem .55rem;background:#fff;}
-  .dispatchSelectionOrderCardTitle{font-size:.72rem;color:var(--text-muted);}
-  .dispatchSelectionOrderCardValue{font-weight:700;font-size:.86rem;color:var(--text-main);}
+  .dispatchSelectionOrderTableWrap{
+    border:1px solid rgba(148,163,184,.3);
+    border-radius:.6rem;
+    background:#fff;
+    overflow-y:auto;
+    overflow-x:hidden;
+  }
+  .dispatchSelectionOrderTable{
+    width:100%;
+    border-collapse:collapse;
+    font-size:.67rem;
+    min-width:100%;
+    table-layout:fixed;
+  }
+  .dispatchSelectionOrderTable th,
+  .dispatchSelectionOrderTable td{
+    border-bottom:1px solid rgba(148,163,184,.18);
+    padding:.28rem .38rem;
+    text-align:left;
+    white-space:normal;
+    word-break:break-word;
+  }
+  .dispatchSelectionOrderTable thead th{
+    background:#f8fafc;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    font-size:.6rem;
+    color:#64748b;
+    font-weight:800;
+    position:sticky;
+    top:0;
+    z-index:1;
+  }
+  .dispatchSelectionOrderTable td:nth-last-child(-n+3),
+  .dispatchSelectionOrderTable th:nth-last-child(-n+3){
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+    word-break:normal;
+  }
+  .dispatchSelectionOrderTable th:nth-child(1),
+  .dispatchSelectionOrderTable td:nth-child(1){
+    width:6.2rem;
+    white-space:nowrap;
+  }
+  .dispatchSelectionOrderTable th:nth-child(2),
+  .dispatchSelectionOrderTable td:nth-child(2){
+    width:auto;
+  }
+  .dispatchSelectionOrderTable tfoot td{
+    font-weight:800;
+    background:#f8fafc;
+    border-top:1px solid rgba(148,163,184,.3);
+    border-bottom:none;
+  }
+  .dispatchSelectionOrderEmpty{
+    font-size:.72rem;
+    color:var(--text-muted);
+    padding:.55rem .65rem;
+  }
   .dispatchRecentSection{margin-top:.75rem;padding-top:.7rem;border-top:1px solid rgba(148,163,184,.35);}
   .dispatchRecentHeader{font-size:.76rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.45rem;}
-  .dispatchRecentList{display:grid;gap:.45rem;max-height:260px;overflow:auto;padding-right:.1rem;}
-  .dispatchRecentItem{border:1px solid rgba(148,163,184,.35);border-radius:.55rem;background:#fff;padding:.45rem .55rem;display:grid;gap:.2rem;}
-  .dispatchRecentItemTop{display:flex;justify-content:space-between;align-items:center;gap:.4rem;}
-  .dispatchRecentItemOrder{font-weight:700;font-size:.8rem;color:var(--text-main);}
-  .dispatchRecentItemTime{font-size:.68rem;color:var(--text-muted);}
-  .dispatchRecentItemCustomer{font-size:.72rem;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .dispatchRecentItemTracking{font-size:.68rem;color:var(--text-muted);}
+  .dispatchRecentLine{
+    display:grid;
+    grid-template-columns:minmax(92px, auto) minmax(0, 1fr) minmax(130px, auto) minmax(120px, auto);
+    align-items:center;
+    gap:.28rem .5rem;
+    padding:.24rem .1rem;
+    border-bottom:1px dashed rgba(148,163,184,.32);
+    font-size:.66rem;
+    line-height:1.2;
+  }
+  .dispatchRecentLine:last-child{
+    border-bottom:none;
+  }
+  .dispatchRecentLineOrder{
+    font-weight:700;
+    color:var(--text-main);
+  }
+  .dispatchRecentLineCustomer{
+    color:var(--text-main);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .dispatchRecentLineTracking{
+    color:var(--text-muted);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .dispatchRecentLineTime{
+    color:var(--text-muted);
+    text-align:right;
+    white-space:nowrap;
+  }
 .dispatchRecentEmpty{font-size:.72rem;color:var(--text-muted);}
 .dispatchFulfillmentControls{
   display:flex;
@@ -3309,9 +3657,11 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
   gap:.5rem;
   margin:.35rem 0 .65rem;
 }
-.dispatchFulfillmentControls .form-control,
-.dispatchFulfillmentControls .form-select{
+.dispatchFulfillmentControls .form-control{
   max-width:360px;
+  border-radius:.6rem;
+  border:1px solid rgba(148,163,184,.4);
+  box-shadow:0 8px 18px rgba(15,23,42,.06);
 }
 .dispatchFulfillmentBoard{
   display:grid;
@@ -3319,35 +3669,47 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
   gap:.75rem;
 }
 .dispatchFulfillmentLane{
-  border:1px solid rgba(148,163,184,.3);
+  border:1px solid var(--panel-strong);
   border-radius:.7rem;
   background:#fff;
   min-height:220px;
   display:flex;
   flex-direction:column;
+  box-shadow:0 4px 10px rgba(15,23,42,.06);
 }
 .dispatchFulfillmentLaneHeader{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:.4rem;
-  padding:.45rem .55rem;
+  padding:.5rem .55rem;
   border-bottom:1px solid rgba(148,163,184,.22);
-  font-size:.7rem;
+  font-size:.72rem;
   font-weight:800;
   text-transform:uppercase;
-  letter-spacing:.05em;
+  letter-spacing:.04em;
   color:#475569;
 }
 .dispatchFulfillmentLaneCount{
-  font-size:.66rem;
+  font-size:.62rem;
   font-weight:700;
-  color:#0f172a;
+  color:#64748b;
 }
 .dispatchFulfillmentLaneBody{
   display:grid;
   gap:.45rem;
   padding:.5rem;
+}
+@media (max-width:900px){
+  .dispatchRecentLine{
+    grid-template-columns:minmax(84px, auto) minmax(0, 1fr);
+    gap:.2rem .42rem;
+  }
+  .dispatchRecentLineTracking,
+  .dispatchRecentLineTime{
+    grid-column:1 / -1;
+    text-align:left;
+  }
 }
 @media (max-width:1100px){
   .dispatchFulfillmentBoard{ grid-template-columns:1fr; }
@@ -3400,6 +3762,7 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
     align-items:flex-start;
     justify-content:space-between;
     gap:.65rem;
+    position:relative;
   }
   .flHeaderBrand{
     display:flex;
@@ -3410,9 +3773,24 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
   .flHeaderTitleRow{
     display:flex;
     align-items:center;
-    gap:.6rem;
+    justify-content:space-between;
+    gap:.7rem;
+    width:100%;
     min-width:0;
-    flex-wrap:wrap;
+    flex-wrap:nowrap;
+  }
+  .flNavTitleWrap{
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+    min-width:0;
+  }
+  .flNavLogo{
+    display:block;
+    width:124px;
+    height:auto;
+    object-fit:contain;
+    flex:0 0 auto;
   }
   .flHeaderSub{
     font-size:.72rem;
@@ -3426,6 +3804,7 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
     color:#0f172a;
     letter-spacing:.01em;
     margin:0;
+    white-space:nowrap;
   }
   .flHeaderMeta{
     display:flex;
@@ -3435,11 +3814,22 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
     gap:.42rem;
     margin-left:auto;
   }
+  .flHeaderTop #navNewOrder{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%, -50%);
+    margin-right:0;
+    z-index:2;
+  }
   .flNavGroup--top{
     display:flex;
     align-items:center;
+    justify-content:flex-end;
     gap:.4rem;
     flex-wrap:wrap;
+    margin-left:auto;
+    min-width:0;
   }
   .flNavGroup--top .flNavBtn{
     border-radius:.62rem;
@@ -3456,8 +3846,7 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
   }
   .flHeaderEnv,
   .flHeaderTruck,
-  .flHeaderDateTime,
-  .flHeaderConnection{
+  .flHeaderDateTime{
     border:1px solid rgba(148,163,184,.22);
     border-radius:.7rem;
     background:rgba(248,250,252,.95);
@@ -3473,26 +3862,28 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
     font-size:.73rem;
     font-weight:700;
   }
-  .flHeaderConnection{
-    display:inline-flex;
-    align-items:center;
-    gap:.42rem;
-    padding:.24rem .36rem;
-  }
   .flHeaderConnectionLabel{
-    font-size:.62rem;
+    font-size:.56rem;
     text-transform:uppercase;
-    letter-spacing:.07em;
+    letter-spacing:.06em;
     color:#64748b;
     font-weight:800;
     line-height:1;
   }
-  .flHeaderConnection .statusBar{
+  .flHeaderEnvConnections .statusBar{
     margin:0;
     border:none;
     background:transparent;
     padding:0;
     min-height:auto;
+  }
+  .flHeaderEnvConnections .statusPillDot{
+    width:6px;
+    height:6px;
+    box-shadow:0 0 0 1px rgba(34,197,94,.32), 0 0 6px rgba(34,197,94,.38);
+  }
+  .flHeaderEnvConnections .statusPill--warn .statusPillDot{
+    box-shadow:0 0 0 1px rgba(245,158,11,.32), 0 0 6px rgba(245,158,11,.38);
   }
   .flScanStationHidden{
     display:none !important;
@@ -3563,6 +3954,9 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
     white-space:nowrap;
     box-shadow:0 10px 20px rgba(15,23,42,.2);
   }
+  .flNav--modern .flNavBtn--newOrder{
+    margin-right:2.5rem;
+  }
   .flNav--modern .flNavBtn--primary:hover{
     background:linear-gradient(120deg,#1e293b,#334155);
     border-color:#1e293b;
@@ -3570,8 +3964,16 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
   }
   @media (max-width:1200px){
     .flHeaderTop{
+      display:flex;
       flex-direction:column;
       align-items:stretch;
+    }
+    .flHeaderTop #navNewOrder{
+      position:static;
+      left:auto;
+      top:auto;
+      transform:none;
+      align-self:flex-start;
     }
     .flHeaderMeta{
       justify-content:flex-start;
@@ -3594,6 +3996,12 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
       align-items:stretch;
       gap:.35rem;
     }
+    .flNavTitleWrap{
+      justify-content:flex-start;
+    }
+    .flNavLogo{
+      width:108px;
+    }
     .flNavGroup--top{
       flex-wrap:nowrap;
       overflow:auto;
@@ -3605,10 +4013,13 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
       align-items:stretch;
       width:100%;
     }
+    .flHeaderTop #navNewOrder{
+      width:100%;
+      justify-content:center;
+    }
     .flHeaderEnv,
     .flHeaderTruck,
-    .flHeaderDateTime,
-    .flHeaderConnection{
+    .flHeaderDateTime{
       width:100%;
     }
     .flNav--modern .flNavGroup{
@@ -3623,6 +4034,22 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
     .flNav--modern .flNavBtn--primary{
       width:100%;
       justify-content:center;
+    }
+    .flNav--modern .flNavBtn--newOrder{
+      margin-right:0;
+    }
+    .flFooterNav{
+      align-items:stretch;
+    }
+    .flFooterLegend{
+      min-width:0;
+      max-width:none;
+      width:100%;
+    }
+    .flFooterLinks{
+      margin-left:0;
+      justify-content:flex-start;
+      width:100%;
     }
   }
 
@@ -3639,7 +4066,10 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
           <div class="flHeaderTop">
             <div class="flHeaderBrand">
               <div class="flHeaderTitleRow">
-                <div class="flNavTitle">Flippen Lekka Operations</div>
+                <div class="flNavTitleWrap">
+                  <img class="flNavLogo" src="/img/logo.png" alt="Flippen Lekka" loading="lazy" />
+                  <div class="flNavTitle">Operations</div>
+                </div>
                 <div class="flNavGroup flNavGroup--top" role="tablist" aria-label="Primary views">
                   <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true" data-route="/"><span class="flNavBtnText">Orders</span></button>
                   <button id="navFulfillment" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillment" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnText">Fulfillment</span></button>
@@ -3647,29 +4077,31 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                   <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
                 </div>
               </div>
-              <div class="flHeaderSub">Dispatch control, order capture, and fulfillment tracking</div>
             </div>
           <div class="flHeaderMeta">
-            <div id="dispatchEnvironmentSummary" class="flHeaderEnv"><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Temp</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span></span><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Humidity</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span></span></div>
-            <div id="dispatchTruckSummary" class="flHeaderTruck" aria-label="Truck and parcel summary">
-              <button id="dispatchTruckBookedMetric" class="flHeaderTruckButton" type="button" aria-label="Truck booking status" title="Booked status: Not booked">
-                <span id="dispatchTruckStatusIcon" class="flHeaderTruckIcon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M2.5 6.5h10v8h-10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M12.5 9.5h4.2l2.8 2.8v2.2h-7z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                    <circle cx="7" cy="16.8" r="1.7" fill="currentColor"/>
-                    <circle cx="17.4" cy="16.8" r="1.7" fill="currentColor"/>
-                  </svg>
-                </span>
-              </button>
-              <span class="flHeaderBoxGroup" aria-label="Parcel estimates and booked parcels">
-                <span class="flHeaderBoxCard" title="Estimated boxes">
-                  <span class="flHeaderTruckIcon" aria-hidden="true">📦</span>
-                  <span>
-                    <span class="flHeaderBoxLabel">Est</span>
-                    <span id="dispatchTruckParcelCount" class="flHeaderBoxValue">0</span>
+            <div class="flHeaderEnv" aria-label="Environment and connections">
+              <div class="flHeaderEnvTop">
+                <div id="dispatchEnvironmentSummary" class="flHeaderEnvMetrics"><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Temp</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span></span><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Humidity</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span></span></div>
+                <button id="dispatchTruckBookedMetric" class="flHeaderTruckButton" type="button" aria-label="Truck booking status" title="Booked status: Not booked">
+                  <span id="dispatchTruckStatusIcon" class="flHeaderTruckIcon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M2.5 6.5h10v8h-10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M12.5 9.5h4.2l2.8 2.8v2.2h-7z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                      <circle cx="7" cy="16.8" r="1.7" fill="currentColor"/>
+                      <circle cx="17.4" cy="16.8" r="1.7" fill="currentColor"/>
+                    </svg>
                   </span>
-                </span>
+                </button>
+              </div>
+              <div class="flHeaderEnvConnections">
+                <span class="flHeaderConnectionLabel">Connections</span>
+                <div id="serverStatusBar" class="statusBar statusBar--compact" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
+                  <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
+                </div>
+              </div>
+            </div>
+            <div id="dispatchTruckSummary" class="flHeaderTruck" aria-label="Booked parcel summary">
+              <span class="flHeaderBoxGroup" aria-label="Booked parcels">
                 <span class="flHeaderBoxCard" title="Booked boxes">
                   <span class="flHeaderTruckIcon" aria-hidden="true">📦</span>
                   <span>
@@ -3679,14 +4111,8 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                 </span>
               </span>
             </div>
-            <div id="dispatchDateTimeSummary" class="flHeaderDateTime">—</div>
-            <div class="flHeaderConnection">
-              <span class="flHeaderConnectionLabel">Connections</span>
-              <div id="serverStatusBar" class="statusBar" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
-                <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
-              </div>
-            </div>
-            <button id="navNewOrder" class="flNavBtn flNavBtn--primary" type="button" data-route="/flocs" aria-label="Create a new order">+ New Order</button>
+            <div id="dispatchDateTimeSummary" class="flHeaderDateTime">-</div>
+            <button id="navNewOrder" class="flNavBtn flNavBtn--primary flNavBtn--newOrder" type="button" data-route="/flocs" aria-label="Create a new order">+ New Order</button>
           </div>
           </div>
           <span id="dispatchEnvironmentStatus" class="visually-hidden">Waiting for sensor</span>
@@ -3713,22 +4139,13 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                 </div>
                 <div id="dispatchMobileLaneTabs" class="btn-group" role="tablist" aria-label="Filter dispatch lanes"></div>
               </div>
-              <section class="dispatchLegend" id="dispatchLegend" aria-label="Dispatch legend">
-                <div class="dispatchLegendHeader">
-                  <span class="dispatchLegendTitle">Legend</span>
-                  <button class="dispatchLegendToggle" id="dispatchLegendToggle" type="button" aria-expanded="true" aria-controls="dispatchLegendContent">Hide</button>
+              <div class="dispatchBoardToolbar" aria-label="Orders lane controls">
+                <div class="dispatchBoardToolbarActions">
+                  <button id="dispatchRefreshOrdersBtn" class="dispatchSelectionBtn" type="button" aria-label="Refresh open orders">Refresh orders</button>
+                  <button id="dispatchSelectModeBtn" class="dispatchSelectionBtn dispatchSelectionBtn--select" type="button" aria-pressed="false">Select orders</button>
                 </div>
-                <div class="dispatchLegendBody" id="dispatchLegendContent">
-                  <div class="dispatchLegendRow">
-                    <span class="dispatchLegendLabel">Card lights</span>
-                    <div id="dispatchLegendStatus" class="dispatchLegendItems"></div>
-                  </div>
-                  <div class="dispatchLegendRow">
-                    <span class="dispatchLegendLabel">Flavour bars</span>
-                    <div id="dispatchLegendFlavours" class="dispatchLegendItems"></div>
-                  </div>
-                </div>
-              </section>
+                <span class="dispatchBoardToolbarHint">Use select mode for multi-select and lane-level select all.</span>
+              </div>
               <div class="dispatchBoard" id="dispatchBoardGrid">
                 <div class="dispatchBoardEmpty">Loading open orders…</div>
               </div>
@@ -3741,7 +4158,7 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
               type="button"
               aria-expanded="true"
               aria-controls="dispatchSelectionSidebarContent">
-              <
+              x
             </button>
             <div class="dispatchSelectionSidebarContent" id="dispatchSelectionSidebarContent" aria-live="polite">
               <div class="dispatchSelectionFloat" id="dispatchSelectionFloat">
@@ -3754,13 +4171,7 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                     </div>
                   </div>
                   <div class="dispatchSelectionBody">
-                    <div class="dispatchSelectionMeta">
-                      <div>Total units: <strong id="dispatchSelectionUnits">0</strong></div>
-                      <div>Total est. parcels/boxes: <strong id="dispatchSelectionBoxes">0</strong></div>
-                      <div>Total weight: <strong id="dispatchSelectionWeight">—</strong></div>
-                      <div>Total est. time: <strong id="dispatchSelectionTime">—</strong></div>
-                    </div>
-                    <div id="dispatchSelectionOrderCards" class="dispatchSelectionOrderCards"></div>
+                    <div id="dispatchSelectionOrderCards" class="dispatchSelectionOrderTableWrap"></div>
                     <div id="dispatchSelectionMixes" class="dispatchSelectionMixes"></div>
                     <div class="dispatchSelectionBulkActions is-hidden" id="dispatchPrepareDeliveriesContainer">
                       <button id="dispatchPrepareDeliveries" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Prepare deliveries</button>
@@ -3823,12 +4234,6 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
             </div>
             <div class="dispatchFulfillmentControls" aria-label="Fulfillment filters">
               <input id="dispatchFulfillmentSearch" type="search" class="form-control form-control-sm" placeholder="Search order, customer, tracking, city" />
-              <select id="dispatchFulfillmentType" class="form-select form-select-sm">
-                <option value="">All types</option>
-                <option value="shipping">Shipping</option>
-                <option value="delivery">Delivery</option>
-                <option value="pickup">Pickup / Collection</option>
-              </select>
             </div>
             <section class="dispatchRecentSection dispatchRecentPanel" aria-label="Recently fulfilled orders">
               <div class="dispatchRecentHeader">Recently fulfilled orders</div>
@@ -3959,38 +4364,78 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
 
     <div class="flView" id="viewFlocs" hidden>
       <div class="flocs-shell" id="flocs-shell">
-          <header class="flocs-header">
-            <div class="flocs-titleBlock">
-              <div class="flocs-title">Order Capture</div>
-            </div>
-            <div class="flocs-headerActions">
-              <button id="flocs-createDraftBtn" class="flocs-actionBtn" type="button">
-                <span>📝</span>
-                <span>Create draft order</span>
-              </button>
-              <button id="flocs-createOrderBtn" class="flocs-actionBtn" type="button">
-                <span>✅</span>
-                <span>Create live order</span>
-              </button>
-            </div>
-          </header>
-
           <main class="flocs-layout">
-            <section class="flocs-panel form" id="flocs-formPanel">
+            <section class="flocs-panel flocs-customerDock" aria-label="Customer search and selection">
               <div class="flocs-formSection flocs-formSection--customer">
+                <div class="flocs-segmentFilters" id="flocs-customerSegmentFilters" role="group" aria-label="Customer segment filters">
+                  <div class="flocs-segmentFiltersPrimary">
+                    <button type="button" class="flocs-segmentBtn flocs-segmentBtn--primary" data-segment="agent">
+                      <span class="flocs-segmentIcon" aria-hidden="true">&#128100;</span><span>Agent</span>
+                    </button>
+                    <button type="button" class="flocs-segmentBtn flocs-segmentBtn--primary" data-segment="retail">
+                      <span class="flocs-segmentIcon" aria-hidden="true">&#128722;</span><span>Retail</span>
+                    </button>
+                    <button type="button" class="flocs-segmentBtn flocs-segmentBtn--primary" data-segment="export">
+                      <span class="flocs-segmentIcon" aria-hidden="true">&#9992;</span><span>Export</span>
+                    </button>
+                  </div>
+                  <div class="flocs-segmentFiltersChains">
+                    <button type="button" class="flocs-segmentBtn flocs-segmentBtn--chain" data-segment="chain_joeys" title="All Joey's stores" aria-label="All Joey's stores">
+                      <img class="flocs-chainLogo" src="/img/joeys.png" alt="" loading="lazy" />
+                      <span>Joey's</span>
+                    </button>
+                    <button type="button" class="flocs-segmentBtn flocs-segmentBtn--chain" data-segment="chain_boer_butcher" title="All Boer &amp; Butcher stores" aria-label="All Boer and Butcher stores">
+                      <img class="flocs-chainLogo" src="/img/boerandbutcher.png" alt="" loading="lazy" />
+                      <span>Boer &amp; Butcher</span>
+                    </button>
+                    <button type="button" class="flocs-segmentBtn flocs-segmentBtn--chain" data-segment="chain_spar" title="All SPAR stores" aria-label="All SPAR stores">
+                      <img class="flocs-chainLogo" src="/img/spar.png" alt="" loading="lazy" />
+                      <span>SPAR</span>
+                    </button>
+                    <button type="button" class="flocs-segmentBtn flocs-segmentBtn--chain" data-segment="chain_ok_foods" title="All OK Foods stores" aria-label="All OK Foods stores">
+                      <img class="flocs-chainLogo" src="/img/Ok.jpg" alt="" loading="lazy" />
+                      <span>OK Foods</span>
+                    </button>
+                    <button type="button" class="flocs-segmentBtn flocs-segmentBtn--chain" data-segment="chain_pick_n_pay" title="All Pick n Pay stores" aria-label="All Pick n Pay stores">
+                      <img class="flocs-chainLogo" src="/img/pnp.png" alt="" loading="lazy" />
+                      <span>Pick n Pay</span>
+                    </button>
+                    <button type="button" class="flocs-segmentBtn flocs-segmentBtn--chain" data-segment="chain_famous_kalahari" title="All Famous Kalahari Biltong stores" aria-label="All Famous Kalahari Biltong stores">
+                      <img class="flocs-chainLogo" src="/img/famouskalaharibiltong.png" alt="" loading="lazy" />
+                      <span>Famous Kalahari</span>
+                    </button>
+                    <button type="button" class="flocs-segmentBtn flocs-segmentBtn--chain" data-segment="chain_laeveld" title="All Laeveld Biltong stores" aria-label="All Laeveld Biltong stores">
+                      <img class="flocs-chainLogo" src="/img/laeveld%20biltong.jpg" alt="" loading="lazy" />
+                      <span>Laeveld Biltong</span>
+                    </button>
+                  </div>
+                </div>
                 <div class="flocs-azBar" id="flocs-azBar">
                   <button type="button" data-letter="A">A</button><button type="button" data-letter="B">B</button><button type="button" data-letter="C">C</button><button type="button" data-letter="D">D</button><button type="button" data-letter="E">E</button><button type="button" data-letter="F">F</button><button type="button" data-letter="G">G</button><button type="button" data-letter="H">H</button><button type="button" data-letter="I">I</button><button type="button" data-letter="J">J</button><button type="button" data-letter="K">K</button><button type="button" data-letter="L">L</button><button type="button" data-letter="M">M</button><button type="button" data-letter="N">N</button><button type="button" data-letter="O">O</button><button type="button" data-letter="P">P</button><button type="button" data-letter="Q">Q</button><button type="button" data-letter="R">R</button><button type="button" data-letter="S">S</button><button type="button" data-letter="T">T</button><button type="button" data-letter="U">U</button><button type="button" data-letter="V">V</button><button type="button" data-letter="W">W</button><button type="button" data-letter="X">X</button><button type="button" data-letter="Y">Y</button><button type="button" data-letter="Z">Z</button>
                 </div>
-                <div class="flocs-labelRow">
-                  <span>Customer</span>
-                  <span class="flocs-hint" id="flocs-customerStatus">Search by name, email, company, or phone</span>
+                <div class="flocs-customerActionsRow">
+                  <div class="flocs-customerActionIcons" role="group" aria-label="Customer actions">
+                    <button id="flocs-resetSearchBtn" class="flocs-miniBtn flocs-iconBtn" type="button" title="Reset search" aria-label="Reset search">
+                      <span aria-hidden="true">&#x21bb;</span>
+                    </button>
+                    <button id="flocs-clearCustomerBtn" class="flocs-miniBtn flocs-iconBtn" type="button" title="Clear selected customer" aria-label="Clear selected customer" disabled>
+                      <span aria-hidden="true">&#x2715;</span>
+                    </button>
+                    <button id="flocs-customerCreateToggle" class="flocs-miniBtn flocs-iconBtn" type="button" title="Add new customer" aria-label="Add new customer">
+                      <span aria-hidden="true">+</span>
+                    </button>
+                  </div>
+                  <span class="visually-hidden" id="flocs-customerStatus">Search by name, email, company, or phone</span>
                 </div>
-                <div class="flocs-searchRow flocs-searchRow--large">
-                  <input id="flocs-customerSearch" class="flocs-input" type="text" placeholder="Type to search Shopify customers…" autocomplete="off" hidden />
-                  <div class="flocs-hint">Start typing anywhere on this page to search customers instantly.</div>
+                <div class="flocs-searchRow flocs-searchRow--chat">
+                  <div class="flocs-chatSearch" role="search">
+                    <input id="flocs-customerSearch" class="flocs-input flocs-chatSearchInput" type="search" placeholder="Search customers by name, company, phone, or email..." autocomplete="off" />
+                    <button id="flocs-chatSearchResetBtn" class="flocs-chatSearchReset" type="button" aria-label="Clear customer search">Clear</button>
+                  </div>
+                  <div class="flocs-hint">Press Enter or Tab to auto-select the suggested customer.</div>
                 </div>
-                <div class="flocs-row" style="margin-top:.4rem">
-                  <input id="flocs-customerQuickSearch" class="flocs-input" type="text" placeholder="Quick filter customers in results…" autocomplete="off" />
+                <div class="flocs-row" style="margin-top:.4rem" hidden>
+                  <input id="flocs-customerQuickSearch" class="flocs-input" type="text" placeholder="Quick filter customers in results…" autocomplete="off"  hidden />
                   <select id="flocs-customerProvinceFilter" class="flocs-select">
                     <option value="">All provinces</option>
                   </select>
@@ -4000,11 +4445,6 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                   </select>
                 </div>
                 <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
-                <div id="flocs-selectedCustomerChips" class="flocs-chipRow"></div>
-                <div class="flocs-inlineActions" style="margin-top:.5rem">
-                  <button id="flocs-clearCustomerBtn" class="flocs-miniBtn" type="button" disabled>Clear selected customer</button>
-                  <button id="flocs-customerCreateToggle" class="flocs-miniBtn" type="button">Add new customer</button>
-                </div>
                 <div class="flocs-subSection" id="flocs-customerCreatePanel" hidden>
                   <div class="flocs-labelRow">
                     <span>Create new customer</span>
@@ -4019,7 +4459,7 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                     <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
                   </div>
                   <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerAccountEmail" class="flocs-input" type="email" placeholder="Account email (optional)" />
+                    <input id="flocs-customerAccountEmail" class="flocs-input" type="email" placeholder="Accounts email address (optional)" />
                     <input id="flocs-customerAccountContact" class="flocs-input" type="text" placeholder="Account contact (optional)" />
                   </div>
                   <div class="flocs-row" style="margin-top:.4rem">
@@ -4055,7 +4495,14 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                     </select>
                   </div>
                   <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1" />
+                    <label class="flocs-toggleField">
+                      <input id="flocs-customerPaymentBeforeShipping" type="checkbox" />
+                      <span>Payment required before shipping</span>
+                    </label>
+                    <div></div>
+                  </div>
+                  <div class="flocs-row" style="margin-top:.4rem">
+                    <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1 (Google autocomplete)" autocomplete="street-address" />
                     <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
                   </div>
                   <div class="flocs-row" style="margin-top:.4rem">
@@ -4072,13 +4519,16 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                   </div>
                 </div>
               </div>
+            </section>
 
+            <section class="flocs-panel form" id="flocs-formPanel">
               <div class="flocs-formSection">
                 <div class="flocs-labelRow flocs-labelRow--items">
                   <span>Items</span>
                   <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
                     <button id="flocs-clearAllQtyBtn" class="flocs-miniBtn" type="button">Clear all quantities</button>
-                    <div class="flocs-productTypeFilter" id="flocs-productTypeFilter">
+                    <button id="flocs-toggleQuickQtyBtn" class="flocs-miniBtn" type="button">Hide quick qty</button>
+                    <div class="flocs-productTypeFilter" id="flocs-productTypeFilter" hidden>
                       <button type="button" class="is-active" data-type="spices">Spices</button>
                       <button type="button" data-type="popcorn">Popcorn sprinkle</button>
                     </div>
@@ -4091,8 +4541,7 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                 <table class="flocs-productsTable">
                   <thead>
                     <tr id="flocs-productsHeadRow">
-                      <th>SKU / Flavour</th>
-                      <th>Description</th>
+                      <th>Flippen Lekka Spice</th>
                       <th>Size & quantity</th>
                     </tr>
                   </thead>
@@ -4106,13 +4555,12 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
               <div class="flocs-previewHeader">
                 <div><div class="flocs-previewTitle">Invoice preview</div></div>
                 <div>
-                  <div id="flocs-previewTag" class="flocs-previewTag">Waiting for customer…</div>
-                  <button id="flocs-convertBtn" class="flocs-convertBtn" type="button" hidden>Convert draft to order</button>
+                  <div id="flocs-previewTag" class="flocs-previewTag">Select customer to begin</div>
                 </div>
               </div>
               <div class="flocs-previewControls">
                 <div class="flocs-formSection">
-                  <div class="flocs-labelRow"><span>Delivery type</span><span class="flocs-hint" id="flocs-deliveryHint">Uses customer metafield custom.delivery_method if set</span></div>
+                  <div class="flocs-labelRow"><span>Delivery</span></div>
                   <div class="flocs-radioGroup" id="flocs-deliveryGroup">
                     <label class="flocs-radioPill"><input type="radio" name="delivery" value="shipping" checked /><span>Shipping</span></label>
                     <label class="flocs-radioPill"><input type="radio" name="delivery" value="free_shipping" /><span>Free Shipping</span></label>
@@ -4120,18 +4568,18 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                     <label class="flocs-radioPill"><input type="radio" name="delivery" value="delivery" /><span>Delivery</span></label>
                   </div>
                 </div>
-                <div class="flocs-formSection">
+                <div class="flocs-formSection" hidden>
                   <div class="flocs-labelRow"><span>Delivery date</span></div>
-                  <input id="flocs-deliveryDate" class="flocs-input" type="date" />
+                  <input id="flocs-deliveryDate" class="flocs-input" type="date" hidden />
                 </div>
                 <div class="flocs-formSection">
                   <div class="flocs-labelRow"><span>Shipping quote summary</span></div>
                   <div class="flocs-actionsRow">
                     <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
-                    <button id="flocs-calcShip" class="flocs-actionBtn" type="button"><span>⛟</span><span>Calculate shipping</span></button>
+                    <button id="flocs-calcShip" class="flocs-actionBtn" type="button" hidden><span>⛟</span><span>Calculate shipping</span></button>
                   </div>
                 </div>
-                <div class="flocs-formSection">
+                <div class="flocs-formSection" hidden>
                   <div class="flocs-labelRow"><span>Quantity mode</span></div>
                   <div class="flocs-radioGroup" id="flocs-qtyModeGroup">
                     <label class="flocs-radioPill"><input type="radio" name="qtyMode" value="units" checked /><span>Units</span></label>
@@ -4144,6 +4592,16 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
                 </div>
               </div>
               <div class="flocs-invoice" id="flocs-invoice"></div>
+              <div class="flocs-actionsRow flocs-previewCreateActions">
+                <button id="flocs-createDraftBtn" class="flocs-actionBtn" type="button">
+                  <span>📝</span>
+                  <span>Create draft order</span>
+                </button>
+                <button id="flocs-createOrderBtn" class="flocs-actionBtn" type="button">
+                  <span>✅</span>
+                  <span>Create live order</span>
+                </button>
+              </div>
             </aside>
           </main>
         </div>
@@ -4333,9 +4791,25 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
 
       </main>
       <footer class="flFooterNav" aria-label="Footer menu">
+        <div class="flFooterLegend">
+          <section class="dispatchLegend" id="dispatchLegend" aria-label="Dispatch legend">
+            <div class="dispatchLegendHeader">
+              <span class="dispatchLegendTitle">Legend</span>
+              <button class="dispatchLegendToggle" id="dispatchLegendToggle" type="button" aria-expanded="true" aria-controls="dispatchLegendContent">Hide</button>
+            </div>
+            <div class="dispatchLegendBody" id="dispatchLegendContent">
+              <div class="dispatchLegendRow">
+                <span class="dispatchLegendLabel">Card lights</span>
+                <div id="dispatchLegendStatus" class="dispatchLegendItems"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div class="flFooterLinks">
         <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
         <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnIcon" aria-hidden="true">🛠️</span><span class="flNavBtnText">Admin</span></button>
         <button id="navFooterChangelog" class="flNavBtn" type="button" role="tab" aria-controls="viewChangelog" aria-selected="false" data-route="/changelog"><span class="flNavBtnIcon" aria-hidden="true">🗒️</span><span class="flNavBtnText">Changelog</span></button>
+        </div>
       </footer>
     </div>
   </div>
@@ -4371,72 +4845,7 @@ body.dispatch-sidebar-open #dispatchBoardContainer{
 </div>
 
 <script type="module" src="/app.js"></script>
-<script>
-  (() => {
-    function getIsoWeekNumber(date) {
-      const utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-      const day = utc.getUTCDay() || 7;
-      utc.setUTCDate(utc.getUTCDate() + 4 - day);
-      const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
-      return Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
-    }
-
-    function renderHeaderDateTime() {
-      const el = document.getElementById("dispatchDateTimeSummary");
-      if (!el) return;
-      const now = new Date();
-      const weekday = now.toLocaleDateString(undefined, { weekday: "long" });
-      const isoDate = now.toLocaleDateString("en-CA");
-      const time = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-      el.textContent = `${weekday}, ${isoDate} - ${now.getFullYear()} W${String(getIsoWeekNumber(now)).padStart(2, "0")} - ${time}`;
-    }
-
-    function syncTruckHeaderWidgets() {
-      const truckBtn = document.getElementById("dispatchTruckBookedMetric");
-      const truckActionBtn = document.getElementById("truckBookBtn");
-      const bookedCount = document.getElementById("dispatchTruckBookedParcelCount");
-      const recentList = document.getElementById("dispatchRecentlyShipped");
-      if (bookedCount) {
-        const value = String(bookedCount.textContent || "").match(/\d+/)?.[0] || "0";
-        bookedCount.textContent = value;
-      }
-      if (recentList && /recently shipped/i.test(recentList.textContent || "")) {
-        recentList.innerHTML = recentList.innerHTML.replace(/recently shipped/gi, "recently fulfilled");
-      }
-      if (!truckBtn) return;
-      const booked = truckBtn.classList.contains("is-booked");
-      const status = booked ? "Booked" : "Not booked";
-      truckBtn.setAttribute("title", `Booked status: ${status}`);
-      truckBtn.setAttribute("aria-label", `Truck booking status: ${status}`);
-      if (!truckBtn.dataset.wired) {
-        truckBtn.addEventListener("click", () => {
-          if (truckActionBtn) truckActionBtn.click();
-        });
-        truckBtn.dataset.wired = "true";
-      }
-    }
-
-    function start() {
-      renderHeaderDateTime();
-      syncTruckHeaderWidgets();
-      setInterval(renderHeaderDateTime, 1000);
-      setInterval(syncTruckHeaderWidgets, 1000);
-      const truckBtn = document.getElementById("dispatchTruckBookedMetric");
-      if (truckBtn && typeof MutationObserver === "function") {
-        const observer = new MutationObserver(syncTruckHeaderWidgets);
-        observer.observe(truckBtn, { attributes: true, attributeFilter: ["class"] });
-      }
-    }
-
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", start, { once: true });
-    } else {
-      start();
-    }
-  })();
-</script>
-</body> 
+<script src="/dispatch-header-widgets.js"></script>
+</body>
 </html>
-
-
 

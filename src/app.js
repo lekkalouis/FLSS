@@ -66,9 +66,28 @@ function mountApiRouters(app, basePath = "/api/v1") {
 
 export function createApp() {
   const app = express();
+  const googleMapsCspSources = [
+    "https://*.googleapis.com",
+    "https://*.gstatic.com",
+    "https://maps.googleapis.com",
+    "https://maps.gstatic.com"
+  ];
 
   app.disable("x-powered-by");
-  app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          scriptSrc: ["'self'", ...googleMapsCspSources],
+          connectSrc: ["'self'", ...googleMapsCspSources],
+          imgSrc: ["'self'", "data:", ...googleMapsCspSources],
+          fontSrc: ["'self'", "https:", "data:", ...googleMapsCspSources]
+        }
+      }
+    })
+  );
   app.use(express.json({
     limit: "1mb",
     verify: (req, _res, buf) => {
@@ -89,7 +108,7 @@ export function createApp() {
     })
   );
 
-  app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev"));
+  app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev", { stream: process.stderr }));
 
   mountApiRouters(app);
 
