@@ -257,6 +257,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const viewLogs = $("viewLogs");
   const viewAdmin = $("viewAdmin");
   const viewChangelog = $("viewChangelog");
+  const changelogList = $("changelogList");
+  const changelogKpi = $("changelogKpi");
   const dispatchNotesBar = $("dispatchNotesBar");
   const dispatchNotesInput = $("dispatchNotesInput");
   const dispatchNotesClose = $("dispatchNotesClose");
@@ -6749,6 +6751,63 @@ async function startOrder(orderNo) {
     openModuleById(moduleId);
   });
 
+  function formatHoursLabel(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return "0.00h";
+    return `${num.toFixed(2)}h`;
+  }
+
+  function renderBuildChangelog(payload) {
+    const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+    const latest = entries[0] || null;
+
+    if (changelogKpi) {
+      if (latest?.kpi) {
+        changelogKpi.innerHTML = `
+          <strong>Repo LOC:</strong> ${Number(latest.kpi.repoLinesOfCode || 0).toLocaleString()} ·
+          <strong>Manual effort:</strong> ${formatHoursLabel(latest.kpi.manualHours)} ·
+          <strong>AI effort:</strong> ${formatHoursLabel(latest.kpi.aiHours)} ·
+          <strong>Time saved:</strong> ${formatHoursLabel(latest.kpi.savedHours)} (${escapeHtml(latest.kpi.speedBoost || "99% faster")})
+        `;
+      } else {
+        changelogKpi.textContent = "KPI metrics unavailable for this build.";
+      }
+    }
+
+    if (!changelogList) return;
+    if (!entries.length) {
+      changelogList.innerHTML = "<li>No generated changelog entries yet. Run npm run build.</li>";
+      return;
+    }
+
+    changelogList.innerHTML = entries
+      .map((entry) => {
+        const title = escapeHtml(entry.title || "Build update");
+        const stamp = escapeHtml(entry.builtAtLabel || entry.builtAtIso || "Unknown timestamp");
+        const summary = escapeHtml(entry.summary || "");
+        const prLink = entry.prUrl
+          ? `<a href="${escapeHtml(entry.prUrl)}" target="_blank" rel="noopener noreferrer">Open PR</a>`
+          : "No PR link";
+        return `<li><strong>${title}</strong><br><small>${stamp}</small><br>${summary}<br>${prLink}</li>`;
+      })
+      .join("");
+  }
+
+  async function loadBuildChangelog() {
+    if (!changelogList) return;
+    try {
+      const response = await fetch(`/data/changelog.generated.json?ts=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      renderBuildChangelog(payload);
+    } catch (error) {
+      changelogList.innerHTML = `<li>Unable to load generated changelog data (${escapeHtml(String(error))}). Run npm run build first.</li>`;
+      if (changelogKpi) {
+        changelogKpi.textContent = "KPI metrics unavailable.";
+      }
+    }
+  }
+
   function switchMainView(view) {
     const showScan = view === "scan";
     const showOps = view === "ops";
@@ -6810,6 +6869,9 @@ async function startOrder(orderNo) {
     if (viewChangelog) {
       viewChangelog.hidden = !showChangelog;
       viewChangelog.classList.toggle("flView--active", showChangelog);
+    }
+    if (showChangelog) {
+      void loadBuildChangelog();
     }
 
     navScan?.classList.toggle("flNavBtn--active", showScan);
@@ -8300,6 +8362,7 @@ async function startOrder(orderNo) {
       renderDateTimeHeaderWidget();
       setInterval(renderDateTimeHeaderWidget, 60000);
       renderModuleDashboard();
+      await loadBuildChangelog();
 
       const currentPath = normalizePath(window.location.pathname);
       if (currentPath === "/deliver") {
