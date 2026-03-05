@@ -14,11 +14,11 @@
     --panel-strong:var(--bs-border-color);
     --text:var(--bs-body-color);
     --text-muted:var(--bs-body-color-dark);
-    --accent:var(--bs-primary);
-    --accent-strong:var(--bs-info);
-    --accent-2:#f97316;
-    --accent-3:#a855f7;
-    --accent-soft:rgba(var(--bs-primary-rgb), .12);
+    --accent:#facc15;
+    --accent-strong:#eab308;
+    --accent-2:#f59e0b;
+    --accent-3:#ca8a04;
+    --accent-soft:rgba(250,204,21,.22);
     --radius-lg:1rem;
     --radius-md:.7rem;
     --mono:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;
@@ -32,6 +32,7 @@
     --dispatch-lane-delivery-min:360px;
     --dispatch-lane-pickup-min:220px;
     --dispatch-lane-pickup-max:300px;
+    --fl-top-utility-height:2.15rem;
   }
   *{box-sizing:border-box}
   body{
@@ -70,8 +71,8 @@
     width:.95rem;
     height:.95rem;
     border-radius:999px;
-    border:2px solid rgba(37,99,235,.2);
-    border-top-color:#2563eb;
+    border:2px solid rgba(202,138,4,.2);
+    border-top-color:#ca8a04;
     animation:loaderSpin .75s linear infinite;
   }
   .dispatchInlineLoader{
@@ -91,8 +92,16 @@
     min-height:100dvh;
     display:flex;
     flex-direction:column;
-    gap:1rem;
+    gap:0;
     padding:0;
+  }
+  .flTopUtilityBar{
+    position:sticky;
+    top:0;
+    z-index:1600;
+    background:#0f172a;
+    border-bottom:1px solid rgba(148,163,184,.28);
+    box-shadow:0 8px 18px rgba(2,6,23,.2);
   }
   .flLayout{
     display:flex;
@@ -171,17 +180,17 @@
     gap:.2rem;
   }
   .flNavBtn:hover{
-    border-color:rgba(var(--bs-primary-rgb), .5);
-    color:#1d4ed8;
+    border-color:rgba(202,138,4,.5);
+    color:#92400e;
     transform:translateY(-1px);
-    box-shadow:0 6px 16px rgba(37,99,235,.16);
+    box-shadow:0 6px 16px rgba(202,138,4,.16);
   }
   .flNavBtnIcon{display:inline-flex;align-items:center;justify-content:center;line-height:1;}
   .flNavBtnText{display:inline-flex;align-items:center;line-height:1.1;}
   .flNavBtn--active{
-    background:rgba(var(--bs-primary-rgb), .12);
-    border-color:rgba(var(--bs-primary-rgb), .42);
-    color:#1d4ed8;
+    background:rgba(202,138,4,.12);
+    border-color:rgba(202,138,4,.42);
+    color:#92400e;
     box-shadow:none;
   }
   .flNavStatus{
@@ -208,8 +217,8 @@
     flex:1 1 auto;
   }
   .flNavScanInputWrap:focus-within{
-    border-color:rgba(var(--bs-primary-rgb), .55);
-    box-shadow:0 0 0 .2rem rgba(var(--bs-primary-rgb), .12);
+    border-color:rgba(202,138,4,.55);
+    box-shadow:0 0 0 .2rem rgba(202,138,4,.12);
   }
   .flNavScanInputWrap span{
     font-size:.66rem;
@@ -229,9 +238,9 @@
     color:var(--text);
   }
   .multiShipmentBtn{
-    border:1px solid rgba(var(--bs-primary-rgb), .35);
+    border:1px solid rgba(202,138,4,.35);
     background:#fff;
-    color:#312e81;
+    color:#854d0e;
     border-radius:.5rem;
     padding:.2rem .34rem;
     font-size:.82rem;
@@ -240,8 +249,8 @@
     transition:all .18s ease;
   }
   .multiShipmentBtn:hover{
-    border-color:rgba(99,102,241,.55);
-    background:rgba(99,102,241,.08);
+    border-color:rgba(202,138,4,.55);
+    background:rgba(202,138,4,.08);
   }
   .flMain{
     flex:1;
@@ -306,7 +315,7 @@
   }
   .flAdminCard a,
   .flAdminCard button{
-    border:1px solid rgba(99,102,241,.2);
+    border:1px solid rgba(202,138,4,.2);
     background:#fff;
     border-radius:.6rem;
     color:#1f2a44;
@@ -508,7 +517,7 @@
     max-width:1200px;
     margin:0 auto;
     background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92));
-    border:1px solid rgba(99,102,241,.18);
+    border:1px solid rgba(202,138,4,.18);
     border-radius:var(--radius-lg);
     padding:1.75rem 2rem;
     box-shadow:var(--shadow-soft);
@@ -544,7 +553,7 @@
   }
   .kpiCard{
     background:linear-gradient(150deg, rgba(255,255,255,.98), rgba(224,231,255,.85));
-    border:1px solid rgba(99,102,241,.2);
+    border:1px solid rgba(202,138,4,.2);
     border-radius:var(--radius-lg);
     padding:1rem 1.1rem;
     display:flex;
@@ -582,7 +591,7 @@
     color:var(--text-muted);
   }
   .moduleCard{
-    border:1px solid rgba(99,102,241,.2);
+    border:1px solid rgba(202,138,4,.2);
     border-radius:var(--radius-lg);
     padding:1rem;
     background:rgba(255,255,255,.94);
@@ -594,8 +603,8 @@
   }
   .moduleCard:hover{
     transform:translateY(-2px);
-    border-color:rgba(99,102,241,.4);
-    box-shadow:0 18px 36px rgba(99,102,241,.2);
+    border-color:rgba(202,138,4,.4);
+    box-shadow:0 18px 36px rgba(202,138,4,.2);
   }
   .moduleCardHeader{
     display:flex;
@@ -613,7 +622,7 @@
     font-weight:700;
     text-transform:uppercase;
     letter-spacing:.05em;
-    background:rgba(99,102,241,.15);
+    background:rgba(202,138,4,.15);
     color:#3730a3;
     border-radius:999px;
     padding:.2rem .55rem;
@@ -636,8 +645,8 @@
     color:var(--text-muted);
   }
   .moduleOpenBtn{
-    border:1px solid rgba(99,102,241,.45);
-    background:rgba(99,102,241,.12);
+    border:1px solid rgba(202,138,4,.45);
+    background:rgba(202,138,4,.12);
     color:#4338ca;
     font-weight:700;
     font-size:.8rem;
@@ -646,7 +655,7 @@
     cursor:pointer;
   }
   .moduleOpenBtn:hover{
-    background:rgba(99,102,241,.2);
+    background:rgba(202,138,4,.2);
   }
   .flMainHeader{
     display:flex;
@@ -740,7 +749,7 @@
   @media (max-width:1000px){ .leftPane{ border-right:0; border-bottom:1px solid rgba(148,163,184,.15);} }
   .headerRow{ display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; flex-wrap:wrap; margin-bottom:.75rem; }
   .line1{ font-size:.95rem; font-weight:700; color:var(--text); display:flex; gap:.5rem 1rem; align-items:center; flex-wrap:wrap; }
-  .badge{ background:rgba(34,211,238,.12); border:1px solid rgba(34,211,238,.5); color:#0e7490; font-size:1.1rem; border-radius:var(--radius-md); padding:.2rem .45rem; }
+  .badge{ background:rgba(234,179,8,.12); border:1px solid rgba(234,179,8,.5); color:#0e7490; font-size:1.1rem; border-radius:var(--radius-md); padding:.2rem .45rem; }
   .sessionInfo{ font-size:.8rem; color:var(--text-muted); line-height:1.4; font-family:var(--mono);} 
   .scanBox,.addrBox,.card{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.85rem; }
   .dispatchTopBar{
@@ -781,9 +790,9 @@
     padding:.35rem .6rem;
   }
   .dispatchExpandToggle{
-    border:1px solid rgba(99,102,241,.4);
-    background:rgba(99,102,241,.12);
-    color:#312e81;
+    border:1px solid rgba(202,138,4,.4);
+    background:rgba(202,138,4,.12);
+    color:#854d0e;
   }
   
 .dispatchTopActions .btn{ min-height:40px; display:inline-flex; align-items:center; justify-content:center; }
@@ -889,8 +898,8 @@
     color:var(--text);
   }
   .btn{
-    border:1px solid rgba(99,102,241,.45);
-    background:rgba(99,102,241,.12);
+    border:1px solid rgba(202,138,4,.45);
+    background:rgba(202,138,4,.12);
     color:#0f172a;
     font-weight:700;
     font-size:.85rem;
@@ -899,7 +908,7 @@
     cursor:pointer;
     transition:transform .15s ease, box-shadow .15s ease;
   }
-  .btn:hover{ transform:translateY(-1px); box-shadow:0 8px 16px rgba(99,102,241,.2); }
+  .btn:hover{ transform:translateY(-1px); box-shadow:0 8px 16px rgba(202,138,4,.2); }
   .btnPrimary{
     background:linear-gradient(120deg, var(--accent), var(--accent-3));
     border-color:transparent;
@@ -922,11 +931,11 @@
   .addrBox .row{ display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; }
   .addrBox label{ font-size:.75rem; color:var(--text-muted); display:block; margin-bottom:.35rem; }
   #addrSearch,#placeCode{ flex:1; background:#fff; border:1px solid var(--panel-strong); border-radius:var(--radius-md); color:var(--text); font-family:var(--mono); font-size:.9rem; padding:.4rem .6rem; outline:none; }
-  #addrSearch:focus,#placeCode:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(34,211,238,.2); }
+  #addrSearch:focus,#placeCode:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(250,204,21,.22); }
   #placeCode{ width:140px; }
   .addrList{ max-height:160px; overflow:auto; border:1px solid var(--panel-strong); border-radius:var(--radius-md); background:var(--panel); }
   .addrItem{ padding:.5rem; border-bottom:1px solid rgba(148,163,184,.3); font-size:.74rem; cursor:pointer; color:var(--text); }
-  .addrItem:hover{ background:rgba(34,211,238,.1); }
+  .addrItem:hover{ background:rgba(234,179,8,.1); }
   .addrHint{ font-size:.7rem; color:var(--text-muted); margin-top:.35rem; }
 
   /* Small cards */
@@ -997,8 +1006,8 @@
     letter-spacing:.02em;
     padding:1rem 1.5rem;
     border-radius:1rem;
-    border:2px solid rgba(99,102,241,.6);
-    background:linear-gradient(135deg, rgba(99,102,241,.95), rgba(34,211,238,.95));
+    border:2px solid rgba(202,138,4,.6);
+    background:linear-gradient(135deg, rgba(202,138,4,.95), rgba(234,179,8,.95));
     color:#04121e;
     cursor:pointer;
     box-shadow:0 20px 36px rgba(67,56,202,.28);
@@ -1021,9 +1030,9 @@
     color:var(--text-muted);
   }
   #modeToggle{
-    border:1px solid rgba(99,102,241,.5);
-    background:rgba(99,102,241,.12);
-    color:#312e81;
+    border:1px solid rgba(202,138,4,.5);
+    background:rgba(202,138,4,.12);
+    color:#854d0e;
     font-weight:700;
     font-size:.75rem;
     padding:.35rem .6rem;
@@ -1137,15 +1146,15 @@
   cursor:pointer;
 }
 .dispatchSelectionClear:hover{
-  border-color:rgba(56,189,248,.7);
-  color:#0c4a6e;
+  border-color:rgba(202,138,4,.7);
+  color:#78350f;
 }
 .dispatchSelectionCount{
   font-size:.64rem;
   padding:.18rem .45rem;
   border-radius:999px;
-  border:1px solid rgba(56,189,248,.4);
-  background:rgba(56,189,248,.15);
+  border:1px solid rgba(202,138,4,.4);
+  background:rgba(202,138,4,.15);
   color:#075985;
 }
 .dispatchSelectionBody{
@@ -1237,43 +1246,60 @@
   border-radius:.5rem;
   cursor:pointer;
 }
-.dispatchSelectionBtn:hover{ border-color:rgba(56,189,248,.6); color:#0c4a6e; }
+.dispatchSelectionBtn:hover{ border-color:rgba(202,138,4,.6); color:#78350f; }
 .dispatchSelectionBtn--primary{
   border-color:rgba(34,197,94,.55);
   background:rgba(34,197,94,.16);
   color:#065f46;
 }
 .dispatchSelectionBtn--select{
-  border-color:rgba(59,130,246,.35);
-  color:#1d4ed8;
-  background:rgba(59,130,246,.09);
+  border-color:rgba(202,138,4,.35);
+  color:#92400e;
+  background:rgba(202,138,4,.09);
 }
 .dispatchSelectionBtn--select.is-active{
   border-color:rgba(16,185,129,.5);
   color:#065f46;
   background:rgba(16,185,129,.12);
 }
-.dispatchBoardToolbar{
+.dispatchBoardQuickActions{
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap:.55rem;
-  margin:.4rem 0 .5rem;
-  padding:.35rem .5rem;
-  border-radius:.55rem;
-  border:1px solid rgba(148,163,184,.24);
-  background:linear-gradient(120deg, rgba(239,246,255,.75), rgba(236,253,245,.78));
-}
-.dispatchBoardToolbarActions{
-  display:flex;
-  align-items:center;
+  justify-content:flex-end;
   gap:.35rem;
-  flex-wrap:wrap;
+  margin:.3rem 0 .5rem;
 }
-.dispatchBoardToolbarHint{
-  font-size:.66rem;
-  color:#475569;
-  font-weight:600;
+.dispatchIconBtn{
+  width:2.02rem;
+  height:2.02rem;
+  border:1px solid rgba(148,163,184,.62);
+  background:#fff;
+  color:#334155;
+  border-radius:.5rem;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:1rem;
+  line-height:1;
+  cursor:pointer;
+  box-shadow:0 3px 10px rgba(15,23,42,.08);
+  transition:border-color .16s ease, color .16s ease, background .16s ease, transform .12s ease;
+}
+.dispatchIconBtn:hover{
+  border-color:rgba(202,138,4,.6);
+  color:#78350f;
+  background:rgba(202,138,4,.08);
+  transform:translateY(-1px);
+}
+.dispatchIconBtn--select{
+  border-color:rgba(202,138,4,.35);
+  color:#92400e;
+  background:rgba(202,138,4,.09);
+}
+.dispatchIconBtn--select.is-active{
+  border-color:rgba(16,185,129,.5);
+  color:#065f46;
+  background:rgba(16,185,129,.12);
 }
 .dispatchColHeader{
   display:flex;
@@ -1338,9 +1364,9 @@
   transform:translateX(0);
 }
 .dispatchSelectionSidebarToggle{
-  border:1px solid rgba(59,130,246,.45);
+  border:1px solid rgba(202,138,4,.45);
   background:#fff;
-  color:#1d4ed8;
+  color:#92400e;
   border-radius:.55rem;
   font-weight:700;
   font-size:.72rem;
@@ -1360,7 +1386,7 @@
 }
 .dispatchSelectionSidebarToggle.is-drawer{
   font-size:.95rem;
-  box-shadow:0 6px 14px rgba(37,99,235,.18);
+  box-shadow:0 6px 14px rgba(202,138,4,.18);
 }
 .dispatchSelectionSidebar.is-closed .dispatchSelectionSidebarToggle{
   left:.3rem;
@@ -1515,13 +1541,13 @@ body.dispatch-sidebar-open{
   background:#cbd5f5;
 }
 .dispatchProgressStep.is-active{
-  border-color:rgba(34,211,238,.8);
-  background:rgba(34,211,238,.12);
+  border-color:rgba(234,179,8,.8);
+  background:rgba(234,179,8,.12);
   color:var(--text);
 }
 .dispatchProgressStep.is-active .dispatchProgressDot{
   background:#22d3ee;
-  box-shadow:0 0 10px rgba(34,211,238,.8);
+  box-shadow:0 0 10px rgba(234,179,8,.8);
 }
 .dispatchProgressStep.is-complete{
   border-color:rgba(34,197,94,.6);
@@ -1589,7 +1615,7 @@ body.dispatch-sidebar-open{
   grid-template-columns:var(--dispatch-col-template, repeat(var(--dispatch-col-count, 4), minmax(0, 1fr)));
   grid-auto-flow:row;
   grid-auto-columns:minmax(0, 1fr);
-  align-items:start;
+  align-items:stretch;
   gap: .6rem;
   padding: .2rem;
   min-height: 65vh;
@@ -1610,7 +1636,7 @@ body.dispatch-sidebar-open{
 .dispatchColHeader {
   font-size: .9rem;
   font-weight: 700;
-  color: #1e3a8a;
+  color: #78350f;
   margin-bottom: 0.4rem;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -1647,13 +1673,13 @@ body.dispatch-sidebar-open{
   box-shadow:0 0 0 1px rgba(239,68,68,.2), 0 8px 18px rgba(239,68,68,.18);
 }
 .dispatchCard.is-selected{
-  border-color: rgba(56,189,248,.6);
-  box-shadow: 0 0 0 1px rgba(56,189,248,.25), 0 6px 14px rgba(56,189,248,.18);
+  border-color: rgba(202,138,4,.6);
+  box-shadow: 0 0 0 1px rgba(202,138,4,.25), 0 6px 14px rgba(202,138,4,.18);
 }
 
 .dispatchCard:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(34,211,238,0.18);
+  box-shadow: 0 6px 14px rgba(234,179,8,0.18);
 }
 
 .dispatchCardTitle {
@@ -1665,6 +1691,22 @@ body.dispatch-sidebar-open{
   align-items:flex-start;
   justify-content:space-between;
   gap:.5rem;
+}
+.dispatchCardTitleMain{
+  display:flex;
+  align-items:center;
+  gap:.42rem;
+  min-width:0;
+}
+.dispatchCardChainLogo{
+  width:1.82rem;
+  height:1.82rem;
+  flex:0 0 1.82rem;
+  object-fit:contain;
+  padding:.06rem;
+  border-radius:999px;
+  background:#fff;
+  box-shadow:0 0 0 1px rgba(148,163,184,.42);
 }
 .dispatchCardTitleText{
   display: -webkit-box;
@@ -1737,7 +1779,7 @@ body.dispatch-sidebar-open{
 }
 
 .dispatchParcelAdjustBtn:focus {
-  outline: 2px solid rgba(56,189,248,0.4);
+  outline: 2px solid rgba(202,138,4,0.4);
   outline-offset: 1px;
 }
 
@@ -1752,7 +1794,7 @@ body.dispatch-sidebar-open{
 }
 
 .dispatchParcelCountInput:focus {
-  outline: 2px solid rgba(56,189,248,0.4);
+  outline: 2px solid rgba(202,138,4,0.4);
   outline-offset: 1px;
 }
 
@@ -1788,7 +1830,7 @@ body.dispatch-sidebar-open{
   }
   .dispatchLineItem.is-rotary-selected{
     background:linear-gradient(180deg, rgba(219,234,254,.75), rgba(239,246,255,.92));
-    box-shadow:inset 0 0 0 1px rgba(59,130,246,.35);
+    box-shadow:inset 0 0 0 1px rgba(202,138,4,.35);
   }
   .dispatchLineText{
     display:inline-flex;
@@ -2123,6 +2165,34 @@ body.dispatch-sidebar-open{
     opacity:.5;
     cursor:not-allowed;
   }
+  .dispatchPickupTextBtn{
+    border:none;
+    background:transparent;
+    color:#92400e;
+    font-size:.66rem;
+    font-weight:700;
+    padding:.16rem .24rem;
+    border-radius:.36rem;
+    text-decoration:underline;
+    text-decoration-thickness:1px;
+    text-underline-offset:2px;
+    cursor:pointer;
+    line-height:1.2;
+  }
+  .dispatchPickupTextBtn:hover{
+    color:#78350f;
+    background:rgba(14,116,144,.09);
+  }
+  .dispatchPickupTextBtn:focus-visible{
+    outline:none;
+    box-shadow:0 0 0 2px rgba(14,116,144,.25);
+  }
+  .dispatchPickupTextBtn:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+    text-decoration:none;
+    background:transparent;
+  }
 
   .dispatchDocsDropdown{
     position:relative;
@@ -2162,9 +2232,9 @@ body.dispatch-sidebar-open{
   }
 
   .dispatchBookBtn{
-    border:1px solid rgba(56,189,248,.45);
-    background:rgba(56,189,248,.12);
-    color:#0c4a6e;
+    border:1px solid rgba(202,138,4,.45);
+    background:rgba(202,138,4,.12);
+    color:#78350f;
     font-size:.7rem;
     font-weight:700;
     padding:.35rem .55rem;
@@ -2173,7 +2243,7 @@ body.dispatch-sidebar-open{
   }
 
   .dispatchBookBtn:hover{
-    background:rgba(56,189,248,.22);
+    background:rgba(202,138,4,.22);
   }
   .dispatchBookBtn:disabled{
     opacity:.5;
@@ -2193,9 +2263,9 @@ body.dispatch-sidebar-open{
     background:rgba(34,197,94,.26);
   }
   .dispatchFlowBtn{
-    border:1px solid rgba(59,130,246,.45);
-    background:rgba(59,130,246,.12);
-    color:#1e3a8a;
+    border:1px solid rgba(202,138,4,.45);
+    background:rgba(202,138,4,.12);
+    color:#78350f;
     font-size:.7rem;
     font-weight:700;
     padding:.35rem .55rem;
@@ -2203,7 +2273,7 @@ body.dispatch-sidebar-open{
     cursor:pointer;
   }
   .dispatchFlowBtn:hover{
-    background:rgba(59,130,246,.22);
+    background:rgba(202,138,4,.22);
   }
   .dispatchFlowBtn:disabled{
     opacity:.5;
@@ -2338,7 +2408,7 @@ body.dispatch-sidebar-open{
   .dispatchSiteAlertModal__secondary:focus-visible,
   .dispatchSiteAlertModal__close:focus-visible,
   .dispatchSiteAlertModal__ok:focus-visible{
-    outline:2px solid #0ea5e9;
+    outline:2px solid #ca8a04;
     outline-offset:2px;
   }
 
@@ -2481,11 +2551,11 @@ body.dispatch-sidebar-open{
   }
   .dispatchPackingRow.is-rotary-selected{
     background:linear-gradient(180deg, rgba(219,234,254,.8), rgba(239,246,255,.95));
-    border-color:rgba(59,130,246,.65);
+    border-color:rgba(202,138,4,.65);
   }
   .dispatchPackingRow.is-rotary-focus{
     border-color:rgba(30,64,175,.95);
-    box-shadow:0 0 0 3px rgba(59,130,246,.28), 0 0 14px rgba(59,130,246,.3);
+    box-shadow:0 0 0 3px rgba(202,138,4,.28), 0 0 14px rgba(202,138,4,.3);
     background:linear-gradient(180deg, rgba(219,234,254,.85), rgba(239,246,255,1));
   }
   .dispatchPackingRow.is-complete .dispatchPackingItem{
@@ -2521,15 +2591,15 @@ body.dispatch-sidebar-open{
   }
   .dispatchPackQtyBtn{
     border-radius:.4rem;
-    border:1px solid rgba(59,130,246,.3);
-    background:rgba(59,130,246,.08);
-    color:#1e3a8a;
+    border:1px solid rgba(202,138,4,.3);
+    background:rgba(202,138,4,.08);
+    color:#78350f;
     font-size:.66rem;
     padding:.25rem .45rem;
     cursor:pointer;
   }
   .dispatchPackQtyBtn:hover{
-    background:rgba(59,130,246,.16);
+    background:rgba(202,138,4,.16);
   }
   .dispatchPackQtyBtn:disabled{
     opacity:.5;
@@ -2769,6 +2839,7 @@ body.dispatch-sidebar-open{
   padding-right: 0;
   display:flex;
   flex-direction:column;
+  flex:1 1 auto;
   gap:.55rem;
 }
 
@@ -2783,6 +2854,7 @@ body.dispatch-sidebar-open{
   box-shadow:0 4px 10px rgba(15,23,42,.06);
   min-width:0;
   width:100%;
+  height:100%;
 }
 .dispatchCol[data-lane-id="shipping"]{
   min-width:0;
@@ -2840,6 +2912,11 @@ body.dispatch-sidebar-open{
   overflow-y:hidden;
   align-items:start;
 }
+.dispatchSubLanes--delivery{
+  overflow-x:hidden;
+  overflow-y:hidden;
+  align-items:start;
+}
 .dispatchSubLane{
   border:1px dashed rgba(148,163,184,.45);
   border-radius:.62rem;
@@ -2852,6 +2929,13 @@ body.dispatch-sidebar-open{
   box-shadow:none;
 }
 .dispatchSubLanes--shipping .dispatchSubLaneHeader{
+  display:none;
+}
+.dispatchSubLanes--delivery .dispatchSubLane{
+  border:none;
+  box-shadow:none;
+}
+.dispatchSubLanes--delivery .dispatchSubLaneHeader{
   display:none;
 }
 .dispatchSubLaneHeader{
@@ -3019,7 +3103,7 @@ body.dispatch-sidebar-open{
   line-height:1.15;
 }
 .dispatchLegendToggle:hover{
-  border-color:rgba(99,102,241,.45);
+  border-color:rgba(202,138,4,.45);
   color:#3730a3;
 }
 .dispatchLegendBody{
@@ -3137,7 +3221,7 @@ body.dispatch-sidebar-open{
   .docsTopicBtn small{ display:block; color:var(--text-muted); font-weight:500; margin-top:.15rem; }
   .docsTopicBtn--active{
     background:var(--accent-soft);
-    border-color:rgba(99,102,241,.45);
+    border-color:rgba(202,138,4,.45);
     color:#4338ca;
   }
   .docsContent{
@@ -3228,15 +3312,8 @@ body.dispatch-sidebar-open{
     .dispatchCol--mobile-hidden{
       display:none;
     }
-    .dispatchBoardToolbar{
-      flex-direction:column;
-      align-items:stretch;
-    }
-    .dispatchBoardToolbarActions{
-      width:100%;
-    }
-    .dispatchBoardToolbarHint{
-      font-size:.64rem;
+    .dispatchBoardQuickActions{
+      margin:.2rem 0 .5rem;
     }
     .dispatchSelectionOrderTable{
       min-width:0;
@@ -3288,6 +3365,13 @@ body.dispatch-sidebar-open{
       width:100%;
       min-height:42px;
       font-size:.75rem;
+    }
+    .dispatchCardActions > .dispatchPickupTextBtn{
+      flex:0 0 auto;
+      width:auto;
+      min-height:0;
+      font-size:.68rem;
+      padding:.18rem .22rem;
     }
     .dispatchSubLanes,
     .dispatchSubLanes--delivery{
@@ -3409,8 +3493,8 @@ body.dispatch-sidebar-open{
     gap:.35rem;
     padding:.2rem .5rem;
     border-radius:999px;
-    border:1px solid rgba(34,211,238,.5);
-    background:rgba(34,211,238,.12);
+    border:1px solid rgba(234,179,8,.5);
+    background:rgba(234,179,8,.12);
     color:#0e7490;
     font-size:.7rem;
     font-weight:600;
@@ -3714,7 +3798,7 @@ body.dispatch-sidebar-open{
   /* Modern header rework */
   .flSide{
     position:sticky;
-    top:0;
+    top:var(--fl-top-utility-height);
     z-index:1200;
   }
   .flSideHeader{
@@ -3724,10 +3808,11 @@ body.dispatch-sidebar-open{
     align-items:stretch;
     gap:.55rem;
     padding:.7rem;
-    border-radius:.95rem;
+    padding-bottom:.65rem;
+    border-radius:0;
     border:1px solid rgba(148,163,184,.22);
     background:
-      radial-gradient(1200px 160px at 10% -80%, rgba(59,130,246,.18), transparent 52%),
+      radial-gradient(1200px 160px at 10% -80%, rgba(202,138,4,.18), transparent 52%),
       radial-gradient(900px 140px at 95% -65%, rgba(16,185,129,.14), transparent 48%),
       #ffffff;
     box-shadow:0 16px 36px rgba(15,23,42,.1);
@@ -3785,17 +3870,218 @@ body.dispatch-sidebar-open{
     display:flex;
     align-items:center;
     justify-content:flex-end;
-    flex-wrap:wrap;
+    flex-wrap:nowrap;
     gap:.42rem;
     margin-left:auto;
   }
-  .flHeaderTop #navNewOrder{
+  .flNewOrderFab{
     position:absolute;
     left:50%;
-    top:50%;
+    top:calc(100% + .22rem);
+    right:auto;
     transform:translate(-50%, -50%);
-    margin-right:0;
-    z-index:2;
+    margin:0;
+    z-index:12;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:.4rem;
+  }
+  .flNewOrderFab #navNewOrder{
+    width:3.05rem;
+    min-width:3.05rem;
+    height:3.05rem;
+    min-height:3.05rem;
+    padding:0;
+    border-radius:999px;
+    border:1px solid #d3ac00;
+    background:#f9e329;
+    color:#1f2937;
+    box-shadow:0 10px 22px rgba(15,23,42,.22);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:0;
+    line-height:1;
+  }
+  .flNewOrderFab #navNewOrder::before{
+    content:"+";
+    font-size:1.72rem;
+    font-weight:700;
+    line-height:1;
+    transform:translateY(-.03rem);
+  }
+  .flNewOrderFab #navNewOrder:hover{
+    background:#ffe83b;
+    border-color:#c99700;
+    color:#0f172a;
+    box-shadow:0 14px 28px rgba(15,23,42,.28);
+  }
+  .flNewOrderFab #navNewOrder.flNavBtn--active{
+    background:#f4d400;
+    border-color:#b88900;
+  }
+  .flNewOrderMenu{
+    position:absolute;
+    top:calc(100% + .34rem);
+    left:50%;
+    transform:translate(-50%, -6px);
+    min-width:12.2rem;
+    border:1px solid rgba(148,163,184,.32);
+    border-radius:.62rem;
+    background:#fffef7;
+    box-shadow:0 14px 30px rgba(15,23,42,.2);
+    padding:.25rem;
+    display:flex;
+    flex-direction:column;
+    gap:.12rem;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .14s ease, transform .14s ease;
+  }
+  .flNewOrderFab.is-open .flNewOrderMenu{
+    opacity:1;
+    pointer-events:auto;
+    transform:translate(-50%, 0);
+  }
+  .flNewOrderMenuItem{
+    border:none;
+    background:transparent;
+    color:#1f2937;
+    border-radius:.46rem;
+    padding:.34rem .46rem;
+    text-align:left;
+    font-size:.68rem;
+    font-weight:700;
+    cursor:pointer;
+    line-height:1.2;
+    white-space:nowrap;
+  }
+  .flNewOrderMenuItem:hover{
+    background:rgba(202,138,4,.12);
+    color:#78350f;
+  }
+  .flNewOrderMenuItem:focus-visible{
+    outline:none;
+    box-shadow:0 0 0 2px rgba(202,138,4,.28);
+  }
+  .flHeaderUtility{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.5rem;
+    min-height:var(--fl-top-utility-height);
+    padding:.12rem .62rem;
+    border:none;
+    border-radius:0;
+    background:transparent;
+    overflow:hidden;
+  }
+  .flHeaderUtilityBatch{
+    display:inline-flex;
+    align-items:baseline;
+    gap:.3rem;
+    min-width:0;
+    white-space:nowrap;
+  }
+  .flHeaderUtilityBatchLabel{
+    font-size:.56rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:#94a3b8;
+    font-weight:800;
+    line-height:1;
+  }
+  .flHeaderUtilityBatchValue{
+    font-size:.66rem;
+    color:#f8fafc;
+    font-weight:700;
+    letter-spacing:.01em;
+    line-height:1;
+  }
+  .flHeaderUtilityRight{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:.36rem;
+    min-width:0;
+    flex:1 1 auto;
+  }
+  .flHeaderUtilityRight .flHeaderEnvConnections{
+    border:none;
+    border-radius:0;
+    background:transparent;
+    min-height:0;
+    padding:0;
+    display:inline-flex;
+    align-items:center;
+    gap:.28rem;
+    flex:0 0 auto;
+  }
+  .flHeaderUtilityNav{
+    display:flex;
+    align-items:center;
+    gap:.26rem;
+    flex-wrap:nowrap;
+    overflow:auto;
+    padding-bottom:.03rem;
+  }
+  .flHeaderUtilityNav .flNavBtn{
+    border-radius:.45rem;
+    padding:.18rem .44rem;
+    min-height:1.52rem;
+    font-size:.64rem;
+    font-weight:700;
+    border:1px solid rgba(148,163,184,.34);
+    background:rgba(30,41,59,.7);
+    color:#e2e8f0;
+    white-space:nowrap;
+    box-shadow:none;
+  }
+  .flTopUtilityBar .flHeaderDateTime{
+    border-color:rgba(148,163,184,.34);
+    background:rgba(30,41,59,.78);
+    color:#e2e8f0;
+  }
+  .flTopUtilityBar .flHeaderDateDay{
+    color:#f8fafc;
+  }
+  .flTopUtilityBar .flHeaderDateStamp{
+    color:#cbd5e1;
+  }
+  .flHeaderUtilityNav .flNavBtn:hover{
+    border-color:rgba(250,204,21,.5);
+    color:#fde68a;
+    background:rgba(250,204,21,.14);
+    transform:none;
+    box-shadow:none;
+  }
+  .flHeaderDateTime{
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    padding:.2rem .52rem;
+    color:#475569;
+    font-size:.73rem;
+    font-weight:700;
+    white-space:nowrap;
+  }
+  .flHeaderDateTruckIcon{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:#16a34a;
+    font-size:.82rem;
+    line-height:1;
+  }
+  .flHeaderDateDay{
+    color:#334155;
+    font-weight:800;
+  }
+  .flHeaderDateStamp{
+    color:#64748b;
+    font-size:.66rem;
+    font-weight:700;
   }
   .flNavGroup--top{
     display:flex;
@@ -3815,9 +4101,9 @@ body.dispatch-sidebar-open{
     color:#1f2937;
   }
   .flNavGroup--top .flNavBtn--active{
-    border-color:rgba(59,130,246,.55);
-    color:#1d4ed8;
-    background:rgba(37,99,235,.1);
+    border-color:rgba(202,138,4,.55);
+    color:#92400e;
+    background:rgba(202,138,4,.1);
   }
   .flHeaderEnv,
   .flHeaderTruck,
@@ -3842,7 +4128,7 @@ body.dispatch-sidebar-open{
     font-size:.56rem;
     text-transform:uppercase;
     letter-spacing:.06em;
-    color:#64748b;
+    color:#94a3b8;
     font-weight:800;
     line-height:1;
   }
@@ -3890,10 +4176,10 @@ body.dispatch-sidebar-open{
     color:#1f2937;
   }
   .flNav--modern .flNavBtn.flNavBtn--active{
-    border-color:rgba(59,130,246,.55);
-    color:#1d4ed8;
-    background:rgba(37,99,235,.1);
-    box-shadow:inset 0 0 0 1px rgba(37,99,235,.16);
+    border-color:rgba(202,138,4,.55);
+    color:#92400e;
+    background:rgba(202,138,4,.1);
+    box-shadow:inset 0 0 0 1px rgba(202,138,4,.16);
   }
   .flNav--modern .flNavStatus{
     min-width:0;
@@ -3931,7 +4217,7 @@ body.dispatch-sidebar-open{
     box-shadow:0 10px 20px rgba(15,23,42,.2);
   }
   .flNav--modern .flNavBtn--newOrder{
-    margin-right:2.5rem;
+    margin-right:0;
   }
   .flNav--modern .flNavBtn--primary:hover{
     background:linear-gradient(120deg,#1e293b,#334155);
@@ -3944,16 +4230,18 @@ body.dispatch-sidebar-open{
       flex-direction:column;
       align-items:stretch;
     }
-    .flHeaderTop #navNewOrder{
-      position:static;
-      left:auto;
-      top:auto;
-      transform:none;
-      align-self:flex-start;
+    .flNewOrderFab #navNewOrder{
+      width:2.9rem;
+      min-width:2.9rem;
+      height:2.9rem;
+      min-height:2.9rem;
     }
     .flHeaderMeta{
       justify-content:flex-start;
       margin-left:0;
+    }
+    .flHeaderUtility{
+      padding:.12rem .4rem;
     }
     .flNav.flNav--modern{
       grid-template-columns:1fr;
@@ -3962,7 +4250,8 @@ body.dispatch-sidebar-open{
   @media (max-width:760px){
     .flSideHeader{
       padding:.55rem;
-      border-radius:.8rem;
+      padding-bottom:.55rem;
+      border-radius:0;
     }
     .flHeaderSub{
       font-size:.67rem;
@@ -3984,20 +4273,46 @@ body.dispatch-sidebar-open{
       padding-bottom:.2rem;
     }
     .flHeaderMeta{
-      display:grid;
-      grid-template-columns:repeat(2, minmax(0,1fr));
-      align-items:stretch;
+      display:flex;
+      justify-content:flex-end;
       width:100%;
     }
-    .flHeaderTop #navNewOrder{
-      width:100%;
-      justify-content:center;
+    .flNewOrderFab #navNewOrder{
+      width:2.68rem;
+      min-width:2.68rem;
+      height:2.68rem;
+      min-height:2.68rem;
+    }
+    .flNewOrderMenu{
+      min-width:10.6rem;
+      left:auto;
+      right:0;
+      transform:translate(0,-6px);
+    }
+    .flNewOrderFab.is-open .flNewOrderMenu{
+      transform:translate(0,0);
     }
     .flHeaderEnv,
     .flHeaderTruck,
     .flHeaderDateTime,
     .flHeaderEnvConnections{
-      width:100%;
+      width:auto;
+    }
+    .flHeaderUtility{
+      gap:.28rem;
+      min-height:1.92rem;
+      padding:.1rem .32rem;
+    }
+    .flHeaderUtilityBatchLabel{
+      font-size:.53rem;
+    }
+    .flHeaderUtilityBatchValue{
+      font-size:.62rem;
+    }
+    .flHeaderUtilityNav .flNavBtn{
+      padding:.16rem .36rem;
+      min-height:1.44rem;
+      font-size:.62rem;
     }
     .flNav--modern .flNavGroup{
       flex-wrap:nowrap;
@@ -4035,8 +4350,30 @@ body.dispatch-sidebar-open{
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
 </head>
- <body class="bg-body-extra-light side-scroll page-header-fixed page-header-dark main-content-boxed">
+<body class="bg-body-extra-light side-scroll page-header-fixed page-header-dark main-content-boxed">
   <div class="flApp">
+    <header class="flTopUtilityBar">
+      <div class="flHeaderUtility" aria-label="Batch and system links">
+        <div class="flHeaderUtilityBatch" aria-label="Daily batch code">
+          <span class="flHeaderUtilityBatchLabel">Batch</span>
+          <span id="dispatchBatchCodeSummary" class="flHeaderUtilityBatchValue">------/--</span>
+        </div>
+        <div class="flHeaderUtilityRight">
+          <div class="flHeaderEnvConnections" aria-label="Connections">
+            <span class="flHeaderConnectionLabel">Connections</span>
+            <div id="serverStatusBar" class="statusBar statusBar--compact" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
+              <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
+            </div>
+          </div>
+          <div id="dispatchDateTimeSummary" class="flHeaderDateTime flHeaderDateTime--utility">-</div>
+          <div class="flHeaderUtilityNav" role="tablist" aria-label="System views">
+            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Docs</span></button>
+            <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnText">Admin</span></button>
+            <button id="navFooterChangelog" class="flNavBtn" type="button" role="tab" aria-controls="viewChangelog" aria-selected="false" data-route="/changelog"><span class="flNavBtnText">Changelog</span></button>
+          </div>
+        </div>
+      </div>
+    </header>
     <div class="flLayout">
       <aside class="flSide">
         <div class="flSideHeader">
@@ -4058,39 +4395,27 @@ body.dispatch-sidebar-open{
           <div class="flHeaderMeta">
             <div class="flHeaderEnv" aria-label="Environment">
               <div class="flHeaderEnvTop">
-                <div id="dispatchEnvironmentSummary" class="flHeaderEnvMetrics"><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Temp</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span></span><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Humidity</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span></span></div>
-                <button id="dispatchTruckBookedMetric" class="flHeaderTruckButton" type="button" aria-label="Truck booking status" title="Booked status: Not booked">
-                  <span id="dispatchTruckStatusIcon" class="flHeaderTruckIcon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M2.5 6.5h10v8h-10z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M12.5 9.5h4.2l2.8 2.8v2.2h-7z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                      <circle cx="7" cy="16.8" r="1.7" fill="currentColor"/>
-                      <circle cx="17.4" cy="16.8" r="1.7" fill="currentColor"/>
-                    </svg>
+                <div id="dispatchEnvironmentSummary" class="flHeaderEnvMetrics">
+                  <span class="flHeaderMetric" aria-label="Temperature">
+                    <span class="flHeaderMetricLabel">Temp</span>
+                    <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span>
                   </span>
-                </button>
+                  <span class="flHeaderMetric" aria-label="Humidity">
+                    <span class="flHeaderMetricLabel">Humidity</span>
+                    <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span>
+                  </span>
+                </div>
               </div>
             </div>
-            <div id="dispatchTruckSummary" class="flHeaderTruck" aria-label="Booked parcel summary">
-              <span class="flHeaderBoxGroup" aria-label="Booked parcels">
-                <span class="flHeaderBoxCard" title="Booked boxes">
-                  <span class="flHeaderTruckIcon" aria-hidden="true">📦</span>
-                  <span>
-                    <span class="flHeaderBoxLabel">Booked</span>
-                    <span id="dispatchTruckBookedParcelCount" class="flHeaderBoxValue">0</span>
-                  </span>
-                </span>
-              </span>
-            </div>
-            <div id="dispatchDateTimeSummary" class="flHeaderDateTime">-</div>
-            <div class="flHeaderEnvConnections" aria-label="Connections">
-              <span class="flHeaderConnectionLabel">Connections</span>
-              <div id="serverStatusBar" class="statusBar statusBar--compact" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
-                <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
+            <div class="flNewOrderFab">
+              <button id="navNewOrder" class="flNavBtn flNavBtn--primary flNavBtn--newOrder" type="button" aria-label="New order actions" aria-haspopup="menu" aria-expanded="false"><span class="visually-hidden">New Order</span></button>
+              <div class="flNewOrderMenu" role="menu" aria-label="New order options">
+                <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/flocs">Sales Order</button>
+                <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/stock" data-stock-tab="purchase">Purchase Order</button>
+                <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/stock" data-stock-tab="stock" data-stock-mode="make">Manufacturing Order</button>
+              </div>
               </div>
             </div>
-            <button id="navNewOrder" class="flNavBtn flNavBtn--primary flNavBtn--newOrder" type="button" data-route="/flocs" aria-label="Create a new order">+ New Order</button>
-          </div>
           </div>
           <span id="dispatchEnvironmentStatus" class="visually-hidden">Waiting for sensor</span>
           <span id="dispatchRemoteStatus" class="visually-hidden">Remote offline</span>
@@ -4112,16 +4437,19 @@ body.dispatch-sidebar-open{
 <div id="dispatchMobileControls" class="dispatchMobileControls" aria-label="Dispatch lane controls">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                   <strong class="fs-sm text-muted text-uppercase">Mobile lanes</strong>
-                  <span id="dispatchMobileLaneLabel" class="badge bg-primary-subtle text-primary-emphasis">All lanes</span>
+                  <span id="dispatchMobileLaneLabel" class="badge bg-warning-subtle text-warning-emphasis">All lanes</span>
                 </div>
                 <div id="dispatchMobileLaneTabs" class="btn-group" role="tablist" aria-label="Filter dispatch lanes"></div>
               </div>
-              <div class="dispatchBoardToolbar" aria-label="Orders lane controls">
-                <div class="dispatchBoardToolbarActions">
-                  <button id="dispatchRefreshOrdersBtn" class="dispatchSelectionBtn" type="button" aria-label="Refresh open orders">Refresh orders</button>
-                  <button id="dispatchSelectModeBtn" class="dispatchSelectionBtn dispatchSelectionBtn--select" type="button" aria-pressed="false">Select orders</button>
-                </div>
-                <span class="dispatchBoardToolbarHint">Use select mode for multi-select and lane-level select all.</span>
+              <div class="dispatchBoardQuickActions" aria-label="Orders lane controls">
+                <button id="dispatchRefreshOrdersBtn" class="dispatchIconBtn" type="button" aria-label="Refresh open orders" title="Refresh open orders">
+                  <span aria-hidden="true">&#x21bb;</span>
+                  <span class="visually-hidden">Refresh orders</span>
+                </button>
+                <button id="dispatchSelectModeBtn" class="dispatchIconBtn dispatchIconBtn--select" type="button" aria-pressed="false" aria-label="Select orders" title="Select orders">
+                  <span aria-hidden="true">&#x2611;</span>
+                  <span class="visually-hidden">Select orders</span>
+                </button>
               </div>
               <div class="dispatchBoard" id="dispatchBoardGrid">
                 <div class="dispatchBoardEmpty">Loading open orders…</div>
@@ -4342,7 +4670,7 @@ body.dispatch-sidebar-open{
     <div class="flView" id="viewFlocs" hidden>
       <div class="flocs-shell" id="flocs-shell">
           <main class="flocs-layout">
-            <section class="flocs-panel flocs-customerDock" aria-label="Customer search and selection">
+            <section id="flocs-customerDock" class="flocs-panel flocs-customerDock" aria-label="Customer search and selection">
               <div class="flocs-formSection flocs-formSection--customer">
                 <div class="flocs-segmentFilters" id="flocs-customerSegmentFilters" role="group" aria-label="Customer segment filters">
                   <div class="flocs-segmentFiltersPrimary">
@@ -4498,7 +4826,7 @@ body.dispatch-sidebar-open{
               </div>
             </section>
 
-            <section class="flocs-panel form" id="flocs-formPanel">
+            <section class="flocs-panel form" id="flocs-formPanel" hidden>
               <div class="flocs-formSection">
                 <div class="flocs-labelRow flocs-labelRow--items">
                   <span>Items</span>
@@ -4528,7 +4856,7 @@ body.dispatch-sidebar-open{
               </div>
             </section>
 
-            <aside class="flocs-panel flocs-previewPanel" aria-label="Invoice preview">
+            <aside id="flocs-previewPanel" class="flocs-panel flocs-previewPanel" aria-label="Invoice preview" hidden>
               <div class="flocs-previewHeader">
                 <div><div class="flocs-previewTitle">Invoice preview</div></div>
                 <div>
@@ -4781,11 +5109,6 @@ body.dispatch-sidebar-open{
             </div>
           </section>
         </div>
-        <div class="flFooterLinks">
-        <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnIcon" aria-hidden="true">📖</span><span class="flNavBtnText">Documentation</span></button>
-        <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnIcon" aria-hidden="true">🛠️</span><span class="flNavBtnText">Admin</span></button>
-        <button id="navFooterChangelog" class="flNavBtn" type="button" role="tab" aria-controls="viewChangelog" aria-selected="false" data-route="/changelog"><span class="flNavBtnIcon" aria-hidden="true">🗒️</span><span class="flNavBtnText">Changelog</span></button>
-        </div>
       </footer>
     </div>
   </div>
@@ -4824,4 +5147,9 @@ body.dispatch-sidebar-open{
 <script src="/dispatch-header-widgets.js"></script>
 </body>
 </html>
+
+
+
+
+
 

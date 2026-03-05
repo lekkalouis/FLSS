@@ -209,6 +209,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchTruckSummary = $("dispatchTruckSummary");
   const dispatchTruckAnnouncement = $("dispatchTruckAnnouncement");
   const dispatchDateTimeSummary = $("dispatchDateTimeSummary");
+  const dispatchBatchCodeSummary = $("dispatchBatchCodeSummary");
   const dispatchEnvironmentStatus = $("dispatchEnvironmentStatus");
   const dispatchRemoteStatus = $("dispatchRemoteStatus");
   const dispatchBookingOverlay = $("dispatchBookingOverlay");
@@ -234,6 +235,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const navFlowcharts = $("navFlowcharts");
   const navFlocs = $("navFlocs");
   const navNewOrder = $("navNewOrder");
+  const navNewOrderFab = navNewOrder?.closest(".flNewOrderFab") || null;
+  const navNewOrderMenu = navNewOrderFab?.querySelector(".flNewOrderMenu") || null;
   const navFulfillment = $("navFulfillment");
   const navStock = $("navStock");
   const navPriceManager = $("navPriceManager");
@@ -267,6 +270,14 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const emergencyStopBtn = $("emergencyStop");
 
   let globalLoaderCount = 0;
+  let isNewOrderMenuOpen = false;
+
+  function setNewOrderMenuOpen(open) {
+    if (!navNewOrderFab || !navNewOrder || !navNewOrderMenu) return;
+    isNewOrderMenuOpen = Boolean(open);
+    navNewOrderFab.classList.toggle("is-open", isNewOrderMenuOpen);
+    navNewOrder.setAttribute("aria-expanded", isNewOrderMenuOpen ? "true" : "false");
+  }
 
   function showPageLoader(message = "Loading data...") {
     globalLoaderCount += 1;
@@ -434,7 +445,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const DISPATCH_MOBILE_BASE_LANE_OPTIONS = [
     { id: "all", label: "All" },
     { id: "shipping", label: "Shipping" },
-    { id: "export", label: "Export" },
     { id: "pickup", label: "Pickup" }
   ];
   let dispatchMobileLaneOptions = [...DISPATCH_MOBILE_BASE_LANE_OPTIONS, { id: "delivery", label: "Delivery" }];
@@ -1485,15 +1495,24 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   }
 
   function renderDateTimeHeaderWidget() {
-    if (!dispatchDateTimeSummary) return;
     const now = new Date();
+    const dayLabel = now.toLocaleDateString(undefined, { weekday: "long" });
     const dateLabel = now.toLocaleDateString(undefined, {
-      weekday: "long",
       year: "numeric",
       month: "2-digit",
       day: "2-digit"
     });
-    dispatchDateTimeSummary.textContent = `${dateLabel} | Batch Code: ${formatDailyBatchCode(now)}`;
+    if (dispatchDateTimeSummary) {
+      const truckIcon = truckBooked
+        ? `<span class="flHeaderDateTruckIcon" aria-hidden="true">🚚</span>`
+        : "";
+      dispatchDateTimeSummary.innerHTML = `${truckIcon}<span class="flHeaderDateDay">${escapeHtml(
+        dayLabel
+      )}</span><span class="flHeaderDateStamp">${escapeHtml(dateLabel)}</span>`;
+    }
+    if (dispatchBatchCodeSummary) {
+      dispatchBatchCodeSummary.textContent = formatDailyBatchCode(now);
+    }
   }
 
   function setStatusClass(el, status) {
@@ -2097,6 +2116,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     if (dispatchTruckSummary) dispatchTruckSummary.hidden = bookedParcelCount <= 0;
     if (dispatchTruckStatusText) dispatchTruckStatusText.textContent = truckBooked ? "Booked" : "Not booked";
     if (dispatchTruckBookedMetric) dispatchTruckBookedMetric.classList.toggle("is-booked", truckBooked);
+    renderDateTimeHeaderWidget();
     if (!truckStatus || !truckBookBtn) return;
     truckStatus.textContent = truckBooked ? "Booked" : "Not booked";
     truckStatus.classList.toggle("is-booked", truckBooked);
@@ -3650,6 +3670,40 @@ async function startOrder(orderNo) {
     return /(^|[\s,])export([\s,]|$)/.test(tags);
   }
 
+  const DISPATCH_CHAIN_LOGOS = [
+    { src: "/img/joeys.png", alt: "Joey's", test: /\bjoey'?s\b/ },
+    { src: "/img/boerandbutcher.png", alt: "Boer and Butcher", test: /\bboer\s*(?:&|and)?\s*butcher\b/ },
+    { src: "/img/spar.png", alt: "SPAR", test: /\b(?:super[\s-]*spar|spar)\b/ },
+    { src: "/img/Ok.jpg", alt: "OK Foods", test: /\bok(?:\s|-)?foods?\b/ },
+    { src: "/img/pnp.png", alt: "Pick n Pay", test: /\bpnp\b|\bp\s*n\s*p\b|\bpick\s*['’]?\s*n\s*['’]?\s*pay\b/ },
+    {
+      src: "/img/famouskalaharibiltong.png",
+      alt: "Famous Kalahari Biltong",
+      test: /\bfamous\s+kalahari\s+biltong\b|\bkalahari\s+biltong\b/
+    },
+    { src: "/img/laeveld%20biltong.jpg", alt: "Laeveld Biltong", test: /\blaeveld(?:\s+biltong)?\b/ }
+  ];
+
+  function resolveDispatchChainLogo(order) {
+    const shippingLines = Array.isArray(order?.shipping_lines) ? order.shipping_lines : [];
+    const haystack = [
+      order?.customer_name,
+      order?.shipping_address?.company,
+      order?.shipping_company,
+      order?.shipping_address1,
+      order?.shipping_address2,
+      order?.tags,
+      order?.note,
+      ...shippingLines.map((line) => line?.title)
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    if (!haystack) return null;
+    const match = DISPATCH_CHAIN_LOGOS.find((entry) => entry.test.test(haystack));
+    return match || null;
+  }
+
   function formatGroupedPackQty(quantity, sizeLabel, order) {
     const qty = Number(quantity) || 0;
     if (!isHenniesOrderContext(order) || qty <= 0) return null;
@@ -3984,12 +4038,12 @@ async function startOrder(orderNo) {
       const fulfilled = String(order?.fulfillment_status || "").toLowerCase() === "fulfilled";
       const isComplete = fulfilled || pickedUpTag;
       const actionType = isComplete ? "released" : notified ? "release-pickup" : "notify-ready";
-      const iconLabel = isComplete ? "📥" : notified ? "🛍️" : "✉️";
-      const iconTitle = isComplete ? "Collected / Picked up" : notified ? "Mark collected" : "Notify customer";
+      const actionLabel = isComplete ? "Picked up" : notified ? "Mark as picked up" : "Notify customer";
+      const actionTitle = isComplete ? "Collected / Picked up" : notified ? "Mark as picked up" : "Notify customer";
       const pickupDisabled = isComplete ? "disabled" : disabled;
       return `
         ${docsDropdown}
-        <button class="dispatchBoxBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${pickupDisabled} aria-label="${iconTitle}" title="${iconTitle}">${iconLabel}</button>
+        <button class="dispatchPickupTextBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${pickupDisabled} aria-label="${actionTitle}" title="${actionTitle}">${actionLabel}</button>
       `;
     }
 
@@ -5077,7 +5131,8 @@ async function startOrder(orderNo) {
     if (!dispatchSelectModeBtn) return;
     dispatchSelectModeBtn.setAttribute("aria-pressed", dispatchSelectModeActive ? "true" : "false");
     dispatchSelectModeBtn.classList.toggle("is-active", dispatchSelectModeActive);
-    dispatchSelectModeBtn.textContent = dispatchSelectModeActive ? "Selecting" : "Select orders";
+    dispatchSelectModeBtn.setAttribute("aria-label", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
+    dispatchSelectModeBtn.setAttribute("title", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
   }
   function loadDispatchSelectionSidebarPreference() {
     const stored = localStorage.getItem(DISPATCH_SELECTION_SIDEBAR_KEY);
@@ -5640,23 +5695,20 @@ async function startOrder(orderNo) {
 
     const cols = [
       { id: "shipping", label: "Shipping", type: "cards" },
-      { id: "export", label: "Export", type: "cards" },
       { id: "pickup", label: "Pickup / Collection", type: "cards" },
-      { id: "deliveryA", label: "Delivery 1", type: "cards" },
-      { id: "deliveryB", label: "Delivery 2", type: "cards" }
+      { id: "delivery", label: "Delivery", type: "cards" }
     ];
     const lanes = {
       deliveryA: [],
       deliveryB: [],
       shippingAgent: [],
       shippingNonAgent: [],
-      export: [],
       pickup: []
     };
 
     list.forEach((o) => {
       if (isExportOrder(o)) {
-        lanes.export.push(o);
+        lanes.shippingNonAgent.push(o);
         return;
       }
       const laneId = laneFromOrder(o);
@@ -5684,24 +5736,20 @@ async function startOrder(orderNo) {
     const [shippingA, shippingB, shippingC, shippingD] = shippingChunks;
     const laneOrdersByColId = {
       shipping: [...lanes.shippingAgent, ...lanes.shippingNonAgent],
-      export: lanes.export,
       pickup: lanes.pickup,
-      deliveryA: lanes.deliveryA,
-      deliveryB: lanes.deliveryB
+      delivery: [...lanes.deliveryA, ...lanes.deliveryB]
     };
-    const hasAnyShippingOrders = lanes.shippingAgent.length > 0 || lanes.shippingNonAgent.length > 0;
-    const alwaysVisibleLaneIds = hasAnyShippingOrders ? new Set(["shipping"]) : new Set();
-    const visibleCols = cols.filter(
-      (col) => alwaysVisibleLaneIds.has(col.id) || (laneOrdersByColId[col.id] || []).length > 0
-    );
-    const activeCols = visibleCols.length ? visibleCols : cols;
+    const activeCols = cols;
     dispatchBoard.style.setProperty("--dispatch-col-count", String(Math.max(1, activeCols.length)));
     const hasShippingCol = activeCols.some((col) => col.id === "shipping");
-    const nonShippingColCount = hasShippingCol ? activeCols.filter((col) => col.id !== "shipping").length : 0;
-    const shippingWeight = hasShippingCol ? Math.max(nonShippingColCount * 2, 2) : 1;
-    const dispatchColTemplate = activeCols
-      .map((col) => (col.id === "shipping" ? `minmax(0, ${shippingWeight}fr)` : "minmax(0, 1fr)"))
-      .join(" ");
+    const hasPickupCol = activeCols.some((col) => col.id === "pickup");
+    const hasDeliveryCol = activeCols.some((col) => col.id === "delivery");
+    const useThreeLaneTemplate = hasShippingCol && hasPickupCol && hasDeliveryCol && activeCols.length === 3;
+    const dispatchColTemplate = useThreeLaneTemplate
+      ? "minmax(0, 4fr) minmax(0, 1fr) minmax(0, 1fr)"
+      : activeCols
+          .map((col) => (col.id === "shipping" ? "minmax(0, 2fr)" : "minmax(0, 1fr)"))
+          .join(" ");
     if (dispatchColTemplate) {
       dispatchBoard.style.setProperty("--dispatch-col-template", dispatchColTemplate);
     } else {
@@ -5710,9 +5758,7 @@ async function startOrder(orderNo) {
     const hasDeliveryLaneVisible = activeCols.some((col) => normalizeDispatchLaneId(col.id) === "delivery");
     dispatchMobileLaneOptions = [
       ...DISPATCH_MOBILE_BASE_LANE_OPTIONS,
-      ...(hasDeliveryLaneVisible ? [{ id: "delivery", label: "Delivery" }] : []),
-      ...(activeCols.some((col) => col.id === "deliveryA") ? [{ id: "deliveryA", label: "Delivery 1" }] : []),
-      ...(activeCols.some((col) => col.id === "deliveryB") ? [{ id: "deliveryB", label: "Delivery 2" }] : [])
+      ...(hasDeliveryLaneVisible ? [{ id: "delivery", label: "Delivery" }] : [])
     ];
     if (dispatchMobileLane !== "all" && !dispatchMobileLaneOptions.some((option) => option.id === dispatchMobileLane)) {
       dispatchMobileLane = "all";
@@ -5720,6 +5766,10 @@ async function startOrder(orderNo) {
 
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
+      const chainLogo = resolveDispatchChainLogo(o);
+      const chainLogoMarkup = chainLogo
+        ? `<img class="dispatchCardChainLogo" src="${chainLogo.src}" alt="${chainLogo.alt} logo" loading="lazy" />`
+        : "";
       const city = o.shipping_city || "";
       const postal = o.shipping_postal || "";
       const displayDate = getDispatchDisplayDate(o);
@@ -5766,7 +5816,7 @@ async function startOrder(orderNo) {
       return `
         <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} dispatchCard--${paymentState}" data-order-no="${orderNo}" ${combinedStyle}>
           <div class="dispatchCardTitle">
-            <span class="dispatchCardTitleText">${title}</span>
+            <span class="dispatchCardTitleMain">${chainLogoMarkup}<span class="dispatchCardTitleText">${title}</span></span>
             <span class="dispatchCardMissingDot dispatchCardMissingDot--${paymentState}" aria-label="${paymentState} payment status"></span>
           </div>
           <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${displayDate}</div>
@@ -5924,6 +5974,36 @@ async function startOrder(orderNo) {
               </div>
               <div class="dispatchColBody">
                 <div class="dispatchSubLanes dispatchSubLanes--shipping" style="--dispatch-sub-cols:${shippingSubLaneColCount};">${subLanes}</div>
+              </div>
+            </div>`;
+        }
+        if (col.id === "delivery") {
+          const deliverySubLanes = [
+            { id: "deliveryA", label: "Lane 1", orders: lanes.deliveryA },
+            { id: "deliveryB", label: "Lane 2", orders: lanes.deliveryB }
+          ];
+          const deliverySubLaneColCount = Math.max(1, deliverySubLanes.length);
+          const subLanes = deliverySubLanes
+            .map((subLane) => {
+              const subCards = renderLaneCards(subLane.orders, subLane.id);
+              return `
+                <div class="dispatchSubLane" data-sub-lane-id="${subLane.id}">
+                  <div class="dispatchSubLaneHeader">
+                    <span class="dispatchSubLaneTitle">${subLane.label}</span>
+                    <span class="dispatchSubLaneCount">${subLane.orders.length}</span>
+                  </div>
+                  <div class="dispatchSubLaneBody">${subCards || '<div class="dispatchBoardEmptyCol">No orders in this lane.</div>'}</div>
+                </div>
+              `;
+            })
+            .join("");
+          return `
+            <div class="dispatchCol" data-lane-id="${col.id}">
+              <div class="dispatchColHeader">
+                <span>${col.label}</span>
+              </div>
+              <div class="dispatchColBody">
+                <div class="dispatchSubLanes dispatchSubLanes--delivery" style="--dispatch-sub-cols:${deliverySubLaneColCount};">${subLanes}</div>
               </div>
             </div>`;
         }
@@ -6334,7 +6414,6 @@ async function startOrder(orderNo) {
     if (dispatchBoard) {
       const laneIdsInTraversalOrder = [
         "shipping",
-        "export",
         "pickup",
         "delivery",
         "deliveryA",
@@ -6961,6 +7040,35 @@ async function startOrder(orderNo) {
     activeSlug: null,
     markdownCache: new Map()
   };
+  let pendingStockIntent = null;
+
+  function queueStockIntentFromRouteElement(routeEl) {
+    if (!(routeEl instanceof HTMLElement)) {
+      pendingStockIntent = null;
+      return;
+    }
+    const stockTab = String(routeEl.dataset.stockTab || "").trim().toLowerCase();
+    const stockMode = String(routeEl.dataset.stockMode || "").trim().toLowerCase();
+    if (!stockTab && !stockMode) {
+      pendingStockIntent = null;
+      return;
+    }
+    pendingStockIntent = { stockTab, stockMode };
+  }
+
+  function applyPendingStockIntent() {
+    if (!pendingStockIntent) return;
+    const { stockTab, stockMode } = pendingStockIntent;
+    pendingStockIntent = null;
+    if (stockTab) {
+      const tabBtn = document.querySelector(`.stock-tabBtn[data-tab="${stockTab}"]`);
+      tabBtn?.click();
+    }
+    if (stockMode) {
+      const modeBtn = document.querySelector(`.stock-modeBtn[data-mode="${stockMode}"]`);
+      modeBtn?.click();
+    }
+  }
 
   function escapeHtml(value) {
     return String(value || "")
@@ -7181,10 +7289,14 @@ async function startOrder(orderNo) {
     const view = viewForPath(path);
     switchMainView(view);
     await initViewIfNeeded(view);
+    if (view === "stock") {
+      applyPendingStockIntent();
+    }
   }
 
   async function navigateTo(path, { replace = false } = {}) {
     const next = normalizePath(path);
+    setNewOrderMenuOpen(false);
     if (replace) {
       window.history.replaceState({}, "", next);
     } else {
@@ -7378,6 +7490,46 @@ async function startOrder(orderNo) {
     navigateTo("/scan", { replace: true });
   });
 
+  navNewOrder?.setAttribute("aria-expanded", "false");
+
+  navNewOrderFab?.addEventListener("focusout", (event) => {
+    const nextFocus = event.relatedTarget;
+    if (nextFocus instanceof Node && navNewOrderFab.contains(nextFocus)) return;
+    setNewOrderMenuOpen(false);
+  });
+
+  navNewOrder?.addEventListener("click", (event) => {
+    event.preventDefault();
+    setNewOrderMenuOpen(!isNewOrderMenuOpen);
+  });
+
+  navNewOrder?.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setNewOrderMenuOpen(true);
+      const firstItem = navNewOrderMenu?.querySelector(".flNewOrderMenuItem");
+      if (firstItem instanceof HTMLElement) {
+        firstItem.focus();
+      }
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setNewOrderMenuOpen(false);
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!isNewOrderMenuOpen || !navNewOrderFab) return;
+    const target = event.target;
+    if (target instanceof Node && navNewOrderFab.contains(target)) return;
+    setNewOrderMenuOpen(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !isNewOrderMenuOpen) return;
+    setNewOrderMenuOpen(false);
+    navNewOrder?.focus();
+  });
+
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
@@ -7386,6 +7538,8 @@ async function startOrder(orderNo) {
     const route = routeEl.getAttribute("data-route") || routeEl.getAttribute("href");
     if (!route) return;
     event.preventDefault();
+    queueStockIntentFromRouteElement(routeEl);
+    setNewOrderMenuOpen(false);
     navigateTo(route);
   });
 

@@ -55,6 +55,9 @@ export function initFlocsView() {
 
   // ===== DOM =====
   const shell            = document.getElementById("flocs-shell");
+  const customerDock     = document.getElementById("flocs-customerDock");
+  const formPanel        = document.getElementById("flocs-formPanel");
+  const previewPanel     = document.getElementById("flocs-previewPanel");
   const customerSearch   = document.getElementById("flocs-customerSearch");
   const customerQuickSearch = document.getElementById("flocs-customerQuickSearch");
   const customerProvinceFilter = document.getElementById("flocs-customerProvinceFilter");
@@ -324,6 +327,31 @@ export function initFlocsView() {
     if (customerQuickSearch && !customerQuickSearch.hidden) return customerQuickSearch;
     if (customerSearch && !customerSearch.hidden) return customerSearch;
     return customerSearch || customerQuickSearch || null;
+  }
+
+  function syncOrderCaptureStage(options = {}) {
+    const { focusSearch = false } = options;
+    const hasCustomer = Boolean(state.customer);
+    if (shell) {
+      shell.classList.toggle("flocs-shell--capture-active", hasCustomer);
+      shell.classList.toggle("flocs-shell--capture-search", !hasCustomer);
+    }
+    if (customerDock) {
+      customerDock.hidden = hasCustomer;
+    }
+    if (formPanel) {
+      formPanel.hidden = !hasCustomer;
+    }
+    if (previewPanel) {
+      previewPanel.hidden = !hasCustomer;
+    }
+    if (!hasCustomer && focusSearch) {
+      const searchInput = activeCustomerSearchInput();
+      if (searchInput instanceof HTMLInputElement) {
+        searchInput.focus();
+        searchInput.select();
+      }
+    }
   }
 
   function customerSearchQuery() {
@@ -1528,10 +1556,6 @@ export function initFlocsView() {
         : delivery === "delivery"
         ? "Delivery"
         : "Shipping via SWE";
-    const sweCarrierLogo =
-      delivery === "shipping"
-        ? `<div class="flocs-invoiceCarrier"><img class="flocs-invoiceCarrierLogo" src="/img/download.jpg" alt="SWE courier logo" loading="lazy" /></div>`
-        : "";
     const deliveryDateValue = String(state.deliveryDate || "");
 
     const billToText = state.customer
@@ -1605,7 +1629,6 @@ ${state.customer.email || ""}${
           <div class="flocs-invoiceBrand">Flippen Lekka Holdings (Pty) Ltd</div>
           <div class="flocs-invoiceSub">Draft order preview</div>
           <div class="flocs-invoiceSub flocs-invoiceSub--delivery">Delivery: ${deliveryLabel}</div>
-          ${sweCarrierLogo}
         </div>
         <div class="flocs-invoiceHeaderMeta">
           <label class="flocs-invoiceHeaderField">
@@ -2406,6 +2429,7 @@ ${state.customer.email || ""}${
     hydratePriceTiersForProducts(state.products);
     updateDeliveryPrompt(true);
     scheduleAutoQuote();
+    syncOrderCaptureStage();
   }
 
   function clearSelectedCustomer() {
@@ -2437,6 +2461,7 @@ ${state.customer.email || ""}${
       customerResults.hidden = false;
       customerResults.innerHTML = `<div class="flocs-customerEmpty">No customers loaded yet.</div>`;
     }
+    syncOrderCaptureStage({ focusSearch: true });
   }
 
   function resetCustomerSearch(options = {}) {
@@ -2632,6 +2657,8 @@ ${state.customer.email || ""}${
   }
 
   async function createOrderNow() {
+    if (state.isSubmitting) return;
+    validate();
     if (state.errors.length) {
       showToast("Fix errors before creating order.", "err");
       return;
@@ -2741,7 +2768,11 @@ ${state.customer.email || ""}${
         `Order ${data.order?.name || data.order?.id || ""} created.`,
         "ok"
       );
-      const openUrl = data.order?.adminUrl || null;
+      const openUrl =
+        data.order?.adminUrl ||
+        data.order?.orderStatusUrl ||
+        data.order?.order_status_url ||
+        null;
       if (openUrl) {
         window.open(openUrl, "_blank", "noopener");
       }
@@ -2847,6 +2878,7 @@ ${state.customer.email || ""}${
     updateDeliveryPrompt(true);
     renderQuickQtyToggleButton();
     renderCustomerSegmentFilters();
+    syncOrderCaptureStage();
   }
 
   async function convertDraftToOrder() {
@@ -2932,8 +2964,25 @@ ${state.customer.email || ""}${
     }
 
     document.addEventListener("keydown", (e) => {
-      if (maybeHandleDoubleSpaceQuickPicker(e)) return;
       if (!shell || shell.closest("[hidden]")) return;
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === "Enter") {
+        e.preventDefault();
+        void createOrderNow();
+        return;
+      }
+      if (e.key === "F3") {
+        e.preventDefault();
+        resetForm();
+        void searchCustomersNow();
+        const searchInput = activeCustomerSearchInput();
+        if (searchInput instanceof HTMLInputElement) {
+          searchInput.focus();
+          searchInput.select();
+        }
+        syncChatSearchResetButton();
+        return;
+      }
+      if (maybeHandleDoubleSpaceQuickPicker(e)) return;
       const active = document.activeElement;
       if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) return;
       if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
