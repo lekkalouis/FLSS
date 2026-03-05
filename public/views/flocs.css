@@ -192,8 +192,8 @@
     #viewFlocs .flocs-previewPanel .flocs-invoice{
       font-size:.7rem;
       line-height:1.2;
-      max-height:60vh;
-      overflow:auto;
+      max-height:none;
+      overflow:visible;
     }
     #viewFlocs .flocs-previewPanel .flocs-invoiceTable th,
     #viewFlocs .flocs-previewPanel .flocs-invoiceTable td{
@@ -310,23 +310,24 @@
     }
 
     #viewFlocs .flocs-customerResults{
-      margin-top:.4rem;
-      max-height:340px;
-      overflow:auto;
+      margin-top:.25rem;
+      max-height:none;
+      overflow:visible;
       border-radius:.6rem;
       border:1px solid var(--panel-strong);
       background:var(--panel);
-      display:flex;
-      flex-wrap:wrap;
-      gap:.35rem;
-      padding:.35rem;
-      align-content:flex-start;
+      display:grid;
+      grid-template-columns:repeat(5, minmax(0, 1fr));
+      align-items:stretch;
+      gap:.3rem;
+      padding:.28rem;
+      align-content:start;
     }
     #viewFlocs .flocs-segmentFilters{
       display:flex;
       flex-direction:column;
-      gap:.45rem;
-      margin-bottom:.65rem;
+      gap:.32rem;
+      margin-bottom:.4rem;
     }
     #viewFlocs .flocs-segmentFiltersPrimary{
       display:grid;
@@ -415,7 +416,7 @@
     #viewFlocs .flocs-searchRow--chat{
       flex-direction:column;
       align-items:stretch;
-      gap:.35rem;
+      gap:.22rem;
     }
     #viewFlocs .flocs-chatSearch{
       display:flex;
@@ -491,7 +492,7 @@
       display:flex;
       flex-wrap:wrap;
       gap:.35rem;
-      margin-bottom:.65rem;
+      margin-bottom:.38rem;
     }
     #viewFlocs .flocs-azBar button{
       border:1px solid var(--panel-strong);
@@ -544,9 +545,9 @@
       padding:.3rem .42rem;
       cursor:pointer;
       transition:all .2s ease;
-      width:25ch;
-      min-width:25ch;
-      max-width:100%;
+      width:100%;
+      min-width:0;
+      max-width:none;
       min-height:2.35rem;
       display:flex;
       flex-direction:column;
@@ -1141,8 +1142,8 @@
     }
     #viewFlocs .flocs-productResults{
       margin-top:.45rem;
-      max-height:180px;
-      overflow:auto;
+      max-height:none;
+      overflow:visible;
       border-radius:.6rem;
       border:1px solid var(--panel-strong);
       background:var(--panel);
@@ -1469,16 +1470,18 @@
 #viewFlocs .flocs-layout{
   grid-template-columns:minmax(0,2fr) minmax(320px,1fr);
   align-items:stretch;
-  min-height:calc(100vh - 11rem);
 }
 #viewFlocs .flocs-customerDock{
   grid-column:1 / -1;
-  width:min(1120px, 100%);
+  width:min(980px, 100%);
   justify-self:center;
-  padding:.85rem 1rem;
+  padding:.6rem .72rem;
 }
 #viewFlocs .flocs-customerDock .flocs-formSection--customer{
   padding-top:0;
+  margin-bottom:0;
+  padding-bottom:0;
+  border-bottom:none;
 }
 #viewFlocs .flocs-customerDock .flocs-searchRow--chat{
   align-items:center;
@@ -1490,10 +1493,10 @@
   min-height:0;
 }
 #viewFlocs .flocs-previewPanel{
-  position:sticky;
-  top:1rem;
-  height:calc(100vh - 9rem);
-  overflow:auto;
+  position:static;
+  top:auto;
+  height:auto;
+  overflow:visible;
 }
 #viewFlocs .flocs-previewControls .flocs-formSection{
   margin-bottom:.6rem;
@@ -1670,8 +1673,9 @@
 
 @media (max-width:1200px){
   #viewFlocs .flocs-layout{grid-template-columns:1fr;min-height:0;}
-  #viewFlocs .flocs-customerDock{width:100%;justify-self:stretch;padding:.75rem .8rem;}
+  #viewFlocs .flocs-customerDock{width:100%;justify-self:stretch;padding:.58rem .65rem;}
   #viewFlocs .flocs-previewPanel{position:static;height:auto;}
+  #viewFlocs .flocs-customerResults{grid-template-columns:repeat(4, minmax(0, 1fr));}
   #viewFlocs .flocs-azBar{grid-template-columns:repeat(13, minmax(0, 1fr));}
 }
 @media (max-width:900px){
@@ -1716,6 +1720,9 @@
   #viewFlocs .flocs-productsTable td{
     padding:.16rem .2rem;
   }
+  #viewFlocs .flocs-customerResults{
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+  }
   #viewFlocs .flocs-chatSearch{
     width:100%;
     padding:.28rem .34rem .28rem .55rem;
@@ -1751,6 +1758,9 @@
 @media (max-width:700px){
   #viewFlocs .flocs-shell{
     padding:.55rem .45rem 1rem;
+  }
+  #viewFlocs .flocs-customerResults{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
   }
   #viewFlocs .flocs-row > *{
     flex:1 1 100%;
