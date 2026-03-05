@@ -4787,11 +4787,10 @@ body.dispatch-sidebar-open{
     <div class="flView" id="viewChangelog" hidden>
       <div class="flChangelogShell">
         <h2>Changelog</h2>
-        <p>Recent improvements to the Flippen Lekka operations app.</p>
-        <ul class="flChangelogList">
-          <li><strong>Admin hub:</strong> Added a centralized admin view with quick links to pricing and template tools.</li>
-          <li><strong>Footer menu:</strong> Added footer entry points for Admin and Changelog pages.</li>
-          <li><strong>Template workflow:</strong> Included direct access to notification templates and Liquid C editors from Admin.</li>
+        <p>Build-time generated PR updates with day/time stamps and engineering KPI snapshots.</p>
+        <div id="changelogKpi" class="flChangelogKpi">Loading KPI metrics…</div>
+        <ul id="changelogList" class="flChangelogList">
+          <li>Loading latest changelog entries…</li>
         </ul>
       </div>
     </div>
@@ -4855,4 +4854,3 @@ body.dispatch-sidebar-open{
 <script src="/dispatch-header-widgets.js"></script>
 </body>
 </html>
-
