@@ -35,7 +35,10 @@
   }
   *{box-sizing:border-box}
   body{
-    background:var(--bg);
+    background:
+      radial-gradient(circle at 10% 14%, rgba(255,255,255,.22), transparent 36%),
+      radial-gradient(circle at 86% 8%, rgba(255,255,255,.15), transparent 28%),
+      linear-gradient(90deg, #b88a52 0%, #cda06b 14%, #d9b37f 52%, #c89963 100%);
     color:var(--text);
     font-family:var(--sans);
     min-height:100dvh;
@@ -1590,10 +1593,15 @@ body.dispatch-sidebar-open{
   grid-auto-flow:row;
   grid-auto-columns:minmax(0, 1fr);
   align-items:start;
-  gap: .6rem;
-  padding: .2rem;
+  gap: .8rem;
+  padding: .75rem;
   min-height: 65vh;
-  background:var(--panel-muted);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.97), rgba(255,255,255,.94)),
+    repeating-linear-gradient(0deg, rgba(15,23,42,.04) 0 1px, transparent 1px 48px);
+  border:3px solid #1f2937;
+  border-radius:14px;
+  box-shadow:0 8px 18px rgba(15,23,42,.25), inset 0 0 0 2px rgba(255,255,255,.7);
   width:100%;
   max-width:100%;
   overflow-x:hidden;
@@ -1618,12 +1626,12 @@ body.dispatch-sidebar-open{
 
 /* cards in columns */
 .dispatchCard {
-  background: var(--panel);
-  border: 1px solid var(--panel-strong);
-  border-radius: 10px;
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(15,23,42,.28);
+  border-radius: 8px;
   padding: 0.6rem 0.65rem;
   margin-bottom: 0.6rem;
-  box-shadow: 0 2px 6px rgba(15,23,42,0.08);
+  box-shadow: 0 2px 0 rgba(15,23,42,.16);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
   position:relative;
@@ -1652,8 +1660,8 @@ body.dispatch-sidebar-open{
 }
 
 .dispatchCard:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(34,211,238,0.18);
+  transform: translateY(-1px) rotate(-0.15deg);
+  box-shadow: 0 5px 12px rgba(15,23,42,.18);
 }
 
 .dispatchCardTitle {
@@ -2806,13 +2814,22 @@ body.dispatch-sidebar-open{
 .dispatchCol {
   display: flex;
   flex-direction: column;
-  background:#f8fafc;
-  border-radius: 12px;
+  background:#ffffff;
+  border-radius: 8px;
   padding: 0.72rem;
-  border: 1px solid var(--panel-strong);
-  box-shadow:0 4px 10px rgba(15,23,42,.06);
+  border: 2px solid rgba(15,23,42,.74);
+  box-shadow:0 2px 0 rgba(15,23,42,.4);
   min-width:0;
   width:100%;
+  position:relative;
+}
+.dispatchCol::after{
+  content:"";
+  position:absolute;
+  left:.45rem;
+  right:.45rem;
+  top:2.2rem;
+  border-bottom:1px solid rgba(15,23,42,.45);
 }
 .dispatchCol[data-lane-id="shipping"]{
   min-width:0;
@@ -2852,11 +2869,11 @@ body.dispatch-sidebar-open{
   border:1px solid color-mix(in srgb, var(--lane-accent) 50%, #e2e8f0);
 }
 .dispatchColTitle{
-  font-size:.71rem;
-  font-weight:800;
+  font-size:.74rem;
+  font-weight:900;
   text-transform:uppercase;
-  letter-spacing:.04em;
-  color:#334155;
+  letter-spacing:.05em;
+  color:#111827;
   white-space:nowrap;
 }
 .dispatchSubLanes{
