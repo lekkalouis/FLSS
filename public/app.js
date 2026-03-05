@@ -206,6 +206,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchTruckStatusText = $("dispatchTruckStatusText");
   const dispatchTruckParcelCount = $("dispatchTruckParcelCount");
   const dispatchTruckBookedParcelCount = $("dispatchTruckBookedParcelCount");
+  const dispatchTruckSummary = $("dispatchTruckSummary");
   const dispatchTruckAnnouncement = $("dispatchTruckAnnouncement");
   const dispatchDateTimeSummary = $("dispatchDateTimeSummary");
   const dispatchEnvironmentStatus = $("dispatchEnvironmentStatus");
@@ -2089,8 +2090,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     if (dispatchTruckBookedParcelCount) {
       dispatchTruckBookedParcelCount.textContent = String(bookedParcelCount);
       const bookedCard = dispatchTruckBookedParcelCount.closest(".flHeaderBoxCard");
-      if (bookedCard) bookedCard.hidden = bookedParcelCount <= 0;
+      if (bookedCard) bookedCard.hidden = false;
     }
+    if (dispatchTruckSummary) dispatchTruckSummary.hidden = bookedParcelCount <= 0;
     if (dispatchTruckStatusText) dispatchTruckStatusText.textContent = truckBooked ? "Booked" : "Not booked";
     if (dispatchTruckBookedMetric) dispatchTruckBookedMetric.classList.toggle("is-booked", truckBooked);
     if (!truckStatus || !truckBookBtn) return;

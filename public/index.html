@@ -3510,10 +3510,8 @@ body.dispatch-sidebar-open{
   .flHeaderEnvConnections{
     display:flex;
     align-items:center;
-    justify-content:space-between;
-    gap:.3rem;
-    padding-top:.18rem;
-    border-top:1px dashed rgba(148,163,184,.35);
+    gap:.35rem;
+    padding:.2rem .5rem;
   }
   .flHeaderTruck{display:flex;gap:.45rem;align-items:center;padding:.24rem .34rem;border-radius:.5rem;background:#f8fafc;border:1px solid rgba(148,163,184,.2);}
   .flHeaderTruckButton{
@@ -3853,7 +3851,8 @@ body.dispatch-sidebar-open{
   }
   .flHeaderEnv,
   .flHeaderTruck,
-  .flHeaderDateTime{
+  .flHeaderDateTime,
+  .flHeaderEnvConnections{
     border:1px solid rgba(148,163,184,.22);
     border-radius:.7rem;
     background:rgba(248,250,252,.95);
@@ -4026,7 +4025,8 @@ body.dispatch-sidebar-open{
     }
     .flHeaderEnv,
     .flHeaderTruck,
-    .flHeaderDateTime{
+    .flHeaderDateTime,
+    .flHeaderEnvConnections{
       width:100%;
     }
     .flNav--modern .flNavGroup{
@@ -4086,7 +4086,7 @@ body.dispatch-sidebar-open{
               </div>
             </div>
           <div class="flHeaderMeta">
-            <div class="flHeaderEnv" aria-label="Environment and connections">
+            <div class="flHeaderEnv" aria-label="Environment">
               <div class="flHeaderEnvTop">
                 <div id="dispatchEnvironmentSummary" class="flHeaderEnvMetrics"><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Temp</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span></span><span class="flHeaderMetric"><span class="flHeaderMetricLabel">Humidity</span><span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span></span></div>
                 <button id="dispatchTruckBookedMetric" class="flHeaderTruckButton" type="button" aria-label="Truck booking status" title="Booked status: Not booked">
@@ -4099,12 +4099,6 @@ body.dispatch-sidebar-open{
                     </svg>
                   </span>
                 </button>
-              </div>
-              <div class="flHeaderEnvConnections">
-                <span class="flHeaderConnectionLabel">Connections</span>
-                <div id="serverStatusBar" class="statusBar statusBar--compact" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
-                  <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
-                </div>
               </div>
             </div>
             <div id="dispatchTruckSummary" class="flHeaderTruck" aria-label="Booked parcel summary">
@@ -4119,6 +4113,12 @@ body.dispatch-sidebar-open{
               </span>
             </div>
             <div id="dispatchDateTimeSummary" class="flHeaderDateTime">-</div>
+            <div class="flHeaderEnvConnections" aria-label="Connections">
+              <span class="flHeaderConnectionLabel">Connections</span>
+              <div id="serverStatusBar" class="statusBar statusBar--compact" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
+                <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
+              </div>
+            </div>
             <button id="navNewOrder" class="flNavBtn flNavBtn--primary flNavBtn--newOrder" type="button" data-route="/flocs" aria-label="Create a new order">+ New Order</button>
           </div>
           </div>
