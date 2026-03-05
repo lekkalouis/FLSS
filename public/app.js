@@ -4146,7 +4146,6 @@ async function startOrder(orderNo) {
                         <div class="dispatchPackingActions">
                           <input class="dispatchPackingQty" type="number" min="1" max="${remaining}" placeholder="Qty" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}/>
                           <button class="dispatchPackQtyBtn" type="button" data-action="pack-qty" data-order-no="${orderNo}" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}>Pack qty</button>
-                          <button class="dispatchPackAllBtn" type="button" data-action="pack-all" data-order-no="${orderNo}" data-item-key="${item.key}" ${isComplete ? "disabled" : ""}>Pack all</button>
                         </div>
                       </div>
                     `;
@@ -5183,7 +5182,7 @@ async function startOrder(orderNo) {
                 <th scope="col">Order</th>
                 <th scope="col">Customer</th>
                 <th scope="col">Weight</th>
-                <th scope="col">Boxes</th>
+                <th scope="col" aria-label="Boxes">📦</th>
                 <th scope="col">Units</th>
               </tr>
             </thead>
@@ -5726,11 +5725,6 @@ async function startOrder(orderNo) {
       const displayDate = getDispatchDisplayDate(o);
       const orderNo = String(o.name || "").replace("#", "").trim();
       const packingState = getPackingState(o);
-      const hasPackableItems = (packingState?.items || []).some((item) => {
-        const quantity = Number(item?.quantity) || 0;
-        const packed = Number(item?.packed) || 0;
-        return quantity > packed;
-      });
       if (orderNo) activeOrders.add(orderNo);
       const { fulfillmentRows, fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(o);
       const lines = renderDispatchLineItems(o, packingState);
@@ -5798,7 +5792,7 @@ async function startOrder(orderNo) {
               : ""
           }
           <div class="dispatchCardParcel">
-            <label class="dispatchParcelLabel" for="dispatchParcel-${orderNo}">Boxes</label>
+            <label class="dispatchParcelLabel" for="dispatchParcel-${orderNo}" aria-label="Boxes">📦</label>
             <button class="dispatchParcelAdjustBtn" type="button" data-action="decrease-box" data-order-no="${orderNo}" aria-label="Decrease box count for order ${orderNo}">−</button>
             <input
               id="dispatchParcel-${orderNo}"
@@ -5821,15 +5815,6 @@ async function startOrder(orderNo) {
               : ""
           }
           <div class="dispatchCardLines">${lines}</div>
-          <button
-            class="dispatchCardPackAllBtn"
-            type="button"
-            data-action="pack-order-all"
-            data-order-no="${orderNo}"
-            aria-label="Pack all remaining items for order ${orderNo}"
-            title="Pack all"
-            ${hasPackableItems ? "" : "disabled"}
-          >📦</button>
           <div class="dispatchCardActions">
             ${renderDispatchActions(o, laneId, orderNo, packingState, {
               hasUnfulfilledItems,
@@ -5977,13 +5962,13 @@ async function startOrder(orderNo) {
   function getDispatchRotaryRows() {
     if (!dispatchBoard) return [];
     return Array.from(dispatchBoard.querySelectorAll(".dispatchPackingRow")).filter((row) => {
-      const btn = row.querySelector(".dispatchPackAllBtn");
+      const btn = row.querySelector(".dispatchPackQtyBtn");
       return Boolean(btn && !btn.disabled);
     });
   }
 
   function dispatchRotaryKeyForRow(row) {
-    const orderNo = row?.querySelector(".dispatchPackAllBtn")?.dataset?.orderNo || "";
+    const orderNo = row?.querySelector(".dispatchPackQtyBtn")?.dataset?.orderNo || "";
     const itemKey = row?.dataset?.itemKey || "";
     if (!orderNo || !itemKey) return "";
     return `${orderNo}:${itemKey}`;
@@ -6058,7 +6043,7 @@ async function startOrder(orderNo) {
     const rows = getDispatchRotaryRows();
     if (!rows.length) return false;
     const row = rows[dispatchRotaryFocusIndex] || rows[0];
-    const btn = row?.querySelector(".dispatchPackAllBtn");
+    const btn = row?.querySelector(".dispatchPackQtyBtn");
     if (!btn || btn.disabled) return false;
     dispatchRotaryFocusKey = dispatchRotaryKeyForRow(row);
     await handleDispatchAction(btn);
@@ -7545,51 +7530,6 @@ async function startOrder(orderNo) {
       refreshDispatchViews(orderNo);
       return true;
     }
-    if (actionType === "pack-all") {
-      if (!orderNo) return true;
-      const state = dispatchPackingState.get(orderNo);
-      if (!state) return true;
-      if (!state.startTime) state.startTime = new Date().toISOString();
-      const itemKey = action.dataset.itemKey;
-      const item = getPackingItem(state, itemKey);
-      if (!item) return true;
-      const remaining = Math.max(0, item.quantity - item.packed);
-      if (remaining > 0) {
-        allocatePackedToBox(state, item.key, remaining);
-        item.packed = item.quantity;
-      }
-      if (isPackingComplete(state)) {
-        finalizePacking(state);
-      } else {
-        savePackingState();
-      }
-      refreshDispatchViews(orderNo);
-      return true;
-    }
-    if (actionType === "pack-order-all") {
-      if (!orderNo) return true;
-      const state = dispatchPackingState.get(orderNo);
-      if (!state) return true;
-      if (!state.startTime) state.startTime = new Date().toISOString();
-      let packedAnything = false;
-      (state.items || []).forEach((item) => {
-        const quantity = Number(item?.quantity) || 0;
-        const packed = Number(item?.packed) || 0;
-        const remaining = Math.max(0, quantity - packed);
-        if (remaining <= 0) return;
-        allocatePackedToBox(state, item.key, remaining);
-        item.packed = quantity;
-        packedAnything = true;
-      });
-      if (!packedAnything) return true;
-      if (isPackingComplete(state)) {
-        finalizePacking(state);
-      } else {
-        savePackingState();
-      }
-      refreshDispatchViews(orderNo);
-      return true;
-    }
     if (actionType === "pack-qty") {
       if (!orderNo) return true;
       const state = dispatchPackingState.get(orderNo);
@@ -8402,7 +8342,6 @@ async function startOrder(orderNo) {
 
   boot();
 })();
-
 
 
 

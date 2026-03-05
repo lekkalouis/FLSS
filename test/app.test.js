@@ -451,7 +451,7 @@ function createDispatchRow(orderNo, itemKey, { disabled = false } = {}) {
   return {
     dataset: { itemKey },
     classList,
-    querySelector: (selector) => (selector === '.dispatchPackAllBtn' ? button : null),
+    querySelector: (selector) => (selector === '.dispatchPackQtyBtn' ? button : null),
     scrollIntoView: () => {}
   };
 }
@@ -519,7 +519,7 @@ return ({ rows, state, selectedOrders, rotarySelection, focusIndex = -1, focusKe
       dispatchControllerState = nextState;
     },
     setButtonDisabled: (index, disabled) => {
-      const button = rows[index]?.querySelector('.dispatchPackAllBtn');
+      const button = rows[index]?.querySelector('.dispatchPackQtyBtn');
       if (button) button.disabled = disabled;
     },
     getSnapshot: () => ({
