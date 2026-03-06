@@ -74,7 +74,12 @@ const els = {
   shipProvince: $("ship-province"),
   shipZip: $("ship-zip"),
   shipPhone: $("ship-phone"),
-  shipNotes: $("ship-notes")
+  shipNotes: $("ship-notes"),
+
+  orderPromptInput: $("order-prompt-input"),
+  applyOrderPrompt: $("apply-order-prompt"),
+  clearOrderPrompt: $("clear-order-prompt"),
+  orderPromptFeedback: $("order-prompt-feedback")
 };
 
 const state = {
@@ -234,6 +239,128 @@ function setStatus(el, message, tone = "") {
   if (!el) return;
   el.className = `status${tone ? ` ${tone}` : ""}`;
   el.textContent = message;
+}
+
+function normalizeToken(raw) {
+  return String(raw || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function findProductFromPromptTerm(term) {
+  const candidate = normalizeToken(term);
+  if (!candidate) return null;
+  const compact = candidate.replace(/\s+/g, "");
+  const directSku = PRODUCT_LIST.find((product) => normalizeToken(product.sku) === candidate || normalizeToken(product.sku) === compact);
+  if (directSku) return directSku;
+
+  let best = null;
+  let bestScore = 0;
+  PRODUCT_LIST.forEach((product) => {
+    const title = normalizeToken(product.title);
+    if (!title) return;
+    if (title.includes(candidate) || candidate.includes(title)) {
+      const score = Math.min(title.length, candidate.length);
+      if (score > bestScore) {
+        best = product;
+        bestScore = score;
+      }
+    }
+  });
+  return best;
+}
+
+function parsePromptTokens(text) {
+  const normalized = String(text || "")
+    .replace(/[\n;]+/g, ",")
+    .replace(/\band\b/gi, ",")
+    .replace(/\+/g, ",")
+    .split(",")
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+
+  return normalized.map((chunk) => {
+    let qty = 1;
+    let mode = "add";
+    let term = chunk;
+
+    const setMatch = chunk.match(/^\s*(?:set|make)\s+(.+?)\s+(?:to|=)\s*(\d+)\s*$/i);
+    if (setMatch) {
+      term = setMatch[1];
+      qty = Number(setMatch[2]);
+      mode = "set";
+      return { qty, term, mode, raw: chunk };
+    }
+
+    const prefix = chunk.match(/^\s*(\d+)\s*(?:x)?\s+(.+)$/i);
+    if (prefix) {
+      qty = Number(prefix[1]);
+      term = prefix[2];
+      return { qty, term, mode, raw: chunk };
+    }
+
+    const infix = chunk.match(/^\s*(.+?)\s+(\d+)\s*(?:x)?\s*$/i);
+    if (infix) {
+      term = infix[1];
+      qty = Number(infix[2]);
+      return { qty, term, mode, raw: chunk };
+    }
+
+    const eachMatch = chunk.match(/^\s*(?:add\s+)?(?:an?\s+|one\s+)?each\s+of\s+(.+)$/i);
+    if (eachMatch) {
+      term = eachMatch[1];
+      qty = 1;
+    }
+
+    term = term.replace(/^\s*(?:add|plus)\s+/i, "").replace(/\s*x\s*$/i, "").trim();
+    return { qty, term, mode, raw: chunk };
+  });
+}
+
+function applyPromptToOrder() {
+  const prompt = String(els.orderPromptInput?.value || "").trim();
+  if (!prompt) {
+    if (els.orderPromptFeedback) els.orderPromptFeedback.textContent = "Enter products in plain text first.";
+    return;
+  }
+
+  const tokens = parsePromptTokens(prompt);
+  const updated = [];
+  const misses = [];
+
+  tokens.forEach(({ qty, term, mode, raw }) => {
+    if (!qty || qty < 0) return;
+    const termParts = term.split(/\s+and\s+/i).map((part) => part.trim()).filter(Boolean);
+    const targets = termParts.length > 1 ? termParts : [term];
+    targets.forEach((targetTerm) => {
+      const product = findProductFromPromptTerm(targetTerm);
+      if (!product?.sku) {
+        misses.push(raw || targetTerm);
+        return;
+      }
+      const currentQty = Number(state.qtyBySku.get(product.sku) || 0);
+      const nextQty = mode === "set" ? Math.floor(qty) : currentQty + Math.floor(qty);
+      state.qtyBySku.set(product.sku, Math.max(0, nextQty));
+      updated.push(`${product.sku} (${state.qtyBySku.get(product.sku)})`);
+    });
+  });
+
+  buildProductTable();
+  PRODUCT_LIST.forEach((product) => {
+    const input = document.querySelector(`.qty[data-sku="${product.sku}"]`);
+    if (input instanceof HTMLInputElement) {
+      input.value = String(Math.floor(Number(state.qtyBySku.get(product.sku) || 0)));
+    }
+  });
+  renderSummary();
+  scheduleShippingQuote();
+
+  if (els.orderPromptFeedback) {
+    const applied = updated.length ? `Applied: ${updated.join(", ")}.` : "No products matched the prompt.";
+    const unresolved = misses.length ? ` Could not match: ${Array.from(new Set(misses)).join(", ")}.` : "";
+    els.orderPromptFeedback.textContent = `${applied}${unresolved}`;
+  }
 }
 
 function buildProductTable() {
@@ -1075,6 +1202,25 @@ function wireEvents() {
   els.quickPickerClose.addEventListener("click", closeQuickPicker);
   els.quickPicker.addEventListener("click", (event) => {
     if (event.target === els.quickPicker) closeQuickPicker();
+  });
+
+  els.applyOrderPrompt?.addEventListener("click", applyPromptToOrder);
+  els.clearOrderPrompt?.addEventListener("click", () => {
+    if (els.orderPromptInput) els.orderPromptInput.value = "";
+    if (els.orderPromptFeedback) els.orderPromptFeedback.textContent = "";
+  });
+  els.orderPromptInput?.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+      event.preventDefault();
+      applyPromptToOrder();
+    }
+  });
+  document.querySelectorAll("[data-prompt-example]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const value = button.getAttribute("data-prompt-example") || "";
+      if (els.orderPromptInput) els.orderPromptInput.value = value;
+      applyPromptToOrder();
+    });
   });
 
   els.submitOrder.addEventListener("click", submitOrder);
