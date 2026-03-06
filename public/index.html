@@ -99,6 +99,7 @@
     position:sticky;
     top:0;
     z-index:1600;
+    margin:0;
     background:#0f172a;
     border-bottom:1px solid rgba(148,163,184,.28);
     box-shadow:0 8px 18px rgba(2,6,23,.2);
@@ -110,6 +111,8 @@
     gap:0;
     flex:1;
     min-height:100dvh;
+    margin:0;
+    padding:0;
   }
   .flSide{
     background:var(--panel);
@@ -407,12 +410,12 @@
       padding:.55rem .55rem 5.25rem;
       gap:.55rem;
     }
-    .dispatchTopBar,
+  .dispatchTopBar,
     #dispatchBoardContainer,
     .dispatchBoardPanel,
     .docsShell,
     .dashboardShell{
-      padding:.75rem;
+      padding:.65rem;
       border-radius:.8rem;
     }
     .dispatchSelectionFloat{
@@ -1095,7 +1098,7 @@
   display:flex;
   flex-direction:column;
   gap:.85rem;
-  padding:1.25rem 1.5rem;
+  padding:.85rem 1rem;
   border-radius:var(--radius-lg);
   background:var(--panel);
   border:1px solid var(--panel-strong);
@@ -1616,8 +1619,8 @@ body.dispatch-sidebar-open{
   grid-auto-flow:row;
   grid-auto-columns:minmax(0, 1fr);
   align-items:stretch;
-  gap: .6rem;
-  padding: .2rem;
+  gap: .5rem;
+  padding: .08rem;
   min-height: 65vh;
   background:var(--panel-muted);
   width:100%;
@@ -1647,7 +1650,7 @@ body.dispatch-sidebar-open{
   background: var(--panel);
   border: 1px solid var(--panel-strong);
   border-radius: 10px;
-  padding: 0.6rem 0.65rem;
+  padding: 0.6rem 0.65rem 0.6rem 0.56rem;
   margin-bottom: 0.6rem;
   box-shadow: 0 2px 6px rgba(15,23,42,0.08);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -1695,15 +1698,15 @@ body.dispatch-sidebar-open{
 .dispatchCardTitleMain{
   display:flex;
   align-items:center;
-  gap:.42rem;
+  gap:.48rem;
   min-width:0;
 }
 .dispatchCardChainLogo{
-  width:1.82rem;
-  height:1.82rem;
-  flex:0 0 1.82rem;
+  width:2.1rem;
+  height:2.1rem;
+  flex:0 0 2.1rem;
   object-fit:contain;
-  padding:.06rem;
+  padding:.08rem;
   border-radius:999px;
   background:#fff;
   box-shadow:0 0 0 1px rgba(148,163,184,.42);
@@ -1715,6 +1718,8 @@ body.dispatch-sidebar-open{
   line-clamp: 2;
   overflow: hidden;
   word-break: break-word;
+  font-size:.8rem;
+  line-height:1.2;
   padding-right:1rem;
 }
 
@@ -2127,6 +2132,12 @@ body.dispatch-sidebar-open{
     padding:.35rem .55rem;
     border-radius:.5rem;
     cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:.32rem;
+    line-height:1.15;
+    white-space:nowrap;
   }
   .dispatchFulfillBtn:hover{
     background:rgba(34,197,94,.26);
@@ -2141,6 +2152,23 @@ body.dispatch-sidebar-open{
     color:#334155;
     font-size:.64rem;
     padding:.26rem .46rem;
+  }
+  .dispatchActionGlyph{
+    font-size:.82rem;
+    line-height:1;
+  }
+  .dispatchActionGlyphPair{
+    display:inline-flex;
+    align-items:center;
+    gap:.08rem;
+  }
+  .dispatchActionGlyph--sub{
+    font-size:.68rem;
+    opacity:.9;
+    transform:translateY(1px);
+  }
+  .dispatchActionText{
+    white-space:nowrap;
   }
 
   .dispatchBoxBtn{
@@ -2166,32 +2194,38 @@ body.dispatch-sidebar-open{
     cursor:not-allowed;
   }
   .dispatchPickupTextBtn{
-    border:none;
-    background:transparent;
-    color:#92400e;
-    font-size:.66rem;
+    border:1px solid rgba(217,119,6,.42);
+    background:rgba(251,191,36,.18);
+    color:#78350f;
+    font-size:.68rem;
     font-weight:700;
-    padding:.16rem .24rem;
-    border-radius:.36rem;
-    text-decoration:underline;
-    text-decoration-thickness:1px;
-    text-underline-offset:2px;
+    padding:.34rem .5rem;
+    border-radius:.5rem;
+    text-decoration:none;
     cursor:pointer;
-    line-height:1.2;
+    line-height:1.15;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:.32rem;
+    white-space:nowrap;
   }
   .dispatchPickupTextBtn:hover{
-    color:#78350f;
-    background:rgba(14,116,144,.09);
+    color:#7c2d12;
+    border-color:rgba(217,119,6,.58);
+    background:rgba(251,191,36,.28);
   }
   .dispatchPickupTextBtn:focus-visible{
     outline:none;
-    box-shadow:0 0 0 2px rgba(14,116,144,.25);
+    box-shadow:0 0 0 2px rgba(245,158,11,.3);
   }
   .dispatchPickupTextBtn:disabled{
-    opacity:.45;
+    opacity:.5;
     cursor:not-allowed;
     text-decoration:none;
-    background:transparent;
+    border-color:rgba(148,163,184,.35);
+    background:rgba(148,163,184,.12);
+    color:#64748b;
   }
 
   .dispatchDocsDropdown{
@@ -2867,7 +2901,7 @@ body.dispatch-sidebar-open{
   max-width:none;
 }
 .dispatchCol[data-lane-id="pickup"] .dispatchCard{
-  padding:.55rem .58rem;
+  padding:.55rem .58rem .55rem .5rem;
 }
 .dispatchColHeader{
   display:flex;
@@ -2903,12 +2937,12 @@ body.dispatch-sidebar-open{
 }
 .dispatchSubLanes{
   display:grid;
-  gap:.42rem;
+  gap:.34rem;
   grid-template-columns:repeat(var(--dispatch-sub-cols, 1), minmax(0, 1fr));
   min-width:0;
 }
 .dispatchSubLanes--shipping{
-  overflow-x:auto;
+  overflow-x:hidden;
   overflow-y:hidden;
   align-items:start;
 }
@@ -3065,9 +3099,6 @@ body.dispatch-sidebar-open{
   font-size:.74rem;
 }
 
-.dispatchMobileControls{
-  display:none;
-}
 .dispatchLegend{
   margin:.15rem 0 .45rem;
   padding:.34rem .45rem;
@@ -3283,17 +3314,17 @@ body.dispatch-sidebar-open{
   }
   @media (max-width:900px){
     #dispatchBoardGrid{
-      grid-auto-flow:column;
-      grid-auto-columns:minmax(240px, 1fr);
-      grid-template-columns:repeat(var(--dispatch-col-count, 4), minmax(240px, 1fr));
+      grid-auto-flow:row;
+      grid-auto-columns:minmax(0, 1fr);
+      grid-template-columns:1fr;
       gap:.6rem;
       width:100%;
-      overflow-x:auto;
-      overflow-y:hidden;
+      overflow-x:hidden;
+      overflow-y:visible;
       min-height:auto;
     }
     #dispatchBoardContainer{
-      padding:.75rem;
+      padding:.55rem;
     }
     .dispatchCol,
     .dispatchCol[data-lane-id="shipping"],
@@ -3309,9 +3340,6 @@ body.dispatch-sidebar-open{
     .dispatchColBody{
       min-width:0;
     }
-    .dispatchCol--mobile-hidden{
-      display:none;
-    }
     .dispatchBoardQuickActions{
       margin:.2rem 0 .5rem;
     }
@@ -3319,29 +3347,12 @@ body.dispatch-sidebar-open{
       min-width:0;
       font-size:.72rem;
     }
-    .dispatchMobileControls{
-      display:block;
-      margin:.2rem 0 .6rem;
-    }
-    .dispatchMobileControls .btn-group{
-      width:100%;
-      display:grid;
-      grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:.35rem;
-    }
-    .dispatchMobileControls .btn{
-      border-radius:.5rem !important;
-      font-size:.66rem;
-      padding:.4rem .35rem;
-      line-height:1.2;
-      min-height:38px;
-    }
     .dispatchCardActions{
       justify-content:stretch;
       gap:.4rem;
     }
     .dispatchCard{
-      padding:.55rem .58rem;
+      padding:.55rem .58rem .55rem .5rem;
     }
     .dispatchParcelLabel{
       font-size:.76rem;
@@ -3367,20 +3378,19 @@ body.dispatch-sidebar-open{
       font-size:.75rem;
     }
     .dispatchCardActions > .dispatchPickupTextBtn{
-      flex:0 0 auto;
-      width:auto;
-      min-height:0;
-      font-size:.68rem;
-      padding:.18rem .22rem;
+      flex:1 1 calc(50% - .2rem);
+      width:100%;
+      min-height:42px;
+      font-size:.72rem;
+      padding:.28rem .4rem;
     }
     .dispatchSubLanes,
     .dispatchSubLanes--delivery{
       grid-template-columns:1fr;
     }
     .dispatchSubLanes--shipping{
-      grid-template-columns:repeat(var(--dispatch-sub-cols, 1), minmax(240px, 1fr));
-      overflow-x:auto;
-      overflow-y:hidden;
+      grid-template-columns:1fr;
+      overflow:visible;
     }
   }
   @media (max-width:760px){
@@ -3755,11 +3765,95 @@ body.dispatch-sidebar-open{
   color:#64748b;
 }
 .dispatchFulfillmentLaneBody{
+  display:flex;
+  flex-direction:column;
+  gap:.38rem;
+  padding:.38rem .45rem .32rem;
+}
+.dispatchRecentCompactList{
+  border:1px solid rgba(148,163,184,.25);
+  border-radius:.56rem;
+  background:#fff;
+  overflow:hidden;
+}
+.dispatchRecentCompactRow{
   display:grid;
+  grid-template-columns:minmax(86px, auto) minmax(0, 1fr) minmax(128px, auto);
+  gap:.26rem .45rem;
+  align-items:center;
+  padding:.28rem .38rem;
+  border-bottom:1px dashed rgba(148,163,184,.3);
+  font-size:.64rem;
+  line-height:1.2;
+}
+.dispatchRecentCompactRow:last-child{
+  border-bottom:none;
+}
+.dispatchRecentCompactOrder{
+  font-weight:800;
+  color:#0f172a;
+  white-space:nowrap;
+}
+.dispatchRecentCompactCenter{
+  display:flex;
+  flex-direction:column;
+  gap:.08rem;
+  min-width:0;
+}
+.dispatchRecentCompactCustomer{
+  color:#1e293b;
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.dispatchRecentCompactDetail{
+  color:#64748b;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.dispatchRecentCompactTime{
+  color:#64748b;
+  text-align:right;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.dispatchFulfillmentLaneFooter{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
   gap:.45rem;
-  padding:.5rem;
+  padding:0 .04rem;
+}
+.dispatchFulfillmentLaneMeta{
+  font-size:.62rem;
+  color:#64748b;
+}
+.dispatchFulfillmentLoadMore{
+  border:1px solid rgba(148,163,184,.4);
+  background:#fff;
+  color:#1f2937;
+  border-radius:.48rem;
+  padding:.2rem .45rem;
+  font-size:.64rem;
+  font-weight:700;
+  line-height:1.2;
+  cursor:pointer;
+}
+.dispatchFulfillmentLoadMore:hover{
+  border-color:rgba(202,138,4,.55);
+  color:#92400e;
+  background:rgba(202,138,4,.08);
 }
 @media (max-width:900px){
+  .dispatchRecentCompactRow{
+    grid-template-columns:minmax(80px, auto) minmax(0, 1fr);
+  }
+  .dispatchRecentCompactTime{
+    grid-column:1 / -1;
+    text-align:left;
+  }
   .dispatchRecentLine{
     grid-template-columns:minmax(84px, auto) minmax(0, 1fr);
     gap:.2rem .42rem;
@@ -3771,6 +3865,19 @@ body.dispatch-sidebar-open{
   }
 }
 @media (max-width:1100px){
+  #dispatchBoardGrid{
+    grid-auto-flow:row;
+    grid-auto-columns:minmax(0, 1fr);
+    grid-template-columns:1fr;
+    width:100%;
+    overflow-x:hidden;
+    overflow-y:visible;
+    min-height:auto;
+  }
+  .dispatchSubLanes--shipping{
+    grid-template-columns:1fr;
+    overflow:visible;
+  }
   .dispatchFulfillmentBoard{ grid-template-columns:1fr; }
 }
   @media (max-width:1200px){
@@ -3800,6 +3907,7 @@ body.dispatch-sidebar-open{
     position:sticky;
     top:var(--fl-top-utility-height);
     z-index:1200;
+    margin:0;
   }
   .flSideHeader{
     position:relative;
@@ -3811,33 +3919,28 @@ body.dispatch-sidebar-open{
     padding-bottom:.65rem;
     border-radius:0;
     border:1px solid rgba(148,163,184,.22);
+    border-top:0;
+    margin:0;
     background:
       radial-gradient(1200px 160px at 10% -80%, rgba(202,138,4,.18), transparent 52%),
       radial-gradient(900px 140px at 95% -65%, rgba(16,185,129,.14), transparent 48%),
       #ffffff;
     box-shadow:0 16px 36px rgba(15,23,42,.1);
   }
-  .flHeaderTop{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:.65rem;
-    position:relative;
-  }
-  .flHeaderBrand{
-    display:flex;
-    flex-direction:column;
-    gap:.2rem;
-    min-width:0;
-  }
   .flHeaderTitleRow{
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-content:flex-start;
     gap:.7rem;
     width:100%;
     min-width:0;
-    flex-wrap:nowrap;
+  }
+  .flHeaderNavStack{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:.34rem;
+    width:100%;
   }
   .flNavTitleWrap{
     display:flex;
@@ -4021,22 +4124,23 @@ body.dispatch-sidebar-open{
   .flHeaderUtilityNav{
     display:flex;
     align-items:center;
-    gap:.26rem;
-    flex-wrap:nowrap;
-    overflow:auto;
-    padding-bottom:.03rem;
+    gap:.34rem;
+    flex-wrap:wrap;
+    justify-content:flex-start;
+    overflow:visible;
+    padding-bottom:0;
   }
   .flHeaderUtilityNav .flNavBtn{
-    border-radius:.45rem;
-    padding:.18rem .44rem;
-    min-height:1.52rem;
-    font-size:.64rem;
+    border-radius:.62rem;
+    padding:.34rem .58rem;
+    min-height:1.92rem;
+    font-size:.72rem;
     font-weight:700;
-    border:1px solid rgba(148,163,184,.34);
-    background:rgba(30,41,59,.7);
-    color:#e2e8f0;
+    border:1px solid rgba(202,138,4,.32);
+    background:linear-gradient(180deg, rgba(250,204,21,.2) 0%, rgba(250,204,21,.12) 100%);
+    color:#854d0e;
     white-space:nowrap;
-    box-shadow:none;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.74);
   }
   .flTopUtilityBar .flHeaderDateTime{
     border-color:rgba(148,163,184,.34);
@@ -4050,11 +4154,17 @@ body.dispatch-sidebar-open{
     color:#cbd5e1;
   }
   .flHeaderUtilityNav .flNavBtn:hover{
-    border-color:rgba(250,204,21,.5);
-    color:#fde68a;
-    background:rgba(250,204,21,.14);
+    border-color:rgba(202,138,4,.56);
+    color:#78350f;
+    background:linear-gradient(180deg, rgba(250,204,21,.3) 0%, rgba(250,204,21,.16) 100%);
     transform:none;
-    box-shadow:none;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.8), 0 4px 12px rgba(202,138,4,.14);
+  }
+  .flHeaderUtilityNav .flNavBtn.flNavBtn--active{
+    border-color:rgba(161,98,7,.62);
+    color:#713f12;
+    background:linear-gradient(180deg, rgba(250,204,21,.34) 0%, rgba(250,204,21,.2) 100%);
+    box-shadow:inset 0 0 0 1px rgba(202,138,4,.2);
   }
   .flHeaderDateTime{
     display:inline-flex;
@@ -4086,10 +4196,10 @@ body.dispatch-sidebar-open{
   .flNavGroup--top{
     display:flex;
     align-items:center;
-    justify-content:flex-end;
+    justify-content:flex-start;
     gap:.4rem;
     flex-wrap:wrap;
-    margin-left:auto;
+    margin-left:0;
     min-width:0;
   }
   .flNavGroup--top .flNavBtn{
@@ -4225,11 +4335,6 @@ body.dispatch-sidebar-open{
     color:#fff;
   }
   @media (max-width:1200px){
-    .flHeaderTop{
-      display:flex;
-      flex-direction:column;
-      align-items:stretch;
-    }
     .flNewOrderFab #navNewOrder{
       width:2.9rem;
       min-width:2.9rem;
@@ -4268,6 +4373,11 @@ body.dispatch-sidebar-open{
       width:108px;
     }
     .flNavGroup--top{
+      flex-wrap:nowrap;
+      overflow:auto;
+      padding-bottom:.2rem;
+    }
+    .flHeaderUtilityNav{
       flex-wrap:nowrap;
       overflow:auto;
       padding-bottom:.2rem;
@@ -4353,10 +4463,10 @@ body.dispatch-sidebar-open{
 <body class="bg-body-extra-light side-scroll page-header-fixed page-header-dark main-content-boxed">
   <div class="flApp">
     <header class="flTopUtilityBar">
-      <div class="flHeaderUtility" aria-label="Batch and system links">
+      <div class="flHeaderUtility" aria-label="Batch and connection links">
         <div class="flHeaderUtilityBatch" aria-label="Daily batch code">
-          <span class="flHeaderUtilityBatchLabel">Batch</span>
-          <span id="dispatchBatchCodeSummary" class="flHeaderUtilityBatchValue">------/--</span>
+          <span id="dispatchBatchDayLabel" class="flHeaderUtilityBatchLabel">Batch</span>
+          <span id="dispatchBatchCodeSummary" class="flHeaderUtilityBatchValue">--/--/---- BN:------/--</span>
         </div>
         <div class="flHeaderUtilityRight">
           <div class="flHeaderEnvConnections" aria-label="Connections">
@@ -4365,58 +4475,38 @@ body.dispatch-sidebar-open{
               <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
             </div>
           </div>
-          <div id="dispatchDateTimeSummary" class="flHeaderDateTime flHeaderDateTime--utility">-</div>
+        </div>
+      </div>
+    </header>
+    <div class="flLayout">
+      <aside class="flSide flSideHeader">
+        <div class="flHeaderTitleRow">
+          <div class="flNavTitleWrap">
+            <img class="flNavLogo" src="/img/logo.png" alt="Flippen Lekka" loading="lazy" />
+            <div class="flNavTitle">Operations</div>
+          </div>
+        </div>
+        <div class="flHeaderNavStack">
+          <div class="flNavGroup flNavGroup--top" role="tablist" aria-label="Primary views">
+            <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true" data-route="/"><span class="flNavBtnText">Orders</span></button>
+            <button id="navFulfillment" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillment" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnText">Fulfillment</span></button>
+            <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnText">Stock take</span></button>
+            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
+          </div>
           <div class="flHeaderUtilityNav" role="tablist" aria-label="System views">
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Docs</span></button>
             <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnText">Admin</span></button>
             <button id="navFooterChangelog" class="flNavBtn" type="button" role="tab" aria-controls="viewChangelog" aria-selected="false" data-route="/changelog"><span class="flNavBtnText">Changelog</span></button>
           </div>
         </div>
-      </div>
-    </header>
-    <div class="flLayout">
-      <aside class="flSide">
-        <div class="flSideHeader">
-          <div class="flHeaderTop">
-            <div class="flHeaderBrand">
-              <div class="flHeaderTitleRow">
-                <div class="flNavTitleWrap">
-                  <img class="flNavLogo" src="/img/logo.png" alt="Flippen Lekka" loading="lazy" />
-                  <div class="flNavTitle">Operations</div>
-                </div>
-                <div class="flNavGroup flNavGroup--top" role="tablist" aria-label="Primary views">
-                  <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true" data-route="/"><span class="flNavBtnText">Orders</span></button>
-                  <button id="navFulfillment" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillment" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnText">Fulfillment</span></button>
-                  <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnText">Stock take</span></button>
-                  <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
-                </div>
-              </div>
-            </div>
-          <div class="flHeaderMeta">
-            <div class="flHeaderEnv" aria-label="Environment">
-              <div class="flHeaderEnvTop">
-                <div id="dispatchEnvironmentSummary" class="flHeaderEnvMetrics">
-                  <span class="flHeaderMetric" aria-label="Temperature">
-                    <span class="flHeaderMetricLabel">Temp</span>
-                    <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span>
-                  </span>
-                  <span class="flHeaderMetric" aria-label="Humidity">
-                    <span class="flHeaderMetricLabel">Humidity</span>
-                    <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span>
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div class="flNewOrderFab">
-              <button id="navNewOrder" class="flNavBtn flNavBtn--primary flNavBtn--newOrder" type="button" aria-label="New order actions" aria-haspopup="menu" aria-expanded="false"><span class="visually-hidden">New Order</span></button>
-              <div class="flNewOrderMenu" role="menu" aria-label="New order options">
-                <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/flocs">Sales Order</button>
-                <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/stock" data-stock-tab="purchase">Purchase Order</button>
-                <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/stock" data-stock-tab="stock" data-stock-mode="make">Manufacturing Order</button>
-              </div>
-              </div>
-            </div>
+        <div class="flNewOrderFab">
+          <button id="navNewOrder" class="flNavBtn flNavBtn--primary flNavBtn--newOrder" type="button" aria-label="New order actions" aria-haspopup="menu" aria-expanded="false"><span class="visually-hidden">New Order</span></button>
+          <div class="flNewOrderMenu" role="menu" aria-label="New order options">
+            <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/flocs">Sales Order</button>
+            <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/stock" data-stock-tab="purchase">Purchase Order</button>
+            <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/stock" data-stock-tab="stock" data-stock-mode="make">Manufacturing Order</button>
           </div>
+        </div>
           <span id="dispatchEnvironmentStatus" class="visually-hidden">Waiting for sensor</span>
           <span id="dispatchRemoteStatus" class="visually-hidden">Remote offline</span>
           <span id="dispatchTruckAnnouncement" class="visually-hidden" aria-live="polite"></span>
@@ -4424,7 +4514,6 @@ body.dispatch-sidebar-open{
             <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan or enter Barcode" tabindex="-1" />
             <button id="multiShipmentBtn" class="multiShipmentBtn" type="button" hidden tabindex="-1">MS</button>
           </div>
-        </div>
       </aside>
       <main class="flMain">
         <div class="flView flView--active" id="viewScan">
@@ -4434,13 +4523,6 @@ body.dispatch-sidebar-open{
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">
             <div class="dispatchBoardPanel">
-<div id="dispatchMobileControls" class="dispatchMobileControls" aria-label="Dispatch lane controls">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                  <strong class="fs-sm text-muted text-uppercase">Mobile lanes</strong>
-                  <span id="dispatchMobileLaneLabel" class="badge bg-warning-subtle text-warning-emphasis">All lanes</span>
-                </div>
-                <div id="dispatchMobileLaneTabs" class="btn-group" role="tablist" aria-label="Filter dispatch lanes"></div>
-              </div>
               <div class="dispatchBoardQuickActions" aria-label="Orders lane controls">
                 <button id="dispatchRefreshOrdersBtn" class="dispatchIconBtn" type="button" aria-label="Refresh open orders" title="Refresh open orders">
                   <span aria-hidden="true">&#x21bb;</span>

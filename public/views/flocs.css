@@ -589,6 +589,23 @@
       overflow:hidden;
       text-overflow:ellipsis;
     }
+    #viewFlocs .flocs-customerDirectoryLetter{
+      grid-column:1 / -1;
+      font-size:.58rem;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:#475569;
+      padding:.12rem .2rem .02rem;
+      border-top:1px solid rgba(148,163,184,.3);
+      margin-top:.06rem;
+      line-height:1.1;
+    }
+    #viewFlocs .flocs-customerDirectoryLetter:first-child{
+      border-top:none;
+      margin-top:0;
+      padding-top:.02rem;
+    }
     #viewFlocs .flocs-customerEmpty{
       padding:.5rem .6rem;
       font-size:.75rem;

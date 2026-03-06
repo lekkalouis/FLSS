@@ -209,6 +209,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchTruckSummary = $("dispatchTruckSummary");
   const dispatchTruckAnnouncement = $("dispatchTruckAnnouncement");
   const dispatchDateTimeSummary = $("dispatchDateTimeSummary");
+  const dispatchBatchDayLabel = $("dispatchBatchDayLabel");
   const dispatchBatchCodeSummary = $("dispatchBatchCodeSummary");
   const dispatchEnvironmentStatus = $("dispatchEnvironmentStatus");
   const dispatchRemoteStatus = $("dispatchRemoteStatus");
@@ -217,9 +218,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchOverlayProgressFill = $("dispatchOverlayProgressFill");
   const dispatchOverlayProgressSteps = $("dispatchOverlayProgressSteps");
   const dispatchOverlayProgressLabel = $("dispatchOverlayProgressLabel");
-  const dispatchMobileControls = $("dispatchMobileControls");
-  const dispatchMobileLaneTabs = $("dispatchMobileLaneTabs");
-  const dispatchMobileLaneLabel = $("dispatchMobileLaneLabel");
   const dispatchRefreshOrdersBtn = $("dispatchRefreshOrdersBtn");
   const dispatchSelectModeBtn = $("dispatchSelectModeBtn");
   const dispatchLegend = $("dispatchLegend");
@@ -442,13 +440,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchSelectedOrders = new Set();
   const DISPATCH_DELIVERY_DAY_TUESDAY = 2;
   const DISPATCH_DELIVERY_DAY_FRIDAY = 5;
-  const DISPATCH_MOBILE_BASE_LANE_OPTIONS = [
-    { id: "all", label: "All" },
-    { id: "shipping", label: "Shipping" },
-    { id: "pickup", label: "Pickup" }
-  ];
-  let dispatchMobileLaneOptions = [...DISPATCH_MOBILE_BASE_LANE_OPTIONS, { id: "delivery", label: "Delivery" }];
-  let dispatchMobileLane = "all";
+  const DISPATCH_FULFILLMENT_PAGE_SIZE = 15;
+  const dispatchFulfillmentLaneVisibleCounts = new Map();
   let dispatchSelectionSidebarOpen = true;
   let dispatchLegendOpen = true;
   let dispatchSelectModeActive = false;
@@ -1496,22 +1489,21 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
 
   function renderDateTimeHeaderWidget() {
     const now = new Date();
-    const dayLabel = now.toLocaleDateString(undefined, { weekday: "long" });
+    const batchCode = formatDailyBatchCode(now);
+    const weekdayLabel = now.toLocaleDateString(undefined, { weekday: "long" });
     const dateLabel = now.toLocaleDateString(undefined, {
       year: "numeric",
       month: "2-digit",
       day: "2-digit"
     });
+    if (dispatchBatchDayLabel) {
+      dispatchBatchDayLabel.textContent = weekdayLabel;
+    }
     if (dispatchDateTimeSummary) {
-      const truckIcon = truckBooked
-        ? `<span class="flHeaderDateTruckIcon" aria-hidden="true">🚚</span>`
-        : "";
-      dispatchDateTimeSummary.innerHTML = `${truckIcon}<span class="flHeaderDateDay">${escapeHtml(
-        dayLabel
-      )}</span><span class="flHeaderDateStamp">${escapeHtml(dateLabel)}</span>`;
+      dispatchDateTimeSummary.textContent = `BN:${batchCode}`;
     }
     if (dispatchBatchCodeSummary) {
-      dispatchBatchCodeSummary.textContent = formatDailyBatchCode(now);
+      dispatchBatchCodeSummary.textContent = `${dateLabel} BN:${batchCode}`;
     }
   }
 
@@ -3833,7 +3825,7 @@ async function startOrder(orderNo) {
         const shouldStrike = fulfilledQty > 0 || isComplete;
         const rightMeta = [
           isShortOrUnavailable
-            ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"><span class="dispatchLineMissingMark">*</span></span>`
+            ? `<span class="dispatchLineMissing" aria-label="Item unavailable or short"></span>`
             : ""
         ]
           .filter(Boolean)
@@ -4024,10 +4016,13 @@ async function startOrder(orderNo) {
       const tags = String(order?.tags || "").toLowerCase();
       const isPrepared = orderNo ? printedDeliveryNotes.has(orderNo) || /(^|[\s,])delivery_prepared([\s,]|$)/.test(tags) : false;
       const actionType = isPrepared ? "deliver-delivery" : "prepare-delivery";
-      const actionLabel = isPrepared ? "🚚" : "Prepare delivery";
+      const actionTitle = isPrepared ? "Mark out for delivery" : "Print delivery note";
+      const actionLabel = isPrepared
+        ? `<i class="si si-check dispatchActionGlyph" aria-hidden="true"></i><span class="dispatchActionText">Mark out</span>`
+        : `<span class="dispatchActionGlyphPair" aria-hidden="true"><i class="si si-printer dispatchActionGlyph"></i><i class="si si-note dispatchActionGlyph dispatchActionGlyph--sub"></i></span><span class="dispatchActionText">Print note</span>`;
       return `
         ${docsDropdown}
-        <button class="dispatchFulfillBtn" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled}>${actionLabel}</button>
+        <button class="dispatchFulfillBtn dispatchFulfillBtn--iconic" type="button" data-action="${actionType}" data-order-no="${orderNo || ""}" ${disabled} aria-label="${actionTitle}" title="${actionTitle}">${actionLabel}</button>
       `;
     }
 
@@ -4038,7 +4033,11 @@ async function startOrder(orderNo) {
       const fulfilled = String(order?.fulfillment_status || "").toLowerCase() === "fulfilled";
       const isComplete = fulfilled || pickedUpTag;
       const actionType = isComplete ? "released" : notified ? "release-pickup" : "notify-ready";
-      const actionLabel = isComplete ? "Picked up" : notified ? "Mark as picked up" : "Notify customer";
+      const actionLabel = isComplete
+        ? `<i class="si si-check dispatchActionGlyph" aria-hidden="true"></i><span class="dispatchActionText">Picked up</span>`
+        : notified
+          ? `<i class="si si-check dispatchActionGlyph" aria-hidden="true"></i><span class="dispatchActionText">Mark picked up</span>`
+          : `<i class="si si-envelope-letter dispatchActionGlyph" aria-hidden="true"></i><span class="dispatchActionText">Notify ready</span>`;
       const actionTitle = isComplete ? "Collected / Picked up" : notified ? "Mark as picked up" : "Notify customer";
       const pickupDisabled = isComplete ? "disabled" : disabled;
       return `
@@ -4924,11 +4923,6 @@ async function startOrder(orderNo) {
     };
   }
 
-  function isMobileDispatchViewport() {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-    return window.matchMedia("(max-width: 900px)").matches;
-  }
-
   function formatDispatchDateTime(value) {
     if (!value) return "—";
     const date = new Date(value);
@@ -4936,8 +4930,12 @@ async function startOrder(orderNo) {
     return date.toLocaleString();
   }
 
-  function renderDispatchRecentlyShipped(orders) {
+  function renderDispatchRecentlyShipped(orders, options = {}) {
     if (!dispatchFulfillmentBoard) return;
+    const { resetPagination = false } = options;
+    if (resetPagination) {
+      dispatchFulfillmentLaneVisibleCounts.clear();
+    }
     const allOrders = Array.isArray(orders) ? orders : [];
     const searchTerm = String(dispatchFulfillmentSearch?.value || "").trim().toLowerCase();
     const laneFilterValue = String(dispatchFulfillmentType?.value || "").trim();
@@ -4994,8 +4992,17 @@ async function startOrder(orderNo) {
     dispatchFulfillmentBoard.innerHTML = laneDefs
       .map((lane) => {
         const laneOrders = grouped.get(lane.id) || [];
-        const cards = laneOrders
-          .slice(0, 60)
+        const storedVisibleCount = Number(dispatchFulfillmentLaneVisibleCounts.get(lane.id) || 0);
+        const requestedVisibleCount =
+          storedVisibleCount > 0 ? storedVisibleCount : DISPATCH_FULFILLMENT_PAGE_SIZE;
+        const visibleCount = Math.min(laneOrders.length, requestedVisibleCount);
+        const remainingCount = Math.max(0, laneOrders.length - visibleCount);
+        const nextVisibleCount = Math.min(
+          laneOrders.length,
+          requestedVisibleCount + DISPATCH_FULFILLMENT_PAGE_SIZE
+        );
+        const rows = laneOrders
+          .slice(0, visibleCount)
           .map((order) => {
             const orderLabel = escapeHtml(order?.name || "Order");
             const customer = escapeHtml(order?.customer_name || "Unknown customer");
@@ -5003,23 +5010,39 @@ async function startOrder(orderNo) {
             const trackingNumbers = Array.isArray(order?.fulfillment?.tracking_numbers)
               ? order.fulfillment.tracking_numbers.filter(Boolean)
               : [];
-            const trackingLabel = escapeHtml(trackingNumbers.length ? trackingNumbers.join(", ") : "-");
             const city = order?.shipping_address?.city || "";
             const province = order?.shipping_address?.province || "";
-            const destination = escapeHtml([city, province].filter(Boolean).join(", ") || "Destination not set");
+            const destination = [city, province].filter(Boolean).join(", ") || "Destination not set";
+            const details = escapeHtml(
+              `${destination} · TRK: ${trackingNumbers.length ? trackingNumbers.join(", ") : "-"}`
+            );
             return `
-              <article class="dispatchRecentItem">
-                <div class="dispatchRecentItemTop">
-                  <div class="dispatchRecentItemOrder">${orderLabel}</div>
-                  <div class="dispatchRecentItemTime">${fulfilledAt}</div>
+              <article class="dispatchRecentCompactRow">
+                <div class="dispatchRecentCompactOrder">${orderLabel}</div>
+                <div class="dispatchRecentCompactCenter">
+                  <div class="dispatchRecentCompactCustomer" title="${customer}">${customer}</div>
+                  <div class="dispatchRecentCompactDetail" title="${details}">${details}</div>
                 </div>
-                <div class="dispatchRecentItemCustomer" title="${customer}">${customer}</div>
-                <div class="dispatchRecentItemTracking">To: ${destination}</div>
-                <div class="dispatchRecentItemTracking">Tracking: ${trackingLabel}</div>
+                <div class="dispatchRecentCompactTime">${fulfilledAt}</div>
               </article>
             `;
           })
           .join("");
+        if (!dispatchFulfillmentLaneVisibleCounts.has(lane.id)) {
+          dispatchFulfillmentLaneVisibleCounts.set(lane.id, DISPATCH_FULFILLMENT_PAGE_SIZE);
+        }
+        const footer = laneOrders.length
+          ? `
+            <footer class="dispatchFulfillmentLaneFooter">
+              <span class="dispatchFulfillmentLaneMeta">Showing ${visibleCount} of ${laneOrders.length}</span>
+              ${
+                remainingCount > 0
+                  ? `<button class="dispatchFulfillmentLoadMore" type="button" data-action="recent-load-more" data-lane-id="${lane.id}" data-next-count="${nextVisibleCount}">Load more (${remainingCount})</button>`
+                  : '<span class="dispatchFulfillmentLaneMeta">All loaded</span>'
+              }
+            </footer>
+          `
+          : "";
         return `
           <section class="dispatchFulfillmentLane" data-lane="${lane.id}">
             <header class="dispatchFulfillmentLaneHeader">
@@ -5027,26 +5050,15 @@ async function startOrder(orderNo) {
               <span class="dispatchFulfillmentLaneCount">${laneOrders.length}</span>
             </header>
             <div class="dispatchFulfillmentLaneBody">
-              ${cards || '<div class="dispatchRecentEmpty">No orders in this lane.</div>'}
+              ${
+                rows
+                  ? `<div class="dispatchRecentCompactList">${rows}</div>`
+                  : '<div class="dispatchRecentEmpty">No orders in this lane.</div>'
+              }
+              ${footer}
             </div>
           </section>
         `;
-      })
-      .join("");
-  }
-
-  function renderDispatchMobileLaneControls() {
-    if (!dispatchMobileControls || !dispatchMobileLaneTabs || !dispatchMobileLaneLabel) return;
-    const activeOption =
-      dispatchMobileLaneOptions.find((option) => option.id === dispatchMobileLane) ||
-      dispatchMobileLaneOptions[0];
-    dispatchMobileLaneLabel.textContent = activeOption ? `${activeOption.label} lanes` : "All lanes";
-    dispatchMobileLaneTabs.innerHTML = dispatchMobileLaneOptions
-      .map((option) => {
-        const isActive = option.id === dispatchMobileLane;
-        return `<button class="btn ${isActive ? "btn-primary" : "btn-alt-secondary"}" type="button" data-mobile-lane="${option.id}" aria-pressed="${
-          isActive ? "true" : "false"
-        }">${option.label}</button>`;
       })
       .join("");
   }
@@ -5102,27 +5114,6 @@ async function startOrder(orderNo) {
       dispatchLegendToggle.setAttribute("aria-expanded", dispatchLegendOpen ? "true" : "false");
       dispatchLegendToggle.textContent = dispatchLegendOpen ? "Hide" : "Show";
       dispatchLegendToggle.setAttribute("aria-label", dispatchLegendOpen ? "Collapse legend" : "Expand legend");
-    }
-  }
-
-  function applyDispatchMobileLaneFilter() {
-    if (!dispatchBoard) return;
-    const isMobile = isMobileDispatchViewport();
-    const columns = dispatchBoard.querySelectorAll(".dispatchCol");
-    columns.forEach((col) => {
-      if (!isMobile || dispatchMobileLane === "all") {
-        col.classList.remove("dispatchCol--mobile-hidden");
-        return;
-      }
-      const laneId = col.dataset.laneId;
-      if (dispatchMobileLane === "delivery") {
-        col.classList.toggle("dispatchCol--mobile-hidden", normalizeDispatchLaneId(laneId) !== "delivery");
-        return;
-      }
-      col.classList.toggle("dispatchCol--mobile-hidden", laneId !== dispatchMobileLane);
-    });
-    if (dispatchMobileControls) {
-      dispatchMobileControls.hidden = !isMobile;
     }
   }
 
@@ -5695,16 +5686,51 @@ async function startOrder(orderNo) {
 
     const cols = [
       { id: "shipping", label: "Shipping", type: "cards" },
-      { id: "pickup", label: "Pickup / Collection", type: "cards" },
-      { id: "delivery", label: "Delivery", type: "cards" }
+      { id: "delivery", label: "Delivery", type: "cards" },
+      { id: "pickup", label: "Pickup", type: "cards" }
     ];
     const lanes = {
-      deliveryA: [],
-      deliveryB: [],
+      delivery: [],
       shippingAgent: [],
       shippingNonAgent: [],
       pickup: []
     };
+
+    function splitOrdersAcrossLanes(sourceOrders, laneCount, options = {}) {
+      const normalizedLaneCount = Math.max(1, Number(laneCount) || 1);
+      const laneBuckets = Array.from({ length: normalizedLaneCount }, () => []);
+      if (!Array.isArray(sourceOrders) || !sourceOrders.length) return laneBuckets;
+      const groupKeyForOrder =
+        typeof options.groupKeyForOrder === "function" ? options.groupKeyForOrder : null;
+      const groupedOrders = [];
+      const groupedIndexByKey = new Map();
+
+      sourceOrders.forEach((order, index) => {
+        const fallbackKey = `order-${index}`;
+        const rawGroupKey = groupKeyForOrder ? String(groupKeyForOrder(order, index) || "").trim() : "";
+        const groupKey = rawGroupKey || fallbackKey;
+        if (!groupedIndexByKey.has(groupKey)) {
+          groupedIndexByKey.set(groupKey, groupedOrders.length);
+          groupedOrders.push({ key: groupKey, orders: [] });
+        }
+        groupedOrders[groupedIndexByKey.get(groupKey)].orders.push(order);
+      });
+
+      groupedOrders.forEach((entry) => {
+        let targetLaneIndex = 0;
+        let smallestLoad = laneBuckets[0].length;
+        for (let laneIndex = 1; laneIndex < laneBuckets.length; laneIndex += 1) {
+          const laneLoad = laneBuckets[laneIndex].length;
+          if (laneLoad < smallestLoad) {
+            smallestLoad = laneLoad;
+            targetLaneIndex = laneIndex;
+          }
+        }
+        laneBuckets[targetLaneIndex].push(...entry.orders);
+      });
+
+      return laneBuckets;
+    }
 
     list.forEach((o) => {
       if (isExportOrder(o)) {
@@ -5721,23 +5747,27 @@ async function startOrder(orderNo) {
         return;
       }
       if (laneId === "delivery") {
-        const scheduledLane = getDeliveryLaneFromSchedule(o);
-        lanes[scheduledLane].push(o);
+        lanes.delivery.push(o);
         return;
       }
       (lanes[laneId] || lanes.shippingNonAgent).push(o);
     });
 
-    const shippingLaneCount = 4;
-    const shippingChunks = Array.from({ length: shippingLaneCount }, () => []);
-    lanes.shippingNonAgent.forEach((order, index) => {
-      shippingChunks[index % shippingLaneCount].push(order);
+    const shippingLaneCount = 5;
+    const shippingPool = [...lanes.shippingAgent, ...lanes.shippingNonAgent];
+    const shippingChunks = splitOrdersAcrossLanes(shippingPool, shippingLaneCount, {
+      groupKeyForOrder: (order) => {
+        const orderNo = orderNoFromName(order?.name);
+        const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
+        return combinedGroup?.id || orderNo || String(order?.id || "");
+      }
     });
-    const [shippingA, shippingB, shippingC, shippingD] = shippingChunks;
+    const deliveryLaneCount = 2;
+    const deliveryChunks = splitOrdersAcrossLanes(lanes.delivery, deliveryLaneCount);
     const laneOrdersByColId = {
-      shipping: [...lanes.shippingAgent, ...lanes.shippingNonAgent],
+      shipping: shippingPool,
       pickup: lanes.pickup,
-      delivery: [...lanes.deliveryA, ...lanes.deliveryB]
+      delivery: lanes.delivery
     };
     const activeCols = cols;
     dispatchBoard.style.setProperty("--dispatch-col-count", String(Math.max(1, activeCols.length)));
@@ -5746,7 +5776,7 @@ async function startOrder(orderNo) {
     const hasDeliveryCol = activeCols.some((col) => col.id === "delivery");
     const useThreeLaneTemplate = hasShippingCol && hasPickupCol && hasDeliveryCol && activeCols.length === 3;
     const dispatchColTemplate = useThreeLaneTemplate
-      ? "minmax(0, 4fr) minmax(0, 1fr) minmax(0, 1fr)"
+      ? "minmax(0, 5fr) minmax(0, 2fr) minmax(0, 1fr)"
       : activeCols
           .map((col) => (col.id === "shipping" ? "minmax(0, 2fr)" : "minmax(0, 1fr)"))
           .join(" ");
@@ -5755,15 +5785,6 @@ async function startOrder(orderNo) {
     } else {
       dispatchBoard.style.removeProperty("--dispatch-col-template");
     }
-    const hasDeliveryLaneVisible = activeCols.some((col) => normalizeDispatchLaneId(col.id) === "delivery");
-    dispatchMobileLaneOptions = [
-      ...DISPATCH_MOBILE_BASE_LANE_OPTIONS,
-      ...(hasDeliveryLaneVisible ? [{ id: "delivery", label: "Delivery" }] : [])
-    ];
-    if (dispatchMobileLane !== "all" && !dispatchMobileLaneOptions.some((option) => option.id === dispatchMobileLane)) {
-      dispatchMobileLane = "all";
-    }
-
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
       const chainLogo = resolveDispatchChainLogo(o);
@@ -5940,18 +5961,14 @@ async function startOrder(orderNo) {
       return chunks.join("");
     }
 
-    renderDispatchMobileLaneControls();
-
     dispatchBoard.innerHTML = activeCols
       .map((col) => {
         if (col.id === "shipping") {
-          const shippingSubLanes = [
-            ...(lanes.shippingAgent.length ? [{ id: "shippingAgent", label: "Agent", orders: lanes.shippingAgent }] : []),
-            { id: "shippingA", label: "Lane A", orders: shippingA },
-            { id: "shippingB", label: "Lane B", orders: shippingB },
-            { id: "shippingC", label: "Lane C", orders: shippingC },
-            { id: "shippingD", label: "Lane D", orders: shippingD }
-          ];
+          const shippingSubLanes = shippingChunks.map((orders, index) => ({
+            id: `shipping${index + 1}`,
+            label: `Lane ${index + 1}`,
+            orders
+          }));
           const shippingSubLaneColCount = Math.max(1, shippingSubLanes.length);
           const subLanes = shippingSubLanes
             .map((subLane) => {
@@ -5979,8 +5996,8 @@ async function startOrder(orderNo) {
         }
         if (col.id === "delivery") {
           const deliverySubLanes = [
-            { id: "deliveryA", label: "Lane 1", orders: lanes.deliveryA },
-            { id: "deliveryB", label: "Lane 2", orders: lanes.deliveryB }
+            { id: "deliveryA", label: "Lane 6", orders: deliveryChunks[0] || [] },
+            { id: "deliveryB", label: "Lane 7", orders: deliveryChunks[1] || [] }
           ];
           const deliverySubLaneColCount = Math.max(1, deliverySubLanes.length);
           const subLanes = deliverySubLanes
@@ -6009,10 +6026,11 @@ async function startOrder(orderNo) {
         }
         const laneOrders = laneOrdersByColId[col.id] || [];
         const cards = renderLaneCards(laneOrders, col.id);
+        const colTitle = col.id === "pickup" ? "Pickup · Lane 8" : col.label;
         return `
           <div class="dispatchCol" data-lane-id="${col.id}">
             <div class="dispatchColHeader">
-              <span>${col.label}</span>
+              <span>${colTitle}</span>
             </div>
             <div class="dispatchColBody">${cards || '<div class="dispatchBoardEmptyCol">No orders in this lane.</div>'}</div>
           </div>`;
@@ -6034,7 +6052,6 @@ async function startOrder(orderNo) {
         selectionPruned = true;
       }
     });
-    applyDispatchMobileLaneFilter();
     updateDispatchSelectionSummary();
     syncDispatchRotaryFocus();
   }
@@ -6412,13 +6429,7 @@ async function startOrder(orderNo) {
 
   function getDispatchQueueOrderIds() {
     if (dispatchBoard) {
-      const laneIdsInTraversalOrder = [
-        "shipping",
-        "pickup",
-        "delivery",
-        "deliveryA",
-        "deliveryB"
-      ];
+      const laneIdsInTraversalOrder = ["shipping", "delivery", "pickup"];
       const visited = new Set();
       const queue = [];
       laneIdsInTraversalOrder.forEach((laneId) => {
@@ -8223,25 +8234,21 @@ async function startOrder(orderNo) {
   });
 
   dispatchFulfillmentSearch?.addEventListener("input", () => {
-    renderDispatchRecentlyShipped(dispatchFulfilledLatest);
+    renderDispatchRecentlyShipped(dispatchFulfilledLatest, { resetPagination: true });
   });
 
   dispatchFulfillmentType?.addEventListener("change", () => {
+    renderDispatchRecentlyShipped(dispatchFulfilledLatest, { resetPagination: true });
+  });
+
+  dispatchFulfillmentBoard?.addEventListener("click", (event) => {
+    const loadMoreButton = event.target.closest('button[data-action="recent-load-more"]');
+    if (!loadMoreButton) return;
+    const laneId = String(loadMoreButton.dataset.laneId || "").trim();
+    const nextCount = Number(loadMoreButton.dataset.nextCount || 0);
+    if (!laneId || !Number.isFinite(nextCount) || nextCount <= 0) return;
+    dispatchFulfillmentLaneVisibleCounts.set(laneId, nextCount);
     renderDispatchRecentlyShipped(dispatchFulfilledLatest);
-  });
-
-  dispatchMobileLaneTabs?.addEventListener("click", (e) => {
-    const button = e.target.closest("button[data-mobile-lane]");
-    if (!button) return;
-    const lane = button.dataset.mobileLane;
-    if (!lane || dispatchMobileLane === lane) return;
-    dispatchMobileLane = lane;
-    renderDispatchMobileLaneControls();
-    applyDispatchMobileLaneFilter();
-  });
-
-  window.addEventListener("resize", () => {
-    applyDispatchMobileLaneFilter();
   });
 
   dispatchBoard?.addEventListener("focusout", async (e) => {

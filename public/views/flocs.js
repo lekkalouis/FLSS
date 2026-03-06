@@ -672,7 +672,12 @@ export function initFlocsView() {
       }
     }
 
-    const sortBy = customerSort?.value === "city" ? "city" : "orders";
+    const sortBy =
+      customerSort?.value === "city"
+        ? "city"
+        : customerSort?.value === "name"
+          ? "name"
+          : "orders";
     next.sort((a, b) => {
       if (sortBy === "city") {
         const byCity = String(customerCityLabel(a) || "").localeCompare(
@@ -682,10 +687,25 @@ export function initFlocsView() {
         );
         if (byCity !== 0) return byCity;
       }
+      if (sortBy === "name") {
+        const byName = String(a?.name || a?.companyName || "").localeCompare(
+          String(b?.name || b?.companyName || ""),
+          undefined,
+          { sensitivity: "base" }
+        );
+        if (byName !== 0) return byName;
+      }
       return compareCustomersByOrders(a, b);
     });
 
     return next;
+  }
+
+  function customerDirectoryLetter(customer) {
+    const source = String(customer?.name || customer?.companyName || "").trim();
+    if (!source) return "#";
+    const first = source.charAt(0).toUpperCase();
+    return /^[A-Z]$/.test(first) ? first : "#";
   }
 
   function customerMatchScore(customer, query) {
@@ -741,7 +761,8 @@ export function initFlocsView() {
     state.customerCandidateId = String(candidate?.id || "");
     const selectedId = String(state.customer?.id || "");
     const chainItemClass = customerChainItemClass();
-    customerResults.innerHTML = filtered
+    let lastLetter = "";
+    const markup = filtered
       .map((customer, idx) => {
         const city = customerCityLabel(customer);
         const province = customerProvinceLabel(customer);
@@ -750,7 +771,14 @@ export function initFlocsView() {
         const ordersLabel = `${orders} order${orders === 1 ? "" : "s"}`;
         const isActive = selectedId && String(customer?.id || "") === selectedId;
         const isCandidate = state.customerCandidateId && String(customer?.id || "") === state.customerCandidateId;
+        const letter = customerDirectoryLetter(customer);
+        const letterHeading =
+          letter !== lastLetter
+            ? `<div class="flocs-customerDirectoryLetter" aria-hidden="true">${letter}</div>`
+            : "";
+        lastLetter = letter;
         return `
+        ${letterHeading}
         <button type="button" class="flocs-customerItem${chainItemClass ? ` ${chainItemClass}` : ""}${isActive ? " is-active" : ""}${isCandidate ? " is-candidate" : ""}" data-idx="${idx}">
           <strong>${customer.name || "Unnamed"}</strong>
           <div class="flocs-customerItem-meta">${location} · ${ordersLabel}</div>
@@ -758,6 +786,7 @@ export function initFlocsView() {
       `;
       })
       .join("");
+    customerResults.innerHTML = markup;
     customerResults._data = filtered;
     customerResults._allData = Array.isArray(customers) ? customers : [];
     customerStatus.textContent = "Click a row to select customer.";

@@ -18,13 +18,7 @@
     const year = String(now.getFullYear()).slice(-2);
     const week = String(getIsoWeekNumber(now)).padStart(2, "0");
     const batchCode = `${day}${month}${year}/${week}`;
-    const dateLabel = now.toLocaleDateString(undefined, {
-      weekday: "long",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit"
-    });
-    el.textContent = `${dateLabel} | Batch Code: ${batchCode}`;
+    el.textContent = `BN:${batchCode}`;
   }
 
   function syncTruckHeaderWidgets() {
