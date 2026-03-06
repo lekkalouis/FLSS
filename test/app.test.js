@@ -6,6 +6,7 @@ import { promises as fs } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { createApp } from '../src/app.js';
+import { getDb, runMigrations } from '../src/db/sqlite.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,6 +64,106 @@ test('GET /api/v1/config returns expected config keys', async () => {
     assert.equal(typeof body.FEATURE_FLAGS.MULTI_SHIP, 'boolean');
   } finally {
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('system settings API loads defaults and persists updates', async () => {
+  runMigrations();
+  const { server, baseUrl } = await startServer();
+  try {
+    const initialResponse = await fetch(`${baseUrl}/api/v1/system/settings`);
+    assert.equal(initialResponse.status, 200);
+    const initialBody = await initialResponse.json();
+    assert.equal(initialBody.ok, true);
+    assert.equal(typeof initialBody.settings.sticker.shelfLifeMonths, 'number');
+    assert.equal(typeof initialBody.settings.printHistory.retentionDays, 'number');
+
+    const updateResponse = await fetch(`${baseUrl}/api/v1/system/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sticker: {
+          shelfLifeMonths: 18,
+          defaultButtonQty: 64,
+          commandLanguage: 'PPLB',
+          stickerPrinterId: 4567
+        },
+        printHistory: {
+          retentionDays: 180
+        }
+      })
+    });
+    assert.equal(updateResponse.status, 200);
+    const updateBody = await updateResponse.json();
+    assert.equal(updateBody.ok, true);
+    assert.equal(updateBody.settings.sticker.shelfLifeMonths, 18);
+    assert.equal(updateBody.settings.sticker.defaultButtonQty, 64);
+    assert.equal(updateBody.settings.sticker.stickerPrinterId, 4567);
+    assert.equal(updateBody.settings.printHistory.retentionDays, 180);
+
+    const verifyResponse = await fetch(`${baseUrl}/api/v1/system/settings`);
+    assert.equal(verifyResponse.status, 200);
+    const verifyBody = await verifyResponse.json();
+    assert.equal(verifyBody.ok, true);
+    assert.equal(verifyBody.settings.sticker.stickerPrinterId, 4567);
+    assert.equal(verifyBody.settings.printHistory.retentionDays, 180);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('print history API supports pagination and type alias filtering', async () => {
+  runMigrations();
+  const db = getDb();
+  db.prepare('DELETE FROM print_history').run();
+  db.prepare(
+    `INSERT INTO print_history (job_type, status, printer_id, title, source, upstream_status, upstream_status_text, upstream_job_id, error_message, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    'delivery_note',
+    'failed',
+    44,
+    'Delivery Note 1001',
+    'test-suite',
+    422,
+    'unprocessable',
+    'job-001',
+    'Upstream validation error',
+    new Date('2026-01-02T08:00:00.000Z').toISOString()
+  );
+  db.prepare(
+    `INSERT INTO print_history (job_type, status, printer_id, title, source, upstream_status, upstream_status_text, upstream_job_id, error_message, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    'best_before_sticker',
+    'success',
+    55,
+    'Best-before labels',
+    'test-suite',
+    201,
+    'created',
+    'job-002',
+    null,
+    new Date('2026-01-03T09:00:00.000Z').toISOString()
+  );
+
+  const { server, baseUrl } = await startServer();
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/print-history?page=1&pageSize=1&type=delivery_note&status=failed`);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.page, 1);
+    assert.equal(body.pageSize, 1);
+    assert.equal(body.total, 1);
+    assert.equal(Array.isArray(body.rows), true);
+    assert.equal(body.rows.length, 1);
+    assert.equal(body.rows[0].jobType, 'delivery_note');
+    assert.equal(body.rows[0].status, 'failed');
+    assert.equal(body.rows[0].printerId, 44);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    db.prepare('DELETE FROM print_history').run();
   }
 });
 

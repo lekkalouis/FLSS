@@ -74,6 +74,7 @@ export function initFlocsView() {
   const resetSearchBtn   = document.getElementById("flocs-resetSearchBtn");
   const chatSearchResetBtn = document.getElementById("flocs-chatSearchResetBtn");
   const clearCustomerBtn = document.getElementById("flocs-clearCustomerBtn");
+  const customerCreateModal = document.getElementById("flocs-customerCreateModal");
   const customerCreateToggle = document.getElementById("flocs-customerCreateToggle");
   const customerCreatePanel = document.getElementById("flocs-customerCreatePanel");
   const customerCreateStatus = document.getElementById("flocs-customerCreateStatus");
@@ -129,6 +130,7 @@ export function initFlocsView() {
   const azBar            = document.getElementById("flocs-azBar");
 
   const toast            = document.getElementById("flocs-toast");
+  const CUSTOMER_CREATE_INTENT_KEY = "flocs-open-new-customer";
 
   // ===== STATE =====
   const state = {
@@ -304,6 +306,10 @@ export function initFlocsView() {
     const googleApi = await ensureGooglePlacesLibrary();
     if (!googleApi?.maps?.places?.Autocomplete) {
       console.warn("Google Places autocomplete unavailable: missing GOOGLE_MAPS_API_KEY or blocked by CSP.");
+      if (customerCreateStatus) {
+        customerCreateStatus.textContent =
+          "Google autocomplete is unavailable. You can still type the address manually.";
+      }
       return;
     }
     const autocomplete = new googleApi.maps.places.Autocomplete(customerAddr1, {
@@ -940,17 +946,18 @@ export function initFlocsView() {
   }
 
   function setCustomerCreateVisible(visible) {
-    if (customerCreatePanel) {
-      customerCreatePanel.hidden = !visible;
+    const isVisible = Boolean(visible);
+    if (customerCreateModal) {
+      customerCreateModal.classList.toggle("is-open", isVisible);
+      customerCreateModal.setAttribute("aria-hidden", isVisible ? "false" : "true");
     }
     if (customerCreateToggle) {
-      const label = visible ? "Hide new customer form" : "Add new customer";
-      customerCreateToggle.innerHTML = `<span aria-hidden="true">${visible ? "-" : "+"}</span>`;
-      customerCreateToggle.setAttribute("title", label);
-      customerCreateToggle.setAttribute("aria-label", label);
+      customerCreateToggle.setAttribute("title", "Close new customer form");
+      customerCreateToggle.setAttribute("aria-label", "Close new customer form");
     }
-    if (visible && customerFirst) {
+    if (isVisible && customerFirst) {
       customerFirst.focus();
+      customerFirst.select();
     }
   }
 
@@ -1264,13 +1271,13 @@ export function initFlocsView() {
     return Math.floor(base);
   }
 
-  function renderSizeQtyControl({ key, value, sizeLabel = "" }) {
+  function renderSizeQtyControl({ key, value, sizeLabel = "", quickColor = "#64748b" }) {
     const sizeTag = sizeLabel ? `<span class="flocs-sizeTag">${sizeLabel}</span>` : "";
     const quickButtons = QUICK_QTY.map(
       (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}" title="Quick add ${qty}">${qty}</button>`
     ).join("");
     const quickControls = state.showQuickQtyButtons
-      ? `<div class="flocs-qtyQuick" aria-label="Quick add quantity">${quickButtons}</div>`
+      ? `<div class="flocs-qtyQuick" aria-label="Quick add quantity" style="--quick-qty-color:${quickColor}">${quickButtons}</div>`
       : "";
     return `<div class="flocs-qtyArea">
       ${sizeTag}
@@ -1377,7 +1384,11 @@ export function initFlocsView() {
           const key = productKey(product);
           const units = Number(state.items[key] || 0);
           const value = toDisplayQty(units);
-          const qtyControl = renderSizeQtyControl({ key, value });
+          const qtyControl = renderSizeQtyControl({
+            key,
+            value,
+            quickColor: flavourColor(flavour, productType)
+          });
           return `<td class="flocs-matrixCell">${qtyControl}</td>`;
         }).join("");
         return {
@@ -1396,7 +1407,12 @@ export function initFlocsView() {
       const units = Number(state.items[key] || 0);
       const value = toDisplayQty(units);
       const sizeLabel = nonMatrixSizeLabel(product);
-      const qtyControl = renderSizeQtyControl({ key, value, sizeLabel });
+      const qtyControl = renderSizeQtyControl({
+        key,
+        value,
+        sizeLabel,
+        quickColor: flavourColor(product.flavour, matrixProductType(product))
+      });
       const title = nonMatrixDisplayTitle(product);
       const sku = String(product?.sku || "").trim().toUpperCase();
       const forcedSectionType =
@@ -2396,6 +2412,7 @@ ${state.customer.email || ""}${
       showToast("Customer created.", "ok");
       resetCustomerForm();
       setCustomerCreateVisible(false);
+      window.requestAnimationFrame(() => focusPrimaryQtyInput());
     } catch (e) {
       console.error("Customer create error:", e);
       showToast("Customer create failed.", "err");
@@ -2429,7 +2446,7 @@ ${state.customer.email || ""}${
     if (customerCountry) customerCountry.value = "South Africa";
     if (customerCreateStatus) {
       customerCreateStatus.textContent =
-        "Add a customer if search returns nothing.";
+        "Create customer, then order form will auto-focus on first quantity input.";
     }
   }
 
@@ -3188,10 +3205,25 @@ ${state.customer.email || ""}${
 
     if (customerCreateToggle) {
       customerCreateToggle.addEventListener("click", () => {
-        const isHidden = customerCreatePanel?.hidden !== false;
-        setCustomerCreateVisible(isHidden);
+        setCustomerCreateVisible(false);
       });
     }
+
+    if (customerCreateModal) {
+      customerCreateModal.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.dataset.action === "close-customer-modal") {
+          setCustomerCreateVisible(false);
+        }
+      });
+    }
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (!customerCreateModal?.classList.contains("is-open")) return;
+      setCustomerCreateVisible(false);
+    });
 
     if (customerSegmentFilters) {
       customerSegmentFilters.addEventListener("click", async (event) => {
@@ -3506,6 +3538,14 @@ ${state.customer.email || ""}${
     await initCustomerAddressAutocomplete();
     hydratePriceTiersForProducts(state.products);
     initEvents();
+    window.addEventListener("flocs:new-customer-request", () => {
+      setCustomerCreateVisible(true);
+    });
+    const shouldOpenCustomerModal = sessionStorage.getItem(CUSTOMER_CREATE_INTENT_KEY) === "1";
+    if (shouldOpenCustomerModal) {
+      sessionStorage.removeItem(CUSTOMER_CREATE_INTENT_KEY);
+      setCustomerCreateVisible(true);
+    }
     await preloadCustomers();
   }
 

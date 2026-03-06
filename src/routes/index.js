@@ -11,10 +11,12 @@ import manufacturingRouter from "./manufacturing.js";
 import notificationTemplatesRouter from "./notificationTemplates.js";
 import orderPaymentsRouter from "./order-payments.js";
 import parcelPerfectRouter from "./parcelperfect.js";
+import printHistoryRouter from "./print-history.js";
 import printnodeRouter from "./printnode.js";
 import productManagementRouter from "./product-management.js";
 import shopifyRouter from "./shopify.js";
 import statusRouter from "./status.js";
+import systemSettingsRouter from "./system-settings.js";
 import traceabilityRouter from "./traceability.js";
 
 export const apiRouters = [
@@ -33,6 +35,8 @@ export const apiRouters = [
   { name: "parcelPerfect", router: parcelPerfectRouter },
   { name: "shopify", router: shopifyRouter },
   { name: "printnode", router: printnodeRouter },
+  { name: "printHistory", router: printHistoryRouter },
+  { name: "systemSettings", router: systemSettingsRouter },
   { name: "productManagement", router: productManagementRouter },
   { name: "alerts", router: alertsRouter },
   { name: "traceability", router: traceabilityRouter }

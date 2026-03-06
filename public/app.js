@@ -185,6 +185,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchFulfillmentBoard = $("dispatchFulfillmentBoard");
   const dispatchSelectionClear = $("dispatchSelectionClear");
   const dispatchPrepareDeliveriesContainer = $("dispatchPrepareDeliveriesContainer");
+  const dispatchSelectionPrintBtn = $("dispatchSelectionPrintBtn");
   const dispatchPrepareDeliveries = $("dispatchPrepareDeliveries");
   const dispatchShipmentsSidebar = $("dispatchShipmentsSidebar");
   const dispatchOrderModal = $("dispatchOrderModal");
@@ -220,7 +221,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchOverlayProgressLabel = $("dispatchOverlayProgressLabel");
   const dispatchRefreshOrdersBtn = $("dispatchRefreshOrdersBtn");
   const dispatchSelectModeBtn = $("dispatchSelectModeBtn");
-  const dispatchLegend = $("dispatchLegend");
+  const dispatchPrintBestBeforeBtn = $("dispatchPrintBestBeforeBtn");
+  const dispatchLegendOpenBtn = $("dispatchLegendOpenBtn");
+  const dispatchLegend = $("dispatchLegendModal");
   const dispatchLegendToggle = $("dispatchLegendToggle");
   const dispatchLegendContent = $("dispatchLegendContent");
   const dispatchLegendStatus = $("dispatchLegendStatus");
@@ -242,6 +245,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const navLogs = $("navLogs");
   const navFooterAdmin = $("navFooterAdmin");
   const navFooterChangelog = $("navFooterChangelog");
+  const navFooterSettings = $("navFooterSettings");
   const navToggle = $("navToggle");
   const viewScan = $("viewScan");
   const viewOps = $("viewOps");
@@ -266,9 +270,32 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const adminLogsPreview = $("adminLogsPreview");
   const screenFlash = $("screenFlash");
   const emergencyStopBtn = $("emergencyStop");
+  const settingsModal = $("settingsModal");
+  const settingsModalClose = $("settingsModalClose");
+  const settingsTabs = Array.from(document.querySelectorAll(".settingsTabBtn"));
+  const settingsTabPanes = Array.from(document.querySelectorAll(".settingsTabPane"));
+  const settingsStickerShelfLifeMonths = $("settingsStickerShelfLifeMonths");
+  const settingsStickerDefaultQty = $("settingsStickerDefaultQty");
+  const settingsStickerCommandLanguage = $("settingsStickerCommandLanguage");
+  const settingsPrintRetentionDays = $("settingsPrintRetentionDays");
+  const settingsSaveBtn = $("settingsSaveBtn");
+  const settingsSaveStatus = $("settingsSaveStatus");
+  const settingsRefreshPrintersBtn = $("settingsRefreshPrintersBtn");
+  const settingsTestStickerBtn = $("settingsTestStickerBtn");
+  const settingsPrintersStatus = $("settingsPrintersStatus");
+  const settingsPrintersList = $("settingsPrintersList");
+  const settingsRefreshMonitoringBtn = $("settingsRefreshMonitoringBtn");
+  const settingsMonitoringSummary = $("settingsMonitoringSummary");
+  const settingsPrintHistory = $("settingsPrintHistory");
+  const settingsNotificationsFrame = $("settingsNotificationsFrame");
 
   let globalLoaderCount = 0;
   let isNewOrderMenuOpen = false;
+  let settingsModalOpen = false;
+  let settingsState = null;
+  let settingsActiveTab = "system";
+  let settingsPrinterRows = [];
+  const FLOCS_NEW_CUSTOMER_INTENT_KEY = "flocs-open-new-customer";
 
   function setNewOrderMenuOpen(open) {
     if (!navNewOrderFab || !navNewOrder || !navNewOrderMenu) return;
@@ -5094,56 +5121,55 @@ async function startOrder(orderNo) {
   }
 
   function loadDispatchLegendPreference() {
-    const stored = localStorage.getItem(DISPATCH_LEGEND_OPEN_KEY);
-    if (stored === "false") {
-      dispatchLegendOpen = false;
-      return;
-    }
-    dispatchLegendOpen = true;
+    dispatchLegendOpen = false;
   }
 
-  function setDispatchLegendOpen(nextOpen, options = {}) {
-    const { persist = true } = options;
+  function setDispatchLegendOpen(nextOpen) {
     dispatchLegendOpen = Boolean(nextOpen);
-    if (persist) {
-      localStorage.setItem(DISPATCH_LEGEND_OPEN_KEY, dispatchLegendOpen ? "true" : "false");
-    }
     if (dispatchLegend) {
-      dispatchLegend.classList.toggle("is-collapsed", !dispatchLegendOpen);
+      dispatchLegend.classList.toggle("is-open", dispatchLegendOpen);
+      dispatchLegend.setAttribute("aria-hidden", dispatchLegendOpen ? "false" : "true");
     }
     if (dispatchLegendContent) {
       dispatchLegendContent.hidden = !dispatchLegendOpen;
     }
+    if (dispatchLegendOpenBtn) {
+      dispatchLegendOpenBtn.setAttribute("aria-expanded", dispatchLegendOpen ? "true" : "false");
+    }
     if (dispatchLegendToggle) {
       dispatchLegendToggle.setAttribute("aria-expanded", dispatchLegendOpen ? "true" : "false");
-      dispatchLegendToggle.textContent = dispatchLegendOpen ? "Hide" : "Show";
-      dispatchLegendToggle.setAttribute("aria-label", dispatchLegendOpen ? "Collapse legend" : "Expand legend");
+      dispatchLegendToggle.setAttribute("aria-label", dispatchLegendOpen ? "Close legend" : "Open legend");
+    }
+    if (!dispatchLegendOpen) {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof Element && dispatchLegend?.contains(activeElement)) {
+        dispatchLegendOpenBtn?.focus();
+      }
     }
   }
 
   function setDispatchSelectModeActive(nextActive) {
     dispatchSelectModeActive = Boolean(nextActive);
-    if (!dispatchSelectModeBtn) return;
-    dispatchSelectModeBtn.setAttribute("aria-pressed", dispatchSelectModeActive ? "true" : "false");
-    dispatchSelectModeBtn.classList.toggle("is-active", dispatchSelectModeActive);
-    dispatchSelectModeBtn.setAttribute("aria-label", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
-    dispatchSelectModeBtn.setAttribute("title", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
+    if (dispatchSelectModeBtn) {
+      dispatchSelectModeBtn.setAttribute("aria-pressed", dispatchSelectModeActive ? "true" : "false");
+      dispatchSelectModeBtn.classList.toggle("is-active", dispatchSelectModeActive);
+      dispatchSelectModeBtn.setAttribute("aria-label", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
+      dispatchSelectModeBtn.setAttribute("title", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
+    }
+    document.querySelectorAll(".dispatchLaneSelectBtn").forEach((button) => {
+      button.classList.toggle("is-active", dispatchSelectModeActive);
+      button.setAttribute("aria-pressed", dispatchSelectModeActive ? "true" : "false");
+      button.setAttribute("title", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
+      button.setAttribute("aria-label", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
+    });
   }
   function loadDispatchSelectionSidebarPreference() {
-    const stored = localStorage.getItem(DISPATCH_SELECTION_SIDEBAR_KEY);
-    if (stored === "false") {
-      dispatchSelectionSidebarOpen = false;
-      return;
-    }
     dispatchSelectionSidebarOpen = true;
   }
 
   function setDispatchSelectionSidebarOpen(nextOpen, options = {}) {
-    const { persist = true, focusPanel = false, focusToggle = false } = options;
+    const { focusPanel = false, focusToggle = false } = options;
     dispatchSelectionSidebarOpen = Boolean(nextOpen);
-    if (persist) {
-      localStorage.setItem(DISPATCH_SELECTION_SIDEBAR_KEY, dispatchSelectionSidebarOpen ? "true" : "false");
-    }
     if (dispatchSelectionSidebar) {
       dispatchSelectionSidebar.classList.toggle("is-open", dispatchSelectionSidebarOpen);
       dispatchSelectionSidebar.classList.toggle("is-closed", !dispatchSelectionSidebarOpen);
@@ -5153,12 +5179,7 @@ async function startOrder(orderNo) {
     }
     if (dispatchSelectionSidebarToggle) {
       dispatchSelectionSidebarToggle.setAttribute("aria-expanded", dispatchSelectionSidebarOpen ? "true" : "false");
-      dispatchSelectionSidebarToggle.textContent = dispatchSelectionSidebarOpen ? "<" : ">";
-      dispatchSelectionSidebarToggle.setAttribute(
-        "aria-label",
-        dispatchSelectionSidebarOpen ? "Collapse right sidebar" : "Expand right sidebar"
-      );
-      dispatchSelectionSidebarToggle.classList.toggle("is-drawer", !dispatchSelectionSidebarOpen);
+      dispatchSelectionSidebarToggle.setAttribute("aria-label", "Toggle selected orders panel");
     }
     const isScanVisible = document.querySelector(".flView.flView--active")?.id === "viewScan";
     const hasSelection = dispatchSelectedOrders.size > 0;
@@ -5179,11 +5200,13 @@ async function startOrder(orderNo) {
     const container = dispatchSelectionSidebarContent;
     const shouldShow = Boolean(isScanVisible && hasSelection);
     if (dispatchSelectionSidebar) {
-      dispatchSelectionSidebar.hidden = !shouldShow;
+      dispatchSelectionSidebar.hidden = !isScanVisible;
+      dispatchSelectionSidebar.classList.toggle("is-open", shouldShow);
+      dispatchSelectionSidebar.classList.toggle("is-closed", !shouldShow);
     }
-    document.body.classList.toggle("dispatch-sidebar-open", Boolean(shouldShow && dispatchSelectionSidebarOpen));
+    document.body.classList.toggle("dispatch-sidebar-open", shouldShow);
     if (!container) return;
-    container.hidden = !shouldShow || !dispatchSelectionSidebarOpen;
+    container.hidden = !isScanVisible;
   }
 
   function updateDispatchSelectionSummary() {
@@ -5249,7 +5272,17 @@ async function startOrder(orderNo) {
       }
     }
     if (dispatchPrepareDeliveriesContainer) {
-      dispatchPrepareDeliveriesContainer.classList.toggle("is-hidden", selectedDeliveryOrderCount === 0);
+      dispatchPrepareDeliveriesContainer.classList.toggle("is-hidden", totals.orderCount === 0);
+    }
+    if (dispatchPrepareDeliveries) {
+      dispatchPrepareDeliveries.disabled = selectedDeliveryOrderCount === 0;
+      dispatchPrepareDeliveries.title =
+        selectedDeliveryOrderCount > 0
+          ? `Book selected (${selectedDeliveryOrderCount} delivery order${selectedDeliveryOrderCount === 1 ? "" : "s"})`
+          : "Select delivery orders to book";
+    }
+    if (dispatchSelectionPrintBtn) {
+      dispatchSelectionPrintBtn.disabled = totals.orderCount === 0;
     }
     if (dispatchSelectionMixes) {
       const entries = [...totals.flavourSizeTotals.values()].sort((a, b) => {
@@ -5290,7 +5323,7 @@ async function startOrder(orderNo) {
             return `<tr><th scope="row" class="dispatchMixMatrixFlavour"><span class="dispatchMixFlavourCell" title="${escapeHtml(title)}"><span class="dispatchMixFlavourSwatch dispatchLegendFlavourSwatch" style="--dispatch-flavour-color:${tagColor}"></span><span class="dispatchMixFlavourLabel">${escapeHtml(tagLabel)}</span></span></th>${cells}</tr>`;
           })
           .join("");
-        dispatchSelectionMixes.innerHTML = `<table class="dispatchMixMatrix"><thead><tr><th scope="col">Tag</th>${header}</tr></thead><tbody>${rows}</tbody></table>`;
+        dispatchSelectionMixes.innerHTML = `<table class="dispatchMixMatrix"><thead><tr><th scope="col">Flavour</th>${header}</tr></thead><tbody>${rows}</tbody></table>`;
       }
     }
 
@@ -5965,6 +5998,17 @@ async function startOrder(orderNo) {
       return chunks.join("");
     }
 
+    const laneHeaderActionsHtml = `
+      <div class="dispatchColHeaderActions" aria-label="Lane actions">
+        <button class="dispatchIconBtn dispatchLaneHeaderBtn" type="button" data-action="refresh-orders" aria-label="Refresh open orders" title="Refresh open orders">
+          <span aria-hidden="true">&#x21bb;</span>
+        </button>
+        <button class="dispatchIconBtn dispatchIconBtn--select dispatchLaneHeaderBtn dispatchLaneSelectBtn ${dispatchSelectModeActive ? "is-active" : ""}" type="button" data-action="toggle-select-mode" aria-pressed="${dispatchSelectModeActive ? "true" : "false"}" aria-label="${dispatchSelectModeActive ? "Selecting orders" : "Select orders"}" title="${dispatchSelectModeActive ? "Selecting orders" : "Select orders"}">
+          <span aria-hidden="true">&#x2611;</span>
+        </button>
+      </div>
+    `;
+
     dispatchBoard.innerHTML = activeCols
       .map((col) => {
         if (col.id === "shipping") {
@@ -5992,6 +6036,7 @@ async function startOrder(orderNo) {
             <div class="dispatchCol" data-lane-id="${col.id}">
               <div class="dispatchColHeader">
                 <span>${col.label}</span>
+                ${laneHeaderActionsHtml}
               </div>
               <div class="dispatchColBody">
                 <div class="dispatchSubLanes dispatchSubLanes--shipping" style="--dispatch-sub-cols:${shippingSubLaneColCount};">${subLanes}</div>
@@ -6022,6 +6067,7 @@ async function startOrder(orderNo) {
             <div class="dispatchCol" data-lane-id="${col.id}">
               <div class="dispatchColHeader">
                 <span>${col.label}</span>
+                ${laneHeaderActionsHtml}
               </div>
               <div class="dispatchColBody">
                 <div class="dispatchSubLanes dispatchSubLanes--delivery" style="--dispatch-sub-cols:${deliverySubLaneColCount};">${subLanes}</div>
@@ -6035,6 +6081,7 @@ async function startOrder(orderNo) {
           <div class="dispatchCol" data-lane-id="${col.id}">
             <div class="dispatchColHeader">
               <span>${colTitle}</span>
+              ${laneHeaderActionsHtml}
             </div>
             <div class="dispatchColBody">${cards || '<div class="dispatchBoardEmptyCol">No orders in this lane.</div>'}</div>
           </div>`;
@@ -6057,6 +6104,7 @@ async function startOrder(orderNo) {
       }
     });
     updateDispatchSelectionSummary();
+    setDispatchSelectModeActive(dispatchSelectModeActive);
     syncDispatchRotaryFocus();
   }
 
@@ -7094,6 +7142,398 @@ async function startOrder(orderNo) {
       .replaceAll("'", "&#39;");
   }
 
+  async function fetchJsonWithDetails(url, options = {}) {
+    const response = await fetch(url, options);
+    const text = await response.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text ? { raw: text } : null;
+    }
+    return { response, data };
+  }
+
+  function normalizeSettingsState(rawSettings) {
+    const source = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
+    const sticker = source.sticker && typeof source.sticker === "object" ? source.sticker : {};
+    const printHistory = source.printHistory && typeof source.printHistory === "object" ? source.printHistory : {};
+    const relay = source.relay && typeof source.relay === "object" ? source.relay : {};
+
+    const shelfLifeMonths = Math.max(1, Math.trunc(Number(sticker.shelfLifeMonths) || 12));
+    const defaultButtonQty = Math.max(1, Math.trunc(Number(sticker.defaultButtonQty) || 50));
+    const commandLanguage = String(sticker.commandLanguage || "PPLB").trim().toUpperCase() || "PPLB";
+    const stickerPrinterId = Number.isInteger(Number(sticker.stickerPrinterId))
+      ? Number(sticker.stickerPrinterId)
+      : null;
+    const retentionDays = Math.max(1, Math.trunc(Number(printHistory.retentionDays) || 365));
+
+    return {
+      sticker: {
+        shelfLifeMonths,
+        defaultButtonQty,
+        commandLanguage,
+        stickerPrinterId: Number.isInteger(stickerPrinterId) && stickerPrinterId > 0 ? stickerPrinterId : null
+      },
+      printHistory: {
+        retentionDays
+      },
+      relay: {
+        enabled: Boolean(relay.enabled),
+        targets: Array.isArray(relay.targets) ? relay.targets : []
+      }
+    };
+  }
+
+  function setSettingsSaveStatus(message = "", tone = "info") {
+    if (!settingsSaveStatus) return;
+    settingsSaveStatus.textContent = String(message || "");
+    settingsSaveStatus.classList.remove("status-ok", "status-error", "status-warn");
+    if (tone === "ok") settingsSaveStatus.classList.add("status-ok");
+    if (tone === "err") settingsSaveStatus.classList.add("status-error");
+    if (tone === "warn") settingsSaveStatus.classList.add("status-warn");
+  }
+
+  function renderSettingsStateToForm() {
+    if (!settingsState) return;
+    if (settingsStickerShelfLifeMonths) {
+      settingsStickerShelfLifeMonths.value = String(settingsState.sticker?.shelfLifeMonths ?? 12);
+    }
+    if (settingsStickerDefaultQty) {
+      settingsStickerDefaultQty.value = String(settingsState.sticker?.defaultButtonQty ?? 50);
+    }
+    if (settingsStickerCommandLanguage) {
+      settingsStickerCommandLanguage.value = String(settingsState.sticker?.commandLanguage || "PPLB");
+    }
+    if (settingsPrintRetentionDays) {
+      settingsPrintRetentionDays.value = String(settingsState.printHistory?.retentionDays ?? 365);
+    }
+  }
+
+  function collectSettingsFormPayload() {
+    const shelfLifeMonths = Math.max(1, Math.trunc(Number(settingsStickerShelfLifeMonths?.value) || 12));
+    const defaultButtonQty = Math.max(1, Math.trunc(Number(settingsStickerDefaultQty?.value) || 50));
+    const commandLanguage = String(settingsStickerCommandLanguage?.value || "PPLB").trim().toUpperCase() || "PPLB";
+    const retentionDays = Math.max(1, Math.trunc(Number(settingsPrintRetentionDays?.value) || 365));
+    const stickerPrinterId = Number(settingsState?.sticker?.stickerPrinterId);
+    return {
+      sticker: {
+        shelfLifeMonths,
+        defaultButtonQty,
+        commandLanguage,
+        stickerPrinterId: Number.isInteger(stickerPrinterId) && stickerPrinterId > 0 ? stickerPrinterId : null
+      },
+      printHistory: {
+        retentionDays
+      }
+    };
+  }
+
+  function renderSettingsPrintersTable(printers = []) {
+    if (!settingsPrintersList) return;
+    if (!Array.isArray(printers) || !printers.length) {
+      settingsPrintersList.innerHTML = `<div class="dispatchRecentEmpty">No printers available.</div>`;
+      return;
+    }
+    const selectedPrinterId = Number(settingsState?.sticker?.stickerPrinterId);
+    const rows = printers
+      .map((printer) => {
+        const id = Number(printer?.id);
+        const name = String(printer?.name || printer?.description || `Printer ${id || "-"}`);
+        const computer = String(
+          printer?.computer?.name ||
+            printer?.computerName ||
+            printer?.computer?.hostname ||
+            printer?.computer?.id ||
+            "-"
+        );
+        const online =
+          typeof printer?.online === "boolean"
+            ? printer.online
+              ? "Online"
+              : "Offline"
+            : String(printer?.state || printer?.computer?.state || "Unknown");
+        const selected = Number.isInteger(id) && Number.isInteger(selectedPrinterId) && id === selectedPrinterId;
+        return `
+          <tr data-printer-id="${Number.isInteger(id) ? id : ""}">
+            <td>${Number.isInteger(id) ? id : "-"}</td>
+            <td>${escapeHtml(name)}</td>
+            <td>${escapeHtml(computer)}</td>
+            <td>${escapeHtml(online)}</td>
+            <td>
+              <button
+                class="dispatchSelectionBtn"
+                type="button"
+                data-action="settings-select-sticker-printer"
+                data-printer-id="${Number.isInteger(id) ? id : ""}"
+                ${selected ? "disabled" : ""}>
+                ${selected ? "Sticker printer" : "Use for stickers"}
+              </button>
+            </td>
+          </tr>`;
+      })
+      .join("");
+
+    settingsPrintersList.innerHTML = `
+      <table class="settingsTable">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Printer</th>
+            <th scope="col">Computer</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  function renderSettingsPrintHistoryTable(rows = []) {
+    if (!settingsPrintHistory) return;
+    if (!Array.isArray(rows) || !rows.length) {
+      settingsPrintHistory.innerHTML = `<div class="dispatchRecentEmpty">No print history entries yet.</div>`;
+      return;
+    }
+    const tableRows = rows
+      .slice(0, 50)
+      .map((row) => {
+        const createdAt = row?.createdAt ? new Date(row.createdAt).toLocaleString() : "-";
+        const printerId = row?.printerId == null ? "-" : Number(row.printerId);
+        const jobType = String(row?.jobType || "unknown");
+        const status = String(row?.status || "unknown");
+        const title = String(row?.title || "-");
+        const source = String(row?.source || "-");
+        const upstreamJobId = String(row?.upstreamJobId || "-");
+        const error = String(row?.errorMessage || "");
+        return `
+          <tr>
+            <td>${escapeHtml(createdAt)}</td>
+            <td>${escapeHtml(jobType)}</td>
+            <td>${escapeHtml(status)}</td>
+            <td>${escapeHtml(String(printerId))}</td>
+            <td>${escapeHtml(title)}</td>
+            <td>${escapeHtml(source)}</td>
+            <td>${escapeHtml(upstreamJobId)}</td>
+            <td>${escapeHtml(error || "-")}</td>
+          </tr>`;
+      })
+      .join("");
+
+    settingsPrintHistory.innerHTML = `
+      <table class="settingsTable">
+        <thead>
+          <tr>
+            <th scope="col">Time</th>
+            <th scope="col">Type</th>
+            <th scope="col">Status</th>
+            <th scope="col">Printer</th>
+            <th scope="col">Title</th>
+            <th scope="col">Source</th>
+            <th scope="col">Job ID</th>
+            <th scope="col">Error</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    `;
+  }
+
+  function renderSettingsMonitoringCards(statusPayload, controllerPayload, historyRows = []) {
+    if (!settingsMonitoringSummary) return;
+    const services = statusPayload?.services && typeof statusPayload.services === "object" ? statusPayload.services : {};
+    const serviceEntries = Object.values(services);
+    const onlineServices = serviceEntries.filter((entry) => entry?.ok).length;
+    const totalServices = serviceEntries.length;
+
+    const controllers = Array.isArray(controllerPayload?.controllers) ? controllerPayload.controllers : [];
+    const activeControllers = controllers.filter((controller) => controller?.connected && !controller?.stale).length;
+    const staleControllers = controllers.filter((controller) => controller?.stale).length;
+
+    const history = Array.isArray(historyRows) ? historyRows : [];
+    const successfulPrints = history.filter((row) => String(row?.status || "").toLowerCase() === "success").length;
+    const failedPrints = history.filter((row) => String(row?.status || "").toLowerCase() === "failed").length;
+    const latestFailure = history.find((row) => String(row?.status || "").toLowerCase() === "failed");
+
+    const cards = [
+      {
+        title: "Service health",
+        value: totalServices ? `${onlineServices}/${totalServices} online` : "No data",
+        detail: statusPayload?.checkedAt ? `Checked ${new Date(statusPayload.checkedAt).toLocaleString()}` : "Not checked"
+      },
+      {
+        title: "Controllers",
+        value: `${activeControllers}/${controllers.length} active`,
+        detail: staleControllers > 0 ? `${staleControllers} stale` : "No stale controllers"
+      },
+      {
+        title: "Print outcomes",
+        value: `${successfulPrints} success / ${failedPrints} failed`,
+        detail: history.length ? `${history.length} recent jobs` : "No jobs yet"
+      },
+      {
+        title: "Latest issue",
+        value: latestFailure ? String(latestFailure.jobType || "Print failure") : "No recent failures",
+        detail: latestFailure?.createdAt ? new Date(latestFailure.createdAt).toLocaleString() : "Healthy"
+      }
+    ];
+
+    settingsMonitoringSummary.innerHTML = cards
+      .map(
+        (card) => `
+          <article class="settingsMonitoringCard">
+            <span>${escapeHtml(card.title)}</span>
+            <strong>${escapeHtml(card.value)}</strong>
+            <span>${escapeHtml(card.detail)}</span>
+          </article>
+        `
+      )
+      .join("");
+  }
+
+  async function loadSystemSettingsState() {
+    setSettingsSaveStatus("Loading settings...");
+    const { response, data } = await fetchJsonWithDetails(`${API_BASE}/system/settings`);
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || `Settings load failed (${response.status})`);
+    }
+    settingsState = normalizeSettingsState(data.settings);
+    renderSettingsStateToForm();
+    renderSettingsPrintersTable(settingsPrinterRows);
+    setSettingsSaveStatus("Settings loaded.", "ok");
+    return settingsState;
+  }
+
+  async function persistSystemSettings(partialPayload) {
+    const payload = partialPayload && typeof partialPayload === "object" ? partialPayload : collectSettingsFormPayload();
+    const { response, data } = await fetchJsonWithDetails(`${API_BASE}/system/settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || `Settings save failed (${response.status})`);
+    }
+    settingsState = normalizeSettingsState(data.settings);
+    renderSettingsStateToForm();
+    renderSettingsPrintersTable(settingsPrinterRows);
+    return settingsState;
+  }
+
+  async function loadPrintNodePrinters() {
+    if (settingsPrintersStatus) settingsPrintersStatus.textContent = "Loading printers...";
+    const { response, data } = await fetchJsonWithDetails(`${API_BASE}/printnode/printers`);
+    if (!response.ok || !data?.ok) {
+      settingsPrinterRows = [];
+      renderSettingsPrintersTable(settingsPrinterRows);
+      if (settingsPrintersStatus) {
+        settingsPrintersStatus.textContent = data?.body?.message || data?.message || `Unable to load printers (${response.status}).`;
+      }
+      return [];
+    }
+    settingsPrinterRows = Array.isArray(data.printers) ? data.printers : [];
+    renderSettingsPrintersTable(settingsPrinterRows);
+    if (settingsPrintersStatus) {
+      settingsPrintersStatus.textContent = `Loaded ${settingsPrinterRows.length} printer${settingsPrinterRows.length === 1 ? "" : "s"}.`;
+    }
+    return settingsPrinterRows;
+  }
+
+  async function loadMonitoringData() {
+    if (settingsMonitoringSummary) settingsMonitoringSummary.innerHTML = renderInlineLoader("Loading monitoring...");
+    if (settingsPrintHistory) settingsPrintHistory.innerHTML = renderInlineLoader("Loading print history...");
+    const [statusResult, controllerResult, historyResult] = await Promise.allSettled([
+      fetchJsonWithDetails(`${API_BASE}/statusz`),
+      fetchJsonWithDetails(`${API_BASE}/controller/status`),
+      fetchJsonWithDetails(`${API_BASE}/print-history?page=1&pageSize=50`)
+    ]);
+
+    const statusPayload =
+      statusResult.status === "fulfilled" && statusResult.value.response.ok ? statusResult.value.data : null;
+    const controllerPayload =
+      controllerResult.status === "fulfilled" && controllerResult.value.response.ok ? controllerResult.value.data : null;
+    const historyRows =
+      historyResult.status === "fulfilled" && historyResult.value.response.ok && Array.isArray(historyResult.value.data?.rows)
+        ? historyResult.value.data.rows
+        : [];
+
+    renderSettingsMonitoringCards(statusPayload, controllerPayload, historyRows);
+    renderSettingsPrintHistoryTable(historyRows);
+  }
+
+  async function triggerBestBeforeStickerPrint({ quantity, title, source = "manual" } = {}) {
+    const configuredDefault = Math.max(1, Math.trunc(Number(settingsState?.sticker?.defaultButtonQty) || 50));
+    const requestedQuantity = Math.max(1, Math.trunc(Number(quantity) || configuredDefault));
+    const payload = {
+      quantity: requestedQuantity,
+      title: title || `Best-before stickers (${source})`
+    };
+    const { response, data } = await fetchJsonWithDetails(`${API_BASE}/printnode/print-best-before-stickers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.body?.message || data?.message || `Sticker print failed (${response.status})`);
+    }
+    return data;
+  }
+
+  function setSettingsTab(nextTab, options = {}) {
+    const { focusButton = false } = options;
+    const allowedTabs = new Set(["system", "printers", "monitoring", "notifications"]);
+    const tab = allowedTabs.has(nextTab) ? nextTab : "system";
+    settingsActiveTab = tab;
+    settingsTabs.forEach((button) => {
+      const isActive = button.dataset.settingsTab === tab;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+      if (focusButton && isActive) button.focus();
+    });
+    settingsTabPanes.forEach((pane) => {
+      const isActive = pane.id === `settingsTab-${tab}`;
+      pane.classList.toggle("is-active", isActive);
+      pane.hidden = !isActive;
+    });
+    if (tab === "printers") {
+      void loadPrintNodePrinters();
+    } else if (tab === "monitoring") {
+      void loadMonitoringData();
+    } else if (tab === "notifications" && settingsNotificationsFrame) {
+      const currentSrc = settingsNotificationsFrame.getAttribute("src");
+      if (!currentSrc) settingsNotificationsFrame.setAttribute("src", "/notification-templates.html");
+    }
+  }
+
+  function setSettingsModalOpen(nextOpen, options = {}) {
+    const { tab = settingsActiveTab } = options;
+    settingsModalOpen = Boolean(nextOpen);
+    if (settingsModal) {
+      settingsModal.classList.toggle("is-open", settingsModalOpen);
+      settingsModal.setAttribute("aria-hidden", settingsModalOpen ? "false" : "true");
+    }
+    if (navFooterSettings) {
+      navFooterSettings.setAttribute("aria-expanded", settingsModalOpen ? "true" : "false");
+    }
+    if (!settingsModalOpen) {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof Element && settingsModal?.contains(activeElement)) {
+        navFooterSettings?.focus();
+      }
+      return;
+    }
+    setSettingsTab(tab);
+    if (!settingsState) {
+      void loadSystemSettingsState().catch((error) => {
+        setSettingsSaveStatus(String(error?.message || error), "err");
+      });
+    } else {
+      renderSettingsStateToForm();
+      renderSettingsPrintersTable(settingsPrinterRows);
+    }
+  }
+
   function renderInlineMarkdown(line) {
     return escapeHtml(line).replace(/`([^`]+)`/g, "<code>$1</code>");
   }
@@ -7545,7 +7985,105 @@ async function startOrder(orderNo) {
     navNewOrder?.focus();
   });
 
-  document.addEventListener("click", (event) => {
+  navFooterSettings?.addEventListener("click", (event) => {
+    event.preventDefault();
+    setSettingsModalOpen(true, { tab: settingsActiveTab || "system" });
+  });
+
+  settingsModalClose?.addEventListener("click", () => {
+    setSettingsModalOpen(false);
+  });
+
+  settingsModal?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.dataset.action === "close-settings-modal") {
+      setSettingsModalOpen(false);
+    }
+  });
+
+  settingsTabs.forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = String(button.dataset.settingsTab || "system").trim();
+      setSettingsTab(tab);
+    });
+  });
+
+  settingsSaveBtn?.addEventListener("click", async () => {
+    settingsSaveBtn.disabled = true;
+    setSettingsSaveStatus("Saving settings...");
+    try {
+      await persistSystemSettings(collectSettingsFormPayload());
+      setSettingsSaveStatus("Settings saved.", "ok");
+    } catch (error) {
+      setSettingsSaveStatus(String(error?.message || error), "err");
+    } finally {
+      settingsSaveBtn.disabled = false;
+    }
+  });
+
+  settingsRefreshPrintersBtn?.addEventListener("click", async () => {
+    settingsRefreshPrintersBtn.disabled = true;
+    try {
+      await loadPrintNodePrinters();
+    } finally {
+      settingsRefreshPrintersBtn.disabled = false;
+    }
+  });
+
+  settingsTestStickerBtn?.addEventListener("click", async () => {
+    settingsTestStickerBtn.disabled = true;
+    if (settingsPrintersStatus) settingsPrintersStatus.textContent = "Sending test sticker print...";
+    try {
+      const payload = await triggerBestBeforeStickerPrint({
+        quantity: Number(settingsStickerDefaultQty?.value) || undefined,
+        source: "settings-test",
+        title: "Best-before stickers (test)"
+      });
+      const printedQty = Number(payload?.sticker?.quantityPrinted || 0);
+      if (settingsPrintersStatus) {
+        settingsPrintersStatus.textContent = `Sticker print queued (${printedQty || "n/a"} labels).`;
+      }
+      statusExplain("Sticker print queued.", "ok");
+      void loadMonitoringData();
+    } catch (error) {
+      const message = String(error?.message || error);
+      if (settingsPrintersStatus) settingsPrintersStatus.textContent = message;
+      statusExplain(`Sticker print failed: ${message}`, "warn");
+    } finally {
+      settingsTestStickerBtn.disabled = false;
+    }
+  });
+
+  settingsPrintersList?.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const selectButton = target.closest('button[data-action="settings-select-sticker-printer"]');
+    if (!selectButton) return;
+    const printerId = Number(selectButton.dataset.printerId);
+    if (!Number.isInteger(printerId) || printerId <= 0) return;
+    selectButton.disabled = true;
+    setSettingsSaveStatus(`Saving sticker printer ${printerId}...`);
+    try {
+      await persistSystemSettings({ sticker: { stickerPrinterId: printerId } });
+      setSettingsSaveStatus(`Sticker printer set to ${printerId}.`, "ok");
+      renderSettingsPrintersTable(settingsPrinterRows);
+    } catch (error) {
+      setSettingsSaveStatus(String(error?.message || error), "err");
+      selectButton.disabled = false;
+    }
+  });
+
+  settingsRefreshMonitoringBtn?.addEventListener("click", async () => {
+    settingsRefreshMonitoringBtn.disabled = true;
+    try {
+      await loadMonitoringData();
+    } finally {
+      settingsRefreshMonitoringBtn.disabled = false;
+    }
+  });
+
+  document.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     const routeEl = target.closest("[data-route]");
@@ -7553,9 +8091,18 @@ async function startOrder(orderNo) {
     const route = routeEl.getAttribute("data-route") || routeEl.getAttribute("href");
     if (!route) return;
     event.preventDefault();
+    const flocsAction = String(routeEl.dataset.flocsAction || "").trim().toLowerCase();
+    const wantsNewCustomerModal = flocsAction === "new-customer";
+    if (wantsNewCustomerModal) {
+      sessionStorage.setItem(FLOCS_NEW_CUSTOMER_INTENT_KEY, "1");
+    }
     queueStockIntentFromRouteElement(routeEl);
     setNewOrderMenuOpen(false);
-    navigateTo(route);
+    await navigateTo(route);
+    if (wantsNewCustomerModal && normalizePath(route) === "/flocs") {
+      window.dispatchEvent(new CustomEvent("flocs:new-customer-request"));
+      sessionStorage.removeItem(FLOCS_NEW_CUSTOMER_INTENT_KEY);
+    }
   });
 
   document.addEventListener("click", (event) => {
@@ -7609,43 +8156,93 @@ async function startOrder(orderNo) {
       : "Select at least 2 delivery orders to create a multi-shipment";
   }
 
-  dispatchPrepareDeliveries?.addEventListener("click", async () => {
-    const orders = getSelectedDeliveryOrderNos()
+  async function printSelectedOrders() {
+    const orders = Array.from(dispatchSelectedOrders)
       .map((orderNo) => dispatchOrderCache.get(orderNo))
       .filter(Boolean);
     if (!orders.length) {
-      statusExplain("Select at least 1 delivery order to prepare.", "warn");
+      statusExplain("Select at least 1 order to print.", "warn");
       return;
     }
 
-    let prepared = 0;
+    let printed = 0;
     let failed = 0;
     for (const order of orders) {
       const orderNo = orderNoFromName(order.name);
       const docsPrinted = await printDocs(order);
-      const notePrinted = await printDeliveryNote(order);
+      const needsDeliveryNote = laneFromOrder(order) !== "pickup";
+      const notePrinted = needsDeliveryNote ? await printDeliveryNote(order) : true;
       if (docsPrinted && notePrinted) {
-        prepared += 1;
-        printedDeliveryNotes.add(orderNo);
+        printed += 1;
+        if (needsDeliveryNote) printedDeliveryNotes.add(orderNo);
       } else {
         failed += 1;
       }
     }
 
     refreshDispatchViews();
-    clearDispatchSelection();
-
-    if (!prepared) {
-      statusExplain("Prepare deliveries failed. Some docs did not print.", "warn");
+    if (!printed) {
+      statusExplain("Selection print failed.", "warn");
       return;
     }
-
     if (failed) {
-      statusExplain(`Prepared ${prepared} delivery orders (${failed} failed).`, "warn");
+      statusExplain(`Printed ${printed} order(s) (${failed} failed).`, "warn");
+      return;
+    }
+    statusExplain(`Printed ${printed} selected order(s).`, "ok");
+  }
+
+  async function bookSelectedDeliveryOrders() {
+    const selectedOrderNos = getSelectedDeliveryOrderNos();
+    if (!selectedOrderNos.length) {
+      statusExplain("Select at least 1 delivery order to book.", "warn");
+      return;
+    }
+    const confirm = await showSiteConfirm({
+      title: "Book selected delivery orders",
+      message: `Book ${selectedOrderNos.length} selected delivery order(s) as one booking run?`,
+      tone: "warn",
+      confirmLabel: "Book selected",
+      cancelLabel: "Cancel",
+      confirmStyle: "primary"
+    });
+    if (!confirm) return;
+
+    const bundleOrders = [];
+    for (const orderNo of selectedOrderNos) {
+      const details = await fetchShopifyOrder(orderNo);
+      if (details) {
+        bundleOrders.push({ orderNo, details });
+      }
+    }
+    if (!bundleOrders.length) {
+      statusExplain("Unable to prepare selected delivery orders for booking.", "warn");
       return;
     }
 
-    statusExplain(`Prepared ${prepared} delivery orders.`, "ok");
+    await startOrder(bundleOrders[0].orderNo);
+    if (bundleOrders[0]) {
+      bundleOrders[0].details = orderDetails;
+    }
+    const parcelCount = selectedOrderNos.reduce((sum, orderNo) => {
+      const cachedOrder = dispatchOrderCache.get(orderNo);
+      const known = cachedOrder ? getSetParcelCountForOpenOrder(cachedOrder) : 0;
+      return sum + (Number(known) > 0 ? Number(known) : 0);
+    }, 0);
+
+    await doBookingNow({
+      manual: true,
+      parcelCount: Math.max(parcelCount, selectedOrderNos.length),
+      bundleOrders
+    });
+  }
+
+  dispatchSelectionPrintBtn?.addEventListener("click", async () => {
+    await printSelectedOrders();
+  });
+
+  dispatchPrepareDeliveries?.addEventListener("click", async () => {
+    await bookSelectedDeliveryOrders();
   });
 
   truckBookBtn?.addEventListener("click", async () => {
@@ -7676,6 +8273,19 @@ async function startOrder(orderNo) {
     if (!actionType) return false;
     if (actionType === "close-modal") {
       closeDispatchOrderModal();
+      return true;
+    }
+    if (actionType === "refresh-orders") {
+      await loadDispatchBoard();
+      statusExplain("Orders refreshed.", "info");
+      return true;
+    }
+    if (actionType === "toggle-select-mode") {
+      setDispatchSelectModeActive(!dispatchSelectModeActive);
+      return true;
+    }
+    if (actionType === "close-legend-modal") {
+      setDispatchLegendOpen(false);
       return true;
     }
     if (actionType === "toggle-docs") return true;
@@ -8197,32 +8807,21 @@ async function startOrder(orderNo) {
   });
 
   loadDispatchSelectionSidebarPreference();
-  setDispatchSelectionSidebarOpen(dispatchSelectionSidebarOpen, { persist: false });
+  setDispatchSelectionSidebarOpen(dispatchSelectionSidebarOpen);
   loadDispatchLegendPreference();
-  setDispatchLegendOpen(dispatchLegendOpen, { persist: false });
+  setDispatchLegendOpen(dispatchLegendOpen);
   setDispatchSelectModeActive(dispatchSelectModeActive);
+  setSettingsModalOpen(false);
 
-  dispatchSelectionSidebarToggle?.addEventListener("click", () => {
-    const wasOpen = dispatchSelectionSidebarOpen;
-    toggleDispatchSelectionSidebar({ focusPanel: !wasOpen, focusToggle: wasOpen });
-    updateDispatchSelectionSummary();
+  dispatchLegendOpenBtn?.addEventListener("click", () => {
+    setDispatchLegendOpen(true);
   });
 
-  dispatchLegendToggle?.addEventListener("click", () => {
-    setDispatchLegendOpen(!dispatchLegendOpen);
-  });
-
-  dispatchSelectionSidebarToggle?.addEventListener("keydown", (event) => {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-    event.preventDefault();
-    if (event.key === "ArrowLeft" && dispatchSelectionSidebarOpen) {
-      setDispatchSelectionSidebarOpen(false, { focusToggle: true });
-      updateDispatchSelectionSummary();
-      return;
-    }
-    if (event.key === "ArrowRight" && !dispatchSelectionSidebarOpen) {
-      setDispatchSelectionSidebarOpen(true, { focusPanel: true });
-      updateDispatchSelectionSummary();
+  dispatchLegend?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.dataset.action === "close-legend-modal") {
+      setDispatchLegendOpen(false);
     }
   });
 
@@ -8233,6 +8832,27 @@ async function startOrder(orderNo) {
   dispatchSelectModeBtn?.addEventListener("click", () => {
     setDispatchSelectModeActive(!dispatchSelectModeActive);
   });
+
+  dispatchPrintBestBeforeBtn?.addEventListener("click", async () => {
+    dispatchPrintBestBeforeBtn.disabled = true;
+    statusExplain("Sending best-before sticker print job...", "info");
+    try {
+      const payload = await triggerBestBeforeStickerPrint({
+        source: "header-quick-print",
+        title: "Best-before stickers (quick print)"
+      });
+      const printedQty = Number(payload?.sticker?.quantityPrinted || 0);
+      statusExplain(`Sticker print queued (${printedQty || "n/a"} labels).`, "ok");
+      if (settingsModalOpen && settingsActiveTab === "monitoring") {
+        void loadMonitoringData();
+      }
+    } catch (error) {
+      statusExplain(`Sticker print failed: ${String(error?.message || error)}`, "warn");
+    } finally {
+      dispatchPrintBestBeforeBtn.disabled = false;
+    }
+  });
+
   dispatchSelectionClear?.addEventListener("click", () => {
     clearDispatchSelection();
   });
@@ -8360,6 +8980,14 @@ async function startOrder(orderNo) {
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      if (settingsModalOpen) {
+        setSettingsModalOpen(false);
+        return;
+      }
+      if (dispatchLegendOpen) {
+        setDispatchLegendOpen(false);
+        return;
+      }
       closeDispatchOrderModal();
       closeDispatchShipmentModal();
       closeSlotEgg();

@@ -4475,6 +4475,440 @@ body.dispatch-sidebar-open{
     }
   }
 
+  .flHeaderEnvMetrics--compact{
+    padding:0;
+    border:none;
+    border-radius:0;
+    background:transparent;
+    gap:.55rem;
+  }
+  .flHeaderEnvMetrics--compact .flHeaderMetricValue{
+    font-size:.82rem;
+  }
+  .flNavGroup--top .flNavBtn{
+    border:none;
+    background:transparent;
+    box-shadow:none;
+    border-radius:0;
+    padding:.16rem .12rem;
+    color:#475569;
+    font-weight:700;
+  }
+  .flNavGroup--top .flNavBtn:hover{
+    color:#0f172a;
+    background:transparent;
+  }
+  .flNavGroup--top .flNavBtn .flNavBtnText{
+    position:relative;
+    padding-bottom:.08rem;
+  }
+  .flNavGroup--top .flNavBtn .flNavBtnText::after{
+    content:"";
+    position:absolute;
+    left:0;
+    bottom:-.14rem;
+    width:0;
+    height:2px;
+    border-radius:999px;
+    background:rgba(202,138,4,.7);
+    transition:width .18s ease;
+  }
+  .flNavGroup--top .flNavBtn--active{
+    color:#92400e;
+    background:transparent;
+  }
+  .flNavGroup--top .flNavBtn--active .flNavBtnText::after{
+    width:100%;
+  }
+  .flHeaderUtilityRight .dispatchIconBtn{
+    border:none;
+    background:transparent;
+    box-shadow:none;
+    color:#475569;
+    width:auto;
+    min-width:0;
+    height:auto;
+    padding:0 .12rem;
+    transform:none;
+  }
+  .flHeaderUtilityRight .dispatchIconBtn:hover{
+    border:none;
+    background:transparent;
+    color:#0f172a;
+    transform:none;
+  }
+  .dispatchLegendIconBtn{
+    width:auto;
+    height:auto;
+    min-width:0;
+    font-size:.84rem;
+    border-radius:0;
+  }
+  .dispatchStickerBtn{
+    min-width:0;
+    width:auto;
+    height:auto;
+    border-radius:0;
+    font-size:.66rem;
+    font-weight:700;
+    letter-spacing:.02em;
+    padding:0 .12rem;
+  }
+  .flFooterLinks .flNavBtn--icon{
+    min-width:2rem;
+    padding:.26rem .48rem;
+  }
+
+  .dispatchBoardQuickActions[hidden]{
+    display:none !important;
+  }
+  .dispatchColHeader{
+    justify-content:space-between;
+    align-items:center;
+    gap:.45rem;
+  }
+  .dispatchColHeaderActions{
+    display:inline-flex;
+    align-items:center;
+    gap:.3rem;
+    margin-left:auto;
+  }
+  .dispatchLaneHeaderBtn{
+    width:1.72rem;
+    height:1.72rem;
+    min-width:1.72rem;
+    border-radius:.45rem;
+    font-size:.82rem;
+    box-shadow:none;
+  }
+  .dispatchLaneHeaderBtn.is-active{
+    border-color:rgba(16,185,129,.55);
+    color:#065f46;
+    background:rgba(16,185,129,.14);
+  }
+
+  :root{
+    --dispatch-bottom-dock-height:min(20vh, calc(var(--fl-top-utility-height) + 5rem));
+  }
+  .dispatchSelectionSidebar{
+    left:0;
+    right:0;
+    top:auto;
+    bottom:0;
+    width:100%;
+    height:var(--dispatch-bottom-dock-height);
+    max-height:20vh;
+    min-height:128px;
+    border-left:none;
+    border-top:1px solid rgba(148,163,184,.34);
+    box-shadow:0 -10px 26px rgba(15,23,42,.14);
+    transform:translateY(100%);
+    padding:.5rem .65rem .58rem;
+    backdrop-filter:blur(4px);
+    transition:transform .24s ease;
+  }
+  .dispatchSelectionSidebar.is-open{
+    transform:translateY(0);
+  }
+  .dispatchSelectionSidebarToggle{
+    display:none;
+  }
+  .dispatchSelectionSidebarContent{
+    padding-right:0;
+    height:100%;
+  }
+  .dispatchSelectionFloat,
+  .dispatchSelectionPanel{
+    height:100%;
+  }
+  .dispatchSelectionPanel{
+    border-radius:.62rem;
+    border:1px solid rgba(148,163,184,.28);
+    background:#fff;
+    padding:.38rem .46rem;
+  }
+  .dispatchSelectionHeader{
+    margin-bottom:.34rem;
+  }
+  .dispatchSelectionBody{
+    display:grid;
+    grid-template-columns:minmax(0, 2fr) minmax(0, 1fr);
+    gap:.46rem;
+    align-items:start;
+    height:calc(100% - 1.8rem);
+    min-height:0;
+  }
+  .dispatchSelectionOrderTableWrap,
+  .dispatchSelectionMixes{
+    min-height:0;
+    height:100%;
+    overflow:auto;
+  }
+  .dispatchSelectionBulkActions{
+    grid-column:1 / -1;
+    justify-content:flex-end;
+    gap:.34rem;
+    margin-top:.12rem;
+  }
+  body.dispatch-sidebar-open #dispatchBoardContainer{
+    margin-right:0 !important;
+    margin-bottom:calc(var(--dispatch-bottom-dock-height) + .65rem);
+    transition:margin-bottom .24s ease;
+  }
+  @media (max-width:980px){
+    .dispatchSelectionSidebar{
+      min-height:142px;
+      max-height:22vh;
+      height:min(22vh, calc(var(--fl-top-utility-height) + 5.3rem));
+    }
+    .dispatchSelectionBody{
+      grid-template-columns:1fr;
+      grid-template-rows:minmax(0,1fr) minmax(0,1fr);
+    }
+    body.dispatch-sidebar-open #dispatchBoardContainer{
+      margin-bottom:calc(min(22vh, calc(var(--fl-top-utility-height) + 5.3rem)) + .6rem);
+    }
+  }
+
+  .dispatchLegendModal{
+    position:fixed;
+    inset:0;
+    z-index:1600;
+    display:none;
+  }
+  .dispatchLegendModal.is-open{
+    display:block;
+  }
+  .dispatchLegendModalBackdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(2,6,23,.36);
+  }
+  .dispatchLegendModalPanel{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%, -50%);
+    width:min(560px, calc(100vw - 1.2rem));
+    max-height:min(76vh, 680px);
+    overflow:auto;
+    border-radius:.8rem;
+    border:1px solid rgba(148,163,184,.35);
+    background:#fff;
+    box-shadow:0 24px 48px rgba(15,23,42,.24);
+    padding:.72rem .8rem;
+  }
+  .dispatchLegendModalHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.4rem;
+    margin-bottom:.52rem;
+  }
+  .dispatchLegendModalHeader h3{
+    margin:0;
+    font-size:.86rem;
+    font-weight:800;
+    color:#0f172a;
+  }
+
+  .settingsModal{
+    position:fixed;
+    inset:0;
+    z-index:1650;
+    display:none;
+  }
+  .settingsModal.is-open{
+    display:block;
+  }
+  .settingsModalBackdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(2,6,23,.44);
+  }
+  .settingsModalPanel{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%, -50%);
+    width:min(1180px, calc(100vw - 1rem));
+    height:min(86vh, 840px);
+    border-radius:.84rem;
+    border:1px solid rgba(148,163,184,.34);
+    background:#fff;
+    box-shadow:0 30px 62px rgba(15,23,42,.28);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .settingsModalHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:.58rem .74rem;
+    border-bottom:1px solid rgba(148,163,184,.24);
+  }
+  .settingsModalHeader h3{
+    margin:0;
+    font-size:.9rem;
+    font-weight:800;
+    color:#0f172a;
+  }
+  .settingsTabs{
+    display:flex;
+    align-items:center;
+    gap:.35rem;
+    padding:.45rem .68rem;
+    border-bottom:1px solid rgba(148,163,184,.2);
+    background:#f8fafc;
+    flex-wrap:wrap;
+  }
+  .settingsTabBtn{
+    border:1px solid rgba(148,163,184,.4);
+    background:#fff;
+    color:#334155;
+    border-radius:.48rem;
+    padding:.24rem .52rem;
+    font-size:.72rem;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .settingsTabBtn.is-active{
+    border-color:rgba(16,185,129,.5);
+    background:rgba(16,185,129,.1);
+    color:#065f46;
+  }
+  .settingsModalBody{
+    flex:1 1 auto;
+    min-height:0;
+    overflow:auto;
+    padding:.68rem;
+  }
+  .settingsTabPane{
+    display:none;
+  }
+  .settingsTabPane.is-active{
+    display:block;
+  }
+  .settingsGrid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:.6rem .7rem;
+  }
+  .settingsGrid label{
+    display:flex;
+    flex-direction:column;
+    gap:.28rem;
+    font-size:.7rem;
+    font-weight:700;
+    color:#475569;
+  }
+  .settingsGrid input,
+  .settingsGrid select{
+    border:1px solid rgba(148,163,184,.45);
+    border-radius:.45rem;
+    padding:.32rem .44rem;
+    font-size:.74rem;
+    color:#0f172a;
+    background:#fff;
+  }
+  .settingsActions{
+    margin-top:.62rem;
+    display:flex;
+    align-items:center;
+    gap:.4rem;
+    flex-wrap:wrap;
+  }
+  .settingsTableWrap{
+    margin-top:.5rem;
+    border:1px solid rgba(148,163,184,.3);
+    border-radius:.58rem;
+    background:#fff;
+    overflow:auto;
+    max-height:50vh;
+  }
+  .settingsTable{
+    width:100%;
+    border-collapse:collapse;
+    font-size:.7rem;
+  }
+  .settingsTable th,
+  .settingsTable td{
+    border-bottom:1px solid rgba(148,163,184,.18);
+    padding:.28rem .4rem;
+    text-align:left;
+    vertical-align:top;
+  }
+  .settingsTable th{
+    background:#f8fafc;
+    font-size:.66rem;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    color:#64748b;
+  }
+  .settingsMonitoringGrid{
+    display:grid;
+    grid-template-columns:repeat(4, minmax(0, 1fr));
+    gap:.45rem;
+  }
+  .settingsMonitoringCard{
+    border:1px solid rgba(148,163,184,.28);
+    border-radius:.52rem;
+    background:#fff;
+    padding:.4rem .48rem;
+    display:flex;
+    flex-direction:column;
+    gap:.14rem;
+  }
+  .settingsMonitoringCard strong{
+    font-size:.72rem;
+    color:#0f172a;
+  }
+  .settingsMonitoringCard span{
+    font-size:.66rem;
+    color:#64748b;
+  }
+  .settingsNotificationsFrame{
+    width:100%;
+    min-height:64vh;
+    border:1px solid rgba(148,163,184,.3);
+    border-radius:.64rem;
+    background:#fff;
+  }
+  @media (max-width:980px){
+    .settingsGrid{ grid-template-columns:1fr; }
+    .settingsMonitoringGrid{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+  }
+
+  .flocs-customerCreateModal{
+    position:fixed;
+    inset:0;
+    z-index:1700;
+    display:none;
+  }
+  .flocs-customerCreateModal.is-open{
+    display:block;
+  }
+  .flocs-customerCreateModalBackdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(2,6,23,.38);
+  }
+  .flocs-customerCreateModalPanel{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%, -50%);
+    width:min(980px, calc(100vw - 1rem));
+    max-height:min(88vh, 860px);
+    overflow:auto;
+    background:#fff;
+    border:1px solid rgba(148,163,184,.3);
+    border-radius:.76rem;
+    padding:.72rem .8rem;
+    box-shadow:0 26px 52px rgba(15,23,42,.24);
+  }
+
 </style>
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
@@ -4489,12 +4923,28 @@ body.dispatch-sidebar-open{
           <span id="dispatchBatchCodeSummary" class="flHeaderUtilityBatchValue">--/--/---- BN:------/--</span>
         </div>
         <div class="flHeaderUtilityRight">
+          <div id="dispatchEnvironmentSummary" class="flHeaderEnvMetrics flHeaderEnvMetrics--compact" aria-label="Temperature and humidity">
+            <span class="flHeaderMetric" aria-label="Temperature">
+              <span class="flHeaderMetricLabel">Temp</span>
+              <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span>
+            </span>
+            <span class="flHeaderMetric" aria-label="Humidity">
+              <span class="flHeaderMetricLabel">Humidity</span>
+              <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span>
+            </span>
+          </div>
           <div class="flHeaderEnvConnections" aria-label="Connections">
             <span class="flHeaderConnectionLabel">Connections</span>
             <div id="serverStatusBar" class="statusBar statusBar--compact" role="status" aria-live="polite" title="Loading connections" data-tooltip="Loading connections">
               <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
             </div>
           </div>
+          <button id="dispatchPrintBestBeforeBtn" class="dispatchIconBtn dispatchStickerBtn" type="button" aria-label="Print best-before stickers" title="Print best-before stickers">
+            <span aria-hidden="true">BB</span>
+          </button>
+          <button id="dispatchLegendOpenBtn" class="dispatchIconBtn dispatchLegendIconBtn" type="button" aria-label="Open legend" title="Legend">
+            <span aria-hidden="true">i</span>
+          </button>
         </div>
       </div>
     </header>
@@ -4520,6 +4970,7 @@ body.dispatch-sidebar-open{
             <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/flocs">Sales Order</button>
             <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/stock" data-stock-tab="purchase">Purchase Order</button>
             <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/stock" data-stock-tab="stock" data-stock-mode="make">Manufacturing Order</button>
+            <button class="flNewOrderMenuItem" type="button" role="menuitem" data-route="/flocs" data-flocs-action="new-customer">New Customer</button>
           </div>
         </div>
           <span id="dispatchEnvironmentStatus" class="visually-hidden">Waiting for sensor</span>
@@ -4538,7 +4989,7 @@ body.dispatch-sidebar-open{
         <div class="dispatchBoardLayout">
           <div class="dispatchBoardMain">
             <div class="dispatchBoardPanel">
-              <div class="dispatchBoardQuickActions" aria-label="Orders lane controls">
+              <div class="dispatchBoardQuickActions" aria-label="Orders lane controls" hidden>
                 <button id="dispatchRefreshOrdersBtn" class="dispatchIconBtn" type="button" aria-label="Refresh open orders" title="Refresh open orders">
                   <span aria-hidden="true">&#x21bb;</span>
                   <span class="visually-hidden">Refresh orders</span>
@@ -4576,7 +5027,8 @@ body.dispatch-sidebar-open{
                     <div id="dispatchSelectionOrderCards" class="dispatchSelectionOrderTableWrap"></div>
                     <div id="dispatchSelectionMixes" class="dispatchSelectionMixes"></div>
                     <div class="dispatchSelectionBulkActions is-hidden" id="dispatchPrepareDeliveriesContainer">
-                      <button id="dispatchPrepareDeliveries" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Prepare deliveries</button>
+                      <button id="dispatchSelectionPrintBtn" class="dispatchSelectionBtn" type="button">Print selection</button>
+                      <button id="dispatchPrepareDeliveries" class="dispatchSelectionBtn dispatchSelectionBtn--primary" type="button">Book selection</button>
                     </div>
                   </div>
                 </div>
@@ -4827,9 +5279,6 @@ body.dispatch-sidebar-open{
                     <button id="flocs-clearCustomerBtn" class="flocs-miniBtn flocs-iconBtn" type="button" title="Clear selected customer" aria-label="Clear selected customer" disabled>
                       <span aria-hidden="true">&#x2715;</span>
                     </button>
-                    <button id="flocs-customerCreateToggle" class="flocs-miniBtn flocs-iconBtn" type="button" title="Add new customer" aria-label="Add new customer">
-                      <span aria-hidden="true">+</span>
-                    </button>
                   </div>
                   <span class="visually-hidden" id="flocs-customerStatus">Search by name, email, company, or phone</span>
                 </div>
@@ -4851,79 +5300,6 @@ body.dispatch-sidebar-open{
                   </select>
                 </div>
                 <div id="flocs-customerResults" class="flocs-customerResults" hidden></div>
-                <div class="flocs-subSection" id="flocs-customerCreatePanel" hidden>
-                  <div class="flocs-labelRow">
-                    <span>Create new customer</span>
-                    <span class="flocs-hint" id="flocs-customerCreateStatus">Add a customer if search returns nothing.</span>
-                  </div>
-                  <div class="flocs-row">
-                    <input id="flocs-customerFirst" class="flocs-input" type="text" placeholder="First name" />
-                    <input id="flocs-customerLast" class="flocs-input" type="text" placeholder="Last name" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerEmail" class="flocs-input" type="email" placeholder="Email" />
-                    <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerAccountEmail" class="flocs-input" type="email" placeholder="Accounts email address (optional)" />
-                    <input id="flocs-customerAccountContact" class="flocs-input" type="text" placeholder="Account contact (optional)" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <select id="flocs-customerTier" class="flocs-select">
-                      <option value="">Customer tier (optional)</option>
-                      <option value="agent">Agent</option>
-                      <option value="retailer">Retailer</option>
-                      <option value="export">Export</option>
-                      <option value="fkb">FKB</option>
-                      <option value="public">Public</option>
-                    </select>
-                    <div></div>
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
-                    <select id="flocs-customerDelivery" class="flocs-select">
-                      <option value="">Default delivery (optional)</option>
-                      <option value="shipping">Shipping</option>
-                      <option value="free_shipping">Free Shipping</option>
-                      <option value="pickup">Pickup</option>
-                      <option value="delivery">Delivery</option>
-                    </select>
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerVat" class="flocs-input" type="text" placeholder="VAT number (optional)" />
-                    <select id="flocs-customerPaymentTerms" class="flocs-select">
-                      <option value="">Payment terms (optional)</option>
-                      <option value="Due on delivery">Due on delivery</option>
-                      <option value="7 days">7 days</option>
-                      <option value="30 days">30 days</option>
-                      <option value="60 days">60 days</option>
-                      <option value="90 days">90 days</option>
-                    </select>
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <label class="flocs-toggleField">
-                      <input id="flocs-customerPaymentBeforeShipping" type="checkbox" />
-                      <span>Payment required before shipping</span>
-                    </label>
-                    <div></div>
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1 (Google autocomplete)" autocomplete="street-address" />
-                    <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
-                    <input id="flocs-customerProvince" class="flocs-input" type="text" placeholder="Province" />
-                  </div>
-                  <div class="flocs-row" style="margin-top:.4rem">
-                    <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />
-                    <input id="flocs-customerCountry" class="flocs-input" type="text" placeholder="Country" value="South Africa" />
-                  </div>
-                  <div class="flocs-inlineActions" style="margin-top:.5rem">
-                    <button id="flocs-customerCreateBtn" class="flocs-btn primary" type="button">Create customer</button>
-                    <button id="flocs-customerResetBtn" class="flocs-miniBtn" type="button">Clear form</button>
-                  </div>
-                </div>
               </div>
             </section>
 
@@ -5008,6 +5384,81 @@ body.dispatch-sidebar-open{
                 </div>
               </div>
               <div class="flocs-invoice" id="flocs-invoice"></div>
+            </div>
+            <div class="flocs-customerCreateModal" id="flocs-customerCreateModal" aria-hidden="true">
+              <div class="flocs-customerCreateModalBackdrop" data-action="close-customer-modal" aria-hidden="true"></div>
+              <div class="flocs-customerCreateModalPanel" id="flocs-customerCreatePanel" role="dialog" aria-modal="true" aria-labelledby="flocsCustomerCreateTitle">
+                <div class="flocs-labelRow">
+                  <span id="flocsCustomerCreateTitle">Create new customer</span>
+                  <button id="flocs-customerCreateToggle" class="flocs-miniBtn flocs-iconBtn" type="button" aria-label="Close new customer form" data-action="close-customer-modal">
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </div>
+                <div class="flocs-hint" id="flocs-customerCreateStatus">Create customer, then order form will auto-focus on first quantity input.</div>
+                <div class="flocs-row">
+                  <input id="flocs-customerFirst" class="flocs-input" type="text" placeholder="First name" />
+                  <input id="flocs-customerLast" class="flocs-input" type="text" placeholder="Last name" />
+                </div>
+                <div class="flocs-row" style="margin-top:.4rem">
+                  <input id="flocs-customerEmail" class="flocs-input" type="email" placeholder="Email" />
+                  <input id="flocs-customerPhone" class="flocs-input" type="tel" placeholder="Phone" />
+                </div>
+                <div class="flocs-row" style="margin-top:.4rem">
+                  <input id="flocs-customerAccountEmail" class="flocs-input" type="email" placeholder="Accounts email (optional)" />
+                  <input id="flocs-customerAccountContact" class="flocs-input" type="text" placeholder="Accounts contact (optional)" />
+                </div>
+                <div class="flocs-row" style="margin-top:.4rem">
+                  <select id="flocs-customerTier" class="flocs-select">
+                    <option value="">Customer tier (optional)</option>
+                    <option value="agent">Agent</option>
+                    <option value="retailer">Retailer</option>
+                    <option value="export">Export</option>
+                    <option value="fkb">FKB</option>
+                    <option value="public">Public</option>
+                  </select>
+                  <input id="flocs-customerCompany" class="flocs-input" type="text" placeholder="Company (optional)" />
+                </div>
+                <div class="flocs-row" style="margin-top:.4rem">
+                  <input id="flocs-customerVat" class="flocs-input" type="text" placeholder="VAT number (optional)" />
+                  <select id="flocs-customerPaymentTerms" class="flocs-select">
+                    <option value="">Payment terms (optional)</option>
+                    <option value="Due on delivery">Due on delivery</option>
+                    <option value="7 days">7 days</option>
+                    <option value="30 days">30 days</option>
+                    <option value="60 days">60 days</option>
+                    <option value="90 days">90 days</option>
+                  </select>
+                </div>
+                <div class="flocs-row" style="margin-top:.4rem">
+                  <select id="flocs-customerDelivery" class="flocs-select">
+                    <option value="">Default delivery (optional)</option>
+                    <option value="shipping">Shipping</option>
+                    <option value="free_shipping">Free Shipping</option>
+                    <option value="pickup">Pickup</option>
+                    <option value="delivery">Delivery</option>
+                  </select>
+                  <label class="flocs-toggleField">
+                    <input id="flocs-customerPaymentBeforeShipping" type="checkbox" />
+                    <span>Payment required before shipping</span>
+                  </label>
+                </div>
+                <div class="flocs-row" style="margin-top:.4rem">
+                  <input id="flocs-customerAddr1" class="flocs-input" type="text" placeholder="Address line 1 (Google autocomplete)" autocomplete="street-address" />
+                  <input id="flocs-customerAddr2" class="flocs-input" type="text" placeholder="Address line 2" />
+                </div>
+                <div class="flocs-row" style="margin-top:.4rem">
+                  <input id="flocs-customerCity" class="flocs-input" type="text" placeholder="City" />
+                  <input id="flocs-customerProvince" class="flocs-input" type="text" placeholder="Province" />
+                </div>
+                <div class="flocs-row" style="margin-top:.4rem">
+                  <input id="flocs-customerZip" class="flocs-input" type="text" placeholder="Postal code" />
+                  <input id="flocs-customerCountry" class="flocs-input" type="text" placeholder="Country" value="South Africa" />
+                </div>
+                <div class="flocs-inlineActions" style="margin-top:.6rem">
+                  <button id="flocs-customerCreateBtn" class="flocs-btn primary" type="button">Create customer</button>
+                  <button id="flocs-customerResetBtn" class="flocs-miniBtn" type="button">Clear form</button>
+                </div>
+              </div>
             </div>
           </main>
         </div>
@@ -5196,26 +5647,97 @@ body.dispatch-sidebar-open{
 
       </main>
       <footer class="flFooterNav" aria-label="Footer menu">
-        <div class="flFooterLegend">
-          <section class="dispatchLegend" id="dispatchLegend" aria-label="Dispatch legend">
-            <div class="dispatchLegendHeader">
-              <span class="dispatchLegendTitle">Legend</span>
-              <button class="dispatchLegendToggle" id="dispatchLegendToggle" type="button" aria-expanded="true" aria-controls="dispatchLegendContent">Hide</button>
-            </div>
-            <div class="dispatchLegendBody" id="dispatchLegendContent">
-              <div class="dispatchLegendRow">
-                <span class="dispatchLegendLabel">Card lights</span>
-                <div id="dispatchLegendStatus" class="dispatchLegendItems"></div>
-              </div>
-            </div>
-          </section>
-        </div>
         <div class="flFooterLinks" role="tablist" aria-label="System views">
           <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Docs</span></button>
           <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnText">Admin</span></button>
           <button id="navFooterChangelog" class="flNavBtn" type="button" role="tab" aria-controls="viewChangelog" aria-selected="false" data-route="/changelog"><span class="flNavBtnText">Changelog</span></button>
+          <button id="navFooterSettings" class="flNavBtn flNavBtn--icon" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="settingsModal"><span class="flNavBtnText">⚙</span></button>
         </div>
       </footer>
+    </div>
+  </div>
+
+  <div class="dispatchLegendModal" id="dispatchLegendModal" aria-hidden="true">
+    <div class="dispatchLegendModalBackdrop" data-action="close-legend-modal" aria-hidden="true"></div>
+    <div class="dispatchLegendModalPanel" role="dialog" aria-modal="true" aria-labelledby="dispatchLegendModalTitle">
+      <div class="dispatchLegendModalHeader">
+        <h3 id="dispatchLegendModalTitle">Legend</h3>
+        <button class="dispatchLegendToggle" id="dispatchLegendToggle" type="button" aria-label="Close legend" data-action="close-legend-modal">×</button>
+      </div>
+      <div class="dispatchLegendBody" id="dispatchLegendContent">
+        <div class="dispatchLegendRow">
+          <span class="dispatchLegendLabel">Card lights</span>
+          <div id="dispatchLegendStatus" class="dispatchLegendItems"></div>
+        </div>
+        <div class="dispatchLegendRow">
+          <span class="dispatchLegendLabel">Flavours</span>
+          <div id="dispatchLegendFlavours" class="dispatchLegendItems"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="settingsModal" id="settingsModal" aria-hidden="true">
+    <div class="settingsModalBackdrop" data-action="close-settings-modal" aria-hidden="true"></div>
+    <div class="settingsModalPanel" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+      <div class="settingsModalHeader">
+        <h3 id="settingsModalTitle">System Settings</h3>
+        <button id="settingsModalClose" class="dispatchLegendToggle" type="button" aria-label="Close settings" data-action="close-settings-modal">×</button>
+      </div>
+      <div class="settingsTabs" role="tablist" aria-label="Settings sections">
+        <button type="button" class="settingsTabBtn is-active" data-settings-tab="system">System</button>
+        <button type="button" class="settingsTabBtn" data-settings-tab="printers">Printers</button>
+        <button type="button" class="settingsTabBtn" data-settings-tab="monitoring">Monitoring</button>
+        <button type="button" class="settingsTabBtn" data-settings-tab="notifications">Notifications</button>
+      </div>
+      <div class="settingsModalBody">
+        <section class="settingsTabPane is-active" id="settingsTab-system">
+          <div class="settingsGrid">
+            <label>
+              <span>Shelf life (months)</span>
+              <input id="settingsStickerShelfLifeMonths" type="number" min="1" max="120" />
+            </label>
+            <label>
+              <span>Default sticker qty</span>
+              <input id="settingsStickerDefaultQty" type="number" min="1" max="10000" />
+            </label>
+            <label>
+              <span>Command language</span>
+              <select id="settingsStickerCommandLanguage">
+                <option value="PPLB">PPLB</option>
+                <option value="PPLA">PPLA</option>
+                <option value="ZPL">ZPL</option>
+              </select>
+            </label>
+            <label>
+              <span>Print history retention (days)</span>
+              <input id="settingsPrintRetentionDays" type="number" min="1" max="3650" />
+            </label>
+          </div>
+          <div class="settingsActions">
+            <button id="settingsSaveBtn" type="button" class="dispatchSelectionBtn dispatchSelectionBtn--primary">Save settings</button>
+            <span id="settingsSaveStatus" class="flHeaderConnectionLabel"></span>
+          </div>
+        </section>
+        <section class="settingsTabPane" id="settingsTab-printers" hidden>
+          <div class="settingsActions">
+            <button id="settingsRefreshPrintersBtn" type="button" class="dispatchSelectionBtn">Refresh printers</button>
+            <button id="settingsTestStickerBtn" type="button" class="dispatchSelectionBtn">Test sticker print</button>
+          </div>
+          <div id="settingsPrintersStatus" class="flHeaderConnectionLabel"></div>
+          <div id="settingsPrintersList" class="settingsTableWrap"></div>
+        </section>
+        <section class="settingsTabPane" id="settingsTab-monitoring" hidden>
+          <div class="settingsActions">
+            <button id="settingsRefreshMonitoringBtn" type="button" class="dispatchSelectionBtn">Refresh monitoring</button>
+          </div>
+          <div id="settingsMonitoringSummary" class="settingsMonitoringGrid"></div>
+          <div id="settingsPrintHistory" class="settingsTableWrap"></div>
+        </section>
+        <section class="settingsTabPane" id="settingsTab-notifications" hidden>
+          <iframe id="settingsNotificationsFrame" src="/notification-templates.html" title="Notification templates" class="settingsNotificationsFrame"></iframe>
+        </section>
+      </div>
     </div>
   </div>
 
