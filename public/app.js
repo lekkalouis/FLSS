@@ -170,6 +170,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchLog = $("dispatchLog");
   const dispatchSelectionPanel = $("dispatchSelectionPanel");
   const dispatchSelectionSidebar = $("dispatchSelectionSidebar");
+  const dispatchSelectionResizeHandle = $("dispatchSelectionResizeHandle");
   const dispatchSelectionFloat = $("dispatchSelectionFloat");
   const dispatchSelectionSidebarContent = $("dispatchSelectionSidebarContent");
   const dispatchSelectionSidebarToggle = $("dispatchSelectionSidebarToggle");
@@ -219,8 +220,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchOverlayProgressFill = $("dispatchOverlayProgressFill");
   const dispatchOverlayProgressSteps = $("dispatchOverlayProgressSteps");
   const dispatchOverlayProgressLabel = $("dispatchOverlayProgressLabel");
-  const dispatchRefreshOrdersBtn = $("dispatchRefreshOrdersBtn");
-  const dispatchSelectModeBtn = $("dispatchSelectModeBtn");
   const dispatchPrintBestBeforeBtn = $("dispatchPrintBestBeforeBtn");
   const dispatchLegendOpenBtn = $("dispatchLegendOpenBtn");
   const dispatchLegend = $("dispatchLegendModal");
@@ -462,6 +461,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const combinedShipmentDisabled = new Set();
   const printedDeliveryNotes = new Set();
   const dispatchOrderCache = new Map();
+  const dispatchOrderLookup = new Map();
   const dispatchShipmentCache = new Map();
   const dispatchPackingState = new Map();
   const dispatchSelectedOrders = new Set();
@@ -492,7 +492,11 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const TRUCK_BOOKING_KEY = "fl_truck_booking_v1";
   const VOICE_SETTINGS_KEY = "fl_voice_settings_v1";
   const DISPATCH_SELECTION_SIDEBAR_KEY = "fl_dispatch_selection_sidebar_open_v1";
+  const DISPATCH_SELECTION_DOCK_HEIGHT_KEY = "fl_dispatch_dock_height_v1";
   const DISPATCH_LEGEND_OPEN_KEY = "fl_dispatch_legend_open_v1";
+  let dispatchDockManualHeight = null;
+  let dispatchDockResizeState = null;
+  let dispatchDockResizeRaf = null;
   let dailyParcelCount = 0;
   let estimatedParcelCount = 0;
   let bookedParcelCount = 0;
@@ -798,6 +802,154 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     return String(name || "").replace("#", "").trim();
   }
 
+  function normalizeDispatchSelectionKey(value) {
+    return orderNoFromName(value);
+  }
+
+  function setDispatchOrderLookupEntry(key, canonicalOrderNo, order) {
+    const normalizedKey = normalizeDispatchSelectionKey(key);
+    const normalizedOrderNo = normalizeDispatchSelectionKey(canonicalOrderNo);
+    if (!normalizedKey || !normalizedOrderNo || !order) return;
+    const payload = { order, canonicalOrderNo: normalizedOrderNo };
+    if (!dispatchOrderLookup.has(normalizedKey)) {
+      dispatchOrderLookup.set(normalizedKey, payload);
+    }
+    const lowerKey = normalizedKey.toLowerCase();
+    if (lowerKey !== normalizedKey && !dispatchOrderLookup.has(lowerKey)) {
+      dispatchOrderLookup.set(lowerKey, payload);
+    }
+  }
+
+  function buildDispatchOrderLookupIndexes(orders = dispatchOrdersLatest, cache = dispatchOrderCache) {
+    dispatchOrderLookup.clear();
+    const addOrder = (order, cacheKey = "") => {
+      if (!order || typeof order !== "object") return;
+      const canonicalOrderNo =
+        normalizeDispatchSelectionKey(cacheKey) ||
+        normalizeDispatchSelectionKey(orderNoFromName(order?.name)) ||
+        normalizeDispatchSelectionKey(order?.order_number) ||
+        normalizeDispatchSelectionKey(order?.id);
+      if (!canonicalOrderNo) return;
+      setDispatchOrderLookupEntry(canonicalOrderNo, canonicalOrderNo, order);
+      setDispatchOrderLookupEntry(order?.name, canonicalOrderNo, order);
+      setDispatchOrderLookupEntry(`#${canonicalOrderNo}`, canonicalOrderNo, order);
+      setDispatchOrderLookupEntry(order?.id, canonicalOrderNo, order);
+      setDispatchOrderLookupEntry(order?.order_id, canonicalOrderNo, order);
+      setDispatchOrderLookupEntry(order?.order_number, canonicalOrderNo, order);
+    };
+    if (cache && typeof cache.forEach === "function") {
+      cache.forEach((order, cacheKey) => {
+        addOrder(order, cacheKey);
+      });
+    }
+    if (Array.isArray(orders)) {
+      orders.forEach((order) => addOrder(order));
+    }
+    return dispatchOrderLookup;
+  }
+
+  function resolveDispatchOrderFromSelectionKey(key) {
+    const normalizedKey = normalizeDispatchSelectionKey(key);
+    if (!normalizedKey) return null;
+    if (!dispatchOrderLookup.size && ((dispatchOrderCache && dispatchOrderCache.size) || (dispatchOrdersLatest || []).length)) {
+      buildDispatchOrderLookupIndexes(dispatchOrdersLatest, dispatchOrderCache);
+    }
+    const lookupValue =
+      dispatchOrderLookup.get(normalizedKey) ||
+      dispatchOrderLookup.get(normalizedKey.toLowerCase());
+    if (lookupValue?.order && lookupValue?.canonicalOrderNo) {
+      return {
+        order: lookupValue.order,
+        canonicalOrderNo: normalizeDispatchSelectionKey(lookupValue.canonicalOrderNo)
+      };
+    }
+    const cachedOrder = dispatchOrderCache.get(normalizedKey);
+    if (cachedOrder) {
+      return {
+        order: cachedOrder,
+        canonicalOrderNo: normalizeDispatchSelectionKey(orderNoFromName(cachedOrder?.name)) || normalizedKey
+      };
+    }
+    if (Array.isArray(dispatchOrdersLatest)) {
+      const order = dispatchOrdersLatest.find((entry) => {
+        const canonicalOrderNo = normalizeDispatchSelectionKey(orderNoFromName(entry?.name));
+        const rawName = normalizeDispatchSelectionKey(entry?.name);
+        const rawId = normalizeDispatchSelectionKey(entry?.id);
+        const rawOrderNo = normalizeDispatchSelectionKey(entry?.order_number);
+        return (
+          canonicalOrderNo === normalizedKey ||
+          rawName === normalizedKey ||
+          rawId === normalizedKey ||
+          rawOrderNo === normalizedKey
+        );
+      });
+      if (order) {
+        return {
+          order,
+          canonicalOrderNo: normalizeDispatchSelectionKey(orderNoFromName(order?.name)) || normalizedKey
+        };
+      }
+    }
+    return null;
+  }
+
+  function resolveSelectedDispatchOrders(options = {}) {
+    const sourceSelection = options.selectionKeys || dispatchSelectedOrders;
+    const pruneUnresolved =
+      typeof options.pruneUnresolved === "boolean"
+        ? options.pruneUnresolved
+        : sourceSelection === dispatchSelectedOrders;
+    const notifyOnPrune = Boolean(options.notifyOnPrune);
+    const rawKeys = Array.isArray(sourceSelection)
+      ? sourceSelection
+      : sourceSelection && typeof sourceSelection.values === "function"
+      ? Array.from(sourceSelection.values())
+      : [];
+    const resolvedByOrderNo = new Map();
+    let unresolvedCount = 0;
+    rawKeys.forEach((rawKey) => {
+      const resolved = resolveDispatchOrderFromSelectionKey(rawKey);
+      if (!resolved?.order || !resolved?.canonicalOrderNo) {
+        unresolvedCount += 1;
+        return;
+      }
+      if (!resolvedByOrderNo.has(resolved.canonicalOrderNo)) {
+        resolvedByOrderNo.set(resolved.canonicalOrderNo, resolved.order);
+      }
+    });
+    const rows = Array.from(resolvedByOrderNo.entries()).map(([orderNo, order]) => ({
+      orderNo,
+      order
+    }));
+    const nextOrderNos = rows.map((entry) => entry.orderNo);
+    let changed = false;
+    if (sourceSelection === dispatchSelectedOrders && pruneUnresolved) {
+      const rawSet = new Set(
+        rawKeys
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)
+      );
+      const canonicalSet = new Set(nextOrderNos);
+      changed =
+        unresolvedCount > 0 ||
+        rawSet.size !== canonicalSet.size ||
+        nextOrderNos.some((orderNo) => !rawSet.has(orderNo));
+      if (changed) {
+        dispatchSelectedOrders.clear();
+        nextOrderNos.forEach((orderNo) => dispatchSelectedOrders.add(orderNo));
+      }
+    }
+    if (notifyOnPrune && unresolvedCount > 0) {
+      statusExplain("Selection updated: some stale order references were cleared.", "info");
+    }
+    return {
+      rows,
+      orderNos: nextOrderNos,
+      unresolvedCount,
+      changed
+    };
+  }
+
   function getDispatchOrderAddress(order) {
     if (!order) return null;
     return {
@@ -955,13 +1107,19 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   }
 
   async function createCombinedShipmentFromSelection(orderNos = Array.from(dispatchSelectedOrders)) {
-    const selected = [...new Set((orderNos || []).map((orderNo) => String(orderNo || "").trim()).filter(Boolean))];
+    const selected = [
+      ...new Set(
+        (orderNos || [])
+          .map((orderNo) => resolveDispatchOrderFromSelectionKey(orderNo)?.canonicalOrderNo || "")
+          .filter(Boolean)
+      )
+    ];
     if (selected.length < 2) {
       statusExplain("Select at least 2 orders to create a combined shipment.", "warn");
       return;
     }
     const orders = selected
-      .map((orderNo) => dispatchOrderCache.get(orderNo))
+      .map((orderNo) => resolveDispatchOrderFromSelectionKey(orderNo)?.order || dispatchOrderCache.get(orderNo))
       .filter(Boolean);
     if (orders.length < 2) {
       statusExplain("Unable to resolve selected orders.", "warn");
@@ -4883,7 +5041,10 @@ async function startOrder(orderNo) {
     `;
   }
 
-  function aggregateDispatchSelection() {
+  function aggregateDispatchSelection(resolvedSelection = null) {
+    const selectedRows = Array.isArray(resolvedSelection?.rows)
+      ? resolvedSelection.rows
+      : resolveSelectedDispatchOrders().rows;
     let totalWeightKg = 0;
     let totalBoxes = 0;
     let totalUnits = 0;
@@ -4892,8 +5053,7 @@ async function startOrder(orderNo) {
     const flavourTotals = new Map();
     const flavourSizeTotals = new Map();
 
-    dispatchSelectedOrders.forEach((orderNo) => {
-      const order = dispatchOrderCache.get(orderNo);
+    selectedRows.forEach(({ order }) => {
       if (!order) return;
       orderCount += 1;
       const packingPlan = buildDispatchPackingPlan(order);
@@ -4924,9 +5084,8 @@ async function startOrder(orderNo) {
       boxCount: totalBoxes
     });
 
-    const selectedOrders = [...dispatchSelectedOrders]
-      .map((orderNo) => {
-        const order = dispatchOrderCache.get(orderNo);
+    const selectedOrders = selectedRows
+      .map(({ orderNo, order }) => {
         if (!order) return null;
         const plan = buildDispatchPackingPlan(order);
         const destination = [order.shipping_city, order.shipping_province].filter(Boolean).join(", ") || "—";
@@ -5150,21 +5309,194 @@ async function startOrder(orderNo) {
 
   function setDispatchSelectModeActive(nextActive) {
     dispatchSelectModeActive = Boolean(nextActive);
-    if (dispatchSelectModeBtn) {
-      dispatchSelectModeBtn.setAttribute("aria-pressed", dispatchSelectModeActive ? "true" : "false");
-      dispatchSelectModeBtn.classList.toggle("is-active", dispatchSelectModeActive);
-      dispatchSelectModeBtn.setAttribute("aria-label", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
-      dispatchSelectModeBtn.setAttribute("title", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
-    }
-    document.querySelectorAll(".dispatchLaneSelectBtn").forEach((button) => {
-      button.classList.toggle("is-active", dispatchSelectModeActive);
-      button.setAttribute("aria-pressed", dispatchSelectModeActive ? "true" : "false");
-      button.setAttribute("title", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
-      button.setAttribute("aria-label", dispatchSelectModeActive ? "Selecting orders" : "Select orders");
-    });
   }
   function loadDispatchSelectionSidebarPreference() {
     dispatchSelectionSidebarOpen = true;
+  }
+
+  function getDispatchBottomDockBounds() {
+    const mobile = window.matchMedia("(max-width:980px)").matches;
+    const viewportHeight = Math.max(320, Number(window.innerHeight || document.documentElement?.clientHeight || 0));
+    const minHeight = mobile ? 170 : 140;
+    const topReserve = mobile ? 72 : 92;
+    const maxFromViewport = Math.max(minHeight + 40, viewportHeight - topReserve);
+    const maxFromRatio = Math.floor(viewportHeight * (mobile ? 0.78 : 0.68));
+    const maxHeight = Math.max(minHeight + 40, Math.min(maxFromViewport, maxFromRatio));
+    return { minHeight, maxHeight };
+  }
+
+  function normalizeDispatchBottomDockHeight(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) return null;
+    const { minHeight, maxHeight } = getDispatchBottomDockBounds();
+    return Math.round(Math.max(minHeight, Math.min(maxHeight, numeric)));
+  }
+
+  function setDispatchBottomDockHeight(heightPx, options = {}) {
+    const { manual = false, persist = false } = options;
+    const normalizedHeight = normalizeDispatchBottomDockHeight(heightPx);
+    if (!normalizedHeight) return null;
+    document.documentElement.style.setProperty("--dispatch-bottom-dock-height", `${normalizedHeight}px`);
+    if (manual) {
+      dispatchDockManualHeight = normalizedHeight;
+    }
+    if (persist) {
+      try {
+        localStorage.setItem(DISPATCH_SELECTION_DOCK_HEIGHT_KEY, String(normalizedHeight));
+      } catch {
+        // ignore persistence failures
+      }
+    }
+    return normalizedHeight;
+  }
+
+  function loadDispatchBottomDockHeightPreference() {
+    dispatchDockManualHeight = null;
+    try {
+      const raw = localStorage.getItem(DISPATCH_SELECTION_DOCK_HEIGHT_KEY);
+      const parsed = normalizeDispatchBottomDockHeight(raw);
+      if (parsed) dispatchDockManualHeight = parsed;
+    } catch {
+      dispatchDockManualHeight = null;
+    }
+  }
+
+  function clearDispatchBottomDockHeightPreference() {
+    dispatchDockManualHeight = null;
+    try {
+      localStorage.removeItem(DISPATCH_SELECTION_DOCK_HEIGHT_KEY);
+    } catch {
+      // ignore persistence failures
+    }
+  }
+
+  function resetDispatchBottomDockHeightToAuto() {
+    clearDispatchBottomDockHeightPreference();
+    scheduleDispatchBottomDockHeightUpdate({ forceAuto: true });
+  }
+
+  function computeDispatchBottomDockAutoHeight() {
+    const panel = dispatchSelectionPanel;
+    if (!panel) return null;
+    const headerHeight = panel.querySelector(".dispatchSelectionHeader")?.scrollHeight || 0;
+    const orderHeight = dispatchSelectionOrderCards?.scrollHeight || 0;
+    const mixHeight = dispatchSelectionMixes?.scrollHeight || 0;
+    const bulkVisible = Boolean(
+      dispatchPrepareDeliveriesContainer && !dispatchPrepareDeliveriesContainer.classList.contains("is-hidden")
+    );
+    const bulkHeight = bulkVisible ? dispatchPrepareDeliveriesContainer.scrollHeight : 0;
+    const mobile = window.matchMedia("(max-width:980px)").matches;
+    const bodyHeight = mobile ? orderHeight + mixHeight + 14 : Math.max(orderHeight, mixHeight) + 10;
+    const panelChrome = 30;
+    return headerHeight + bodyHeight + bulkHeight + panelChrome;
+  }
+
+  function updateDispatchBottomDockHeight(options = {}) {
+    const { forceAuto = false } = options;
+    if (!dispatchSelectionSidebar) return;
+    if (dispatchDockManualHeight != null && !forceAuto) {
+      setDispatchBottomDockHeight(dispatchDockManualHeight, { manual: true });
+      return;
+    }
+    const targetHeight = computeDispatchBottomDockAutoHeight();
+    if (targetHeight == null) return;
+    setDispatchBottomDockHeight(targetHeight);
+  }
+
+  function scheduleDispatchBottomDockHeightUpdate(options = {}) {
+    const nextOptions = { ...options };
+    if (dispatchDockResizeRaf != null) {
+      cancelAnimationFrame(dispatchDockResizeRaf);
+    }
+    dispatchDockResizeRaf = requestAnimationFrame(() => {
+      dispatchDockResizeRaf = null;
+      updateDispatchBottomDockHeight(nextOptions);
+    });
+  }
+
+  function getCurrentDispatchBottomDockHeight() {
+    const currentFromVar = normalizeDispatchBottomDockHeight(
+      getComputedStyle(document.documentElement).getPropertyValue("--dispatch-bottom-dock-height")
+    );
+    if (currentFromVar) return currentFromVar;
+    if (dispatchDockManualHeight != null) return dispatchDockManualHeight;
+    const autoHeight = computeDispatchBottomDockAutoHeight();
+    if (autoHeight) return normalizeDispatchBottomDockHeight(autoHeight);
+    return getDispatchBottomDockBounds().minHeight;
+  }
+
+  function beginDispatchBottomDockResize(event) {
+    if (!(event instanceof PointerEvent) || event.button !== 0 || !dispatchSelectionSidebar) return;
+    event.preventDefault();
+    const currentHeight =
+      normalizeDispatchBottomDockHeight(
+        getComputedStyle(document.documentElement).getPropertyValue("--dispatch-bottom-dock-height")
+      ) || Math.round(dispatchSelectionSidebar.getBoundingClientRect().height || 0);
+    dispatchDockResizeState = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startHeight: currentHeight
+    };
+    dispatchSelectionSidebar.classList.add("is-resizing");
+    document.body.classList.add("is-resizing-dispatch-dock");
+    dispatchSelectionResizeHandle?.setPointerCapture(event.pointerId);
+  }
+
+  function handleDispatchBottomDockResizeMove(event) {
+    if (!(event instanceof PointerEvent) || !dispatchDockResizeState) return;
+    if (event.pointerId !== dispatchDockResizeState.pointerId) return;
+    event.preventDefault();
+    const delta = dispatchDockResizeState.startY - event.clientY;
+    const nextHeight = dispatchDockResizeState.startHeight + delta;
+    setDispatchBottomDockHeight(nextHeight, { manual: true });
+  }
+
+  function endDispatchBottomDockResize(event) {
+    if (!dispatchDockResizeState) return;
+    if (event instanceof PointerEvent && event.pointerId !== dispatchDockResizeState.pointerId) return;
+    const finalHeight =
+      normalizeDispatchBottomDockHeight(
+        getComputedStyle(document.documentElement).getPropertyValue("--dispatch-bottom-dock-height")
+      ) || dispatchDockResizeState.startHeight;
+    setDispatchBottomDockHeight(finalHeight, { manual: true, persist: true });
+    try {
+      dispatchSelectionResizeHandle?.releasePointerCapture(dispatchDockResizeState.pointerId);
+    } catch {
+      // pointer capture might already be released
+    }
+    dispatchDockResizeState = null;
+    dispatchSelectionSidebar?.classList.remove("is-resizing");
+    document.body.classList.remove("is-resizing-dispatch-dock");
+  }
+
+  function handleDispatchBottomDockResizeHandleKeydown(event) {
+    if (!(event instanceof KeyboardEvent)) return;
+    const { minHeight, maxHeight } = getDispatchBottomDockBounds();
+    const baseStep = event.shiftKey ? 44 : 20;
+    const currentHeight = getCurrentDispatchBottomDockHeight();
+    let nextHeight = null;
+
+    if (event.key === "ArrowUp") {
+      nextHeight = currentHeight + baseStep;
+    } else if (event.key === "ArrowDown") {
+      nextHeight = currentHeight - baseStep;
+    } else if (event.key === "PageUp") {
+      nextHeight = currentHeight + baseStep * 2;
+    } else if (event.key === "PageDown") {
+      nextHeight = currentHeight - baseStep * 2;
+    } else if (event.key === "Home") {
+      nextHeight = minHeight;
+    } else if (event.key === "End") {
+      nextHeight = maxHeight;
+    } else if (event.key === "Escape" || event.key === "0") {
+      event.preventDefault();
+      resetDispatchBottomDockHeightToAuto();
+      return;
+    }
+
+    if (nextHeight == null) return;
+    event.preventDefault();
+    setDispatchBottomDockHeight(nextHeight, { manual: true, persist: true });
   }
 
   function setDispatchSelectionSidebarOpen(nextOpen, options = {}) {
@@ -5182,7 +5514,7 @@ async function startOrder(orderNo) {
       dispatchSelectionSidebarToggle.setAttribute("aria-label", "Toggle selected orders panel");
     }
     const isScanVisible = document.querySelector(".flView.flView--active")?.id === "viewScan";
-    const hasSelection = dispatchSelectedOrders.size > 0;
+    const hasSelection = resolveSelectedDispatchOrders().rows.length > 0;
     updateDispatchSelectionSidebarVisibility(isScanVisible, hasSelection);
     if (focusPanel && dispatchSelectionSidebarOpen && hasSelection && isScanVisible) {
       dispatchSelectionPanel?.focus();
@@ -5205,13 +5537,17 @@ async function startOrder(orderNo) {
       dispatchSelectionSidebar.classList.toggle("is-closed", !shouldShow);
     }
     document.body.classList.toggle("dispatch-sidebar-open", shouldShow);
+    if (shouldShow) {
+      scheduleDispatchBottomDockHeightUpdate({ forceAuto: dispatchDockManualHeight == null });
+    }
     if (!container) return;
     container.hidden = !isScanVisible;
   }
 
   function updateDispatchSelectionSummary() {
     if (!dispatchSelectionPanel) return;
-    const totals = aggregateDispatchSelection();
+    const resolvedSelection = resolveSelectedDispatchOrders({ notifyOnPrune: true });
+    const totals = aggregateDispatchSelection(resolvedSelection);
     const showScan = document.querySelector(".flView.flView--active")?.id === "viewScan";
     updateDispatchSelectionSidebarVisibility(showScan, totals.orderCount > 0);
     dispatchSelectionPanel.classList.toggle("is-hidden", totals.orderCount === 0 || !showScan);
@@ -5231,7 +5567,7 @@ async function startOrder(orderNo) {
     if (dispatchSelectionTime) {
       dispatchSelectionTime.textContent = formatDispatchDuration(totals.totalTimeMin);
     }
-    const selectedDeliveryOrderCount = getSelectedDeliveryOrderNos().length;
+    const selectedDeliveryOrderCount = getSelectedDeliveryOrderNos(resolvedSelection).length;
     updateMultiShipmentButtonVisibility();
     if (dispatchSelectionOrderCards) {
       const rows = (totals.selectedOrders || [])
@@ -5326,7 +5662,9 @@ async function startOrder(orderNo) {
         dispatchSelectionMixes.innerHTML = `<table class="dispatchMixMatrix"><thead><tr><th scope="col">Flavour</th>${header}</tr></thead><tbody>${rows}</tbody></table>`;
       }
     }
-
+    if (showScan && totals.orderCount > 0) {
+      scheduleDispatchBottomDockHeightUpdate({ forceAuto: dispatchDockManualHeight == null });
+    }
   }
 
   function clearDispatchSelection() {
@@ -5697,6 +6035,7 @@ async function startOrder(orderNo) {
     const now = Date.now();
     const maxAgeMs = MAX_ORDER_AGE_HOURS * 60 * 60 * 1000;
     dispatchOrderCache.clear();
+    dispatchOrderLookup.clear();
     dispatchShipmentCache.clear();
     const activeOrders = new Set();
 
@@ -5720,6 +6059,8 @@ async function startOrder(orderNo) {
       updateDispatchSelectionSummary();
       return;
     }
+    buildDispatchOrderLookupIndexes(list, dispatchOrderCache);
+    resolveSelectedDispatchOrders();
 
     const cols = [
       { id: "shipping", label: "Shipping", type: "cards" },
@@ -5998,17 +6339,6 @@ async function startOrder(orderNo) {
       return chunks.join("");
     }
 
-    const laneHeaderActionsHtml = `
-      <div class="dispatchColHeaderActions" aria-label="Lane actions">
-        <button class="dispatchIconBtn dispatchLaneHeaderBtn" type="button" data-action="refresh-orders" aria-label="Refresh open orders" title="Refresh open orders">
-          <span aria-hidden="true">&#x21bb;</span>
-        </button>
-        <button class="dispatchIconBtn dispatchIconBtn--select dispatchLaneHeaderBtn dispatchLaneSelectBtn ${dispatchSelectModeActive ? "is-active" : ""}" type="button" data-action="toggle-select-mode" aria-pressed="${dispatchSelectModeActive ? "true" : "false"}" aria-label="${dispatchSelectModeActive ? "Selecting orders" : "Select orders"}" title="${dispatchSelectModeActive ? "Selecting orders" : "Select orders"}">
-          <span aria-hidden="true">&#x2611;</span>
-        </button>
-      </div>
-    `;
-
     dispatchBoard.innerHTML = activeCols
       .map((col) => {
         if (col.id === "shipping") {
@@ -6036,7 +6366,6 @@ async function startOrder(orderNo) {
             <div class="dispatchCol" data-lane-id="${col.id}">
               <div class="dispatchColHeader">
                 <span>${col.label}</span>
-                ${laneHeaderActionsHtml}
               </div>
               <div class="dispatchColBody">
                 <div class="dispatchSubLanes dispatchSubLanes--shipping" style="--dispatch-sub-cols:${shippingSubLaneColCount};">${subLanes}</div>
@@ -6067,7 +6396,6 @@ async function startOrder(orderNo) {
             <div class="dispatchCol" data-lane-id="${col.id}">
               <div class="dispatchColHeader">
                 <span>${col.label}</span>
-                ${laneHeaderActionsHtml}
               </div>
               <div class="dispatchColBody">
                 <div class="dispatchSubLanes dispatchSubLanes--delivery" style="--dispatch-sub-cols:${deliverySubLaneColCount};">${subLanes}</div>
@@ -6081,12 +6409,12 @@ async function startOrder(orderNo) {
           <div class="dispatchCol" data-lane-id="${col.id}">
             <div class="dispatchColHeader">
               <span>${colTitle}</span>
-              ${laneHeaderActionsHtml}
             </div>
             <div class="dispatchColBody">${cards || '<div class="dispatchBoardEmptyCol">No orders in this lane.</div>'}</div>
           </div>`;
       })
       .join("");
+    buildDispatchOrderLookupIndexes(list, dispatchOrderCache);
 
     let pruned = false;
     dispatchPackingState.forEach((_, key) => {
@@ -6096,11 +6424,9 @@ async function startOrder(orderNo) {
       }
     });
     if (pruned) savePackingState();
-    let selectionPruned = false;
     dispatchSelectedOrders.forEach((orderNo) => {
       if (!activeOrders.has(orderNo)) {
         dispatchSelectedOrders.delete(orderNo);
-        selectionPruned = true;
       }
     });
     updateDispatchSelectionSummary();
@@ -6570,12 +6896,13 @@ async function startOrder(orderNo) {
     if (!dispatchControllerState) {
       return { selectedOrderChanged: false, selectedLineItemChanged: false, selectedOrderId: "" };
     }
+    const previousSelection = resolveSelectedDispatchOrders();
     const previousSelectedOrderId =
-      dispatchSelectedOrders.size === 1 ? String(Array.from(dispatchSelectedOrders)[0] || "").trim() : "";
+      previousSelection.rows.length === 1 ? String(previousSelection.rows[0]?.orderNo || "").trim() : "";
     const previousRotarySelectedKey = dispatchRotarySelectedKey;
-    const selectedOrderId = String(dispatchControllerState.selectedOrderId || "").trim();
+    const selectedOrderKey = String(dispatchControllerState.selectedOrderId || "").trim();
     const selectedLineItemKey = String(dispatchControllerState.selectedLineItemKey || "").trim();
-    if (!selectedOrderId) {
+    if (!selectedOrderKey) {
       dispatchSelectedOrders.clear();
       dispatchRotarySelectedKey = "";
       syncDispatchRotarySelectionUI(dispatchRotarySelectedKey);
@@ -6583,6 +6910,17 @@ async function startOrder(orderNo) {
         selectedOrderChanged: previousSelectedOrderId !== "",
         selectedLineItemChanged: previousRotarySelectedKey !== "",
         selectedOrderId: ""
+      };
+    }
+    const selectedOrderMatch = resolveDispatchOrderFromSelectionKey(selectedOrderKey);
+    const selectedOrderId = String(selectedOrderMatch?.canonicalOrderNo || "").trim();
+    if (!selectedOrderId) {
+      dispatchRotarySelectedKey = "";
+      syncDispatchRotarySelectionUI(dispatchRotarySelectedKey);
+      return {
+        selectedOrderChanged: false,
+        selectedLineItemChanged: previousRotarySelectedKey !== dispatchRotarySelectedKey,
+        selectedOrderId: previousSelectedOrderId
       };
     }
 
@@ -6598,7 +6936,8 @@ async function startOrder(orderNo) {
     }
 
     const confirmedAt = dispatchControllerState.lastConfirmedAt;
-    const confirmedOrderId = String(dispatchControllerState.lastConfirmedOrderId || "").trim();
+    const confirmedOrderKey = String(dispatchControllerState.lastConfirmedOrderId || "").trim();
+    const confirmedOrderId = resolveDispatchOrderFromSelectionKey(confirmedOrderKey)?.canonicalOrderNo || "";
     const confirmedLineItemKey = String(dispatchControllerState.lastConfirmedLineItemKey || "").trim();
     if (confirmedAt && confirmedAt !== dispatchLastHandledConfirmAt && confirmedOrderId) {
       dispatchLastHandledConfirmAt = confirmedAt;
@@ -6610,7 +6949,8 @@ async function startOrder(orderNo) {
     }
 
     const printRequestedAt = dispatchControllerState.lastPrintRequestedAt;
-    const printOrderId = String(dispatchControllerState.lastPrintRequestedOrderId || "").trim();
+    const printOrderKey = String(dispatchControllerState.lastPrintRequestedOrderId || "").trim();
+    const printOrderId = resolveDispatchOrderFromSelectionKey(printOrderKey)?.canonicalOrderNo || "";
     if (printRequestedAt && printRequestedAt !== dispatchLastHandledPrintRequestAt && printOrderId) {
       dispatchLastHandledPrintRequestAt = printRequestedAt;
       const printAction = dispatchBoard?.querySelector(`[data-action="print-note"][data-order-no="${printOrderId}"]`);
@@ -6618,7 +6958,8 @@ async function startOrder(orderNo) {
     }
 
     const fulfillRequestedAt = dispatchControllerState.lastFulfillRequestedAt;
-    const fulfillOrderId = String(dispatchControllerState.lastFulfillRequestedOrderId || "").trim();
+    const fulfillOrderKey = String(dispatchControllerState.lastFulfillRequestedOrderId || "").trim();
+    const fulfillOrderId = resolveDispatchOrderFromSelectionKey(fulfillOrderKey)?.canonicalOrderNo || "";
     if (fulfillRequestedAt && fulfillRequestedAt !== dispatchLastHandledFulfillRequestAt && fulfillOrderId) {
       dispatchLastHandledFulfillRequestAt = fulfillRequestedAt;
       const fulfillAction = dispatchBoard?.querySelector(`[data-action="fulfill-shipping"][data-order-no="${fulfillOrderId}"]`);
@@ -6663,10 +7004,12 @@ async function startOrder(orderNo) {
 
   function syncDispatchSelectionUI() {
     if (!dispatchBoard) return;
+    const resolvedSelection = resolveSelectedDispatchOrders();
+    const selectedOrderNos = new Set(resolvedSelection.orderNos || []);
 
     dispatchBoard.querySelectorAll(".dispatchCard[data-order-no]").forEach((card) => {
       const orderNo = String(card.dataset.orderNo || "").trim();
-      const checked = Boolean(orderNo && dispatchSelectedOrders.has(orderNo));
+      const checked = Boolean(orderNo && selectedOrderNos.has(orderNo));
       card.classList.toggle("is-selected", checked);
     });
 
@@ -7061,7 +7404,7 @@ async function startOrder(orderNo) {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
 
-    updateDispatchSelectionSidebarVisibility(showScan, dispatchSelectedOrders.size > 0);
+    updateDispatchSelectionSidebarVisibility(showScan, resolveSelectedDispatchOrders().rows.length > 0);
   }
 
   const ROUTE_VIEW_MAP = new Map([
@@ -7273,7 +7616,6 @@ async function startOrder(orderNo) {
           </tr>`;
       })
       .join("");
-
     settingsPrintersList.innerHTML = `
       <table class="settingsTable">
         <thead>
@@ -8138,11 +8480,13 @@ async function startOrder(orderNo) {
     await createCombinedShipmentFromSelection(selectedDeliveryOrderNos);
   });
 
-  function getSelectedDeliveryOrderNos() {
-    return Array.from(dispatchSelectedOrders).filter((orderNo) => {
-      const order = dispatchOrderCache.get(orderNo);
-      return laneFromOrder(order) === "delivery";
-    });
+  function getSelectedDeliveryOrderNos(resolvedSelection = null) {
+    const selectedRows = Array.isArray(resolvedSelection?.rows)
+      ? resolvedSelection.rows
+      : resolveSelectedDispatchOrders().rows;
+    return selectedRows
+      .filter((entry) => laneFromOrder(entry?.order) === "delivery")
+      .map((entry) => entry.orderNo);
   }
 
   function updateMultiShipmentButtonVisibility() {
@@ -8157,9 +8501,8 @@ async function startOrder(orderNo) {
   }
 
   async function printSelectedOrders() {
-    const orders = Array.from(dispatchSelectedOrders)
-      .map((orderNo) => dispatchOrderCache.get(orderNo))
-      .filter(Boolean);
+    const resolvedSelection = resolveSelectedDispatchOrders({ notifyOnPrune: true });
+    const orders = resolvedSelection.rows.map((entry) => entry.order).filter(Boolean);
     if (!orders.length) {
       statusExplain("Select at least 1 order to print.", "warn");
       return;
@@ -8193,7 +8536,8 @@ async function startOrder(orderNo) {
   }
 
   async function bookSelectedDeliveryOrders() {
-    const selectedOrderNos = getSelectedDeliveryOrderNos();
+    const resolvedSelection = resolveSelectedDispatchOrders({ notifyOnPrune: true });
+    const selectedOrderNos = getSelectedDeliveryOrderNos(resolvedSelection);
     if (!selectedOrderNos.length) {
       statusExplain("Select at least 1 delivery order to book.", "warn");
       return;
@@ -8273,15 +8617,6 @@ async function startOrder(orderNo) {
     if (!actionType) return false;
     if (actionType === "close-modal") {
       closeDispatchOrderModal();
-      return true;
-    }
-    if (actionType === "refresh-orders") {
-      await loadDispatchBoard();
-      statusExplain("Orders refreshed.", "info");
-      return true;
-    }
-    if (actionType === "toggle-select-mode") {
-      setDispatchSelectModeActive(!dispatchSelectModeActive);
       return true;
     }
     if (actionType === "close-legend-modal") {
@@ -8783,13 +9118,13 @@ async function startOrder(orderNo) {
       return;
     }
 
-    if (dispatchSelectedOrders.size) {
+    if (resolveSelectedDispatchOrders().rows.length) {
       clearDispatchSelection();
     }
   });
 
   document.addEventListener("click", (e) => {
-    if (!dispatchSelectedOrders.size) return;
+    if (!resolveSelectedDispatchOrders().rows.length) return;
     const target = e.target;
     if (!(target instanceof Element)) return;
     if (target.closest(".dispatchCard")) return;
@@ -8807,11 +9142,34 @@ async function startOrder(orderNo) {
   });
 
   loadDispatchSelectionSidebarPreference();
+  loadDispatchBottomDockHeightPreference();
+  if (dispatchDockManualHeight != null) {
+    setDispatchBottomDockHeight(dispatchDockManualHeight, { manual: true });
+  }
   setDispatchSelectionSidebarOpen(dispatchSelectionSidebarOpen);
   loadDispatchLegendPreference();
   setDispatchLegendOpen(dispatchLegendOpen);
   setDispatchSelectModeActive(dispatchSelectModeActive);
   setSettingsModalOpen(false);
+
+  dispatchSelectionResizeHandle?.addEventListener("pointerdown", beginDispatchBottomDockResize);
+  dispatchSelectionResizeHandle?.addEventListener("dblclick", () => {
+    resetDispatchBottomDockHeightToAuto();
+  });
+  dispatchSelectionResizeHandle?.addEventListener("keydown", handleDispatchBottomDockResizeHandleKeydown);
+  window.addEventListener("pointermove", handleDispatchBottomDockResizeMove);
+  window.addEventListener("pointerup", endDispatchBottomDockResize);
+  window.addEventListener("pointercancel", endDispatchBottomDockResize);
+  window.addEventListener("blur", () => {
+    endDispatchBottomDockResize();
+  });
+  window.addEventListener("resize", () => {
+    if (dispatchDockManualHeight != null) {
+      setDispatchBottomDockHeight(dispatchDockManualHeight, { manual: true, persist: true });
+      return;
+    }
+    scheduleDispatchBottomDockHeightUpdate({ forceAuto: true });
+  });
 
   dispatchLegendOpenBtn?.addEventListener("click", () => {
     setDispatchLegendOpen(true);
@@ -8823,14 +9181,6 @@ async function startOrder(orderNo) {
     if (target.dataset.action === "close-legend-modal") {
       setDispatchLegendOpen(false);
     }
-  });
-
-  dispatchRefreshOrdersBtn?.addEventListener("click", async () => {
-    await refreshDispatchData();
-  });
-
-  dispatchSelectModeBtn?.addEventListener("click", () => {
-    setDispatchSelectModeActive(!dispatchSelectModeActive);
   });
 
   dispatchPrintBestBeforeBtn?.addEventListener("click", async () => {

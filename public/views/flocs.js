@@ -13,6 +13,7 @@ let googlePlacesScriptPromise = null;
 const MATRIX_POPCORN_SIZES = ["100ml"];
 const MATRIX_BASE_SIZES = ["200ml"];
 const MATRIX_BULK_SIZES = ["500g", "750g Tub", "1kg"];
+const MATRIX_LOCAL_ONLY_SIZES = new Set(["750g tub"]);
 const HENNIES_MATRIX_SIZES = ["200ml", "1kg"];
 const MATRIX_SIZES = [...MATRIX_POPCORN_SIZES, ...MATRIX_BASE_SIZES, ...MATRIX_BULK_SIZES];
 
@@ -1075,7 +1076,7 @@ export function initFlocsView() {
 
   function normalizeDeliveryMethod(value) {
     const normalized = String(value || "").toLowerCase().trim();
-    if (normalized === "free_shipping" || normalized === "free shipping") return "free_shipping";
+    if (normalized === "free-shipping" || normalized === "free shipping") return "free-shipping";
     if (normalized === "ship" || normalized === "shipping") return "shipping";
     if (normalized === "deliver" || normalized === "delivery") return "delivery";
     if (normalized === "pickup") return "pickup";
@@ -1138,28 +1139,38 @@ export function initFlocsView() {
 
   function visibleMatrixSizes() {
     if (state.customerSpecialization?.isHennies) return [...HENNIES_MATRIX_SIZES];
+    const isLocalCustomer = normalizeTags(state.customerTags).some((tag) => tag.toLowerCase() === "local");
+    const filterLocalOnlySizes = (sizes = []) =>
+      isLocalCustomer
+        ? [...sizes]
+        : sizes.filter((size) => !MATRIX_LOCAL_ONLY_SIZES.has(normalizeMatrixSize(size)));
     if (state.productType === "popcorn") return [...MATRIX_POPCORN_SIZES];
     if (state.productType === "combined") {
       const sizes = [...MATRIX_BASE_SIZES];
       if (state.showBulkColumns) sizes.push(...MATRIX_BULK_SIZES);
-      return sizes;
+      return filterLocalOnlySizes(sizes);
     }
     const sizes = [...MATRIX_BASE_SIZES];
     if (state.showBulkColumns) sizes.push(...MATRIX_BULK_SIZES);
-    return sizes;
+    return filterLocalOnlySizes(sizes);
   }
 
   function quoteSummaryText() {
     const fromBadge = String(shippingSummary?.textContent || "").trim();
     if (fromBadge) return fromBadge;
     const delivery = currentDelivery();
-    if (delivery === "free_shipping") return "Free Shipping selected - shipping cost will be R0.";
+    if (delivery === "free-shipping") return "Free Shipping selected - shipping cost will be R0.";
     if (delivery !== "shipping") return "Delivery type is pickup/delivery - no courier shipping.";
     return "No shipping quote yet.";
   }
 
   function renderProductsHeader() {
     if (!productsHeadRow) return;
+    if (state.productType === "combined") {
+      productsHeadRow.innerHTML =
+        "<th>Flippen Lekka Spice</th><th>Size & quantity</th><th>Popcorn Sprinkle</th><th>Size & quantity</th>";
+      return;
+    }
     const sizeHeaders = visibleMatrixSizes()
       .map((size) => `<th>${size}</th>`)
       .join("");
@@ -1271,21 +1282,27 @@ export function initFlocsView() {
     return Math.floor(base);
   }
 
-  function renderSizeQtyControl({ key, value, sizeLabel = "", quickColor = "#64748b" }) {
+  function renderSizeQtyControl({ key, value, sizeLabel = "", quickColor = "#64748b", productType = "" }) {
+    const normalizedProductType =
+      productType === "spices" || productType === "popcorn" ? productType : "";
+    const productTypeAttr = normalizedProductType
+      ? ` data-product-type="${normalizedProductType}"`
+      : "";
     const sizeTag = sizeLabel ? `<span class="flocs-sizeTag">${sizeLabel}</span>` : "";
     const quickButtons = QUICK_QTY.map(
-      (qty) => `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}" title="Quick add ${qty}">${qty}</button>`
+      (qty) =>
+        `<button class="flocs-qtyQuickBtn" type="button" data-action="quick-add" data-key="${key}" data-amount="${qty}" title="Quick add ${qty}"${productTypeAttr}>${qty}</button>`
     ).join("");
     const quickControls = state.showQuickQtyButtons
-      ? `<div class="flocs-qtyQuick" aria-label="Quick add quantity" style="--quick-qty-color:${quickColor}">${quickButtons}</div>`
+      ? `<div class="flocs-qtyQuick" aria-label="Quick add quantity">${quickButtons}</div>`
       : "";
-    return `<div class="flocs-qtyArea">
+    return `<div class="flocs-qtyArea" style="--quick-qty-color:${quickColor}">
       ${sizeTag}
       <div class="flocs-qtyWrap">
-        <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}" title="Decrease">−</button>
-        <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}" />
-        <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}" title="Increase">＋</button>
-        <button class="flocs-qtyBtn flocs-qtyBtn--clear" type="button" data-action="clear" data-key="${key}" title="Clear quantity">⨯</button>
+        <button class="flocs-qtyBtn" type="button" data-action="dec" data-key="${key}" title="Decrease"${productTypeAttr}>−</button>
+        <input class="flocs-qtyInput" type="number" min="0" step="1" data-key="${key}" inputmode="numeric" value="${value}"${productTypeAttr} />
+        <button class="flocs-qtyBtn" type="button" data-action="inc" data-key="${key}" title="Increase"${productTypeAttr}>＋</button>
+        <button class="flocs-qtyBtn flocs-qtyBtn--clear" type="button" data-action="clear" data-key="${key}" title="Clear quantity"${productTypeAttr}>⨯</button>
         ${quickControls}
       </div>
     </div>`;
@@ -1321,6 +1338,10 @@ export function initFlocsView() {
   function renderProductsTable() {
     if (!productsBody) return;
     if (productTypeFilter) productTypeFilter.hidden = true;
+    const productsTable = productsBody.closest(".flocs-productsTable");
+    if (productsTable) {
+      productsTable.classList.toggle("flocs-productsTable--combined", state.productType === "combined");
+    }
     const activeSizes = visibleMatrixSizes();
     renderProductsHeader();
     renderBulkToggleState();
@@ -1387,7 +1408,8 @@ export function initFlocsView() {
           const qtyControl = renderSizeQtyControl({
             key,
             value,
-            quickColor: flavourColor(flavour, productType)
+            quickColor: flavourColor(flavour, productType),
+            productType
           });
           return `<td class="flocs-matrixCell">${qtyControl}</td>`;
         }).join("");
@@ -1403,6 +1425,11 @@ export function initFlocsView() {
       .filter((entry) => entry && entry.html);
 
     const buildNonMatrixRowEntry = (product) => {
+      const sku = String(product?.sku || "").trim().toUpperCase();
+      const forcedSectionType =
+        state.productType === "combined" && (sku === "FLBS001" || sku === "GBOX")
+          ? "popcorn"
+          : matrixProductType(product);
       const key = productKey(product);
       const units = Number(state.items[key] || 0);
       const value = toDisplayQty(units);
@@ -1411,22 +1438,23 @@ export function initFlocsView() {
         key,
         value,
         sizeLabel,
-        quickColor: flavourColor(product.flavour, matrixProductType(product))
+        quickColor: flavourColor(product.flavour, matrixProductType(product)),
+        productType: forcedSectionType
       });
       const title = nonMatrixDisplayTitle(product);
-      const sku = String(product?.sku || "").trim().toUpperCase();
-      const forcedSectionType =
-        state.productType === "combined" && (sku === "FLBS001" || sku === "GBOX")
-          ? "popcorn"
-          : matrixProductType(product);
-      return {
-        productType: forcedSectionType,
-        html: `<tr style="--flavour-color:${flavourColor(product.flavour, matrixProductType(product))}">
-        <td>
-          <div class="flocs-productIdentity">
+      const color = flavourColor(product.flavour, matrixProductType(product));
+      const identityHtml = `<div class="flocs-productIdentity">
             ${renderNonMatrixIdentity(product)}
             ${title ? `<span class="flocs-productName">${title}</span>` : ""}
-          </div>
+          </div>`;
+      return {
+        productType: forcedSectionType,
+        color,
+        identityHtml,
+        qtyControlHtml: qtyControl,
+        html: `<tr style="--flavour-color:${color}">
+        <td>
+          ${identityHtml}
         </td>
         <td class="flocs-matrixCell" colspan="${matrixColumnCount}">${qtyControl}</td>
       </tr>`
@@ -1445,33 +1473,89 @@ export function initFlocsView() {
     const emptyRow = `<tr><td colspan="${1 + matrixColumnCount}" class="flocs-matrixCell flocs-matrixCell--empty">${emptyMessage}</td></tr>`;
 
     if (state.productType === "combined") {
-      const sectionOrder = [
-        { key: "spices", label: "Spices" },
-        { key: "popcorn", label: "Popcorn Sprinkle" }
-      ];
-      const renderCombinedSectionHeader = (sectionKey) => {
-        if (sectionKey !== "popcorn") return "";
-        const sizeHeaders = activeSizes
-          .map((_, index) => (index === 0 ? "<th>100ml</th>" : "<th></th>"))
-          .join("");
-        return `<tr class="flocs-productsSubHeadRow"><th>Popcorn Sprinkle</th>${sizeHeaders}</tr>`;
+      const spiceSizeDescriptors = activeSizes.map((sizeLabel) => ({
+        sizeLabel,
+        normalizedSize: normalizeMatrixSize(sizeLabel)
+      }));
+      const popcornSizeDescriptors = MATRIX_POPCORN_SIZES.map((sizeLabel) => ({
+        sizeLabel,
+        normalizedSize: normalizeMatrixSize(sizeLabel)
+      }));
+      const combinedEntries = {
+        spices: [],
+        popcorn: []
       };
-      const combinedRows = sectionOrder
-        .map((section) => {
-          const rows = [
-            ...groupedRowEntries
-              .filter((entry) => entry.productType === section.key)
-              .map((entry) => entry.html),
-            ...extraRowEntries
-              .filter((entry) => entry.productType === section.key)
-              .map((entry) => entry.html)
-          ];
-          if (!rows.length) return "";
-          return `${renderCombinedSectionHeader(section.key)}${rows.join("")}`;
+      const pushCombinedEntry = (entry) => {
+        if (!entry || !combinedEntries[entry.productType]) return;
+        combinedEntries[entry.productType].push(entry);
+      };
+      const combinedMatrixEntries = groupedRowsSource
+        .map(({ flavour, productType, bySize }) => {
+          const colour = flavourColor(flavour, productType);
+          const flavourLabel = String(flavour || "").trim() || "Other";
+          const sizeDescriptors = productType === "popcorn" ? popcornSizeDescriptors : spiceSizeDescriptors;
+          const showSizeLabel = productType !== "popcorn" && sizeDescriptors.length > 1;
+          const controls = sizeDescriptors
+            .map(({ sizeLabel, normalizedSize }) => {
+              const product = bySize.get(normalizedSize);
+              if (!product) return "";
+              const key = productKey(product);
+              const units = Number(state.items[key] || 0);
+              const value = toDisplayQty(units);
+              return `<div class="flocs-combinedQtyLine">${renderSizeQtyControl({
+                key,
+                value,
+                sizeLabel: showSizeLabel ? sizeLabel : "",
+                quickColor: colour,
+                productType
+              })}</div>`;
+            })
+            .filter(Boolean)
+            .join("");
+          if (!controls) return null;
+          return {
+            productType,
+            colour,
+            identityHtml: `<div class="flocs-productIdentity"><span class="flocs-flavourTag" style="--flavour-color:${colour}">${flavourLabel}</span></div>`,
+            controlsHtml: `<div class="flocs-combinedQtyStack">${controls}</div>`
+          };
         })
-        .filter(Boolean)
-        .join("");
-      productsBody.innerHTML = combinedRows || emptyRow;
+        .filter(Boolean);
+      combinedMatrixEntries.forEach(pushCombinedEntry);
+      extraRowEntries.forEach((entry) => {
+        pushCombinedEntry({
+          productType: entry.productType,
+          colour: entry.color,
+          identityHtml: entry.identityHtml,
+          controlsHtml: `<div class="flocs-combinedQtyStack"><div class="flocs-combinedQtyLine">${entry.qtyControlHtml}</div></div>`
+        });
+      });
+
+      const rowCount = Math.max(combinedEntries.spices.length, combinedEntries.popcorn.length);
+      if (!rowCount) {
+        productsBody.innerHTML = `<tr><td colspan="4" class="flocs-matrixCell flocs-matrixCell--empty">${emptyMessage}</td></tr>`;
+        return;
+      }
+      const renderCombinedCells = (entry) => {
+        if (!entry) {
+          return `<td class="flocs-combinedIdentityCell flocs-combinedIdentityCell--empty"></td>
+            <td class="flocs-combinedQtyCell flocs-combinedQtyCell--empty"></td>`;
+        }
+        return `<td class="flocs-combinedIdentityCell" style="--flavour-color:${entry.colour}">
+            <div class="flocs-combinedIdentityWrap">${entry.identityHtml}</div>
+          </td>
+          <td class="flocs-combinedQtyCell" style="--flavour-color:${entry.colour}">
+            ${entry.controlsHtml}
+          </td>`;
+      };
+      productsBody.innerHTML = Array.from({ length: rowCount }, (_, index) => {
+        const spiceEntry = combinedEntries.spices[index] || null;
+        const popcornEntry = combinedEntries.popcorn[index] || null;
+        return `<tr class="flocs-combinedDualRow">
+          ${renderCombinedCells(spiceEntry)}
+          ${renderCombinedCells(popcornEntry)}
+        </tr>`;
+      }).join("");
       return;
     }
 
@@ -1661,7 +1745,7 @@ export function initFlocsView() {
     const deliveryLabel =
       delivery === ""
         ? "Not selected"
-        : delivery === "free_shipping"
+        : delivery === "free-shipping"
         ? "Free Shipping"
         : delivery === "pickup"
         ? "Pickup at Flippen Lekka"
@@ -1687,16 +1771,16 @@ ${state.customer.email || ""}${
         }`
       : "No customer selected";
 
-    const shipToLabel = delivery === "shipping" || delivery === "free_shipping" ? "Ship to" : "Shipping address";
+    const shipToLabel = delivery === "shipping" || delivery === "free-shipping" ? "Ship to" : "Shipping address";
     const shipToText =
       shipAddr
         ? formatAddress(shipAddr)
-        : delivery === "shipping" || delivery === "free_shipping"
+        : delivery === "shipping" || delivery === "free-shipping"
         ? "Ship selected but no address chosen"
         : "Not selected";
 
     const shippingLine =
-      delivery === "free_shipping"
+      delivery === "free-shipping"
         ? "Free Shipping: R0"
         : delivery === "shipping" && state.shippingQuote
         ? `Shipping (${state.shippingQuote.service || "Courier"} @ ${money(
@@ -1979,7 +2063,7 @@ ${state.customer.email || ""}${
     if (currentDelivery() !== "shipping") {
       state.shippingQuote = null;
       shippingSummary.textContent =
-        currentDelivery() === "free_shipping"
+        currentDelivery() === "free-shipping"
           ? "Free Shipping selected — shipping cost will be R0."
           : "Delivery type is pickup/delivery – no courier shipping.";
       validate();
@@ -2651,19 +2735,19 @@ ${state.customer.email || ""}${
     const delivery = currentDelivery();
     const addr = currentShippingAddress();
     const shippingPrice =
-      delivery === "free_shipping"
+      delivery === "free-shipping"
         ? 0
         : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.subtotal ?? state.shippingQuote.total
         : null;
     const shippingBaseTotal =
-      delivery === "free_shipping"
+      delivery === "free-shipping"
         ? 0
         : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.baseTotal
         : null;
     const shippingService =
-      delivery === "free_shipping"
+      delivery === "free-shipping"
         ? "Free Shipping"
         : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.service
@@ -2796,19 +2880,19 @@ ${state.customer.email || ""}${
     const delivery = currentDelivery();
     const addr = currentShippingAddress();
     const shippingPrice =
-      delivery === "free_shipping"
+      delivery === "free-shipping"
         ? 0
         : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.subtotal ?? state.shippingQuote.total
         : null;
     const shippingBaseTotal =
-      delivery === "free_shipping"
+      delivery === "free-shipping"
         ? 0
         : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.baseTotal
         : null;
     const shippingService =
-      delivery === "free_shipping"
+      delivery === "free-shipping"
         ? "Free Shipping"
         : delivery === "shipping" && state.shippingQuote
         ? state.shippingQuote.service
@@ -3323,7 +3407,7 @@ ${state.customer.email || ""}${
         if (state.delivery !== "shipping") {
           state.shippingQuote = null;
           shippingSummary.textContent =
-            state.delivery === "free_shipping"
+            state.delivery === "free-shipping"
               ? "Free Shipping selected — shipping cost will be R0."
               : "No courier shipping for pickup/delivery.";
         }
@@ -3369,6 +3453,28 @@ ${state.customer.email || ""}${
     }
 
     if (productsBody) {
+      const orderedQtyInputsForTab = () => {
+        const allInputs = Array.from(productsBody.querySelectorAll(".flocs-qtyInput"));
+        if (state.productType !== "combined") return allInputs;
+        const spiceInputs = [];
+        const popcornInputs = [];
+        const unknownInputs = [];
+        allInputs.forEach((input) => {
+          const group = String(input.dataset.productType || "").toLowerCase();
+          if (group === "spices") {
+            spiceInputs.push(input);
+            return;
+          }
+          if (group === "popcorn") {
+            popcornInputs.push(input);
+            return;
+          }
+          unknownInputs.push(input);
+        });
+        if (!spiceInputs.length && !popcornInputs.length) return allInputs;
+        return [...spiceInputs, ...popcornInputs, ...unknownInputs];
+      };
+
       productsBody.addEventListener("input", (e) => {
         const t = e.target;
         if (!(t instanceof HTMLInputElement)) return;
@@ -3399,7 +3505,7 @@ ${state.customer.email || ""}${
         const target = event.target;
         if (!(target instanceof HTMLInputElement) || !target.classList.contains("flocs-qtyInput")) return;
         if (event.key !== "Tab") return;
-        const inputs = Array.from(productsBody.querySelectorAll(".flocs-qtyInput"));
+        const inputs = orderedQtyInputsForTab();
         if (!inputs.length) return;
         const currentIndex = inputs.indexOf(target);
         if (currentIndex < 0) return;

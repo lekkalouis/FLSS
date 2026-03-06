@@ -572,6 +572,8 @@ let dispatchLastHandledPrintRequestAt = '';
 let dispatchLastHandledFulfillRequestAt = '';
 let remoteIndicatorState = { ok: true, detail: '' };
 let dispatchOrderCache = new Map();
+let dispatchOrderLookup = new Map();
+let dispatchOrdersLatest = [];
 let refreshDispatchViews = () => {};
 let renderEnvironmentHeaderWidget = () => {};
 let renderRemoteStatusBadge = () => {};
@@ -580,7 +582,14 @@ let updateDashboardKpis = () => {};
 let markDispatchLineItemPacked = () => {};
 let openDispatchOrderModal = () => {};
 let handleDispatchAction = () => Promise.resolve();
+let statusExplain = () => {};
 
+${extractFunctionSource(appJs, 'orderNoFromName')}
+${extractFunctionSource(appJs, 'normalizeDispatchSelectionKey')}
+${extractFunctionSource(appJs, 'setDispatchOrderLookupEntry')}
+${extractFunctionSource(appJs, 'buildDispatchOrderLookupIndexes')}
+${extractFunctionSource(appJs, 'resolveDispatchOrderFromSelectionKey')}
+${extractFunctionSource(appJs, 'resolveSelectedDispatchOrders')}
 ${extractFunctionSource(appJs, 'dispatchRotaryKeyForRow')}
 ${extractFunctionSource(appJs, 'getDispatchRotaryRows')}
 ${extractFunctionSource(appJs, 'syncDispatchRotarySelectionUI')}
@@ -604,7 +613,14 @@ return ({ rows, state, selectedOrders, rotarySelection, focusIndex = -1, focusKe
   dispatchLastHandledConfirmAt = '';
   dispatchLastHandledPrintRequestAt = '';
   dispatchLastHandledFulfillRequestAt = '';
-  dispatchOrderCache = new Map();
+  dispatchOrdersLatest = rows.map((row, index) => {
+    const rowOrderNo = String(row?.querySelector('.dispatchPackQtyBtn')?.dataset?.orderNo || '').trim();
+    return rowOrderNo
+      ? { id: String(5000 + index), name: '#' + rowOrderNo, line_items: [] }
+      : null;
+  }).filter(Boolean);
+  dispatchOrderCache = new Map(dispatchOrdersLatest.map((order) => [String(order.name || '').replace('#', '').trim(), order]));
+  buildDispatchOrderLookupIndexes(dispatchOrdersLatest, dispatchOrderCache);
   refreshDispatchViews = (orderId) => refreshDispatchViewsSpy.push(orderId);
   renderEnvironmentHeaderWidget = () => {};
   renderRemoteStatusBadge = () => {};
@@ -670,6 +686,138 @@ return ({ rows, state, selectedOrders, rotarySelection, focusIndex = -1, focusKe
     'focus reconciliation may move focus away from disabled rows while keeping rotary selection on the controller-selected row'
   );
   assert.deepEqual(movedSnapshot.refreshDispatchViewsCalls, [orderId]);
+});
+
+test('dispatch selection resolver normalizes keys and prunes stale selection references', async () => {
+  const appJs = await fs.readFile(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  const runtime = new Function(
+    `let dispatchSelectedOrders = new Set();
+let dispatchOrderCache = new Map();
+let dispatchOrderLookup = new Map();
+let dispatchOrdersLatest = [];
+let statusMessages = [];
+let statusExplain = (message) => statusMessages.push(String(message || ''));
+
+${extractFunctionSource(appJs, 'orderNoFromName')}
+${extractFunctionSource(appJs, 'normalizeDispatchSelectionKey')}
+${extractFunctionSource(appJs, 'setDispatchOrderLookupEntry')}
+${extractFunctionSource(appJs, 'buildDispatchOrderLookupIndexes')}
+${extractFunctionSource(appJs, 'resolveDispatchOrderFromSelectionKey')}
+${extractFunctionSource(appJs, 'resolveSelectedDispatchOrders')}
+
+return {
+  primeOrders: (orders) => {
+    dispatchOrdersLatest = Array.isArray(orders) ? orders : [];
+    dispatchOrderCache = new Map(
+      dispatchOrdersLatest.map((order) => [String(order?.name || '').replace('#', '').trim(), order])
+    );
+    buildDispatchOrderLookupIndexes(dispatchOrdersLatest, dispatchOrderCache);
+  },
+  setSelection: (keys) => {
+    dispatchSelectedOrders = new Set(Array.isArray(keys) ? keys : []);
+  },
+  resolve: (notify = false) => resolveSelectedDispatchOrders({ notifyOnPrune: notify }),
+  snapshot: () => ({
+    selected: [...dispatchSelectedOrders],
+    statusMessages: [...statusMessages]
+  })
+};`
+  )();
+
+  runtime.primeOrders([
+    { id: '9001', name: '#1001', line_items: [] }
+  ]);
+
+  runtime.setSelection(['#1001']);
+  const hashResult = runtime.resolve();
+  assert.deepEqual(hashResult.orderNos, ['1001']);
+  assert.deepEqual(runtime.snapshot().selected, ['1001']);
+
+  runtime.setSelection(['9001']);
+  const idResult = runtime.resolve();
+  assert.deepEqual(idResult.orderNos, ['1001']);
+  assert.deepEqual(runtime.snapshot().selected, ['1001']);
+
+  runtime.setSelection(['missing-key']);
+  const missingResult = runtime.resolve(true);
+  assert.equal(missingResult.rows.length, 0);
+  const snapshot = runtime.snapshot();
+  assert.deepEqual(snapshot.selected, []);
+  assert.ok(
+    snapshot.statusMessages.some((message) =>
+      message.includes('Selection updated: some stale order references were cleared.')
+    )
+  );
+});
+
+test('applyDispatchControllerState resolves controller keys and preserves manual selection when unresolved', async () => {
+  const appJs = await fs.readFile(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  const runtime = new Function(
+    `let dispatchControllerState = null;
+let dispatchSelectedOrders = new Set();
+let dispatchRotarySelectedKey = '';
+let dispatchLastHandledConfirmAt = '';
+let dispatchLastHandledPrintRequestAt = '';
+let dispatchLastHandledFulfillRequestAt = '';
+let dispatchOrderCache = new Map();
+let dispatchOrderLookup = new Map();
+let dispatchOrdersLatest = [];
+let dispatchBoard = { querySelector: () => null };
+let handleDispatchAction = () => Promise.resolve();
+let openDispatchOrderModal = () => {};
+let toggleDispatchLineItemPacked = () => {};
+let setDispatchLinePackedQuantity = () => {};
+let syncDispatchRotarySelectionUI = () => {};
+let dispatchPackedQtyPromptState = null;
+let statusExplain = () => {};
+
+${extractFunctionSource(appJs, 'orderNoFromName')}
+${extractFunctionSource(appJs, 'normalizeDispatchSelectionKey')}
+${extractFunctionSource(appJs, 'setDispatchOrderLookupEntry')}
+${extractFunctionSource(appJs, 'buildDispatchOrderLookupIndexes')}
+${extractFunctionSource(appJs, 'resolveDispatchOrderFromSelectionKey')}
+${extractFunctionSource(appJs, 'resolveSelectedDispatchOrders')}
+${extractFunctionSource(appJs, 'applyDispatchControllerState')}
+
+return {
+  primeOrders: (orders) => {
+    dispatchOrdersLatest = Array.isArray(orders) ? orders : [];
+    dispatchOrderCache = new Map(
+      dispatchOrdersLatest.map((order) => [String(order?.name || '').replace('#', '').trim(), order])
+    );
+    buildDispatchOrderLookupIndexes(dispatchOrdersLatest, dispatchOrderCache);
+  },
+  setSelection: (keys) => {
+    dispatchSelectedOrders = new Set(Array.isArray(keys) ? keys : []);
+  },
+  applyState: (state) => {
+    dispatchControllerState = state;
+    return applyDispatchControllerState();
+  },
+  snapshot: () => ({
+    selected: [...dispatchSelectedOrders],
+    rotaryKey: dispatchRotarySelectedKey
+  })
+};`
+  )();
+
+  runtime.primeOrders([
+    { id: '9001', name: '#1001', line_items: [] }
+  ]);
+
+  runtime.setSelection([]);
+  const resolvedFromId = runtime.applyState({ selectedOrderId: '9001', selectedLineItemKey: 'line-1a' });
+  assert.equal(resolvedFromId.selectedOrderId, '1001');
+  assert.deepEqual(runtime.snapshot().selected, ['1001']);
+  assert.equal(runtime.snapshot().rotaryKey, '1001:line-1a');
+
+  runtime.setSelection(['1001']);
+  const unresolved = runtime.applyState({ selectedOrderId: 'does-not-exist', selectedLineItemKey: 'line-2b' });
+  assert.equal(unresolved.selectedOrderChanged, false);
+  assert.deepEqual(runtime.snapshot().selected, ['1001']);
+  assert.equal(runtime.snapshot().rotaryKey, '');
 });
 
 test('environment header widget preserves last numeric reading across null updates', async () => {

@@ -133,7 +133,8 @@ function mmToDots(mm, dpi = 203) {
 
 function buildPplbStickerRaw({
   quantity = 52,
-  bestBeforeLine,
+  bestBeforeTitleLine,
+  bestBeforeDateLine,
   batchLine
 }) {
   const qty = Math.max(4, Math.trunc(Number(quantity) || 52));
@@ -142,13 +143,15 @@ function buildPplbStickerRaw({
 
   const rollWidthDots = mmToDots(100);
   const labelHeightDots = mmToDots(16);
-  const gapDots = mmToDots(2);
-  const leftMarginDots = mmToDots(3);
+  const gapDots = mmToDots(3);
   const labelWidthDots = mmToDots(22);
-  const columnGapDots = mmToDots(2);
+  const columnGapDots = mmToDots(3);
+  const rowContentWidthDots = (labelWidthDots * 4) + (columnGapDots * 3);
+  const leftMarginDots = Math.max(0, Math.floor((rollWidthDots - rowContentWidthDots) / 2));
 
-  const lineOneY = Math.max(8, mmToDots(3));
-  const lineTwoY = Math.max(lineOneY + 20, mmToDots(9));
+  const lineOneY = Math.max(6, mmToDots(2));
+  const lineTwoY = Math.max(lineOneY + 14, mmToDots(6.5));
+  const lineThreeY = Math.max(lineTwoY + 14, mmToDots(11));
 
   const lines = [
     "I8,A,001",
@@ -162,8 +165,9 @@ function buildPplbStickerRaw({
     lines.push("N");
     for (let col = 0; col < 4; col += 1) {
       const x = leftMarginDots + (col * (labelWidthDots + columnGapDots)) + 6;
-      lines.push(`A${x},${lineOneY},0,1,1,1,N,"${bestBeforeLine}"`);
-      lines.push(`A${x},${lineTwoY},0,1,1,1,N,"${batchLine}"`);
+      lines.push(`A${x},${lineOneY},0,1,1,1,N,"${bestBeforeTitleLine}"`);
+      lines.push(`A${x},${lineTwoY},0,1,1,1,N,"${bestBeforeDateLine}"`);
+      lines.push(`A${x},${lineThreeY},0,1,1,1,N,"${batchLine}"`);
     }
     lines.push("P1");
   }
@@ -564,7 +568,9 @@ router.post("/printnode/print-best-before-stickers", async (req, res) => {
     })();
 
     const bestBeforeDate = addMonths(productionDate, shelfLifeMonths) || productionDate;
-    const bestBeforeLine = `Best Before: ${formatBestBeforeMonthYear(bestBeforeDate)}`;
+    const bestBeforeTitleLine = "Best Before";
+    const bestBeforeDateLine = formatBestBeforeMonthYear(bestBeforeDate);
+    const bestBeforeLine = `${bestBeforeTitleLine}: ${bestBeforeDateLine}`;
     const batchLine = `BN:${formatBatchCode(productionDate)}`;
     const stickerPrinterId = selectStickerPrinterId(input.printerId);
 
@@ -578,14 +584,15 @@ router.post("/printnode/print-best-before-stickers", async (req, res) => {
 
     const payload = buildPplbStickerRaw({
       quantity: roundedQty,
-      bestBeforeLine,
+      bestBeforeTitleLine,
+      bestBeforeDateLine,
       batchLine
     });
     const rawBase64 = Buffer.from(payload.raw, "utf8").toString("base64");
     const result = await sendPrintNodeJob({
       rawBase64,
       contentType: "raw_base64",
-      title: input.title || `Best-before stickers ${bestBeforeLine}`,
+      title: input.title || `Best-before stickers ${bestBeforeDateLine}`,
       printerId: stickerPrinterId,
       source: "FLSS Sticker Printer",
       jobType: "best_before_sticker",
@@ -597,6 +604,8 @@ router.post("/printnode/print-best-before-stickers", async (req, res) => {
         commandLanguage,
         productionDate: productionDate.toISOString(),
         shelfLifeMonths,
+        bestBeforeTitleLine,
+        bestBeforeDateLine,
         bestBeforeLine,
         batchLine
       }

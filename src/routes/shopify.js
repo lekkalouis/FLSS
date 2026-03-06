@@ -275,7 +275,7 @@ function buildShippingLine({ shippingMethod, shippingPrice, shippingBaseTotal, s
     };
   }
 
-  if (method === "free_shipping") {
+  if (method === "free-shipping") {
     return { title: "Free shipping", price: "0" };
   }
 
@@ -294,7 +294,7 @@ function resolveShippingSubtotalValue({ shippingMethod, shippingBaseTotal, shipp
   const method = String(shippingMethod || "").trim().toLowerCase();
   if (!method) return null;
 
-  if (["free_shipping", "delivery", "pickup", "collection"].includes(method)) {
+  if (["free-shipping", "delivery", "pickup", "collection"].includes(method)) {
     return "0";
   }
 
@@ -538,7 +538,7 @@ async function fetchCustomerCustomMetafields(base, customerId) {
 async function ensureCustomerDeliveryType(base, customerId, deliveryType, currentMetafields = null) {
   const normalized = String(deliveryType || "").trim().toLowerCase();
   if (!customerId || !normalized) return;
-  const allowed = ["shipping", "free_shipping", "pickup", "delivery", "local"];
+  const allowed = ["shipping", "free-shipping", "pickup", "delivery", "local"];
   if (!allowed.includes(normalized)) return;
 
   const current = currentMetafields || (await fetchCustomerCustomMetafields(base, customerId));
