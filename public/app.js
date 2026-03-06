@@ -3663,10 +3663,13 @@ async function startOrder(orderNo) {
   }
 
   const DISPATCH_CHAIN_LOGOS = [
+    { src: "/img/BoltSupplies.png", alt: "Bolt Supplies", test: /\bbolt\s+supplies\b/ },
+    { src: "/img/thebutcherbrothers.png", alt: "The Butcher Brothers", test: /\b(?:the\s+)?butcher\s+brothers\b/ },
+    { src: "/img/cabfoods.png", alt: "CAB Foods", test: /\bcab\s+foods?\b|\balma\b|\bwarnerr?\b/ },
     { src: "/img/joeys.png", alt: "Joey's", test: /\bjoey'?s\b/ },
     { src: "/img/boerandbutcher.png", alt: "Boer and Butcher", test: /\bboer\s*(?:&|and)?\s*butcher\b/ },
     { src: "/img/hennies.png", alt: "Hennie's", test: /\bhennie'?s\b/ },
-    { src: "/img/spar.png", alt: "SPAR", test: /\b(?:super[\s-]*spar|spar)\b/ },
+    { src: "/img/spar.png", alt: "SPAR", test: /\b(?:kwik[\s-]*spar|super[\s-]*spars?|spar)\b/ },
     { src: "/img/Ok.jpg", alt: "OK Foods", test: /\bok(?:\s|-)?foods?\b/ },
     { src: "/img/pnp.png", alt: "Pick n Pay", test: /\bpnp\b|\bp\s*n\s*p\b|\bpick\s*['’]?\s*n\s*['’]?\s*pay\b/ },
     {

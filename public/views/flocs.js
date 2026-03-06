@@ -12,7 +12,8 @@ let googlePlacesScriptPromise = null;
 
 const MATRIX_POPCORN_SIZES = ["100ml"];
 const MATRIX_BASE_SIZES = ["200ml"];
-const MATRIX_BULK_SIZES = ["500g", "750g", "750g Tub", "1kg"];
+const MATRIX_BULK_SIZES = ["500g", "750g Tub", "1kg"];
+const HENNIES_MATRIX_SIZES = ["200ml", "1kg"];
 const MATRIX_SIZES = [...MATRIX_POPCORN_SIZES, ...MATRIX_BASE_SIZES, ...MATRIX_BULK_SIZES];
 
 const SPICE_FLAVOUR_ORDER_LABELS = [
@@ -547,7 +548,7 @@ export function initFlocsView() {
     return "";
   }
 
-  const SPAR_CHAIN_REGEX = /\b(?:super[\s-]*spar|spar)\b/;
+  const SPAR_CHAIN_REGEX = /\b(?:kwik[\s-]*spar|super[\s-]*spars?|spar)\b/;
 
   function customerMatchesChain(customer, segment) {
     const haystack = [
@@ -720,6 +721,40 @@ export function initFlocsView() {
     if (!source) return "#";
     const first = source.charAt(0).toUpperCase();
     return /^[A-Z]$/.test(first) ? first : "#";
+  }
+
+  function normalizeLookupText(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+  }
+
+  function customerLookupValues(customer) {
+    const addresses = Array.isArray(customer?.addresses) ? customer.addresses : [];
+    return [
+      customer?.name,
+      customer?.companyName,
+      customer?.default_address?.company,
+      customer?.default_address?.address1,
+      ...addresses.map((address) => address?.company),
+      ...addresses.map((address) => address?.address1)
+    ].filter(Boolean);
+  }
+
+  function findPreferredHenniesCustomer(customers = []) {
+    const list = Array.isArray(customers) ? customers : [];
+    if (!list.length) return null;
+    const target = "hennies sports bar";
+    const exactMatch = list.find((customer) =>
+      customerLookupValues(customer).some((value) => normalizeLookupText(value) === target)
+    );
+    if (exactMatch) return exactMatch;
+    return (
+      list.find((customer) =>
+        customerLookupValues(customer).some((value) => normalizeLookupText(value).includes(target))
+      ) || null
+    );
   }
 
   function customerMatchScore(customer, query) {
@@ -1084,6 +1119,7 @@ export function initFlocsView() {
   function normalizeMatrixSize(size) {
     const normalized = String(size || "").toLowerCase().replace(/\s+/g, " ").trim();
     if (normalized === "250ml") return "200ml";
+    if (normalized === "750g") return "750g tub";
     if (normalized === "750g tubs") return "750g tub";
     return normalized;
   }
@@ -1094,6 +1130,7 @@ export function initFlocsView() {
   }
 
   function visibleMatrixSizes() {
+    if (state.customerSpecialization?.isHennies) return [...HENNIES_MATRIX_SIZES];
     if (state.productType === "popcorn") return [...MATRIX_POPCORN_SIZES];
     if (state.productType === "combined") {
       const sizes = [...MATRIX_BASE_SIZES];
@@ -1123,7 +1160,9 @@ export function initFlocsView() {
   }
 
   function renderBulkToggleState() {
-    if (bulkColumnsWrap) bulkColumnsWrap.hidden = state.productType === "popcorn";
+    if (bulkColumnsWrap) {
+      bulkColumnsWrap.hidden = state.productType === "popcorn" || Boolean(state.customerSpecialization?.isHennies);
+    }
     if (bulkColumnsToggle) bulkColumnsToggle.checked = Boolean(state.showBulkColumns);
   }
 
@@ -1181,7 +1220,14 @@ export function initFlocsView() {
           )
           .forEach((product) => {
             const normalizedSize = normalizeMatrixSize(product.size);
-            if (!bySize.has(normalizedSize)) {
+            const existing = bySize.get(normalizedSize);
+            if (!existing) {
+              bySize.set(normalizedSize, product);
+              return;
+            }
+            const existingIsTub = normalizeMatrixSize(existing?.size).includes("tub");
+            const currentIsTub = normalizeMatrixSize(product?.size).includes("tub");
+            if (!existingIsTub && currentIsTub) {
               bySize.set(normalizedSize, product);
             }
           });
@@ -1677,7 +1723,7 @@ ${state.customer.email || ""}${
       <div class="flocs-invoiceHeader">
         <div>
           <div class="flocs-invoiceBrand">Flippen Lekka Holdings (Pty) Ltd</div>
-          <div class="flocs-invoiceSub">Draft order preview</div>
+          <div class="flocs-invoiceSub">Order Summary</div>
           <div class="flocs-invoiceSub flocs-invoiceSub--delivery">Delivery: ${deliveryLabel}</div>
         </div>
         <div class="flocs-invoiceHeaderMeta">
@@ -1690,13 +1736,6 @@ ${state.customer.email || ""}${
             <input id="flocs-invoice-delivery-date" class="flocs-input" type="date" value="${deliveryDateValue}" />
           </label>
         </div>
-      </div>
-
-      <div class="flocs-invoiceMetaControls">
-        <label class="flocs-invoiceInlineField flocs-invoiceInlineField--wide">
-          <span class="flocs-invoiceInlineLabel">Order Tags</span>
-          <input id="flocs-invoice-tags" class="flocs-input" type="text" value="${state.orderTagsText || ""}" placeholder="tag-one, tag-two, priority" />
-        </label>
       </div>
 
       <div class="flocs-invoiceCols">
@@ -1767,6 +1806,13 @@ ${state.customer.email || ""}${
         >
           Get quote now
         </button>
+      </div>
+
+      <div class="flocs-invoiceMetaControls flocs-invoiceMetaControls--footer">
+        <label class="flocs-invoiceInlineField flocs-invoiceInlineField--wide">
+          <span class="flocs-invoiceInlineLabel">Order Tags</span>
+          <input id="flocs-invoice-tags" class="flocs-input" type="text" value="${state.orderTagsText || ""}" placeholder="tag-one, tag-two, priority" />
+        </label>
       </div>
     `;
   }
@@ -3163,6 +3209,13 @@ ${state.customer.email || ""}${
         updateAzBarActive([]);
         renderCustomerSegmentFilters();
         await searchCustomersNow();
+        if (nextSegment === "chain_hennies") {
+          const list = Array.isArray(customerResults?._data) ? customerResults._data : [];
+          const preferredCustomer = findPreferredHenniesCustomer(list) || list[0] || null;
+          if (preferredCustomer) {
+            await selectCustomerForInput(preferredCustomer, { focusQty: true });
+          }
+        }
         syncChatSearchResetButton();
       });
     }

@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Flippen Lekka Scan Station — v5 (cleaned + 100×150 print lock)</title>
+<title>Flippen Lekka Operations Hub</title>
+<link
+  rel="icon"
+  type="image/svg+xml"
+  href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%AD%3C/text%3E%3C/svg%3E"
+/>
 <link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
 <script src="/vendor/oneui/js/setTheme.js"></script>
 <style>
@@ -3929,7 +3934,7 @@ body.dispatch-sidebar-open{
   .flHeaderTitleRow{
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-content:flex-start;
     gap:.7rem;
     width:100%;
     min-width:0;
@@ -3946,6 +3951,17 @@ body.dispatch-sidebar-open{
     align-items:center;
     gap:.5rem;
     min-width:0;
+  }
+  .flNavLogoLink{
+    display:inline-flex;
+    align-items:center;
+    line-height:0;
+    border-radius:.45rem;
+    text-decoration:none;
+  }
+  .flNavLogoLink:focus-visible{
+    outline:2px solid rgba(202,138,4,.55);
+    outline-offset:2px;
   }
   .flNavLogo{
     display:block;
@@ -4198,7 +4214,7 @@ body.dispatch-sidebar-open{
     justify-content:flex-start;
     gap:.4rem;
     flex-wrap:wrap;
-    margin-left:auto;
+    margin-left:.4rem;
     min-width:0;
   }
   .flNavGroup--top .flNavBtn{
@@ -4480,7 +4496,9 @@ body.dispatch-sidebar-open{
       <div class="flSide flSideHeader">
         <div class="flHeaderTitleRow">
           <div class="flNavTitleWrap">
-            <img class="flNavLogo" src="/img/logo.png" alt="Flippen Lekka" loading="lazy" />
+            <a class="flNavLogoLink" href="/" aria-label="Go to home">
+              <img class="flNavLogo" src="/img/logo.png" alt="Flippen Lekka" loading="lazy" />
+            </a>
             <div class="flNavTitle">Operations</div>
           </div>
           <div class="flNavGroup flNavGroup--top" role="tablist" aria-label="Primary views">
@@ -4916,7 +4934,7 @@ body.dispatch-sidebar-open{
                     </div>
                     <label id="flocs-bulkColumnsWrap" class="flocs-hint" style="display:inline-flex;align-items:center;gap:.35rem;margin:0">
                       <input id="flocs-bulkColumnsToggle" type="checkbox" />
-                      Show bulk columns (500g, 1kg, 750g)
+                      Show bulk columns (500g, 750g Tub, 1kg)
                     </label>
                   </div>
                 </div>
@@ -4933,11 +4951,21 @@ body.dispatch-sidebar-open{
               </div>
             </section>
 
-            <div id="flocs-previewPanel" class="flocs-panel flocs-previewPanel" aria-label="Invoice preview" hidden>
+            <div id="flocs-previewPanel" class="flocs-panel flocs-previewPanel" aria-label="Order summary" hidden>
               <div class="flocs-previewHeader">
-                <div><div class="flocs-previewTitle">Invoice preview</div></div>
-                <div>
+                <div><div class="flocs-previewTitle">Order Summary</div></div>
+                <div class="flocs-previewHeaderActions">
                   <div id="flocs-previewTag" class="flocs-previewTag">Select customer to begin</div>
+                  <div class="flocs-actionsRow flocs-previewCreateActions">
+                    <button id="flocs-createDraftBtn" class="flocs-actionBtn" type="button">
+                      <span>📝</span>
+                      <span>Create draft order</span>
+                    </button>
+                    <button id="flocs-createOrderBtn" class="flocs-actionBtn" type="button">
+                      <span>✅</span>
+                      <span>Create live order</span>
+                    </button>
+                  </div>
                 </div>
               </div>
               <div class="flocs-previewControls">
@@ -4974,16 +5002,6 @@ body.dispatch-sidebar-open{
                 </div>
               </div>
               <div class="flocs-invoice" id="flocs-invoice"></div>
-              <div class="flocs-actionsRow flocs-previewCreateActions">
-                <button id="flocs-createDraftBtn" class="flocs-actionBtn" type="button">
-                  <span>📝</span>
-                  <span>Create draft order</span>
-                </button>
-                <button id="flocs-createOrderBtn" class="flocs-actionBtn" type="button">
-                  <span>✅</span>
-                  <span>Create live order</span>
-                </button>
-              </div>
             </div>
           </main>
         </div>

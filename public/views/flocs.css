@@ -182,8 +182,9 @@
       background:var(--panel);
     }
     #viewFlocs .flocs-previewPanel .flocs-previewHeader{
-      flex-direction:column;
+      flex-direction:row;
       align-items:flex-start;
+      justify-content:space-between;
       gap:.5rem;
     }
     #viewFlocs .flocs-previewPanel .flocs-previewTag{
@@ -1210,9 +1211,9 @@
     }
     #viewFlocs .flocs-previewCreateActions{
       justify-content:flex-end;
-      margin-top:.75rem;
-      padding-top:.6rem;
-      border-top:1px dashed rgba(148,163,184,.45);
+      margin-top:0;
+      padding-top:0;
+      border-top:none;
     }
     #viewFlocs .flocs-previewCreateActions .flocs-actionBtn{
       min-width:10.8rem;
@@ -1268,6 +1269,13 @@
       align-items:flex-start;
       gap:.75rem;
       margin-bottom:.6rem;
+    }
+    #viewFlocs .flocs-previewHeaderActions{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:.35rem;
+      margin-left:auto;
     }
     #viewFlocs .flocs-previewTitle{
       font-size:.9rem;
@@ -1625,6 +1633,9 @@
 #viewFlocs .flocs-invoiceMetaControls{
   margin:.45rem 0 .6rem;
 }
+#viewFlocs .flocs-invoiceMetaControls--footer{
+  margin:.6rem 0 0;
+}
 #viewFlocs .flocs-invoiceInlineControls{
   display:grid;
   grid-template-columns:repeat(2, minmax(0, 1fr));
@@ -1806,6 +1817,14 @@
   }
   #viewFlocs .flocs-previewCreateActions .flocs-actionBtn{
     min-width:0;
+  }
+  #viewFlocs .flocs-previewHeader{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  #viewFlocs .flocs-previewHeaderActions{
+    width:100%;
+    align-items:stretch;
   }
   #viewFlocs .flocs-invoiceHeader{
     flex-direction:column;
