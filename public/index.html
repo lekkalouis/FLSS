@@ -102,7 +102,7 @@
     margin:0;
     background:#0f172a;
     border-bottom:1px solid rgba(148,163,184,.28);
-    box-shadow:0 8px 18px rgba(2,6,23,.2);
+    box-shadow:none;
   }
   .flLayout{
     display:flex;
@@ -3905,7 +3905,7 @@ body.dispatch-sidebar-open{
   /* Modern header rework */
   .flSide{
     position:sticky;
-    top:var(--fl-top-utility-height);
+    top:0;
     z-index:1200;
     margin:0;
   }
@@ -4477,7 +4477,7 @@ body.dispatch-sidebar-open{
       </div>
     </header>
     <div class="flLayout">
-      <aside class="flSide flSideHeader">
+      <div class="flSide flSideHeader">
         <div class="flHeaderTitleRow">
           <div class="flNavTitleWrap">
             <img class="flNavLogo" src="/img/logo.png" alt="Flippen Lekka" loading="lazy" />
@@ -4490,6 +4490,11 @@ body.dispatch-sidebar-open{
             <button id="navFulfillment" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillment" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnText">Fulfillment</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
+          </div>
+          <div class="flHeaderUtilityNav" role="tablist" aria-label="System views">
+            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Docs</span></button>
+            <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnText">Admin</span></button>
+            <button id="navFooterChangelog" class="flNavBtn" type="button" role="tab" aria-controls="viewChangelog" aria-selected="false" data-route="/changelog"><span class="flNavBtnText">Changelog</span></button>
           </div>
         </div>
         <div class="flNewOrderFab">
@@ -4507,7 +4512,7 @@ body.dispatch-sidebar-open{
             <input id="scanInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scan or enter Barcode" tabindex="-1" />
             <button id="multiShipmentBtn" class="multiShipmentBtn" type="button" hidden tabindex="-1">MS</button>
           </div>
-      </aside>
+      </div>
       <main class="flMain">
         <div class="flView flView--active" id="viewScan">
       <div id="screenFlash" class="screenFlash" aria-hidden="true"></div>
@@ -4531,7 +4536,7 @@ body.dispatch-sidebar-open{
               </div>
             </div>
           </div>
-          <aside class="dispatchSelectionSidebar is-open" id="dispatchSelectionSidebar" aria-label="Selected orders panel">
+          <div class="dispatchSelectionSidebar is-open" id="dispatchSelectionSidebar" aria-label="Selected orders panel">
             <button
               class="dispatchSelectionSidebarToggle"
               id="dispatchSelectionSidebarToggle"
@@ -4560,7 +4565,7 @@ body.dispatch-sidebar-open{
                 </div>
               </div>
 </div>
-          </aside>
+          </div>
         </div>
       </div>
       <div class="dispatchOrderModal" id="dispatchOrderModal" aria-hidden="true">
@@ -4627,7 +4632,7 @@ body.dispatch-sidebar-open{
 
         <div class="flView" id="viewDocs" hidden>
           <div class="docsModule" id="docsModuleRoot">
-            <aside class="docsPanel docsTopics" id="docsTopics" aria-label="Documentation topics"></aside>
+            <div class="docsPanel docsTopics" id="docsTopics" aria-label="Documentation topics"></div>
             <article class="docsPanel docsContent" id="docsContent" aria-live="polite"></article>
             <nav class="docsPanel docsSubnav" id="docsSubnav" aria-label="Topic navigation"></nav>
           </div>
@@ -4931,7 +4936,7 @@ body.dispatch-sidebar-open{
               </div>
             </section>
 
-            <aside id="flocs-previewPanel" class="flocs-panel flocs-previewPanel" aria-label="Invoice preview" hidden>
+            <div id="flocs-previewPanel" class="flocs-panel flocs-previewPanel" aria-label="Invoice preview" hidden>
               <div class="flocs-previewHeader">
                 <div><div class="flocs-previewTitle">Invoice preview</div></div>
                 <div>
@@ -4982,7 +4987,7 @@ body.dispatch-sidebar-open{
                   <span>Create live order</span>
                 </button>
               </div>
-            </aside>
+            </div>
           </main>
         </div>
 

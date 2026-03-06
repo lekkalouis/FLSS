@@ -1266,7 +1266,7 @@ router.post("/shopify/customers", async (req, res) => {
         metafields.push({
           namespace: "custom",
           key,
-          type: "single_line_text_field",
+          type: "boolean",
           value: paymentBeforeShipping ? "true" : "false"
         });
       });
