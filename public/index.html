@@ -3914,9 +3914,8 @@ body.dispatch-sidebar-open{
     display:flex;
     flex-direction:column;
     align-items:stretch;
-    gap:.55rem;
-    padding:.7rem;
-    padding-bottom:.65rem;
+    gap:.4rem;
+    padding:0 .7rem .54rem;
     border-radius:0;
     border:1px solid rgba(148,163,184,.22);
     border-top:0;
@@ -4354,8 +4353,7 @@ body.dispatch-sidebar-open{
   }
   @media (max-width:760px){
     .flSideHeader{
-      padding:.55rem;
-      padding-bottom:.55rem;
+      padding:0 .55rem .55rem;
       border-radius:0;
     }
     .flHeaderSub{
@@ -4492,11 +4490,6 @@ body.dispatch-sidebar-open{
             <button id="navFulfillment" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillment" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnText">Fulfillment</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
-          </div>
-          <div class="flHeaderUtilityNav" role="tablist" aria-label="System views">
-            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Docs</span></button>
-            <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnText">Admin</span></button>
-            <button id="navFooterChangelog" class="flNavBtn" type="button" role="tab" aria-controls="viewChangelog" aria-selected="false" data-route="/changelog"><span class="flNavBtnText">Changelog</span></button>
           </div>
         </div>
         <div class="flNewOrderFab">
@@ -5191,6 +5184,11 @@ body.dispatch-sidebar-open{
             </div>
           </section>
         </div>
+        <div class="flFooterLinks" role="tablist" aria-label="System views">
+          <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Docs</span></button>
+          <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnText">Admin</span></button>
+          <button id="navFooterChangelog" class="flNavBtn" type="button" role="tab" aria-controls="viewChangelog" aria-selected="false" data-route="/changelog"><span class="flNavBtnText">Changelog</span></button>
+        </div>
       </footer>
     </div>
   </div>
@@ -5229,7 +5227,6 @@ body.dispatch-sidebar-open{
 <script src="/dispatch-header-widgets.js"></script>
 </body>
 </html>
-
 
 
 
