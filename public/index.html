@@ -3929,7 +3929,7 @@ body.dispatch-sidebar-open{
   .flHeaderTitleRow{
     display:flex;
     align-items:center;
-    justify-content:flex-start;
+    justify-content:space-between;
     gap:.7rem;
     width:100%;
     min-width:0;
@@ -4198,7 +4198,7 @@ body.dispatch-sidebar-open{
     justify-content:flex-start;
     gap:.4rem;
     flex-wrap:wrap;
-    margin-left:0;
+    margin-left:auto;
     min-width:0;
   }
   .flNavGroup--top .flNavBtn{
@@ -4483,18 +4483,11 @@ body.dispatch-sidebar-open{
             <img class="flNavLogo" src="/img/logo.png" alt="Flippen Lekka" loading="lazy" />
             <div class="flNavTitle">Operations</div>
           </div>
-        </div>
-        <div class="flHeaderNavStack">
           <div class="flNavGroup flNavGroup--top" role="tablist" aria-label="Primary views">
             <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true" data-route="/"><span class="flNavBtnText">Orders</span></button>
             <button id="navFulfillment" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillment" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnText">Fulfillment</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnText">Stock take</span></button>
             <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
-          </div>
-          <div class="flHeaderUtilityNav" role="tablist" aria-label="System views">
-            <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Docs</span></button>
-            <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnText">Admin</span></button>
-            <button id="navFooterChangelog" class="flNavBtn" type="button" role="tab" aria-controls="viewChangelog" aria-selected="false" data-route="/changelog"><span class="flNavBtnText">Changelog</span></button>
           </div>
         </div>
         <div class="flNewOrderFab">
