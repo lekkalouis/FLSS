@@ -807,6 +807,20 @@
       --chain-active-bg:rgba(246,207,58,.4);
       --chain-active-inset:rgba(123,86,0,.3);
     }
+    #viewFlocs .flocs-customerItem.is-chain-hennies{
+      --chain-border:rgba(14,116,144,.6);
+      --chain-bg:rgba(6,182,212,.16);
+      --chain-color:#0c4a6e;
+      --chain-inset:rgba(14,116,144,.22);
+      --chain-hover-border:rgba(8,145,178,.72);
+      --chain-hover-bg:rgba(34,211,238,.22);
+      --chain-candidate-border:rgba(14,116,144,.78);
+      --chain-candidate-bg:rgba(34,211,238,.28);
+      --chain-candidate-inset:rgba(14,116,144,.26);
+      --chain-active-border:rgba(7,89,133,.84);
+      --chain-active-bg:rgba(34,211,238,.34);
+      --chain-active-inset:rgba(7,89,133,.3);
+    }
     #viewFlocs .flocs-customerItem.is-chain-boer-butcher{
       --chain-border:rgba(185,28,28,.62);
       --chain-bg:rgba(220,38,38,.16);

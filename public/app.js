@@ -3665,6 +3665,7 @@ async function startOrder(orderNo) {
   const DISPATCH_CHAIN_LOGOS = [
     { src: "/img/joeys.png", alt: "Joey's", test: /\bjoey'?s\b/ },
     { src: "/img/boerandbutcher.png", alt: "Boer and Butcher", test: /\bboer\s*(?:&|and)?\s*butcher\b/ },
+    { src: "/img/hennies.png", alt: "Hennie's", test: /\bhennie'?s\b/ },
     { src: "/img/spar.png", alt: "SPAR", test: /\b(?:super[\s-]*spar|spar)\b/ },
     { src: "/img/Ok.jpg", alt: "OK Foods", test: /\bok(?:\s|-)?foods?\b/ },
     { src: "/img/pnp.png", alt: "Pick n Pay", test: /\bpnp\b|\bp\s*n\s*p\b|\bpick\s*['’]?\s*n\s*['’]?\s*pay\b/ },
@@ -6026,7 +6027,7 @@ async function startOrder(orderNo) {
         }
         const laneOrders = laneOrdersByColId[col.id] || [];
         const cards = renderLaneCards(laneOrders, col.id);
-        const colTitle = col.id === "pickup" ? "Pickup · Lane 8" : col.label;
+        const colTitle = col.id === "pickup" ? "Pickup" : col.label;
         return `
           <div class="dispatchCol" data-lane-id="${col.id}">
             <div class="dispatchColHeader">

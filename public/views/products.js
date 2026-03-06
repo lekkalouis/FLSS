@@ -77,6 +77,24 @@ const BASE_PRODUCTS = [
     weightKg: 1.007,
     prices: { agent: 107.0, retail: 130.0, export: 135.0, private: 170.0, public: 200.0 }
   },
+  {
+    sku: "RRBB",
+    title: "Hennies Bietjie Blaf Spice 200ml",
+    flavour: "Bietjie Blaf",
+    size: "200ml",
+    variantId: 43873380663343,
+    weightKg: 0.2,
+    prices: { agent: 20.5, retail: 20.5, export: 20.5, private: 20.5, public: 20.5 }
+  },
+  {
+    sku: "RRBB1KG",
+    title: "Hennies Bietjie Blaf Spice 1kg",
+    flavour: "Bietjie Blaf",
+    size: "1kg",
+    variantId: 43873380696111,
+    weightKg: 1.007,
+    prices: { agent: 92.0, retail: 92.0, export: 92.0, private: 92.0, public: 92.0 }
+  },
 
   {
     sku: "FL014",

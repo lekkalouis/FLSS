@@ -1,6 +1,10 @@
 import { PRODUCT_LIST } from "./products.js";
 import { normalizeFlavourKey, resolveFlavourColor } from "./flavour-map.js";
-import { isHenniesCustomerContext, normalizeTagList } from "./customer-specialization.js";
+import {
+  isHenniesCustomerContext,
+  isHenniesOrderProduct,
+  normalizeTagList
+} from "./customer-specialization.js";
 
 let flocsInitialized = false;
 let flocsInitPromise = null;
@@ -164,6 +168,7 @@ export function initFlocsView() {
     "agent",
     "retail",
     "export",
+    "chain_hennies",
     "chain_joeys",
     "chain_boer_butcher",
     "chain_spar",
@@ -173,6 +178,7 @@ export function initFlocsView() {
     "chain_laeveld"
   ]);
   const CUSTOMER_CHAIN_ITEM_CLASS = Object.freeze({
+    chain_hennies: "is-chain-hennies",
     chain_joeys: "is-chain-joeys",
     chain_boer_butcher: "is-chain-boer-butcher",
     chain_spar: "is-chain-spar",
@@ -472,6 +478,12 @@ export function initFlocsView() {
     };
   }
 
+  function activeProductsForCustomer() {
+    const products = Array.isArray(state.products) ? state.products : [];
+    if (!state.customerSpecialization?.isHennies) return products;
+    return products.filter((product) => isHenniesOrderProduct(product));
+  }
+
   function resolvePriceTier(tags) {
     const normalized = tags.map((t) => t.toLowerCase());
     const found = PRICE_TAGS.find((tag) => normalized.includes(tag)) || null;
@@ -551,6 +563,7 @@ export function initFlocsView() {
       .join(" ")
       .toLowerCase();
 
+    if (segment === "chain_hennies") return /\bhenn(?:ie|ies)\b/.test(haystack);
     if (segment === "chain_joeys") return /\bjoey'?s\b/.test(haystack);
     if (segment === "chain_boer_butcher") return /\bboer\s*(?:&|and)?\s*butcher\b/.test(haystack);
     if (segment === "chain_spar") return SPAR_CHAIN_REGEX.test(haystack);
@@ -589,6 +602,7 @@ export function initFlocsView() {
     if (!resolved) return "No group";
     if (resolved === "agent") return "Agent";
     if (resolved === "export") return "Export";
+    if (resolved === "chain_hennies") return "Hennie's";
     if (resolved === "chain_joeys") return "Joey's";
     if (resolved === "chain_boer_butcher") return "Boer & Butcher";
     if (resolved === "chain_spar") return "SPAR";
@@ -948,7 +962,7 @@ export function initFlocsView() {
 
   function buildItemsArray() {
     const out = [];
-    for (const p of state.products) {
+    for (const p of activeProductsForCustomer()) {
       const key = productKey(p);
       const qty = Number(state.items[key] || 0);
       if (!qty || qty <= 0) continue;
@@ -1129,13 +1143,14 @@ export function initFlocsView() {
   }
 
   function filteredProductsForMatrix() {
+    const products = activeProductsForCustomer();
     if (state.productType === "popcorn") {
-      return state.products.filter((product) => isPopcornSprinkleProduct(product));
+      return products.filter((product) => isPopcornSprinkleProduct(product));
     }
     if (state.productType === "spices") {
-      return state.products.filter((product) => !isPopcornSprinkleProduct(product));
+      return products.filter((product) => !isPopcornSprinkleProduct(product));
     }
-    return [...state.products];
+    return [...products];
   }
 
   function flavourSortIndex(flavour, productType = state.productType) {
@@ -1275,7 +1290,10 @@ export function initFlocsView() {
       if (aPriority !== bPriority) return aPriority - bPriority;
       return aSku.localeCompare(bSku, undefined, { sensitivity: "base" });
     });
-    const groupedRowsSource = grouped.filter((entry) => flavourKey(entry.flavour) !== "other");
+    const showOtherFlavours = Boolean(state.customerSpecialization?.isHennies);
+    const groupedRowsSource = grouped.filter((entry) =>
+      showOtherFlavours ? true : flavourKey(entry.flavour) !== "other"
+    );
     const renderNonMatrixIdentity = (product) => {
       const sku = String(product?.sku || "").trim().toUpperCase();
       if (sku === "FLBS001") {
@@ -1359,7 +1377,10 @@ export function initFlocsView() {
       if (entry?.html) extraRowEntries.push(entry);
     });
 
-    const emptyRow = `<tr><td colspan="${1 + matrixColumnCount}" class="flocs-matrixCell flocs-matrixCell--empty">No products in this filter.</td></tr>`;
+    const emptyMessage = state.customerSpecialization?.isHennies
+      ? "No Hennie's products found (RRBB, RRBB1KG)."
+      : "No products in this filter.";
+    const emptyRow = `<tr><td colspan="${1 + matrixColumnCount}" class="flocs-matrixCell flocs-matrixCell--empty">${emptyMessage}</td></tr>`;
 
     if (state.productType === "combined") {
       const sectionOrder = [
@@ -2384,11 +2405,15 @@ ${state.customer.email || ""}${
 
   function focusPrimaryQtyInput() {
     if (!productsBody) return;
-    const primary = state.products.find((product) => {
-      const flavour = String(product?.flavour || "").trim().toLowerCase();
-      const size = normalizeMatrixSize(product?.size);
-      return flavour === "original" && size === "200ml";
-    });
+    const products = activeProductsForCustomer();
+    const primary = state.customerSpecialization?.isHennies
+      ? products.find((product) => String(product?.sku || "").trim().toUpperCase() === "RRBB") ||
+        products.find((product) => String(product?.sku || "").trim().toUpperCase() === "RRBB1KG")
+      : products.find((product) => {
+          const flavour = String(product?.flavour || "").trim().toLowerCase();
+          const size = normalizeMatrixSize(product?.size);
+          return flavour === "original" && size === "200ml";
+        });
     const primaryKey = primary ? productKey(primary) : "";
     const selector = primaryKey
       ? `.flocs-qtyInput[data-key="${CSS.escape(primaryKey)}"]`
