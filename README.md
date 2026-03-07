@@ -1,80 +1,65 @@
-﻿# FLSS Repo 2.2
+# FLSS
 
-FLSS is a Node + Express operations platform for order capture, dispatch, printing, notification delivery, inventory support, pricing tools, traceability, and admin utilities.
+FLSS is a Node + Express operations platform for order capture, dispatch, printing, notifications, inventory control, purchasing, manufacturing, pricing, and admin tooling.
 
-## 2.2 highlights
+The current workspace serves the SPA, compatibility pages, APIs, and controller interfaces from one runtime. When code and docs disagree, treat the current checkout and passing tests as the source of truth.
 
-- Dispatch selection now uses a two-phase rotary model: order mode first, then line mode for packing.
-- The controller overlay exposes large on-screen `Back / Cancel` and `Confirm / Select` actions for 65-inch dispatch screens.
-- Settings are grouped into `General`, `Printers`, `Controller`, `Notifications`, and `Monitoring` inside one modal.
-- Notification templates are the runtime source of truth for pickup-ready and truck-collection emails.
-- Admin is now the primary launcher for operational tools, while direct standalone URLs still work.
-- The changelog feature has been retired from the UI, build flow, and generated assets.
+## Primary routes
 
-## App surfaces
-
-### SPA routes
+Main operator routes:
 
 - `/` - Orders and dispatch workspace
-- `/flocs` - FLOCS order capture
-- `/stock` - Stock tools
-- `/price-manager` - Price manager
-- `/docs` - In-app documentation for Repo 2.2
-- `/flowcharts` - Dispatch and packing guidance
-- `/dispatch-settings` - Admin-only dispatch settings view
-- `/logs` - Admin-only operational logs
-- `/admin` - Admin launcher and embedded tool workspace
+- `/fulfillment-history` - Recently fulfilled orders and delivery history
+- `/flocs` - Sales order capture
+- `/stock` - Inventory, raw materials, batches, and stocktakes
+- `/buy` - Purchase order orchestration
+- `/make` - Manufacturing order orchestration
+- `/docs` - In-app documentation browser
+- `/flowcharts` - Packing and dispatch decision maps
+- `/admin` - Admin launcher
+- `/admin/price-manager` - Price Manager
+- `/admin/agent-commissions` - Agent Commissions
 
-### Direct standalone tools
+Public utility route:
 
-Direct URLs remain available for compatibility:
+- `/deliver` - Driver delivery check-in page used by signed delivery QR codes
 
-- `/station-controller.html`
-- `/manufacturing.html`
-- `/product-management.html`
-- `/pos.html`
-- `/shipping-matrix.html`
-- `/order-capture-custom.html`
-- `/customer-accounts.html`
-- `/purchase-orders.html`
-- `/liquid-templates.html`
-- `/notification-templates.html`
-- `/traceability.html`
-- `/agent-commissions.html`
-- `/order-payments.html`
+## Compatibility redirects
 
-## Settings model
+> Compatibility / legacy: the routes below are retained only so old bookmarks and printed links still land on the supported surfaces.
 
-System settings are stored server-side and normalized additively so existing records keep their current values.
+- `/purchase-orders.html` -> `/buy`
+- `/manufacturing.html` -> `/make`
+- `/product-management.html` -> `/stock?section=inventory&tab=raw-materials`
+- `/price-manager.html` -> `/admin/price-manager`
+- `/agent-commissions.html` -> `/admin/agent-commissions`
+- `/traceability.html` -> `/stock?section=batches`
+- `/dispatch-settings` -> `/stock?notice=tool-retired`
+- `/logs` -> `/stock?notice=tool-retired`
+- `/station-controller.html` -> `/stock?notice=tool-retired`
+- `/pos.html` -> `/stock?notice=tool-retired`
+- `/shipping-matrix.html` -> `/stock?notice=tool-retired`
+- `/order-capture-custom.html` -> `/stock?notice=tool-retired`
+- `/customer-accounts.html` -> `/stock?notice=tool-retired`
+- `/liquid-templates.html` -> `/stock?notice=tool-retired`
+- `/notification-templates.html` -> `/stock?notice=tool-retired`
 
-Persisted sections:
+## Runtime interfaces
 
-- `sticker`
-- `printHistory`
-- `relay`
-- `controller`
-- `notifications`
+HTTP API base:
 
-Notification settings control sender override, fallback recipients, event bindings, event-specific recipients, and test sends.
+- `/api/v1`
 
-## API groups
+Non-API runtime interfaces:
 
-All routes are mounted at `/api/v1`.
+- `/ws/controller` - WebSocket feed for controller status and events
+- `POST /__git_update` - GitHub webhook entrypoint for the repo update script
 
-- Health and config: `/healthz`, `/statusz`, `/config`
-- Docs: `/docs`, `/docs/:slug`
-- Dispatch controller: `/dispatch/state`, `/dispatch/events`, `/dispatch/remote/*`, `/dispatch/{next,prev,confirm,back,print,fulfill}`
-- System settings: `/system/settings`, `/system/settings/notifications/test`
-- Templates: `/liquid-templates`, `/notification-templates`
-- Alerts: `/alerts/book-truck`
-- Shopify proxy and dispatch flows: `/shopify/*`
-- PrintNode: `/printnode/*`
-- ParcelPerfect: `/pp*`
-- Traceability: `/traceability/*`
+See [docs/api-reference.md](docs/api-reference.md) for the exact route inventory and access rules.
 
-See [docs/api-reference.md](docs/api-reference.md) for the current route map.
+## Development
 
-## Local development
+Install and run locally:
 
 ```bash
 npm install
@@ -83,54 +68,61 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Build and test
+Generate runtime artifacts and run tests:
 
 ```bash
 npm run build
 npm test
 ```
 
-`npm run build` now generates the remaining runtime artifacts without any changelog step.
+Production start is cross-platform:
+
+```bash
+npm start
+```
+
+`npm start` runs [`scripts/start-production.mjs`](scripts/start-production.mjs), which sets `NODE_ENV=production` and imports `server.js`.
 
 ## Configuration
 
-Create `.env` from `.env.example` and set the integrations you use.
+Copy `.env.example` to `.env` and fill in the integrations you use.
 
 Common groups:
 
-- Core server: `PORT`, `HOST`, `NODE_ENV`, `FRONTEND_ORIGIN`
-- OAuth 2.0 / SSO: `OAUTH_*`
-- Shopify: `SHOPIFY_*`
+- Core runtime: `PORT`, `HOST`, `NODE_ENV`, `FRONTEND_ORIGIN`
+- OAuth / SSO: `OAUTH_*`
+- Shopify and delivery flows: `SHOPIFY_*`, `DELIVERY_CODE_SECRET`, `TRACKING_COMPANY`
 - ParcelPerfect: `PP_*`
 - PrintNode: `PRINTNODE_*`
-- SMTP: `SMTP_*`
-- Dispatch auth and telemetry: `ROTARY_TOKEN`, `REMOTE_TOKEN`, `ROTARY_DEBOUNCE_MS`, `ENV_*`, `REMOTE_HEARTBEAT_*`
+- Notifications: `SMTP_*`, `TRUCK_EMAIL_TO`
+- Local data: `LOCAL_DB_PATH`, `ASSETS_PATH`, `BACKUPS_PATH`, `SYNC_ENABLED`
+- Dispatch and telemetry: `ROTARY_TOKEN`, `REMOTE_TOKEN`, `ENV_*`, `REMOTE_HEARTBEAT_*`
+- UI defaults: `UI_*`
+- Ops automation: `GITHUB_WEBHOOK_SECRET`, `FLSS_BASE_URL`, CI metadata variables
 
-See [docs/config-reference.md](docs/config-reference.md) for the current reference.
-
-## Raspberry Pi controller
-
-The wired Pi client lives at `scripts/rotary-pi-wired.py`.
-
-Repo 2.2 defaults:
-
-- Knob rotate: `next` / `prev`
-- Knob click: confirm flow
-- Confirm side button: confirm flow
-- Back side button: context-aware `back`
-- Print button: `GPIO19`
-- Fulfill button: `GPIO26`
-
-Setup guides:
-
-- [docs/rotary-pi-wired.md](docs/rotary-pi-wired.md)
-- [docs/raspberry-pi-all-in-one-setup.md](docs/raspberry-pi-all-in-one-setup.md)
+See [docs/config-reference.md](docs/config-reference.md) for the complete reference.
 
 ## Documentation map
 
+Operator workflow docs:
+
 - [docs/operator-manual.md](docs/operator-manual.md)
-- [docs/api-reference.md](docs/api-reference.md)
-- [docs/config-reference.md](docs/config-reference.md)
 - [docs/button-action-map.md](docs/button-action-map.md)
+- [docs/traceability-workflow.md](docs/traceability-workflow.md)
+- [docs/rotary-pi-wired.md](docs/rotary-pi-wired.md)
+- [docs/raspberry-pi-all-in-one-setup.md](docs/raspberry-pi-all-in-one-setup.md)
+
+Technical and maintenance docs:
+
+- [docs/api-reference.md](docs/api-reference.md)
 - [docs/build-guide.md](docs/build-guide.md)
+- [docs/config-reference.md](docs/config-reference.md)
 - [docs/data-model.md](docs/data-model.md)
+- [docs/offline-storage-and-backups.md](docs/offline-storage-and-backups.md)
+- [docs/shopify-sync-rules.md](docs/shopify-sync-rules.md)
+- [docs/price-tiers-theme.md](docs/price-tiers-theme.md)
+- [docs/cloudflare-tunnel.md](docs/cloudflare-tunnel.md)
+
+Archived historical docs:
+
+- [docs/archive/README.md](docs/archive/README.md)

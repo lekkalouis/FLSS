@@ -1,25 +1,67 @@
 # Shopify Sync Rules
 
-## Ownership rules
+This note documents the remaining Shopify ownership and sync rules in the current workspace.
 
-- Shopify-owned fields: title/status/images/product metadata in Shopify.
-- FLSS-owned fields: BOM, costing structures, compliance output, local pricing model.
+> Compatibility / legacy: the `product-management` sync endpoints are still present, but the primary operational surface is now the unified `Stock / Buy / Make` workflow. Treat this file as a maintenance reference, not as the main architecture guide.
 
-## Current push scope
+## 1. Source-of-truth boundaries
 
-`POST /api/v1/product-management/sync/now` pushes FLSS compliance metafields when `shopify_variant_id` is mapped:
+Shopify remains authoritative for:
+
+- customers
+- storefront products and variants
+- draft orders and orders
+- fulfillments
+- Shopify inventory levels
+- customer-facing metafields that are written directly by Shopify flows
+
+FLSS local storage remains authoritative for:
+
+- material master data
+- supplier preferences
+- BOM definitions
+- stock movements and batches
+- stocktakes
+- purchase order orchestration state
+- manufacturing orchestration state
+- system settings and print history
+
+## 2. Current push scope
+
+Legacy product-management sync currently uses:
+
+- `GET /api/v1/product-management/sync/status`
+- `POST /api/v1/product-management/sync/now`
+
+That flow pushes FLSS-owned compliance metafields when a `shopify_variant_id` is mapped.
+
+Known fields:
 
 - `flss.ingredients_text`
 - `flss.allergens`
 
-## Queue model
+## 3. Queue model
 
-All local writes create `change_log` entries with status lifecycle:
+The legacy sync path records local writes into a `change_log` queue with status transitions:
 
-- `pending` -> `processing` -> `synced` / `failed`
+- `pending`
+- `processing`
+- `synced`
+- `failed`
 
-Failures store `last_error` and increment `attempts`. Sync status screen exposes queue counts and failures.
+Failures retain `last_error` and increment `attempts`. Audit rows are written for both success and failure cases.
 
-## Conflict handling
+## 4. Unified operations inventory sync
 
-Conflicts can be logged to `conflicts` and surfaced in sync status. Audit trail is written to `audit_log` for push successes/failures and restore events.
+The current `Stock / Buy / Make` flow also syncs inventory to Shopify when mappings are present, but it does so inside the unified operations services rather than through the old `product-management` queue.
+
+Examples:
+
+- mapped stocktakes can update Shopify inventory
+- manufacturing completion can decrement material inventory and increment finished goods
+
+## 5. Practical rules
+
+- Keep Shopify variant and inventory item mappings current before relying on automatic sync.
+- Do not assume every local entity is mirrored to Shopify.
+- Use FLSS as the source of truth for material, BOM, and batch history even when Shopify inventory quantities are synchronized.

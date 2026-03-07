@@ -1,4 +1,4 @@
-﻿# Raspberry Pi wired rotary setup (FLSS Repo 2.2)
+# Raspberry Pi Wired Rotary Setup
 
 Use `scripts/rotary-pi-wired.py` to control FLSS dispatch selection over HTTP.
 
@@ -11,11 +11,13 @@ pip3 install gpiozero requests adafruit-circuitpython-dht
 sudo apt-get install -y libgpiod2
 ```
 
-## 2. Wire the controls and RGB LED (default BCM pins)
+## 2. Wire the controls and RGB LED
+
+Default BCM pins:
 
 - `CLK` -> `GPIO17`
 - `DT` -> `GPIO27`
-- `SW` -> `GPIO22` (knob click / confirm)
+- `SW` -> `GPIO22`
 - `CONFIRM BTN` -> `GPIO5`
 - `BACK BTN` -> `GPIO6`
 - `PRINT BTN` -> `GPIO19`
@@ -23,8 +25,8 @@ sudo apt-get install -y libgpiod2
 - `RGB LED R` -> `GPIO18`
 - `RGB LED G` -> `GPIO23`
 - `RGB LED B` -> `GPIO24`
-- `+` -> `3V3`
-- `GND` -> `GND`
+- `3V3` -> controller power
+- `GND` -> controller ground
 
 ## 3. Configure environment
 
@@ -34,14 +36,14 @@ export ROTARY_TOKEN="<same-token-as-FLSS-ROTARY_TOKEN>"
 export REMOTE_TOKEN="<same-token-as-FLSS-REMOTE_TOKEN>"
 export ROTARY_SOURCE="rotary_pi"
 export REMOTE_ID="rotary_pi"
-export REMOTE_FIRMWARE="rotary-pi-wired-2.2"
+export REMOTE_FIRMWARE="rotary-pi-wired-current"
 export STATION_ID="scan-station-01"
 export DHT11_ENABLED=1
 export DHT_PIN=4
 export DHT_POLL_INTERVAL_S=5
 ```
 
-Optional pin overrides:
+Optional pin and timing overrides:
 
 ```bash
 export ROTARY_CLK_PIN=17
@@ -63,10 +65,10 @@ export ENV_TELEMETRY_INTERVAL_S=10
 export REMOTE_LEGACY_FALLBACK=1
 ```
 
-Legacy compatibility:
+Legacy aliases still accepted:
 
-- `ROTARY_ACTION_BTN_PIN` is still accepted as the confirm button alias.
-- `ROTARY_SW_HOLD_TIME_S` is still accepted as the confirm-hold alias.
+- `ROTARY_ACTION_BTN_PIN` -> confirm button alias
+- `ROTARY_SW_HOLD_TIME_S` -> confirm-hold alias
 
 Optional environment telemetry fallbacks:
 
@@ -84,33 +86,38 @@ python3 scripts/rotary-pi-wired.py
 
 ## 5. Button behavior
 
-- Rotate knob: `next` / `prev`
-- Knob click: confirm flow
-- Hold knob: `confirm_hold`
-- Confirm side button: confirm flow
-- Hold confirm side button: `confirm_hold`
-- Back side button: context-aware `back`
-- Print button: `print`
-- Fulfill button: `fulfill`
+- Rotate knob -> `next` / `prev`
+- Knob click -> confirm flow
+- Hold knob -> `confirm_hold`
+- Confirm side button -> confirm flow
+- Hold confirm side button -> `confirm_hold`
+- Back side button -> context-aware `back`
+- Print button -> `print`
+- Fulfill button -> `fulfill`
 
 When quantity mode is active, rotation changes packed quantity and the next confirm click commits `set_packed_qty`.
 
 ## 6. API contract used
 
+Primary routes:
+
 - `POST /api/v1/dispatch/remote/heartbeat`
 - `POST /api/v1/dispatch/remote/action`
 - `POST /api/v1/dispatch/environment`
 - `POST /api/v1/environment/ingest`
-- Optional fallback: `POST /api/v1/dispatch/{next,prev,confirm,back,print,fulfill}`
 
-## 7. DHT11 notes
+Compatibility fallback routes:
 
-The script can run a background DHT11 monitor and post to `POST /api/v1/environment/ingest`.
+- `POST /api/v1/dispatch/next`
+- `POST /api/v1/dispatch/prev`
+- `POST /api/v1/dispatch/confirm`
+- `POST /api/v1/dispatch/back`
+- `POST /api/v1/dispatch/print`
+- `POST /api/v1/dispatch/fulfill`
 
-If `ENV_SENSOR_CMD` is set, the script also supports command-based temperature and humidity sampling for non-DHT sensors.
+## 7. Troubleshooting
 
-## 8. Troubleshooting
-
-- `401 Unauthorized` means Pi-side tokens do not match the server.
-- If rotation feels reversed, swap `CLK` and `DT` or swap the action mapping.
-- If telemetry is skipped, check the sensor payload and the configured pin numbers.
+- `401 Unauthorized` usually means the Pi token does not match the server token.
+- If rotation feels reversed, swap `CLK` and `DT` or invert the mapping in the script config.
+- If telemetry is skipped, verify the sensor command or DHT pin wiring.
+- If the overlay never appears, confirm you are on the Orders view and that controller settings allow the on-screen buttons.

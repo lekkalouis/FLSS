@@ -1,10 +1,3 @@
-import { initFlocsView } from "./views/flocs.js";
-import { initStockView } from "./views/stock.js";
-import { initBuyView } from "./views/buy.js";
-import { initMakeView } from "./views/make.js";
-import { initPriceManagerView } from "./views/price-manager.js";
-import { initAgentCommissionsView } from "./views/agent-commissions.js";
-import { initScanStationNext } from "./views/scan-station-next.js";
 import { isHenniesOrderContext } from "./views/customer-specialization.js";
 
 (() => {
@@ -310,8 +303,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const navStock = $("navStock");
   const navBuy = $("navBuy");
   const navMake = $("navMake");
-  const navPriceManager = $("navPriceManager");
-  const navAgentCommissions = $("navAgentCommissions");
   const navDispatchSettings = $("navDispatchSettings");
   const navLogs = $("navLogs");
   const navFooterAdmin = $("navFooterAdmin");
@@ -334,11 +325,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const viewDispatchSettings = $("viewDispatchSettings");
   const viewLogs = $("viewLogs");
   const viewAdmin = $("viewAdmin");
-  const adminLauncher = $("adminLauncher");
-  const adminWorkspaceFrame = $("adminWorkspaceFrame");
-  const adminWorkspaceTitle = $("adminWorkspaceTitle");
-  const adminWorkspaceMeta = $("adminWorkspaceMeta");
-  const adminWorkspaceOpenLink = $("adminWorkspaceOpenLink");
   const dispatchNotesBar = $("dispatchNotesBar");
   const dispatchNotesInput = $("dispatchNotesInput");
   const dispatchNotesClose = $("dispatchNotesClose");
@@ -363,10 +349,16 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const settingsStickerLine3YMm = $("settingsStickerLine3YMm");
   const settingsStickerTextRotation = $("settingsStickerTextRotation");
   const settingsPrintRetentionDays = $("settingsPrintRetentionDays");
+  const settingsGboxTitle = $("settingsGboxTitle");
+  const settingsGboxBarcodeValue = $("settingsGboxBarcodeValue");
+  const settingsGboxSubtitle = $("settingsGboxSubtitle");
+  const settingsGboxDefaultQty = $("settingsGboxDefaultQty");
+  const settingsGboxPrinterId = $("settingsGboxPrinterId");
   const settingsSaveBtn = $("settingsSaveBtn");
   const settingsSaveStatus = $("settingsSaveStatus");
   const settingsRefreshPrintersBtn = $("settingsRefreshPrintersBtn");
   const settingsTestStickerBtn = $("settingsTestStickerBtn");
+  const settingsTestGboxBtn = $("settingsTestGboxBtn");
   const settingsPrintersStatus = $("settingsPrintersStatus");
   const settingsPrinterAssignments = $("settingsPrinterAssignments");
   const settingsPrintersList = $("settingsPrintersList");
@@ -403,7 +395,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   let settingsActiveTab = "general";
   let settingsPrinterRows = [];
   let settingsTemplateRows = [];
-  let adminActiveToolId = "";
   const FLOCS_NEW_CUSTOMER_INTENT_KEY = "flocs-open-new-customer";
 
   function setNewOrderMenuOpen(open) {
@@ -502,7 +493,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       title: "Price Manager",
       description: "Update tier pricing and sync to Shopify metafields.",
       type: "route",
-      target: "/price-manager",
+      target: "/admin/price-manager",
       meta: "Pricing module",
       tag: "Module"
     },
@@ -550,87 +541,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       target: "/purchase-orders.html",
       meta: "Materials ordering",
       tag: "Module"
-    }
-  ];
-
-  const ADMIN_TOOLS = [
-    {
-      id: "station-controller",
-      title: "Station Controller",
-      description: "Remote heartbeat, controller diagnostics, and live event feed.",
-      target: "/station-controller.html"
-    },
-    {
-      id: "manufacturing",
-      title: "Manufacturing",
-      description: "Standalone manufacturing order and production workflows.",
-      target: "/manufacturing.html"
-    },
-    {
-      id: "product-management",
-      title: "Product Management",
-      description: "Offline-first products, BOM, packaging, pricing, and sync tooling.",
-      target: "/product-management.html"
-    },
-    {
-      id: "pos",
-      title: "POS",
-      description: "Point-of-sale order capture and payment handling.",
-      target: "/pos.html"
-    },
-    {
-      id: "shipping-matrix",
-      title: "Shipping Matrix",
-      description: "Matrix pricing and delivery scenario estimation.",
-      target: "/shipping-matrix.html"
-    },
-    {
-      id: "order-capture-custom",
-      title: "Order Capture Custom",
-      description: "Custom order capture workflow for special intake cases.",
-      target: "/order-capture-custom.html"
-    },
-    {
-      id: "customer-accounts",
-      title: "Customer Accounts",
-      description: "Account-level customer access and profile maintenance.",
-      target: "/customer-accounts.html"
-    },
-    {
-      id: "purchase-orders",
-      title: "Purchase Orders",
-      description: "Quick purchasing flow that creates Shopify draft orders.",
-      target: "/purchase-orders.html"
-    },
-    {
-      id: "liquid-templates",
-      title: "Liquid Templates",
-      description: "Manage Liquid template assets used across FLSS workflows.",
-      target: "/liquid-templates.html"
-    },
-    {
-      id: "notification-templates",
-      title: "Notification Templates",
-      description: "Edit the runtime template registry for pickup and truck emails.",
-      target: "/notification-templates.html"
-    },
-    {
-      id: "traceability",
-      title: "Traceability",
-      description: "Lot, batch, and order traceability console.",
-      target: "/traceability.html"
-    },
-    {
-      id: "agent-commissions",
-      title: "Agent Commissions",
-      description: "Commission percentages, allocations, and payout tracking.",
-      target: "/agent-commissions.html"
-    },
-    {
-      id: "order-payments",
-      title: "Order Payments",
-      description: "Payment allocation and outstanding balance tracking.",
-      target: "/order-payments.html"
     }
   ];
 
@@ -4607,9 +4517,10 @@ async function startOrder(orderNo) {
             return null;
           })();
 
+    if (isPaid) return "green-lit";
     if (paymentBeforeDelivery === null) return "yellow";
-    if (paymentBeforeDelivery) return isPaid ? "green-lit" : "red-lit";
-    return isPaid ? "green-lit" : "green-dim";
+    if (paymentBeforeDelivery) return "red-lit";
+    return "green-dim";
   }
 
   function getDispatchDisplayDate(order) {
@@ -8601,6 +8512,7 @@ async function startOrder(orderNo) {
     const showDispatchSettings = view === "dispatch-settings";
     const showLogs = view === "logs";
     const showAdmin = view === "admin";
+    const showAdminArea = showAdmin || showPriceManager || showAgentCommissions;
 
     if (viewScan) {
       viewScan.hidden = !showScan;
@@ -8669,11 +8581,9 @@ async function startOrder(orderNo) {
     navStock?.classList.toggle("flNavBtn--active", showStock);
     navBuy?.classList.toggle("flNavBtn--active", showBuy);
     navMake?.classList.toggle("flNavBtn--active", showMake);
-    navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
-    navAgentCommissions?.classList.toggle("flNavBtn--active", showAgentCommissions);
     navDispatchSettings?.classList.toggle("flNavBtn--active", showDispatchSettings);
     navLogs?.classList.toggle("flNavBtn--active", showLogs);
-    navFooterAdmin?.classList.toggle("flNavBtn--active", showAdmin);
+    navFooterAdmin?.classList.toggle("flNavBtn--active", showAdminArea);
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
@@ -8690,11 +8600,9 @@ async function startOrder(orderNo) {
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
     navBuy?.setAttribute("aria-selected", showBuy ? "true" : "false");
     navMake?.setAttribute("aria-selected", showMake ? "true" : "false");
-    navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
-    navAgentCommissions?.setAttribute("aria-selected", showAgentCommissions ? "true" : "false");
     navDispatchSettings?.setAttribute("aria-selected", showDispatchSettings ? "true" : "false");
     navLogs?.setAttribute("aria-selected", showLogs ? "true" : "false");
-    navFooterAdmin?.setAttribute("aria-selected", showAdmin ? "true" : "false");
+    navFooterAdmin?.setAttribute("aria-selected", showAdminArea ? "true" : "false");
 
     if (showScan) {
       statusExplain("Orders view ready.", "info");
@@ -8714,9 +8622,9 @@ async function startOrder(orderNo) {
     } else if (showMake) {
       statusExplain("Make workspace ready.", "info");
     } else if (showPriceManager) {
-      statusExplain("Price manager ready.", "info");
+      statusExplain("Admin price manager ready.", "info");
     } else if (showAgentCommissions) {
-      statusExplain("Agent commissions ready.", "info");
+      statusExplain("Admin agent commissions ready.", "info");
     } else if (showDispatchSettings) {
       statusExplain("Dispatch settings loaded.", "info");
     } else if (showLogs) {
@@ -8743,6 +8651,9 @@ async function startOrder(orderNo) {
     ["/stock", "stock"],
     ["/buy", "buy"],
     ["/make", "make"],
+    ["/admin", "admin"],
+    ["/admin/price-manager", "price-manager"],
+    ["/admin/agent-commissions", "agent-commissions"],
     ["/price-manager", "price-manager"],
     ["/agent-commissions", "agent-commissions"]
   ]);
@@ -8757,8 +8668,9 @@ async function startOrder(orderNo) {
     stock: "/stock",
     buy: "/buy",
     make: "/make",
-    "price-manager": "/price-manager",
-    "agent-commissions": "/agent-commissions"
+    admin: "/admin",
+    "price-manager": "/admin/price-manager",
+    "agent-commissions": "/admin/agent-commissions"
   };
 
   const docsState = {
@@ -8796,19 +8708,24 @@ async function startOrder(orderNo) {
     }
     const stockTab = String(routeEl.dataset.stockTab || "").trim().toLowerCase();
     const stockMode = String(routeEl.dataset.stockMode || "").trim().toLowerCase();
-    if (!stockTab && !stockMode) {
+    const stockInventoryTab = String(routeEl.dataset.stockInventoryTab || "").trim().toLowerCase();
+    if (!stockTab && !stockMode && !stockInventoryTab) {
       pendingStockIntent = null;
       return;
     }
-    pendingStockIntent = { stockTab, stockMode };
+    pendingStockIntent = { stockTab, stockMode, stockInventoryTab };
   }
 
   function applyPendingStockIntent() {
     if (!pendingStockIntent) return;
-    const { stockTab, stockMode } = pendingStockIntent;
+    const { stockTab, stockMode, stockInventoryTab } = pendingStockIntent;
     pendingStockIntent = null;
     if (stockTab) {
       const tabBtn = document.querySelector(`[data-stock-tab-target="${stockTab}"]`) || document.querySelector(`.stock-tabBtn[data-tab="${stockTab}"]`);
+      tabBtn?.click();
+    }
+    if (stockInventoryTab) {
+      const tabBtn = document.querySelector(`[data-stock-inventory-tab="${stockInventoryTab}"]`);
       tabBtn?.click();
     }
     if (stockMode) {
@@ -8871,6 +8788,9 @@ async function startOrder(orderNo) {
     const relay = source.relay && typeof source.relay === "object" ? source.relay : {};
     const controller = source.controller && typeof source.controller === "object" ? source.controller : {};
     const notifications = source.notifications && typeof source.notifications === "object" ? source.notifications : {};
+    const oneClickActions =
+      source.oneClickActions && typeof source.oneClickActions === "object" ? source.oneClickActions : {};
+    const gbox = oneClickActions.gbox && typeof oneClickActions.gbox === "object" ? oneClickActions.gbox : {};
     const notificationEvents = notifications.events && typeof notifications.events === "object" ? notifications.events : {};
     const pickupReady = notificationEvents.pickupReady && typeof notificationEvents.pickupReady === "object"
       ? notificationEvents.pickupReady
@@ -8959,6 +8879,15 @@ async function startOrder(orderNo) {
             fallbackRecipient: String(truckCollection.fallbackRecipient || "").trim()
           }
         }
+      },
+      oneClickActions: {
+        gbox: {
+          title: String(gbox.title || "GBOX").trim() || "GBOX",
+          barcodeValue: String(gbox.barcodeValue || "GBOX").trim() || "GBOX",
+          subtitle: String(gbox.subtitle || "Gift Box").trim(),
+          defaultQty: Math.max(1, Math.trunc(Number(gbox.defaultQty) || 24)),
+          printerId: normalizePrinterId(gbox.printerId)
+        }
       }
     };
   }
@@ -9015,6 +8944,22 @@ async function startOrder(orderNo) {
     }
     if (settingsPrintRetentionDays) {
       settingsPrintRetentionDays.value = String(settingsState.printHistory?.retentionDays ?? 365);
+    }
+    if (settingsGboxTitle) {
+      settingsGboxTitle.value = settingsState.oneClickActions?.gbox?.title || "GBOX";
+    }
+    if (settingsGboxBarcodeValue) {
+      settingsGboxBarcodeValue.value = settingsState.oneClickActions?.gbox?.barcodeValue || "GBOX";
+    }
+    if (settingsGboxSubtitle) {
+      settingsGboxSubtitle.value = settingsState.oneClickActions?.gbox?.subtitle || "Gift Box";
+    }
+    if (settingsGboxDefaultQty) {
+      settingsGboxDefaultQty.value = String(settingsState.oneClickActions?.gbox?.defaultQty ?? 24);
+    }
+    if (settingsGboxPrinterId) {
+      const printerId = Number(settingsState.oneClickActions?.gbox?.printerId);
+      settingsGboxPrinterId.value = Number.isInteger(printerId) && printerId > 0 ? String(printerId) : "";
     }
     if (settingsControllerShowOnScreenButtons) {
       settingsControllerShowOnScreenButtons.checked = settingsState.controller?.showOnScreenButtons !== false;
@@ -9090,6 +9035,7 @@ async function startOrder(orderNo) {
     };
     const retentionDays = Math.max(1, Math.trunc(Number(settingsPrintRetentionDays?.value) || 365));
     const stickerPrinterId = Number(settingsState?.sticker?.stickerPrinterId);
+    const gboxPrinterId = Number(settingsGboxPrinterId?.value);
     return {
       sticker: {
         shelfLifeMonths,
@@ -9106,6 +9052,15 @@ async function startOrder(orderNo) {
       },
       printHistory: {
         retentionDays
+      },
+      oneClickActions: {
+        gbox: {
+          title: String(settingsGboxTitle?.value || "GBOX").trim() || "GBOX",
+          barcodeValue: String(settingsGboxBarcodeValue?.value || "GBOX").trim() || "GBOX",
+          subtitle: String(settingsGboxSubtitle?.value || "Gift Box").trim(),
+          defaultQty: Math.max(1, Math.trunc(Number(settingsGboxDefaultQty?.value) || 24)),
+          printerId: Number.isInteger(gboxPrinterId) && gboxPrinterId > 0 ? gboxPrinterId : null
+        }
       },
       controller: {
         showOnScreenButtons: settingsControllerShowOnScreenButtons?.checked !== false,
@@ -9533,9 +9488,27 @@ async function startOrder(orderNo) {
     return data;
   }
 
+  async function triggerGboxBarcodePrint({ quantity, title, source = "manual" } = {}) {
+    const configuredDefault = Math.max(1, Math.trunc(Number(settingsState?.oneClickActions?.gbox?.defaultQty) || 24));
+    const requestedQuantity = Math.max(1, Math.trunc(Number(quantity) || configuredDefault));
+    const payload = {
+      quantity: requestedQuantity,
+      title: title || settingsState?.oneClickActions?.gbox?.title || "GBOX"
+    };
+    const { response, data } = await fetchJsonWithDetails(`${API_BASE}/printnode/print-gbox-barcodes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.body?.message || data?.message || `GBOX print failed (${response.status})`);
+    }
+    return data;
+  }
+
   function setSettingsTab(nextTab, options = {}) {
     const { focusButton = false } = options;
-    const allowedTabs = new Set(["general", "printers", "controller", "notifications", "monitoring"]);
+    const allowedTabs = new Set(["general", "one-click-actions", "printers", "controller", "notifications", "monitoring"]);
     const tab = allowedTabs.has(nextTab) ? nextTab : "general";
     settingsActiveTab = tab;
     settingsTabs.forEach((button) => {
@@ -9764,54 +9737,16 @@ async function startOrder(orderNo) {
     }
   }
 
-  function renderAdminLauncher() {
-    if (!adminLauncher) return;
-    adminLauncher.innerHTML = ADMIN_TOOLS
-      .map(
-        (tool) => `
-          <button
-            type="button"
-            class="flAdminLauncherBtn ${tool.id === adminActiveToolId ? "is-active" : ""}"
-            data-admin-tool="${escapeHtml(tool.id)}">
-            <strong>${escapeHtml(tool.title)}</strong>
-            <span>${escapeHtml(tool.description)}</span>
-          </button>
-        `
-      )
-      .join("");
-  }
-
-  function openAdminTool(toolId) {
-    const tool = ADMIN_TOOLS.find((entry) => entry.id === toolId) || ADMIN_TOOLS[0] || null;
-    if (!tool) return;
-    adminActiveToolId = tool.id;
-    if (adminWorkspaceTitle) adminWorkspaceTitle.textContent = tool.title;
-    if (adminWorkspaceMeta) adminWorkspaceMeta.textContent = tool.description;
-    if (adminWorkspaceOpenLink) adminWorkspaceOpenLink.href = tool.target;
-    if (adminWorkspaceFrame && adminWorkspaceFrame.getAttribute("src") !== tool.target) {
-      adminWorkspaceFrame.setAttribute("src", tool.target);
-    }
-    renderAdminLauncher();
-  }
-
-  function initAdminView() {
-    renderAdminLauncher();
-    if (!adminActiveToolId) {
-      openAdminTool(ADMIN_TOOLS[0]?.id || "");
-    } else {
-      openAdminTool(adminActiveToolId);
-    }
-  }
-
-  const viewInitializers = {
-    flocs: initFlocsView,
-    stock: initStockView,
-    buy: initBuyView,
-    make: initMakeView,
-    docs: initDocsView,
-    "price-manager": initPriceManagerView,
-    "agent-commissions": initAgentCommissionsView
+  const viewInitializerLoaders = {
+    flocs: async () => (await import("./views/flocs.js")).initFlocsView,
+    stock: async () => (await import("./views/stock.js")).initStockView,
+    buy: async () => (await import("./views/buy.js")).initBuyView,
+    make: async () => (await import("./views/make.js")).initMakeView,
+    docs: async () => initDocsView,
+    "price-manager": async () => (await import("./views/price-manager.js")).initPriceManagerView,
+    "agent-commissions": async () => (await import("./views/agent-commissions.js")).initAgentCommissionsView
   };
+  const viewInitializerCache = new Map();
 
   function normalizePath(path) {
     if (!path) return "/";
@@ -9828,8 +9763,22 @@ async function startOrder(orderNo) {
     return VIEW_ROUTE_MAP[view] || "/";
   }
 
+  async function getViewInitializer(view) {
+    if (viewInitializerCache.has(view)) {
+      return viewInitializerCache.get(view);
+    }
+    const loader = viewInitializerLoaders[view];
+    if (!loader) return null;
+    const init = await loader();
+    if (typeof init === "function") {
+      viewInitializerCache.set(view, init);
+      return init;
+    }
+    return null;
+  }
+
   async function initViewIfNeeded(view) {
-    const init = viewInitializers[view];
+    const init = await getViewInitializer(view);
     if (!init) return;
     if (view === "flocs") {
       showPageLoader("Loading customer data...");
@@ -9899,7 +9848,6 @@ async function startOrder(orderNo) {
 
   const applyAdminMenuVisibility = () => {
     if (navFlowcharts) navFlowcharts.hidden = true;
-    if (navPriceManager) navPriceManager.hidden = false;
     if (navDispatchSettings) navDispatchSettings.hidden = true;
     if (navLogs) navLogs.hidden = true;
   };
@@ -10189,6 +10137,30 @@ async function startOrder(orderNo) {
     }
   });
 
+  settingsTestGboxBtn?.addEventListener("click", async () => {
+    settingsTestGboxBtn.disabled = true;
+    if (settingsPrintersStatus) settingsPrintersStatus.textContent = "Sending GBOX barcode labels...";
+    try {
+      const payload = await triggerGboxBarcodePrint({
+        quantity: Number(settingsGboxDefaultQty?.value) || undefined,
+        source: "settings-gbox-test",
+        title: settingsGboxTitle?.value || "GBOX"
+      });
+      const printedQty = Number(payload?.labels?.quantityPrinted || 0);
+      if (settingsPrintersStatus) {
+        settingsPrintersStatus.textContent = `GBOX print queued (${printedQty || "n/a"} labels).`;
+      }
+      statusExplain("GBOX barcode labels queued.", "ok");
+      void loadMonitoringData();
+    } catch (error) {
+      const message = String(error?.message || error);
+      if (settingsPrintersStatus) settingsPrintersStatus.textContent = message;
+      statusExplain(`GBOX print failed: ${message}`, "warn");
+    } finally {
+      settingsTestGboxBtn.disabled = false;
+    }
+  });
+
   settingsPrinterAssignments?.addEventListener("change", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement)) return;
@@ -10267,19 +10239,17 @@ async function startOrder(orderNo) {
     }
   });
 
-  adminLauncher?.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const button = target.closest("[data-admin-tool]");
-    if (!button) return;
-    const toolId = String(button.getAttribute("data-admin-tool") || "").trim();
-    if (!toolId) return;
-    openAdminTool(toolId);
-  });
-
   document.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    const settingsLauncher = target.closest("[data-settings-tab-open]");
+    if (settingsLauncher) {
+      event.preventDefault();
+      setSettingsModalOpen(true, {
+        tab: String(settingsLauncher.getAttribute("data-settings-tab-open") || settingsActiveTab || "general").trim()
+      });
+      return;
+    }
     const routeEl = target.closest("[data-route]");
     if (!routeEl) return;
     const route = routeEl.getAttribute("data-route") || routeEl.getAttribute("href");
@@ -11265,9 +11235,6 @@ async function startOrder(orderNo) {
       openSlotEgg();
     }
   });
-
-
-  let scanStationNext = null;
   function renderDeliveryDriverPage(initialCode = "") {
     document.body.innerHTML = `
       <main style="min-height:100vh;padding:1rem;background:#f8fafc;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;display:flex;align-items:center;justify-content:center;">
@@ -11375,7 +11342,6 @@ async function startOrder(orderNo) {
       }
 
       await renderRoute(window.location.pathname);
-      scanStationNext = initScanStationNext({ scanInput });
       initDispatchControllerEvents();
       void refreshDispatchData().catch((error) => {
         appendDebug("Initial dispatch refresh failed: " + String(error));

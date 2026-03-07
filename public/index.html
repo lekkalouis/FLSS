@@ -4669,10 +4669,11 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
   }
   .flNewOrderFab #navNewOrder::before{
     content:"+";
+    display:block;
     font-size:1.58rem;
     font-weight:700;
     line-height:1;
-    transform:translateY(-.03rem);
+    transform:translate(0,-.08rem);
   }
   .flNewOrderFab #navNewOrder:hover{
     background:#ffe83b;
@@ -5094,8 +5095,11 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
     }
     .flHeaderMeta{
       display:flex;
-      justify-content:flex-end;
+      justify-content:flex-start;
+      align-items:stretch;
+      flex-wrap:wrap;
       width:100%;
+      gap:.32rem;
     }
     .flNewOrderFab{
       left:auto;
@@ -5125,9 +5129,11 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
       width:auto;
     }
     .flHeaderUtility{
+      flex:1 1 calc(50% - .2rem);
       gap:.28rem;
       min-height:1.92rem;
       padding:.1rem .32rem;
+      min-width:0;
     }
     .flHeaderUtilityBatchLabel{
       font-size:.53rem;
@@ -5139,6 +5145,10 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
       padding:.16rem .36rem;
       min-height:1.44rem;
       font-size:.62rem;
+    }
+    .flHeaderUtilityNav{
+      order:3;
+      width:100%;
     }
     .flNav--modern .flNavGroup{
       flex-wrap:nowrap;
@@ -5977,12 +5987,10 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
           </div>
           <div class="flNavGroup flNavGroup--top" role="tablist" aria-label="Primary views">
             <button id="navScan" class="flNavBtn flNavBtn--active" type="button" role="tab" aria-controls="viewScan" aria-selected="true" data-route="/"><span class="flNavBtnText">Orders</span></button>
-            <button id="navFulfillment" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillment" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnText">Fullfillment History</span></button>
+            <button id="navFulfillment" class="flNavBtn" type="button" role="tab" aria-controls="viewFulfillment" aria-selected="false" data-route="/fulfillment-history"><span class="flNavBtnText">Fulfillment History</span></button>
             <button id="navStock" class="flNavBtn" type="button" role="tab" aria-controls="viewStock" aria-selected="false" data-route="/stock"><span class="flNavBtnText">Stock</span></button>
             <button id="navBuy" class="flNavBtn" type="button" role="tab" aria-controls="viewBuy" aria-selected="false" data-route="/buy"><span class="flNavBtnText">Buy</span></button>
             <button id="navMake" class="flNavBtn" type="button" role="tab" aria-controls="viewMake" aria-selected="false" data-route="/make"><span class="flNavBtnText">Make</span></button>
-            <button id="navPriceManager" class="flNavBtn" type="button" role="tab" aria-controls="viewPriceManager" aria-selected="false" data-route="/price-manager"><span class="flNavBtnText">Price manager</span></button>
-            <button id="navAgentCommissions" class="flNavBtn" type="button" role="tab" aria-controls="viewAgentCommissions" aria-selected="false" data-route="/agent-commissions"><span class="flNavBtnText">Agent Commissions</span></button>
             <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Docs</span></button>
           </div>
         </div>
@@ -6592,30 +6600,101 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
                 </div>
 
                 <div id="stockInventoryMaterials" hidden>
-                  <div class="uo-sectionHead">
-                    <div>
-                      <h3>Raw materials</h3>
-                      <p>Ingredients, packaging, labels, lids, bottles, cartons, and consumables.</p>
-                    </div>
-                  </div>
-                  <div class="uo-tableWrap">
-                    <table class="stock-table">
-                      <thead>
-                        <tr>
-                          <th>Icon</th>
-                          <th>SKU</th>
-                          <th>Material</th>
-                          <th>Category</th>
-                          <th>Preferred supplier</th>
-                          <th>On hand</th>
-                          <th>Allocated</th>
-                          <th>Available</th>
-                          <th>Reorder point</th>
-                          <th>Lead time</th>
-                        </tr>
-                      </thead>
-                      <tbody id="stockMaterialsBody"></tbody>
-                    </table>
+                  <div class="uo-grid uo-grid--two">
+                    <article class="uo-card uo-card--inner">
+                      <div class="uo-sectionHead">
+                        <div>
+                          <h3>Raw material manager</h3>
+                          <p>Edit raw materials here. This is the place to maintain Shopify mappings, reorder points, suppliers, and stock-unit conversions.</p>
+                        </div>
+                      </div>
+                      <div class="uo-formGrid uo-formGrid--compact">
+                        <label class="uo-label">
+                          SKU
+                          <input id="stockMaterialSku" class="uo-input" type="text" placeholder="RAW-001" />
+                        </label>
+                        <label class="uo-label">
+                          Title
+                          <input id="stockMaterialTitle" class="uo-input" type="text" placeholder="Raw material" />
+                        </label>
+                        <label class="uo-label">
+                          Category
+                          <select id="stockMaterialCategory" class="uo-select">
+                            <option value="ingredient">Ingredient</option>
+                            <option value="packaging">Packaging</option>
+                            <option value="labels">Labels</option>
+                            <option value="consumable">Consumable</option>
+                          </select>
+                        </label>
+                        <label class="uo-label">
+                          UoM
+                          <input id="stockMaterialUom" class="uo-input" type="text" placeholder="kg" value="kg" />
+                        </label>
+                        <label class="uo-label">
+                          Icon
+                          <input id="stockMaterialIcon" class="uo-input" type="text" maxlength="4" placeholder="*" />
+                        </label>
+                        <label class="uo-label">
+                          Preferred supplier
+                          <select id="stockMaterialSupplier" class="uo-select"></select>
+                        </label>
+                        <label class="uo-label">
+                          Reorder point
+                          <input id="stockMaterialReorderPoint" class="uo-input" type="number" min="0" step="0.01" value="0" />
+                        </label>
+                        <label class="uo-label">
+                          Lead time days
+                          <input id="stockMaterialLeadTimeDays" class="uo-input" type="number" min="0" step="1" value="0" />
+                        </label>
+                        <label class="uo-label">
+                          Shopify variant ID
+                          <input id="stockMaterialShopifyVariantId" class="uo-input" type="number" min="1" step="1" placeholder="Optional" />
+                        </label>
+                        <label class="uo-label">
+                          Shopify stock unit
+                          <input id="stockMaterialShopifyInventoryUnit" class="uo-input" type="text" placeholder="g / pcs" />
+                        </label>
+                        <label class="uo-label">
+                          Shopify unit multiplier
+                          <input id="stockMaterialShopifyMultiplier" class="uo-input" type="number" min="1" step="1" placeholder="1000 for kg to g" />
+                        </label>
+                      </div>
+                      <div class="uo-actions">
+                        <button id="stockMaterialSave" class="stock-primaryBtn" type="button">Save material</button>
+                        <button id="stockMaterialReset" class="stock-secondaryBtn" type="button">New material</button>
+                      </div>
+                      <div id="stockMaterialStatus" class="uo-inlineStatus">Create or edit raw materials here, then use them in BOMs from Make.</div>
+                    </article>
+
+                    <article class="uo-card uo-card--inner">
+                      <div class="uo-sectionHead">
+                        <div>
+                          <h3>Raw materials</h3>
+                          <p>Ingredients, packaging, labels, lids, bottles, cartons, and consumables.</p>
+                        </div>
+                      </div>
+                      <div class="uo-tableWrap">
+                        <table class="stock-table">
+                          <thead>
+                            <tr>
+                              <th>Icon</th>
+                              <th>SKU</th>
+                              <th>Material</th>
+                              <th>Category</th>
+                              <th>Preferred supplier</th>
+                              <th>On hand</th>
+                              <th>Allocated</th>
+                              <th>Available</th>
+                              <th>Reorder point</th>
+                              <th>Lead time</th>
+                              <th>Source</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody id="stockMaterialsBody"></tbody>
+                        </table>
+                      </div>
+                    </article>
                   </div>
                 </div>
               </section>
@@ -7060,15 +7139,82 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
                 </div>
               </article>
             </section>
+        </div>
+      </div>
+
+    <div class="flView" id="viewAdmin" hidden>
+      <div class="flAdminShell">
+        <div class="flAdminIntro">
+          <div>
+            <span class="flAdminEyebrow">Admin Area</span>
+            <h2>Operations Admin</h2>
+            <p>Pricing, commissions, raw materials, and one-click print actions live here now.</p>
+          </div>
+          <p class="flAdminHint">Raw materials are edited under Stock &gt; Raw Materials. Best-before and GBOX actions are configured under One Click Actions.</p>
+        </div>
+        <div class="flAdminLayout">
+          <div class="flAdminLauncher">
+            <button type="button" class="flAdminLauncherBtn" data-route="/admin/price-manager">
+              <strong>Price Manager</strong>
+              <span>Manage tier pricing and Shopify metafield pricing outputs.</span>
+            </button>
+            <button type="button" class="flAdminLauncherBtn" data-route="/admin/agent-commissions">
+              <strong>Agent Commissions</strong>
+              <span>Review commission balances, rules, credits, and payouts.</span>
+            </button>
+            <button type="button" class="flAdminLauncherBtn" data-route="/stock" data-stock-tab="inventory" data-stock-inventory-tab="materials">
+              <strong>Raw Materials</strong>
+              <span>Edit suppliers, reorder levels, Shopify mappings, and stock-unit conversions.</span>
+            </button>
+            <button type="button" class="flAdminLauncherBtn" data-settings-tab-open="one-click-actions">
+              <strong>One Click Actions</strong>
+              <span>Configure best-before sticker printing and the GBOX barcode label action.</span>
+            </button>
+          </div>
+          <div class="flAdminWorkspace">
+            <div class="flAdminWorkspaceHeader">
+              <div>
+                <strong>Admin Overview</strong>
+                <span>Use the left-side shortcuts to open pricing, commissions, raw materials, or one-click printing settings.</span>
+              </div>
+            </div>
+            <div class="uo-grid uo-grid--two" style="padding:1rem;">
+              <article class="uo-card uo-card--inner">
+                <div class="uo-sectionHead">
+                  <div>
+                    <h3>Inventory Tracking</h3>
+                    <p>Stocktakes and manufacturing orders now push inventory changes to Shopify when items are mapped.</p>
+                  </div>
+                </div>
+                <div class="uo-actions">
+                  <button class="stock-primaryBtn" type="button" data-route="/stock" data-stock-tab="inventory" data-stock-inventory-tab="materials">Open raw materials</button>
+                  <button class="stock-secondaryBtn" type="button" data-route="/make">Open manufacturing</button>
+                </div>
+              </article>
+              <article class="uo-card uo-card--inner">
+                <div class="uo-sectionHead">
+                  <div>
+                    <h3>One Click Print Actions</h3>
+                    <p>Best-before stickers and GBOX barcode labels are configured from the new One Click Actions settings section.</p>
+                  </div>
+                </div>
+                <div class="uo-actions">
+                  <button class="stock-primaryBtn" type="button" data-settings-tab-open="one-click-actions">Open One Click Actions</button>
+                </div>
+              </article>
+            </div>
           </div>
         </div>
+      </div>
+    </div>
 
     <div class="flView" id="viewPriceManager" hidden>
       <div class="pm-shell">
           <header class="pm-header">
             <div class="pm-titleBlock">
+              <a class="pm-linkBtn" href="/admin" data-route="/admin">Back to Admin</a>
               <div class="pm-title">Price Manager</div>
-              <div class="pm-sub">Manage tier pricing per SKU and sync to Shopify metafields + storefront.</div>
+              <div class="pm-sub">Admin / Price Manager. Manage tier pricing per SKU and sync to Shopify metafields + storefront.</div>
             </div>
           </header>
 
@@ -7108,8 +7254,9 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
       <main class="ac-shell">
         <header class="ac-header">
           <div>
+            <a class="ac-linkBtn" href="/admin" data-route="/admin">Back to Admin</a>
             <h1>Agent Commissions</h1>
-            <p>Track commission due per order, allocate payouts, and monitor outstanding balances without leaving FLSS.</p>
+            <p>Admin / Agent Commissions. Track commission due per order, allocate payouts, and monitor outstanding balances without leaving FLSS.</p>
           </div>
           <div class="ac-actions">
             <button id="refreshBtn" class="btn btn-primary" type="button">Refresh</button>
@@ -7172,10 +7319,9 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
         </section>
       </main>
     </div>
-
-      </main>
       <footer class="flFooterNav" aria-label="Footer menu">
         <div class="flFooterLinks" role="tablist" aria-label="System views">
+          <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnText">Admin</span></button>
           <button id="navFooterSettings" class="flNavBtn flNavBtn--icon" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="settingsModal"><span class="flNavBtnText">&#9881;</span></button>
         </div>
       </footer>
@@ -7212,6 +7358,7 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
       <div class="settingsModalBody">
         <aside class="settingsSidebar" role="tablist" aria-label="Settings sections">
           <button type="button" class="settingsTabBtn is-active" data-settings-tab="general">General</button>
+          <button type="button" class="settingsTabBtn" data-settings-tab="one-click-actions">One Click Actions</button>
           <button type="button" class="settingsTabBtn" data-settings-tab="printers">Printers</button>
           <button type="button" class="settingsTabBtn" data-settings-tab="controller">Controller</button>
           <button type="button" class="settingsTabBtn" data-settings-tab="notifications">Notifications</button>
@@ -7222,77 +7369,131 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
             <div class="settingsPaneHeader">
               <div>
                 <h4>General</h4>
-                <p>Core print defaults and retention policies used across the scan station.</p>
+                <p>Global operational defaults that apply across the scan station.</p>
               </div>
             </div>
             <div class="settingsGrid">
               <label>
-                <span>Shelf life (months)</span>
-                <input id="settingsStickerShelfLifeMonths" type="number" min="1" max="120" />
-              </label>
-              <label>
-                <span>Default sticker qty</span>
-                <input id="settingsStickerDefaultQty" type="number" min="1" max="10000" />
-              </label>
-              <label>
-                <span>Command language</span>
-                <select id="settingsStickerCommandLanguage">
-                  <option value="PPLB">PPLB</option>
-                  <option value="PPLA">PPLA</option>
-                  <option value="ZPL">ZPL</option>
-                </select>
-              </label>
-              <label>
-                <span>Sticker layout profile</span>
-                <select id="settingsStickerLayoutProfile">
-                  <option value="continuous_4up">continuous_4up</option>
-                </select>
-              </label>
-              <label>
-                <span>Sticker X offset (mm)</span>
-                <input id="settingsStickerXOffsetMm" type="number" min="-12" max="12" step="0.1" />
-              </label>
-              <label>
-                <span>Sticker Y offset (mm)</span>
-                <input id="settingsStickerYOffsetMm" type="number" min="-12" max="12" step="0.1" />
-              </label>
-              <label>
-                <span>Label width (mm)</span>
-                <input id="settingsStickerLabelWidthMm" type="number" min="8" max="60" step="0.1" />
-              </label>
-              <label>
-                <span>Label height (mm)</span>
-                <input id="settingsStickerLabelHeightMm" type="number" min="8" max="80" step="0.1" />
-              </label>
-              <label>
-                <span>Column gap (mm)</span>
-                <input id="settingsStickerColumnGapMm" type="number" min="0" max="30" step="0.1" />
-              </label>
-              <label>
-                <span>Line 1 Y (mm)</span>
-                <input id="settingsStickerLine1YMm" type="number" min="0" max="40" step="0.1" />
-              </label>
-              <label>
-                <span>Line 2 Y (mm)</span>
-                <input id="settingsStickerLine2YMm" type="number" min="0" max="50" step="0.1" />
-              </label>
-              <label>
-                <span>Line 3 Y (mm)</span>
-                <input id="settingsStickerLine3YMm" type="number" min="0" max="70" step="0.1" />
-              </label>
-              <label>
-                <span>Text rotation</span>
-                <select id="settingsStickerTextRotation">
-                  <option value="0">0</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                </select>
-              </label>
-              <label>
                 <span>Print history retention (days)</span>
                 <input id="settingsPrintRetentionDays" type="number" min="1" max="3650" />
               </label>
+            </div>
+          </section>
+          <section class="settingsTabPane" id="settingsTab-one-click-actions" hidden>
+            <div class="settingsPaneHeader">
+              <div>
+                <h4>One Click Actions</h4>
+                <p>Configure quick-print actions for best-before stickers and GBOX barcode labels.</p>
+              </div>
+            </div>
+            <div class="settingsNotificationSection">
+              <div class="settingsNotificationSectionHeader">
+                <div>
+                  <h5>Best-before stickers</h5>
+                  <p>Used by the quick-print button in the header and sticker test jobs.</p>
+                </div>
+                <div class="settingsActions">
+                  <button id="settingsTestStickerBtn" type="button" class="dispatchSelectionBtn">Test best-before print</button>
+                </div>
+              </div>
+              <div class="settingsGrid">
+                <label>
+                  <span>Shelf life (months)</span>
+                  <input id="settingsStickerShelfLifeMonths" type="number" min="1" max="120" />
+                </label>
+                <label>
+                  <span>Default sticker qty</span>
+                  <input id="settingsStickerDefaultQty" type="number" min="1" max="10000" />
+                </label>
+                <label>
+                  <span>Command language</span>
+                  <select id="settingsStickerCommandLanguage">
+                    <option value="PPLB">PPLB</option>
+                    <option value="PPLA">PPLA</option>
+                    <option value="ZPL">ZPL</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Sticker layout profile</span>
+                  <select id="settingsStickerLayoutProfile">
+                    <option value="continuous_4up">continuous_4up</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Sticker X offset (mm)</span>
+                  <input id="settingsStickerXOffsetMm" type="number" min="-12" max="12" step="0.1" />
+                </label>
+                <label>
+                  <span>Sticker Y offset (mm)</span>
+                  <input id="settingsStickerYOffsetMm" type="number" min="-12" max="12" step="0.1" />
+                </label>
+                <label>
+                  <span>Label width (mm)</span>
+                  <input id="settingsStickerLabelWidthMm" type="number" min="8" max="60" step="0.1" />
+                </label>
+                <label>
+                  <span>Label height (mm)</span>
+                  <input id="settingsStickerLabelHeightMm" type="number" min="8" max="80" step="0.1" />
+                </label>
+                <label>
+                  <span>Column gap (mm)</span>
+                  <input id="settingsStickerColumnGapMm" type="number" min="0" max="30" step="0.1" />
+                </label>
+                <label>
+                  <span>Line 1 Y (mm)</span>
+                  <input id="settingsStickerLine1YMm" type="number" min="0" max="40" step="0.1" />
+                </label>
+                <label>
+                  <span>Line 2 Y (mm)</span>
+                  <input id="settingsStickerLine2YMm" type="number" min="0" max="50" step="0.1" />
+                </label>
+                <label>
+                  <span>Line 3 Y (mm)</span>
+                  <input id="settingsStickerLine3YMm" type="number" min="0" max="70" step="0.1" />
+                </label>
+                <label>
+                  <span>Text rotation</span>
+                  <select id="settingsStickerTextRotation">
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="settingsNotificationSection">
+              <div class="settingsNotificationSectionHeader">
+                <div>
+                  <h5>GBOX barcode labels</h5>
+                  <p>Print barcode labels for gift boxes using one click.</p>
+                </div>
+                <div class="settingsActions">
+                  <button id="settingsTestGboxBtn" type="button" class="dispatchSelectionBtn">Print GBOX labels</button>
+                </div>
+              </div>
+              <div class="settingsGrid">
+                <label>
+                  <span>Label title</span>
+                  <input id="settingsGboxTitle" type="text" placeholder="GBOX" />
+                </label>
+                <label>
+                  <span>Barcode value</span>
+                  <input id="settingsGboxBarcodeValue" type="text" placeholder="GBOX" />
+                </label>
+                <label>
+                  <span>Subtitle</span>
+                  <input id="settingsGboxSubtitle" type="text" placeholder="Gift Box" />
+                </label>
+                <label>
+                  <span>Default qty</span>
+                  <input id="settingsGboxDefaultQty" type="number" min="1" max="1000" />
+                </label>
+                <label>
+                  <span>Printer ID override</span>
+                  <input id="settingsGboxPrinterId" type="number" min="1" step="1" placeholder="Leave blank for default printer" />
+                </label>
+              </div>
             </div>
           </section>
           <section class="settingsTabPane" id="settingsTab-printers" hidden>
@@ -7303,7 +7504,6 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
               </div>
               <div class="settingsActions">
                 <button id="settingsRefreshPrintersBtn" type="button" class="dispatchSelectionBtn">Refresh printers</button>
-                <button id="settingsTestStickerBtn" type="button" class="dispatchSelectionBtn">Test sticker print</button>
               </div>
             </div>
             <div id="settingsPrintersStatus" class="flHeaderConnectionLabel"></div>

@@ -12,6 +12,7 @@ import {
   fetchInventoryItemIdsForVariants,
   fetchInventoryLevelsForItems,
   fetchPrimaryLocationId,
+  setInventoryLevel,
   shopifyFetch
 } from "./shopify.js";
 import { fetchWithTimeout } from "../utils/http.js";
@@ -20,6 +21,9 @@ import { PO_CATALOG_ITEMS } from "../../public/views/purchase-order-catalog.js";
 
 const GENERATED_DIR = path.resolve(config.ASSETS_PATH || "data/assets", "generated");
 const PRINTNODE_PRINTJOBS_URL = "https://api.printnode.com/printjobs";
+const SHOPIFY_VARIANT_LOOKUP_CACHE_TTL_MS = 15 * 60 * 1000;
+const SHOPIFY_VARIANT_LOOKUP_CONCURRENCY = 4;
+const shopifyVariantLookupCache = new Map();
 
 function db() {
   return getDb();
@@ -36,6 +40,65 @@ function round2(value) {
 function asNumber(value, fallback = 0) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function getCachedShopifyVariantLookup(sku) {
+  const key = String(sku || "").trim().toUpperCase();
+  if (!key) return undefined;
+  const cached = shopifyVariantLookupCache.get(key);
+  if (!cached) return undefined;
+  if (cached.expiresAt <= Date.now()) {
+    shopifyVariantLookupCache.delete(key);
+    return undefined;
+  }
+  return cached.value;
+}
+
+function setCachedShopifyVariantLookup(sku, value) {
+  const key = String(sku || "").trim().toUpperCase();
+  if (!key) return;
+  shopifyVariantLookupCache.set(key, {
+    value: value || null,
+    expiresAt: Date.now() + SHOPIFY_VARIANT_LOOKUP_CACHE_TTL_MS
+  });
+}
+
+function asPositiveInteger(value, fallback = null) {
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric <= 0) return fallback;
+  return numeric;
+}
+
+function defaultShopifyInventoryMultiplierForUom(uom) {
+  const normalized = String(uom || "").trim().toLowerCase();
+  if (["kg", "kgs", "kilogram", "kilograms", "l", "lt", "liter", "litre", "liters", "litres"].includes(normalized)) {
+    return 1000;
+  }
+  return 1;
+}
+
+function defaultShopifyInventoryUnitForMaterial(material) {
+  const normalized = String(material?.uom || "").trim().toLowerCase();
+  if (["kg", "kgs", "kilogram", "kilograms"].includes(normalized)) return "g";
+  if (["l", "lt", "liter", "litre", "liters", "litres"].includes(normalized)) return "ml";
+  return String(material?.uom || "unit").trim() || "unit";
+}
+
+function resolvedMaterialShopifyMultiplier(material) {
+  return asPositiveInteger(material?.shopify_inventory_multiplier, defaultShopifyInventoryMultiplierForUom(material?.uom));
+}
+
+function resolvedMaterialShopifyUnit(material) {
+  const explicit = String(material?.shopify_inventory_unit || "").trim();
+  return explicit || defaultShopifyInventoryUnitForMaterial(material);
+}
+
+function toShopifyInventoryUnits(quantity, material) {
+  return Math.round(asNumber(quantity, 0) * resolvedMaterialShopifyMultiplier(material));
+}
+
+function fromShopifyInventoryUnits(quantity, material) {
+  return round2(asNumber(quantity, 0) / resolvedMaterialShopifyMultiplier(material));
 }
 
 function parseJson(raw, fallback = {}) {
@@ -166,6 +229,87 @@ function ensureOperationalSeedData() {
 
 function productCatalog() {
   return PRODUCT_LIST.filter((product) => product.variantId || product.sku === "GBOX");
+}
+
+function updateMaterialShopifyBinding(materialId, { variantId = null, inventoryItemId = null } = {}) {
+  db().prepare(
+    `UPDATE materials
+     SET shopify_variant_id = COALESCE(?, shopify_variant_id),
+         shopify_inventory_item_id = COALESCE(?, shopify_inventory_item_id),
+         updated_at = ?
+     WHERE id = ?`
+  ).run(
+    asPositiveInteger(variantId, null),
+    asPositiveInteger(inventoryItemId, null),
+    now(),
+    Number(materialId)
+  );
+}
+
+async function fetchShopifyVariantBySkuExact(sku) {
+  if (!hasShopifyConfig()) return null;
+  const normalizedSku = String(sku || "").trim();
+  if (!normalizedSku) return null;
+  const cached = getCachedShopifyVariantLookup(normalizedSku);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const params = new URLSearchParams({
+    limit: "10",
+    fields: "id,sku,inventory_item_id,title",
+    sku: normalizedSku
+  });
+  const response = await shopifyFetch(`${base}/variants.json?${params.toString()}`, { method: "GET" });
+  if (!response.ok) {
+    setCachedShopifyVariantLookup(normalizedSku, null);
+    return null;
+  }
+  const payload = await response.json().catch(() => ({}));
+  const variants = Array.isArray(payload.variants) ? payload.variants : [];
+  const matched = variants.find((variant) => String(variant?.sku || "").trim().toLowerCase() === normalizedSku.toLowerCase()) || null;
+  setCachedShopifyVariantLookup(normalizedSku, matched);
+  return matched;
+}
+
+async function resolveMaterialShopifyBindings(materials = []) {
+  const resolved = Array.isArray(materials) ? materials.map((material) => ({ ...material })) : [];
+  if (!hasShopifyConfig() || !resolved.length) return resolved;
+
+  const unresolvedMaterials = resolved.filter((material) => !asPositiveInteger(material.shopify_variant_id, null));
+  for (let index = 0; index < unresolvedMaterials.length; index += SHOPIFY_VARIANT_LOOKUP_CONCURRENCY) {
+    const batch = unresolvedMaterials.slice(index, index + SHOPIFY_VARIANT_LOOKUP_CONCURRENCY);
+    const variants = await Promise.all(
+      batch.map((material) => fetchShopifyVariantBySkuExact(material.sku).catch(() => null))
+    );
+    batch.forEach((material, materialIndex) => {
+      const variant = variants[materialIndex];
+      if (!variant?.id) return;
+      material.shopify_variant_id = Number(variant.id);
+      material.shopify_inventory_item_id = asPositiveInteger(variant.inventory_item_id, null);
+      updateMaterialShopifyBinding(material.id, {
+        variantId: material.shopify_variant_id,
+        inventoryItemId: material.shopify_inventory_item_id
+      });
+    });
+  }
+
+  const missingInventoryItemIds = resolved
+    .filter((material) => asPositiveInteger(material.shopify_variant_id, null) && !asPositiveInteger(material.shopify_inventory_item_id, null));
+  if (missingInventoryItemIds.length) {
+    const variantIds = missingInventoryItemIds
+      .map((material) => asPositiveInteger(material.shopify_variant_id, null))
+      .filter(Boolean);
+    const inventoryItemIds = await fetchInventoryItemIdsForVariants(variantIds).catch(() => new Map());
+    missingInventoryItemIds.forEach((material) => {
+      const inventoryItemId = inventoryItemIds.get(Number(material.shopify_variant_id));
+      if (!inventoryItemId) return;
+      material.shopify_inventory_item_id = Number(inventoryItemId);
+      updateMaterialShopifyBinding(material.id, { inventoryItemId });
+    });
+  }
+
+  return resolved;
 }
 
 function materialStockById() {
@@ -432,7 +576,8 @@ export async function listCatalogProducts() {
   const liveStock = await fetchProductInventoryMap().catch(() => new Map());
   return productCatalog().map((product) => {
     const moved = movementStock.get(product.sku);
-    const onHand = moved != null ? moved : asNumber(liveStock.get(product.sku), 0);
+    const hasLiveInventory = liveStock.has(product.sku);
+    const onHand = hasLiveInventory ? asNumber(liveStock.get(product.sku), 0) : asNumber(moved, 0);
     const committed = asNumber(demand.get(product.sku), 0);
     const available = round2(onHand - committed);
     return {
@@ -445,12 +590,13 @@ export async function listCatalogProducts() {
       committed,
       available,
       incoming: asNumber(incoming.get(product.sku), 0),
-      status: available < 0 ? "short" : available === 0 ? "empty" : "ok"
+      status: available < 0 ? "short" : available === 0 ? "empty" : "ok",
+      inventory_source: hasLiveInventory ? "shopify" : "local"
     };
   });
 }
 
-export function listCatalogMaterials() {
+function listCatalogMaterialsBase() {
   ensureOperationalSeedData();
   const onHandByMaterial = materialStockById();
   const reservedByMaterial = reservedMaterialById();
@@ -471,7 +617,7 @@ export function listCatalogMaterials() {
       s.contact_name AS supplier_contact_name,
       sm.supplier_sku,
       sm.min_order_qty,
-      COALESCE(sm.lead_time_days, m.lead_time_days, 0) AS preferred_lead_time_days
+      COALESCE(NULLIF(sm.lead_time_days, 0), m.lead_time_days, 0) AS preferred_lead_time_days
      FROM materials m
      LEFT JOIN supplier_materials sm
        ON sm.material_id = m.id
@@ -484,6 +630,8 @@ export function listCatalogMaterials() {
   return materials.map((material) => {
     const onHand = asNumber(onHandByMaterial.get(Number(material.id)), 0);
     const allocated = asNumber(reservedByMaterial.get(Number(material.id)), 0);
+    const multiplier = resolvedMaterialShopifyMultiplier(material);
+    const inventoryUnit = resolvedMaterialShopifyUnit(material);
     return {
       id: material.id,
       sku: material.sku,
@@ -506,7 +654,58 @@ export function listCatalogMaterials() {
       reorder_point: round2(material.reorder_point),
       lead_time_days: Number(material.preferred_lead_time_days || 0),
       batch_count: Number(batchCounts.get(Number(material.id)) || 0),
-      status: onHand - allocated <= material.reorder_point ? "reorder" : "ok"
+      status: onHand - allocated <= material.reorder_point ? "reorder" : "ok",
+      inventory_source: "local",
+      shopify_variant_id: asPositiveInteger(material.shopify_variant_id, null),
+      shopify_inventory_item_id: asPositiveInteger(material.shopify_inventory_item_id, null),
+      shopify_inventory_unit: inventoryUnit,
+      shopify_inventory_multiplier: multiplier,
+      shopify: {
+        variant_id: asPositiveInteger(material.shopify_variant_id, null),
+        inventory_item_id: asPositiveInteger(material.shopify_inventory_item_id, null),
+        inventory_unit: inventoryUnit,
+        inventory_multiplier: multiplier,
+        mapped: Boolean(asPositiveInteger(material.shopify_variant_id, null))
+      }
+    };
+  });
+}
+
+export async function listCatalogMaterials() {
+  const baseMaterials = listCatalogMaterialsBase();
+  if (!hasShopifyConfig() || !baseMaterials.length) return baseMaterials;
+
+  const resolvedMaterials = await resolveMaterialShopifyBindings(baseMaterials).catch(() => baseMaterials);
+  const locationId = await fetchPrimaryLocationId().catch(() => null);
+  const inventoryItemIds = resolvedMaterials
+    .map((material) => asPositiveInteger(material.shopify_inventory_item_id, null))
+    .filter(Boolean);
+  const levelsByItem = locationId && inventoryItemIds.length
+    ? await fetchInventoryLevelsForItems(inventoryItemIds, locationId).catch(() => new Map())
+    : new Map();
+
+  return resolvedMaterials.map((material) => {
+    const inventoryItemId = asPositiveInteger(material.shopify_inventory_item_id, null);
+    if (!inventoryItemId || !levelsByItem.has(inventoryItemId)) {
+      return material;
+    }
+    const onHand = fromShopifyInventoryUnits(levelsByItem.get(inventoryItemId), material);
+    const allocated = asNumber(material.allocated, 0);
+    const available = round2(onHand - allocated);
+    return {
+      ...material,
+      on_hand: onHand,
+      available,
+      status: available <= asNumber(material.reorder_point, 0) ? "reorder" : "ok",
+      inventory_source: "shopify",
+      shopify: {
+        ...(material.shopify || {}),
+        variant_id: asPositiveInteger(material.shopify_variant_id, null),
+        inventory_item_id: inventoryItemId,
+        inventory_unit: resolvedMaterialShopifyUnit(material),
+        inventory_multiplier: resolvedMaterialShopifyMultiplier(material),
+        mapped: Boolean(asPositiveInteger(material.shopify_variant_id, null))
+      }
     };
   });
 }
@@ -547,19 +746,59 @@ export function listCatalogBoms(filters = {}) {
   return headers.map((header) => hydrateBomHeader(header));
 }
 
-export function createCatalogMaterial(payload = {}) {
+async function hydrateCatalogMaterialById(materialId) {
+  const materials = await listCatalogMaterials();
+  return materials.find((entry) => Number(entry.id) === Number(materialId)) || null;
+}
+
+function normalizeCatalogMaterialPayload(payload = {}, existing = null) {
+  const sku = String(payload?.sku ?? existing?.sku ?? "").trim().toUpperCase();
+  const title = String(payload?.title ?? existing?.title ?? "").trim();
+  const category = String(payload?.category ?? existing?.category ?? "ingredient").trim().toLowerCase() || "ingredient";
+  const uom = String(payload?.uom ?? existing?.uom ?? "unit").trim() || "unit";
+  const icon = String(payload?.icon ?? existing?.icon ?? "").trim() || null;
+  const shopifyVariantId = asPositiveInteger(
+    payload?.shopify_variant_id ?? payload?.shopifyVariantId ?? existing?.shopify_variant_id,
+    null
+  );
+  const shopifyInventoryItemId = asPositiveInteger(
+    payload?.shopify_inventory_item_id ?? payload?.shopifyInventoryItemId ?? existing?.shopify_inventory_item_id,
+    null
+  );
+  const shopifyInventoryUnit = String(
+    payload?.shopify_inventory_unit ?? payload?.shopifyInventoryUnit ?? existing?.shopify_inventory_unit ?? ""
+  ).trim() || defaultShopifyInventoryUnitForMaterial({ uom });
+  const multiplierSource =
+    payload?.shopify_inventory_multiplier ?? payload?.shopifyInventoryMultiplier ?? existing?.shopify_inventory_multiplier;
+  const shopifyInventoryMultiplier =
+    multiplierSource == null || String(multiplierSource).trim() === ""
+      ? null
+      : asPositiveInteger(multiplierSource, defaultShopifyInventoryMultiplierForUom(uom));
+
+  return {
+    sku,
+    title,
+    category,
+    uom,
+    icon,
+    reorder_point: round2(payload?.reorder_point ?? payload?.reorderPoint ?? existing?.reorder_point),
+    lead_time_days: Math.max(0, Math.floor(asNumber(payload?.lead_time_days ?? payload?.leadTimeDays ?? existing?.lead_time_days, 0))),
+    shopify_variant_id: shopifyVariantId,
+    shopify_inventory_item_id: shopifyInventoryItemId,
+    shopify_inventory_unit: shopifyInventoryUnit,
+    shopify_inventory_multiplier: shopifyInventoryMultiplier
+  };
+}
+
+export async function createCatalogMaterial(payload = {}) {
   ensureOperationalSeedData();
-  const sku = String(payload?.sku || "").trim().toUpperCase();
-  const title = String(payload?.title || "").trim();
-  if (!sku) return { error: "Material SKU is required" };
-  if (!title) return { error: "Material title is required" };
-  const existing = db().prepare("SELECT id FROM materials WHERE sku = ?").get(sku);
-  if (existing) return { error: `Material SKU already exists: ${sku}` };
+  const normalized = normalizeCatalogMaterialPayload(payload);
+  if (!normalized.sku) return { error: "Material SKU is required" };
+  if (!normalized.title) return { error: "Material title is required" };
+  const existing = db().prepare("SELECT id FROM materials WHERE sku = ?").get(normalized.sku);
+  if (existing) return { error: `Material SKU already exists: ${normalized.sku}` };
 
   const requestId = payload?.request_id || nextRequestId("material");
-  const category = String(payload?.category || "ingredient").trim().toLowerCase() || "ingredient";
-  const uom = String(payload?.uom || "unit").trim() || "unit";
-  const icon = String(payload?.icon || "").trim() || null;
   const tx = db().transaction(() => {
     const result = db().prepare(
       `INSERT INTO materials (
@@ -570,17 +809,25 @@ export function createCatalogMaterial(payload = {}) {
         icon,
         reorder_point,
         lead_time_days,
+        shopify_variant_id,
+        shopify_inventory_item_id,
+        shopify_inventory_unit,
+        shopify_inventory_multiplier,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
-      sku,
-      title,
-      category,
-      uom,
-      icon,
-      round2(payload?.reorder_point),
-      Math.max(0, Math.floor(asNumber(payload?.lead_time_days, 0))),
+      normalized.sku,
+      normalized.title,
+      normalized.category,
+      normalized.uom,
+      normalized.icon,
+      normalized.reorder_point,
+      normalized.lead_time_days,
+      normalized.shopify_variant_id,
+      normalized.shopify_inventory_item_id,
+      normalized.shopify_inventory_unit,
+      normalized.shopify_inventory_multiplier,
       now(),
       now()
     );
@@ -593,12 +840,83 @@ export function createCatalogMaterial(payload = {}) {
       entity_type: "material",
       entity_id: String(result.lastInsertRowid),
       request_id: requestId,
-      details: { sku, title, category, uom }
+      details: {
+        sku: normalized.sku,
+        title: normalized.title,
+        category: normalized.category,
+        uom: normalized.uom,
+        shopify_variant_id: normalized.shopify_variant_id
+      }
     });
     return Number(result.lastInsertRowid);
   });
   const materialId = tx();
-  const material = listCatalogMaterials().find((entry) => Number(entry.id) === materialId) || null;
+  const material = await hydrateCatalogMaterialById(materialId);
+  return { material, request_id: requestId };
+}
+
+export async function updateCatalogMaterial(materialId, payload = {}) {
+  ensureOperationalSeedData();
+  const existing = db().prepare("SELECT * FROM materials WHERE id = ?").get(Number(materialId));
+  if (!existing) return { error: "Material not found" };
+  const normalized = normalizeCatalogMaterialPayload(payload, existing);
+  if (!normalized.sku) return { error: "Material SKU is required" };
+  if (!normalized.title) return { error: "Material title is required" };
+
+  const duplicate = db().prepare("SELECT id FROM materials WHERE sku = ? AND id <> ?").get(normalized.sku, Number(materialId));
+  if (duplicate) return { error: `Material SKU already exists: ${normalized.sku}` };
+
+  const requestId = payload?.request_id || nextRequestId("material-update");
+  const tx = db().transaction(() => {
+    db().prepare(
+      `UPDATE materials
+       SET sku = ?,
+           title = ?,
+           category = ?,
+           uom = ?,
+           icon = ?,
+           reorder_point = ?,
+           lead_time_days = ?,
+           shopify_variant_id = ?,
+           shopify_inventory_item_id = ?,
+           shopify_inventory_unit = ?,
+           shopify_inventory_multiplier = ?,
+           updated_at = ?
+       WHERE id = ?`
+    ).run(
+      normalized.sku,
+      normalized.title,
+      normalized.category,
+      normalized.uom,
+      normalized.icon,
+      normalized.reorder_point,
+      normalized.lead_time_days,
+      normalized.shopify_variant_id,
+      normalized.shopify_inventory_item_id,
+      normalized.shopify_inventory_unit,
+      normalized.shopify_inventory_multiplier,
+      now(),
+      Number(materialId)
+    );
+    upsertPreferredSupplierForMaterial(Number(materialId), payload);
+    recordAppAudit({
+      actor_type: payload?.actor_type || "system",
+      actor_id: payload?.actor_id || "system",
+      surface: "catalog",
+      action: "material_updated",
+      entity_type: "material",
+      entity_id: String(materialId),
+      request_id: requestId,
+      details: {
+        sku: normalized.sku,
+        title: normalized.title,
+        category: normalized.category,
+        shopify_variant_id: normalized.shopify_variant_id
+      }
+    });
+  });
+  tx();
+  const material = await hydrateCatalogMaterialById(materialId);
   return { material, request_id: requestId };
 }
 
@@ -882,10 +1200,249 @@ export function listInventoryStocktakes() {
   ).all();
 }
 
-export function createStocktake({ scope, location_key, notes, lines = [], actor_type = "system", actor_id = "system" }) {
+async function resolveShopifyLocationId(locationKey) {
+  const explicit = Number(locationKey);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  if (!hasShopifyConfig()) return null;
+  return fetchPrimaryLocationId().catch(() => null);
+}
+
+async function hydrateInventoryTargets(targets = []) {
+  const hydrated = Array.isArray(targets) ? targets.map((target) => ({ ...target })) : [];
+  const missingInventoryItemTargets = hydrated.filter(
+    (target) => asPositiveInteger(target.variant_id, null) && !asPositiveInteger(target.inventory_item_id, null)
+  );
+  if (!missingInventoryItemTargets.length) return hydrated;
+
+  const variantIds = Array.from(
+    new Set(
+      missingInventoryItemTargets
+        .map((target) => asPositiveInteger(target.variant_id, null))
+        .filter(Boolean)
+    )
+  );
+  if (!variantIds.length) return hydrated;
+
+  const inventoryItemIdsByVariant = await fetchInventoryItemIdsForVariants(variantIds).catch(() => new Map());
+  hydrated.forEach((target) => {
+    if (asPositiveInteger(target.inventory_item_id, null)) return;
+    const inventoryItemId = inventoryItemIdsByVariant.get(Number(target.variant_id));
+    if (!inventoryItemId) return;
+    target.inventory_item_id = Number(inventoryItemId);
+    if (target.entity_type === "material" && Number.isFinite(target.material_id)) {
+      updateMaterialShopifyBinding(target.material_id, { inventoryItemId });
+    }
+  });
+
+  return hydrated;
+}
+
+function buildShopifySyncSummary({ configured, locationId = null, attempted = [], succeeded = [], failed = [], skipped = [] }) {
+  return {
+    configured: Boolean(configured),
+    location_id: locationId,
+    attempted: attempted.length,
+    succeeded: succeeded.length,
+    failed,
+    skipped
+  };
+}
+
+async function syncAbsoluteShopifyInventoryTargets(targets = [], { locationKey } = {}) {
+  if (!hasShopifyConfig()) {
+    return buildShopifySyncSummary({
+      configured: false,
+      skipped: (targets || []).map((target) => ({
+        sku: target.sku || null,
+        title: target.title || null,
+        reason: "SHOPIFY_NOT_CONFIGURED"
+      }))
+    });
+  }
+
+  const locationId = await resolveShopifyLocationId(locationKey);
+  if (!locationId) {
+    return buildShopifySyncSummary({
+      configured: true,
+      skipped: (targets || []).map((target) => ({
+        sku: target.sku || null,
+        title: target.title || null,
+        reason: "LOCATION_NOT_RESOLVED"
+      }))
+    });
+  }
+
+  const hydrated = await hydrateInventoryTargets(targets);
+  const attempted = [];
+  const succeeded = [];
+  const failed = [];
+  const skipped = [];
+
+  for (const target of hydrated) {
+    const variantId = asPositiveInteger(target.variant_id, null);
+    const inventoryItemId = asPositiveInteger(target.inventory_item_id, null);
+    if (!variantId || !inventoryItemId) {
+      skipped.push({
+        sku: target.sku || null,
+        title: target.title || null,
+        reason: "VARIANT_NOT_MAPPED"
+      });
+      continue;
+    }
+
+    const available = Math.max(0, Math.round(asNumber(target.desired_available, 0)));
+    attempted.push(target);
+    try {
+      const level = await setInventoryLevel({
+        inventoryItemId,
+        locationId,
+        available
+      });
+      succeeded.push({
+        sku: target.sku || null,
+        title: target.title || null,
+        variant_id: variantId,
+        inventory_item_id: inventoryItemId,
+        available: Number(level?.available ?? available)
+      });
+    } catch (error) {
+      failed.push({
+        sku: target.sku || null,
+        title: target.title || null,
+        variant_id: variantId,
+        inventory_item_id: inventoryItemId,
+        message: String(error?.message || error)
+      });
+    }
+  }
+
+  return buildShopifySyncSummary({ configured: true, locationId, attempted, succeeded, failed, skipped });
+}
+
+async function syncDeltaShopifyInventoryTargets(targets = [], { locationKey } = {}) {
+  if (!hasShopifyConfig()) {
+    return buildShopifySyncSummary({
+      configured: false,
+      skipped: (targets || []).map((target) => ({
+        sku: target.sku || null,
+        title: target.title || null,
+        reason: "SHOPIFY_NOT_CONFIGURED"
+      }))
+    });
+  }
+
+  const locationId = await resolveShopifyLocationId(locationKey);
+  if (!locationId) {
+    return buildShopifySyncSummary({
+      configured: true,
+      skipped: (targets || []).map((target) => ({
+        sku: target.sku || null,
+        title: target.title || null,
+        reason: "LOCATION_NOT_RESOLVED"
+      }))
+    });
+  }
+
+  const hydrated = await hydrateInventoryTargets(targets);
+  const actionable = hydrated.filter((target) => asPositiveInteger(target.inventory_item_id, null));
+  const currentLevels = actionable.length
+    ? await fetchInventoryLevelsForItems(
+        actionable.map((target) => Number(target.inventory_item_id)),
+        locationId
+      ).catch(() => new Map())
+    : new Map();
+
+  const attempted = [];
+  const succeeded = [];
+  const failed = [];
+  const skipped = [];
+
+  for (const target of hydrated) {
+    const variantId = asPositiveInteger(target.variant_id, null);
+    const inventoryItemId = asPositiveInteger(target.inventory_item_id, null);
+    if (!variantId || !inventoryItemId) {
+      skipped.push({
+        sku: target.sku || null,
+        title: target.title || null,
+        reason: "VARIANT_NOT_MAPPED"
+      });
+      continue;
+    }
+
+    const current = Math.max(0, Math.round(asNumber(currentLevels.get(inventoryItemId), 0)));
+    const delta = Math.round(asNumber(target.adjustment, 0));
+    const desired = Math.max(0, current + delta);
+    attempted.push(target);
+    try {
+      const level = await setInventoryLevel({
+        inventoryItemId,
+        locationId,
+        available: desired
+      });
+      succeeded.push({
+        sku: target.sku || null,
+        title: target.title || null,
+        variant_id: variantId,
+        inventory_item_id: inventoryItemId,
+        previous_available: current,
+        available: Number(level?.available ?? desired),
+        clamped_to_zero: current + delta < 0
+      });
+    } catch (error) {
+      failed.push({
+        sku: target.sku || null,
+        title: target.title || null,
+        variant_id: variantId,
+        inventory_item_id: inventoryItemId,
+        previous_available: current,
+        attempted_available: desired,
+        message: String(error?.message || error)
+      });
+    }
+  }
+
+  return buildShopifySyncSummary({ configured: true, locationId, attempted, succeeded, failed, skipped });
+}
+
+export async function createStocktake({ scope, location_key, notes, lines = [], actor_type = "system", actor_id = "system" }) {
   ensureOperationalSeedData();
   const requestId = nextRequestId("stocktake");
   const conn = db();
+  const localMaterialStock = materialStockById();
+  const localProductStock = productMovementStockBySku();
+  const [products, materials] = await Promise.all([
+    listCatalogProducts().catch(() => []),
+    listCatalogMaterials().catch(() => [])
+  ]);
+  const productsBySku = new Map(products.map((product) => [String(product.sku), product]));
+  const materialsById = new Map(materials.map((material) => [Number(material.id), material]));
+  const normalizedLines = (Array.isArray(lines) ? lines : []).map((line) => {
+    const entityType = String(line?.entity_type || "").trim().toLowerCase();
+    if (!["product", "material"].includes(entityType)) return null;
+
+    const productSku = entityType === "product" ? String(line?.product_sku || "").trim() : null;
+    const materialId = entityType === "material" ? Number(line?.material_id || 0) : null;
+    const countedQty = round2(line?.counted_qty);
+    const currentProduct = entityType === "product" ? productsBySku.get(productSku) : null;
+    const currentMaterial = entityType === "material" ? materialsById.get(materialId) : null;
+    const beforeQty = entityType === "material"
+      ? asNumber(currentMaterial?.on_hand, asNumber(localMaterialStock.get(materialId), 0))
+      : asNumber(currentProduct?.on_hand, asNumber(localProductStock.get(productSku), 0));
+    const diffQty = round2(countedQty - beforeQty);
+
+    return {
+      entity_type: entityType,
+      product_sku: productSku,
+      material_id: materialId,
+      batch_id: line?.batch_id || null,
+      counted_qty: countedQty,
+      before_qty: beforeQty,
+      diff_qty: diffQty,
+      product: currentProduct,
+      material: currentMaterial
+    };
+  }).filter(Boolean);
+
   const tx = conn.transaction(() => {
     const stocktakeResult = conn.prepare(
       `INSERT INTO stocktakes (status, scope, location_key, notes, actor_type, actor_id, created_at)
@@ -893,14 +1450,7 @@ export function createStocktake({ scope, location_key, notes, lines = [], actor_
     ).run(String(scope || "full"), location_key || null, notes || null, actor_type, actor_id, now());
     const stocktakeId = stocktakeResult.lastInsertRowid;
 
-    for (const line of Array.isArray(lines) ? lines : []) {
-      const entityType = String(line?.entity_type || "").trim().toLowerCase();
-      if (!["product", "material"].includes(entityType)) continue;
-      const countedQty = round2(line?.counted_qty);
-      const beforeQty = entityType === "material"
-        ? asNumber(materialStockById().get(Number(line.material_id)), 0)
-        : asNumber(productMovementStockBySku().get(String(line.product_sku || "")), 0);
-      const diffQty = round2(countedQty - beforeQty);
+    for (const line of normalizedLines) {
       conn.prepare(
         `INSERT INTO stocktake_lines (
           stocktake_id,
@@ -915,16 +1465,16 @@ export function createStocktake({ scope, location_key, notes, lines = [], actor_
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         stocktakeId,
-        entityType,
-        line?.product_sku || null,
-        line?.material_id || null,
-        countedQty,
-        beforeQty,
-        diffQty,
-        line?.batch_id || null,
+        line.entity_type,
+        line.product_sku || null,
+        line.material_id || null,
+        line.counted_qty,
+        line.before_qty,
+        line.diff_qty,
+        line.batch_id || null,
         now()
       );
-      if (diffQty !== 0) {
+      if (line.diff_qty !== 0) {
         conn.prepare(
           `INSERT INTO stock_movements (
             occurred_at,
@@ -943,16 +1493,16 @@ export function createStocktake({ scope, location_key, notes, lines = [], actor_
         ).run(
           now(),
           location_key || null,
-          entityType === "product" ? line?.product_sku || null : null,
-          entityType === "material" ? line?.material_id || null : null,
-          line?.batch_id || null,
-          diffQty,
+          line.entity_type === "product" ? line.product_sku || null : null,
+          line.entity_type === "material" ? line.material_id || null : null,
+          line.batch_id || null,
+          line.diff_qty,
           String(stocktakeId),
           actor_type,
           actor_id,
           JSON.stringify({
-            before_qty: beforeQty,
-            counted_qty: countedQty
+            before_qty: line.before_qty,
+            counted_qty: line.counted_qty
           })
         );
       }
@@ -967,15 +1517,49 @@ export function createStocktake({ scope, location_key, notes, lines = [], actor_
       entity_type: "stocktake",
       entity_id: String(stocktakeId),
       request_id: requestId,
-      details: { scope, line_count: Array.isArray(lines) ? lines.length : 0 }
+      details: { scope, line_count: normalizedLines.length }
     });
     return stocktakeId;
   });
 
   const stocktakeId = tx();
+  const shopifyTargets = normalizedLines.map((line) => {
+    if (line.entity_type === "product") {
+      return {
+        entity_type: "product",
+        sku: line.product_sku,
+        title: line.product?.title || line.product_sku,
+        variant_id: asPositiveInteger(line.product?.variantId, null),
+        inventory_item_id: null,
+        desired_available: line.counted_qty
+      };
+    }
+    return {
+      entity_type: "material",
+      material_id: line.material_id,
+      sku: line.material?.sku || null,
+      title: line.material?.title || line.material_id,
+      variant_id: asPositiveInteger(line.material?.shopify_variant_id, null),
+      inventory_item_id: asPositiveInteger(line.material?.shopify_inventory_item_id, null),
+      desired_available: toShopifyInventoryUnits(line.counted_qty, line.material || { uom: "unit" })
+    };
+  }).filter((target) => target.variant_id || target.inventory_item_id);
+  const shopifySync = await syncAbsoluteShopifyInventoryTargets(shopifyTargets, { locationKey: location_key });
+  recordAppAudit({
+    actor_type,
+    actor_id,
+    surface: "stock",
+    action: "stocktake_shopify_sync",
+    entity_type: "stocktake",
+    entity_id: String(stocktakeId),
+    request_id: requestId,
+    status: shopifySync.failed.length ? "partial" : "ok",
+    details: shopifySync
+  });
   return {
     stocktake: db().prepare("SELECT * FROM stocktakes WHERE id = ?").get(stocktakeId),
-    request_id: requestId
+    request_id: requestId,
+    shopify_sync: shopifySync
   };
 }
 
@@ -1465,9 +2049,9 @@ export async function retryBuyPurchaseOrderDispatch(purchaseOrderId, { actor_typ
   return result;
 }
 
-function computeMakeRequirements(lines = []) {
+async function computeMakeRequirements(lines = []) {
   ensureOperationalSeedData();
-  const materials = new Map(listCatalogMaterials().map((material) => [Number(material.id), material]));
+  const materials = new Map((await listCatalogMaterials()).map((material) => [Number(material.id), material]));
   const aggregated = new Map();
   const missingBom = [];
 
@@ -1502,14 +2086,15 @@ function computeMakeRequirements(lines = []) {
       ...requirement,
       available_qty: asNumber(material?.available, 0),
       shortage_qty: Math.max(0, round2(requirement.required_qty - asNumber(material?.available, 0))),
-      preferred_supplier: material?.preferred_supplier || null
+      preferred_supplier: material?.preferred_supplier || null,
+      inventory_source: material?.inventory_source || "local"
     };
   }).sort((left, right) => String(left.material_title).localeCompare(String(right.material_title)));
 
   return { requirements, missing_bom: missingBom };
 }
 
-export function getMakeRequirements(payload = {}) {
+export async function getMakeRequirements(payload = {}) {
   const normalizedLines = (Array.isArray(payload?.lines) ? payload.lines : [])
     .map((line) => ({
       product_sku: String(line?.product_sku || line?.productSku || "").trim(),
@@ -1529,7 +2114,7 @@ export async function createManufacturingOrder(payload = {}) {
   if (!lines.length) return { error: "At least one manufacturing line is required" };
 
   const requestId = payload?.request_id || nextRequestId("make");
-  const requirementsPayload = computeMakeRequirements(lines);
+  const requirementsPayload = await computeMakeRequirements(lines);
   const conn = db();
   const tx = conn.transaction(() => {
     const moResult = conn.prepare(
@@ -1672,7 +2257,7 @@ export function listManufacturingOrders() {
   }));
 }
 
-export function completeManufacturingOrder(manufacturingOrderId, payload = {}) {
+export async function completeManufacturingOrder(manufacturingOrderId, payload = {}) {
   const conn = db();
   const mo = conn.prepare("SELECT * FROM manufacturing_orders WHERE id = ?").get(Number(manufacturingOrderId));
   if (!mo) return { error: "Manufacturing order not found" };
@@ -1766,6 +2351,32 @@ export function completeManufacturingOrder(manufacturingOrderId, payload = {}) {
   });
 
   const batchId = tx();
+  const materialsById = new Map((await listCatalogMaterials().catch(() => [])).map((material) => [Number(material.id), material]));
+  const shopifyTargets = [
+    ...requirements.map((requirement) => {
+      const material = materialsById.get(Number(requirement.material_id));
+      return {
+        entity_type: "material",
+        material_id: Number(requirement.material_id),
+        sku: material?.sku || null,
+        title: material?.title || `Material ${requirement.material_id}`,
+        variant_id: asPositiveInteger(material?.shopify_variant_id, null),
+        inventory_item_id: asPositiveInteger(material?.shopify_inventory_item_id, null),
+        adjustment: -Math.abs(toShopifyInventoryUnits(requirement.required_qty, material || { uom: requirement.uom || "unit" }))
+      };
+    }),
+    ...lines.map((line) => ({
+      entity_type: "product",
+      sku: line.product_sku,
+      title: line.product_title || line.product_sku,
+      variant_id: asPositiveInteger(line.variant_id, null),
+      inventory_item_id: null,
+      adjustment: Math.abs(Math.round(asNumber(line.quantity, 0)))
+    }))
+  ].filter((target) => target.adjustment !== 0 && (target.variant_id || target.inventory_item_id));
+  const shopifySync = await syncDeltaShopifyInventoryTargets(shopifyTargets, {
+    locationKey: payload?.location_key || payload?.locationKey || null
+  });
   recordAppAudit({
     actor_type: payload?.actor_type || "system",
     actor_id: payload?.actor_id || "system",
@@ -1776,22 +2387,24 @@ export function completeManufacturingOrder(manufacturingOrderId, payload = {}) {
     related_entity_type: "batch",
     related_entity_id: String(batchId),
     request_id: requestId,
-    status: "ok",
+    status: shopifySync.failed.length ? "partial" : "ok",
     details: {
       batch_code: batchCode,
       line_count: lines.length,
-      requirement_count: requirements.length
+      requirement_count: requirements.length,
+      shopify_sync: shopifySync
     }
   });
 
   return {
     manufacturing_order: conn.prepare("SELECT * FROM manufacturing_orders WHERE id = ?").get(Number(manufacturingOrderId)),
-    batch: conn.prepare("SELECT * FROM batches WHERE id = ?").get(Number(batchId))
+    batch: conn.prepare("SELECT * FROM batches WHERE id = ?").get(Number(batchId)),
+    shopify_sync: shopifySync
   };
 }
 
 export async function createLinkedPurchaseOrdersFromShortages(payload = {}) {
-  const requirements = getMakeRequirements(payload);
+  const requirements = await getMakeRequirements(payload);
   const selections = requirements.requirements
     .filter((requirement) => requirement.shortage_qty > 0)
     .map((requirement) => ({

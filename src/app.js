@@ -70,6 +70,21 @@ function mountApiRouters(app, basePath = "/api/v1") {
   app.use(basePath, (_req, res) => res.status(404).json({ error: "Not found" }));
 }
 
+function setPublicAssetHeaders(res, filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".html") {
+    res.setHeader("Cache-Control", "no-cache");
+    return;
+  }
+  if (ext === ".json") {
+    res.setHeader("Cache-Control", "no-cache");
+    return;
+  }
+  if (config.NODE_ENV === "production" && [".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".woff", ".woff2"].includes(ext)) {
+    res.setHeader("Cache-Control", "public, max-age=3600");
+  }
+}
+
 export function createApp() {
   const app = express();
   const googleMapsCspSources = [
@@ -121,12 +136,11 @@ export function createApp() {
   mountApiRouters(app);
 
   const legacyRedirects = new Map([
-    ["/admin", "/stock"],
     ["/purchase-orders.html", "/buy"],
     ["/manufacturing.html", "/make"],
     ["/product-management.html", "/stock?section=inventory&tab=raw-materials"],
-    ["/price-manager.html", "/price-manager"],
-    ["/agent-commissions.html", "/agent-commissions"],
+    ["/price-manager.html", "/admin/price-manager"],
+    ["/agent-commissions.html", "/admin/agent-commissions"],
     ["/dispatch-settings", "/stock?notice=tool-retired"],
     ["/logs", "/stock?notice=tool-retired"],
     ["/station-controller.html", "/stock?notice=tool-retired"],
@@ -146,9 +160,18 @@ export function createApp() {
 
   const publicDir = path.join(__dirname, "..", "public");
   const oneUiAssetsDir = path.join(__dirname, "..", "ONEUI", "OneUI by pixelcave", "OneUI 5.12", "01 OneUI Source (HTML)", "src", "assets");
-  app.use("/vendor/oneui", express.static(oneUiAssetsDir));
-  app.use(express.static(publicDir));
-  app.get("*", (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
+  app.use("/vendor/oneui", express.static(oneUiAssetsDir, {
+    immutable: config.NODE_ENV === "production",
+    maxAge: config.NODE_ENV === "production" ? "30d" : 0
+  }));
+  app.use(express.static(publicDir, {
+    maxAge: config.NODE_ENV === "production" ? "1h" : 0,
+    setHeaders: setPublicAssetHeaders
+  }));
+  app.get("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(path.join(publicDir, "index.html"));
+  });
 
   return {
     app,

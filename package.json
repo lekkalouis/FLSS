@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
-    "start": "NODE_ENV=production node server.js",
+    "start": "node scripts/start-production.mjs",
+    "start:prod": "node scripts/start-production.mjs",
     "test": "node --test",
     "test:watch": "node --test --watch",
     "po:catalog:generate": "node scripts/generate-po-catalog.mjs",

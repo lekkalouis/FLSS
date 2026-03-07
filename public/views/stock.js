@@ -33,6 +33,20 @@ export function initStockView() {
     location: document.getElementById("stockLocation"),
     productsBody: document.getElementById("stockProductsBody"),
     materialsBody: document.getElementById("stockMaterialsBody"),
+    materialSku: document.getElementById("stockMaterialSku"),
+    materialTitle: document.getElementById("stockMaterialTitle"),
+    materialCategory: document.getElementById("stockMaterialCategory"),
+    materialUom: document.getElementById("stockMaterialUom"),
+    materialIcon: document.getElementById("stockMaterialIcon"),
+    materialSupplier: document.getElementById("stockMaterialSupplier"),
+    materialReorderPoint: document.getElementById("stockMaterialReorderPoint"),
+    materialLeadTimeDays: document.getElementById("stockMaterialLeadTimeDays"),
+    materialShopifyVariantId: document.getElementById("stockMaterialShopifyVariantId"),
+    materialShopifyInventoryUnit: document.getElementById("stockMaterialShopifyInventoryUnit"),
+    materialShopifyMultiplier: document.getElementById("stockMaterialShopifyMultiplier"),
+    materialSave: document.getElementById("stockMaterialSave"),
+    materialReset: document.getElementById("stockMaterialReset"),
+    materialStatus: document.getElementById("stockMaterialStatus"),
     batchesBody: document.getElementById("stockBatchesBody"),
     stocktakeScope: document.getElementById("stocktakeScope"),
     stocktakeSearch: document.getElementById("stocktakeSearch"),
@@ -50,11 +64,13 @@ export function initStockView() {
     inventoryTab: "products",
     products: [],
     materials: [],
+    suppliers: [],
     batches: [],
     stocktakes: [],
     auditRows: [],
     locations: [],
-    stocktakeCounts: new Map()
+    stocktakeCounts: new Map(),
+    editingMaterialId: null
   };
 
   function filteredProducts() {
@@ -101,6 +117,92 @@ export function initStockView() {
       const haystack = `${item.sku} ${item.title} ${item.category}`.toLowerCase();
       return !query || haystack.includes(query);
     });
+  }
+
+  function setMaterialStatus(message) {
+    if (els.materialStatus) els.materialStatus.textContent = String(message || "");
+  }
+
+  function formatShopifySyncSummary(sync) {
+    if (!sync) return "";
+    if (!sync.configured) return "Shopify inventory sync was skipped because Shopify inventory is not configured.";
+    const synced = Array.isArray(sync.succeeded) ? sync.succeeded.length : 0;
+    const failed = Array.isArray(sync.failed) ? sync.failed.length : 0;
+    const skipped = Array.isArray(sync.skipped) ? sync.skipped.length : 0;
+    const parts = [`Shopify synced ${synced}`];
+    if (skipped) parts.push(`${skipped} skipped`);
+    if (failed) parts.push(`${failed} failed`);
+    return parts.join(" | ");
+  }
+
+  function renderSupplierOptions(selectedId = "") {
+    if (!els.materialSupplier) return;
+    const current = String(selectedId || els.materialSupplier.value || "");
+    const options = state.suppliers.map((supplier) => `
+      <option value="${supplier.id}">${escapeHtml(supplier.name)}</option>
+    `).join("");
+    els.materialSupplier.innerHTML = `<option value="">Select supplier</option>${options}`;
+    if (current && state.suppliers.some((supplier) => String(supplier.id) === current)) {
+      els.materialSupplier.value = current;
+    }
+  }
+
+  function defaultShopifyUnitForUom(uom) {
+    const normalized = String(uom || "").trim().toLowerCase();
+    if (["kg", "kgs", "kilogram", "kilograms"].includes(normalized)) return "g";
+    if (["l", "lt", "liter", "litre", "liters", "litres"].includes(normalized)) return "ml";
+    return String(uom || "unit").trim() || "unit";
+  }
+
+  function defaultShopifyMultiplierForUom(uom) {
+    const normalized = String(uom || "").trim().toLowerCase();
+    if (["kg", "kgs", "kilogram", "kilograms", "l", "lt", "liter", "litre", "liters", "litres"].includes(normalized)) {
+      return 1000;
+    }
+    return 1;
+  }
+
+  function resetMaterialEditor() {
+    state.editingMaterialId = null;
+    if (els.materialSku) els.materialSku.value = "";
+    if (els.materialTitle) els.materialTitle.value = "";
+    if (els.materialCategory) els.materialCategory.value = "ingredient";
+    if (els.materialUom) els.materialUom.value = "kg";
+    if (els.materialIcon) els.materialIcon.value = "";
+    if (els.materialSupplier) els.materialSupplier.value = "";
+    if (els.materialReorderPoint) els.materialReorderPoint.value = "0";
+    if (els.materialLeadTimeDays) els.materialLeadTimeDays.value = "0";
+    if (els.materialShopifyVariantId) els.materialShopifyVariantId.value = "";
+    if (els.materialShopifyInventoryUnit) els.materialShopifyInventoryUnit.value = "g";
+    if (els.materialShopifyMultiplier) els.materialShopifyMultiplier.value = "1000";
+    setMaterialStatus("Create or edit raw materials here, then use them in BOMs from Make.");
+  }
+
+  function loadMaterialIntoEditor(material) {
+    if (!material) return;
+    state.editingMaterialId = Number(material.id);
+    if (els.materialSku) els.materialSku.value = String(material.sku || "");
+    if (els.materialTitle) els.materialTitle.value = String(material.title || "");
+    if (els.materialCategory) els.materialCategory.value = String(material.category || "ingredient");
+    if (els.materialUom) els.materialUom.value = String(material.uom || "unit");
+    if (els.materialIcon) els.materialIcon.value = String(material.icon || "");
+    if (els.materialSupplier) els.materialSupplier.value = material.preferred_supplier?.id ? String(material.preferred_supplier.id) : "";
+    if (els.materialReorderPoint) els.materialReorderPoint.value = String(material.reorder_point ?? 0);
+    if (els.materialLeadTimeDays) els.materialLeadTimeDays.value = String(material.lead_time_days ?? 0);
+    if (els.materialShopifyVariantId) {
+      els.materialShopifyVariantId.value = material.shopify_variant_id ? String(material.shopify_variant_id) : "";
+    }
+    if (els.materialShopifyInventoryUnit) {
+      els.materialShopifyInventoryUnit.value = String(
+        material.shopify_inventory_unit || defaultShopifyUnitForUom(material.uom)
+      );
+    }
+    if (els.materialShopifyMultiplier) {
+      els.materialShopifyMultiplier.value = String(
+        material.shopify_inventory_multiplier || defaultShopifyMultiplierForUom(material.uom)
+      );
+    }
+    setMaterialStatus(`Editing ${material.sku}.`);
   }
 
   function setPrimaryTab(tab) {
@@ -164,9 +266,11 @@ export function initStockView() {
             <td class="${Number(material.available || 0) <= Number(material.reorder_point || 0) ? "stock-neg" : ""}">${Number(material.available || 0)}</td>
             <td>${Number(material.reorder_point || 0)}</td>
             <td>${Number(material.lead_time_days || 0)}d</td>
+            <td><span class="uo-chip ${material.inventory_source === "shopify" ? "uo-chip--success" : "uo-chip--muted"}">${escapeHtml(material.inventory_source || "local")}</span></td>
+            <td><button class="stock-secondaryBtn" type="button" data-material-edit="${material.id}">Edit</button></td>
           </tr>
         `).join("")
-      : `<tr><td colspan="10" class="stock-emptyCell">No materials match this filter.</td></tr>`;
+      : `<tr><td colspan="12" class="stock-emptyCell">No materials match this filter.</td></tr>`;
   }
 
   function renderBatches() {
@@ -248,11 +352,25 @@ export function initStockView() {
       : `<option value="">Primary</option>`;
   }
 
+  async function loadSuppliers() {
+    const resp = await fetch(`${API_BASE}/catalog/suppliers`);
+    const body = await resp.json().catch(() => ({}));
+    state.suppliers = Array.isArray(body.suppliers) ? body.suppliers : [];
+    renderSupplierOptions();
+  }
+
   async function loadInventory() {
     const resp = await fetch(`${API_BASE}/inventory/overview`);
     const body = await resp.json().catch(() => ({}));
     state.products = Array.isArray(body.products) ? body.products : [];
     state.materials = Array.isArray(body.materials) ? body.materials : [];
+    if (state.editingMaterialId) {
+      const current = state.materials.find((material) => Number(material.id) === Number(state.editingMaterialId));
+      if (current) {
+        renderSupplierOptions(current.preferred_supplier?.id ? String(current.preferred_supplier.id) : "");
+        loadMaterialIntoEditor(current);
+      }
+    }
     renderProducts();
     renderMaterials();
     renderStocktakeRows();
@@ -287,6 +405,63 @@ export function initStockView() {
     renderAuditRows();
   }
 
+  async function saveMaterial() {
+    const sku = String(els.materialSku?.value || "").trim().toUpperCase();
+    const title = String(els.materialTitle?.value || "").trim();
+    if (!sku || !title) {
+      setMaterialStatus("Material SKU and title are required.");
+      return;
+    }
+
+    const uom = String(els.materialUom?.value || "unit").trim() || "unit";
+    const variantIdRaw = String(els.materialShopifyVariantId?.value || "").trim();
+    const shopifyUnitRaw = String(els.materialShopifyInventoryUnit?.value || "").trim();
+    const shopifyMultiplierRaw = String(els.materialShopifyMultiplier?.value || "").trim();
+    const payload = {
+      sku,
+      title,
+      category: String(els.materialCategory?.value || "ingredient").trim() || "ingredient",
+      uom,
+      icon: String(els.materialIcon?.value || "").trim(),
+      preferred_supplier_id: els.materialSupplier?.value ? Number(els.materialSupplier.value) : null,
+      reorder_point: Number(els.materialReorderPoint?.value || 0),
+      lead_time_days: Number(els.materialLeadTimeDays?.value || 0),
+      shopify_variant_id: variantIdRaw ? Number(variantIdRaw) : null,
+      shopify_inventory_unit: shopifyUnitRaw || defaultShopifyUnitForUom(uom),
+      shopify_inventory_multiplier: shopifyMultiplierRaw ? Number(shopifyMultiplierRaw) : defaultShopifyMultiplierForUom(uom),
+      actor_type: "ui",
+      actor_id: "stock"
+    };
+
+    const isEditing = Number.isFinite(Number(state.editingMaterialId)) && Number(state.editingMaterialId) > 0;
+    if (els.materialSave) els.materialSave.disabled = true;
+    setMaterialStatus(isEditing ? "Updating material..." : "Creating material...");
+    try {
+      const resp = await fetch(
+        isEditing ? `${API_BASE}/catalog/materials/${state.editingMaterialId}` : `${API_BASE}/catalog/materials`,
+        {
+          method: isEditing ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
+      );
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(body?.error || body?.message || "Could not save material");
+      await loadInventory();
+      const savedMaterial = body?.material || null;
+      if (savedMaterial?.id) {
+        loadMaterialIntoEditor(savedMaterial);
+      } else if (!isEditing) {
+        resetMaterialEditor();
+      }
+      setMaterialStatus(`${isEditing ? "Updated" : "Created"} ${body?.material?.sku || sku}. Raw materials are maintained here under Stock > Raw Materials.`);
+    } catch (error) {
+      setMaterialStatus(String(error?.message || error));
+    } finally {
+      if (els.materialSave) els.materialSave.disabled = false;
+    }
+  }
+
   async function submitStocktake() {
     const items = filteredStocktakeItems().slice(0, 60);
     const lines = items
@@ -316,7 +491,10 @@ export function initStockView() {
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(body?.error || body?.message || "Could not create stocktake");
-      if (els.stocktakeStatus) els.stocktakeStatus.textContent = `Stocktake #${body.stocktake?.id || "?"} closed.`;
+      if (els.stocktakeStatus) {
+        const syncSummary = formatShopifySyncSummary(body.shopify_sync);
+        els.stocktakeStatus.textContent = `Stocktake #${body.stocktake?.id || "?"} closed.${syncSummary ? ` ${syncSummary}` : ""}`;
+      }
       state.stocktakeCounts.clear();
       await Promise.all([loadInventory(), loadStocktakes(), loadAudit()]);
     } catch (error) {
@@ -345,6 +523,29 @@ export function initStockView() {
     if (!row) return;
     state.stocktakeCounts.set(row.dataset.stocktakeKey, Number(input.value || 0));
   });
+  els.materialSave?.addEventListener("click", () => {
+    void saveMaterial();
+  });
+  els.materialReset?.addEventListener("click", () => {
+    resetMaterialEditor();
+    renderSupplierOptions();
+  });
+  els.materialUom?.addEventListener("change", () => {
+    if (!els.materialShopifyInventoryUnit || !els.materialShopifyMultiplier) return;
+    if (!String(els.materialShopifyInventoryUnit.value || "").trim()) {
+      els.materialShopifyInventoryUnit.value = defaultShopifyUnitForUom(els.materialUom.value);
+    }
+    if (!String(els.materialShopifyMultiplier.value || "").trim()) {
+      els.materialShopifyMultiplier.value = String(defaultShopifyMultiplierForUom(els.materialUom.value));
+    }
+  });
+  els.materialsBody?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-material-edit]");
+    if (!button) return;
+    const material = state.materials.find((entry) => Number(entry.id) === Number(button.dataset.materialEdit));
+    if (!material) return;
+    loadMaterialIntoEditor(material);
+  });
   els.stocktakeSubmit?.addEventListener("click", submitStocktake);
   els.auditFilters?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -353,9 +554,10 @@ export function initStockView() {
 
   Promise.resolve()
     .then(loadLocations)
-    .then(() => Promise.all([loadInventory(), loadBatches(), loadStocktakes(), loadAudit()]))
+    .then(() => Promise.all([loadSuppliers(), loadInventory(), loadBatches(), loadStocktakes(), loadAudit()]))
     .then(() => {
       setPrimaryTab("inventory");
       setInventoryTab("products");
+      resetMaterialEditor();
     });
 }

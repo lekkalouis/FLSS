@@ -18,6 +18,18 @@ function round2(value) {
   return Math.round((asNumber(value, 0) + Number.EPSILON) * 100) / 100;
 }
 
+function formatShopifySyncSummary(sync) {
+  if (!sync) return "";
+  if (!sync.configured) return "Shopify inventory sync was skipped because Shopify inventory is not configured.";
+  const synced = Array.isArray(sync.succeeded) ? sync.succeeded.length : 0;
+  const failed = Array.isArray(sync.failed) ? sync.failed.length : 0;
+  const skipped = Array.isArray(sync.skipped) ? sync.skipped.length : 0;
+  const parts = [`Shopify synced ${synced}`];
+  if (skipped) parts.push(`${skipped} skipped`);
+  if (failed) parts.push(`${failed} failed`);
+  return parts.join(" | ");
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -229,7 +241,10 @@ export function initMakeView() {
       ? state.latestRequirements.map((requirement) => `
           <tr>
             <td>${escapeHtml(requirement.material_sku || "-")}</td>
-            <td>${escapeHtml(requirement.material_title || "-")}</td>
+            <td>
+              ${escapeHtml(requirement.material_title || "-")}
+              <div class="uo-meta">Inventory: ${escapeHtml(requirement.inventory_source || "local")}</div>
+            </td>
             <td>${Number(requirement.required_qty || 0)}</td>
             <td>${Number(requirement.available_qty || 0)}</td>
             <td class="${Number(requirement.shortage_qty || 0) > 0 ? "stock-neg" : ""}">${Number(requirement.shortage_qty || 0)}</td>
@@ -424,7 +439,10 @@ export function initMakeView() {
     if (state.missingBom.length) {
       setMakeStatus(`Missing active BOM for: ${state.missingBom.join(", ")}.`);
     } else {
-      setMakeStatus(`Loaded ${state.latestRequirements.length} material requirement${state.latestRequirements.length === 1 ? "" : "s"}.`);
+      const shopifyBackedCount = state.latestRequirements.filter((requirement) => requirement.inventory_source === "shopify").length;
+      setMakeStatus(
+        `Loaded ${state.latestRequirements.length} material requirement${state.latestRequirements.length === 1 ? "" : "s"}${shopifyBackedCount ? ` using Shopify availability for ${shopifyBackedCount}` : ""}.`
+      );
     }
   }
 
@@ -591,7 +609,7 @@ export function initMakeView() {
       setMakeStatus(
         state.missingBom.length
           ? `Manufacturing order #${body.manufacturing_order?.id || "?"} created with missing BOM alerts for ${state.missingBom.join(", ")}.`
-          : `Manufacturing order #${body.manufacturing_order?.id || "?"} created.`
+          : `Manufacturing order #${body.manufacturing_order?.id || "?"} created from BOM requirements using current inventory availability.`
       );
     } catch (error) {
       setMakeStatus(String(error?.message || error));
@@ -700,7 +718,8 @@ export function initMakeView() {
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(body?.error || body?.message || "Could not complete manufacturing order");
-      setMakeStatus(`Manufacturing order #${body.manufacturing_order?.id || "?"} completed.`);
+      const syncSummary = formatShopifySyncSummary(body.shopify_sync);
+      setMakeStatus(`Manufacturing order #${body.manufacturing_order?.id || "?"} completed.${syncSummary ? ` ${syncSummary}` : ""}`);
       await Promise.all([loadHistory(), loadMasterData()]);
       await refreshRequirements();
     } catch (error) {
@@ -720,6 +739,6 @@ export function initMakeView() {
       renderDraft();
       renderRequirements();
       setMakeStatus("Build a manufacturing draft and manage BOMs directly from this view.");
-      setMaterialStatus("Use this when a BOM needs a material that does not exist yet.");
+      setMaterialStatus("Use this only for quick material creation. Full raw-material editing lives in Stock > Raw Materials.");
     });
 }

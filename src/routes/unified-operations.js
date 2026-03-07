@@ -21,7 +21,8 @@ import {
   listInventoryStocktakes,
   listManufacturingOrders,
   retryBuyPurchaseOrderDispatch,
-  updateCatalogBom
+  updateCatalogBom,
+  updateCatalogMaterial
 } from "../services/unifiedOperations.js";
 
 const router = express.Router();
@@ -41,21 +42,31 @@ router.get("/catalog/products", async (_req, res) => {
   }
 });
 
-router.get("/catalog/materials", (_req, res) => {
+router.get("/catalog/materials", async (_req, res) => {
   try {
-    return res.json({ materials: listCatalogMaterials() });
+    return res.json({ materials: await listCatalogMaterials() });
   } catch (error) {
     return handleError(res, error, "Could not load materials");
   }
 });
 
-router.post("/catalog/materials", (req, res) => {
+router.post("/catalog/materials", async (req, res) => {
   try {
-    const result = createCatalogMaterial(req.body || {});
+    const result = await createCatalogMaterial(req.body || {});
     if (result?.error) return res.status(400).json({ error: result.error });
     return res.status(201).json(result);
   } catch (error) {
     return handleError(res, error, "Could not create material");
+  }
+});
+
+router.put("/catalog/materials/:id", async (req, res) => {
+  try {
+    const result = await updateCatalogMaterial(req.params.id, req.body || {});
+    if (result?.error) return res.status(result.error === "Material not found" ? 404 : 400).json({ error: result.error });
+    return res.json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not update material");
   }
 });
 
@@ -133,9 +144,9 @@ router.get("/inventory/stocktakes", (_req, res) => {
   }
 });
 
-router.post("/inventory/stocktakes", (req, res) => {
+router.post("/inventory/stocktakes", async (req, res) => {
   try {
-    const result = createStocktake(req.body || {});
+    const result = await createStocktake(req.body || {});
     if (result?.error) return res.status(400).json({ error: result.error });
     return res.status(201).json(result);
   } catch (error) {
@@ -193,9 +204,9 @@ router.post("/make/manufacturing-orders", async (req, res) => {
   }
 });
 
-router.post("/make/manufacturing-orders/:id/complete", (req, res) => {
+router.post("/make/manufacturing-orders/:id/complete", async (req, res) => {
   try {
-    const result = completeManufacturingOrder(req.params.id, req.body || {});
+    const result = await completeManufacturingOrder(req.params.id, req.body || {});
     if (result?.error) return res.status(400).json({ error: result.error });
     return res.json(result);
   } catch (error) {
@@ -203,9 +214,9 @@ router.post("/make/manufacturing-orders/:id/complete", (req, res) => {
   }
 });
 
-router.post("/make/manufacturing-orders/requirements", (req, res) => {
+router.post("/make/manufacturing-orders/requirements", async (req, res) => {
   try {
-    return res.json(getMakeRequirements(req.body || {}));
+    return res.json(await getMakeRequirements(req.body || {}));
   } catch (error) {
     return handleError(res, error, "Could not compute requirements");
   }

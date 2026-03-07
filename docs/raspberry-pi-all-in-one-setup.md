@@ -1,10 +1,10 @@
-﻿# Raspberry Pi all-in-one FLSS deployment (Repo 2.2)
+# Raspberry Pi All-in-One FLSS Deployment
 
-This guide deploys the frontend, backend, GPIO controller, PrintNode, and kiosk shell on one Raspberry Pi.
+This guide deploys the server, SPA, GPIO controller client, PrintNode, and kiosk shell on one Raspberry Pi.
 
 ## 1. Base OS and packages
 
-Use Raspberry Pi OS Bookworm (64-bit, Desktop).
+Use Raspberry Pi OS Bookworm 64-bit with Desktop.
 
 ```bash
 sudo apt update
@@ -21,13 +21,14 @@ node -v
 npm -v
 ```
 
-## 2. Get FLSS running locally on the Pi
+## 2. Get FLSS running locally
 
 ```bash
 cd /home/pi
 git clone <YOUR_FLSS_REPO_URL> FLSS
 cd FLSS
 npm install
+npm run build
 cp .env.example .env 2>/dev/null || true
 ```
 
@@ -40,11 +41,11 @@ PORT=3000
 FRONTEND_ORIGIN=http://127.0.0.1:3000
 ```
 
-Then set the real Shopify, ParcelPerfect, SMTP, and PrintNode credentials.
+Add the real Shopify, ParcelPerfect, PrintNode, SMTP, and controller credentials before enabling services.
 
 ## 3. Physical controller service
 
-Install Python deps:
+Install Python dependencies:
 
 ```bash
 pip3 install gpiozero requests adafruit-circuitpython-dht
@@ -70,16 +71,16 @@ ROTARY_RGB_GREEN_PIN=23
 ROTARY_RGB_BLUE_PIN=24
 ```
 
-Default Repo 2.2 button behavior:
+Current default button behavior:
 
-- Knob click and confirm button: confirm flow
-- Back button: context-aware `back`
-- Print button: `print`
-- Fulfill button: `fulfill`
+- knob click and confirm button -> confirm flow
+- back button -> context-aware `back`
+- print button -> `print`
+- fulfill button -> `fulfill`
 
 ## 4. Install FLSS systemd services
 
-Service templates are included in `scripts/raspberry-pi/`.
+Service templates live in `scripts/raspberry-pi/`.
 
 ```bash
 cd /home/pi/FLSS
@@ -88,6 +89,8 @@ sudo systemctl start flss flss-rotary
 sudo systemctl status flss --no-pager
 sudo systemctl status flss-rotary --no-pager
 ```
+
+`flss` should use `npm start`, which is the repo's cross-platform production launcher.
 
 ## 5. Install PrintNode on the Pi
 
@@ -140,7 +143,11 @@ sudo systemctl is-active flss-kiosk
 After reboot, confirm:
 
 1. FLSS starts in kiosk mode.
-2. Admin and Settings open correctly.
-3. The dispatch overlay appears when the controller is connected.
+2. The Orders, Stock, Buy, Make, and Admin views load.
+3. The dispatch overlay appears only in the Orders view when the controller is connected.
 4. Rotary, Back, Confirm, Print, and Fulfill actions all register.
 5. Notification test sends work if SMTP is configured.
+
+## 8. Compatibility notes
+
+> Compatibility / legacy: old standalone pages still redirect inside the app. Build the kiosk workflow around `/`, `/stock`, `/buy`, `/make`, `/admin`, and `/docs`.

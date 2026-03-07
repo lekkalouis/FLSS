@@ -244,6 +244,18 @@ function selectDocumentPrinterId(documentType, explicitPrinterId, options = {}) 
   return resolveDefaultPrinterId();
 }
 
+function selectGboxPrinterId(explicitPrinterId) {
+  const explicit = Number(explicitPrinterId);
+  if (Number.isInteger(explicit) && explicit > 0) return explicit;
+  try {
+    const configured = Number(getSystemSettings()?.oneClickActions?.gbox?.printerId);
+    if (Number.isInteger(configured) && configured > 0) return configured;
+  } catch {
+    // Ignore settings read failures, fallback to default printer.
+  }
+  return resolveDefaultPrinterId();
+}
+
 
 function formatAddressLines(section = {}) {
   const lines = [];
@@ -513,6 +525,93 @@ async function sendPrintNodeJob({
   return { ok: true, data };
 }
 
+async function fetchBarcodePngBuffer(value) {
+  const barcodeValue = String(value || "").trim() || "GBOX";
+  const params = new URLSearchParams({
+    data: barcodeValue,
+    code: "Code128",
+    multiplebarcodes: "false",
+    "translate-esc": "off",
+    unit: "Fit",
+    dpi: "200",
+    imagetype: "Png",
+    rotation: "0",
+    quiet: "0"
+  });
+  const response = await fetchWithTimeout(`https://barcode.tec-it.com/barcode.ashx?${params.toString()}`, {
+    method: "GET",
+    headers: {
+      Accept: "image/png"
+    },
+  }, 15000, {
+    upstream: "barcode-tec-it",
+    route: "buildGboxBarcodePdfBase64",
+    target: `https://barcode.tec-it.com/barcode.ashx?${params.toString()}`
+  });
+  if (!response.ok) {
+    throw new Error(`Barcode generation failed (${response.status})`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+}
+
+async function buildGboxBarcodePdfBase64({ title = "GBOX", subtitle = "Gift Box", barcodeValue = "GBOX", quantity = 24 } = {}) {
+  const doc = new PDFDocument({ margin: 24, size: "A4" });
+  const chunks = [];
+  const labelCount = Math.max(1, Math.trunc(Number(quantity) || 24));
+  const barcodeBuffer = await fetchBarcodePngBuffer(barcodeValue);
+  const gap = 14;
+  const columns = 2;
+  const labelWidth = (doc.page.width - doc.page.margins.left - doc.page.margins.right - gap) / columns;
+  const labelHeight = 136;
+  const rowsPerPage = Math.max(
+    1,
+    Math.floor((doc.page.height - doc.page.margins.top - doc.page.margins.bottom + gap) / (labelHeight + gap))
+  );
+  const labelsPerPage = columns * rowsPerPage;
+
+  doc.on("data", (chunk) => chunks.push(chunk));
+
+  for (let index = 0; index < labelCount; index += 1) {
+    if (index > 0 && index % labelsPerPage === 0) {
+      doc.addPage();
+    }
+    const pageIndex = index % labelsPerPage;
+    const row = Math.floor(pageIndex / columns);
+    const column = pageIndex % columns;
+    const x = doc.page.margins.left + (column * (labelWidth + gap));
+    const y = doc.page.margins.top + (row * (labelHeight + gap));
+
+    doc.save();
+    doc.roundedRect(x, y, labelWidth, labelHeight, 12).lineWidth(1).strokeColor("#cbd5e1").fillAndStroke("#ffffff", "#cbd5e1");
+    doc.fillColor("#0f172a").font("Helvetica-Bold").fontSize(18).text(title, x + 12, y + 10, {
+      width: labelWidth - 24,
+      align: "center"
+    });
+    if (subtitle) {
+      doc.fillColor("#475569").font("Helvetica").fontSize(10).text(subtitle, x + 12, y + 34, {
+        width: labelWidth - 24,
+        align: "center"
+      });
+    }
+    doc.image(barcodeBuffer, x + 14, y + 50, {
+      fit: [labelWidth - 28, 50],
+      align: "center",
+      valign: "center"
+    });
+    doc.fillColor("#0f172a").font("Helvetica-Bold").fontSize(11).text(barcodeValue, x + 12, y + labelHeight - 24, {
+      width: labelWidth - 24,
+      align: "center"
+    });
+    doc.restore();
+  }
+
+  return await new Promise((resolve, reject) => {
+    doc.on("end", () => resolve(Buffer.concat(chunks).toString("base64")));
+    doc.on("error", reject);
+    doc.end();
+  });
+}
+
 router.get("/printnode/printers", async (_req, res) => {
   try {
     if (!requirePrintNodeApiConfigured(res)) return;
@@ -693,6 +792,80 @@ router.post("/printnode/print-best-before-stickers", async (req, res) => {
       return sendTimeoutResponse(res, err);
     }
     console.error("PrintNode best-before sticker print error:", err);
+    return res.status(502).json({
+      error: "UPSTREAM_ERROR",
+      message: String(err?.message || err)
+    });
+  }
+});
+
+router.post("/printnode/print-gbox-barcodes", async (req, res) => {
+  try {
+    const settings = getSystemSettings();
+    const gboxSettings = settings?.oneClickActions?.gbox || {};
+    const input = req.body || {};
+    const title = String(input.title || gboxSettings.title || "GBOX").trim() || "GBOX";
+    const subtitle = String(input.subtitle || gboxSettings.subtitle || "Gift Box").trim();
+    const barcodeValue = String(input.barcodeValue || gboxSettings.barcodeValue || "GBOX").trim() || "GBOX";
+    const requestedQty = Number(input.quantity);
+    const baseQty = Number.isFinite(requestedQty) && requestedQty > 0
+      ? Math.trunc(requestedQty)
+      : Number(gboxSettings.defaultQty) || 24;
+    const printerId = selectGboxPrinterId(input.printerId);
+
+    if (!requirePrintNodeApiConfigured(res)) return;
+    if (!Number.isInteger(printerId) || printerId <= 0) {
+      return res.status(500).json({
+        error: "PRINTNODE_NOT_CONFIGURED",
+        message: "Configure a printer for GBOX labels in One Click Actions or set PRINTNODE_PRINTER_ID."
+      });
+    }
+
+    const pdfBase64 = await buildGboxBarcodePdfBase64({
+      title,
+      subtitle,
+      barcodeValue,
+      quantity: baseQty
+    });
+    const result = await sendPrintNodeJob({
+      pdfBase64,
+      title: `${title} barcode labels`,
+      printerId,
+      source: "FLSS GBOX Labels",
+      jobType: "gbox_barcode",
+      route: "POST /printnode/print-gbox-barcodes",
+      metadata: {
+        title,
+        subtitle,
+        barcodeValue,
+        quantityPrinted: baseQty
+      }
+    });
+
+    if (!result.ok) {
+      return res.status(result.status).json({
+        error: "PRINTNODE_UPSTREAM",
+        status: result.status,
+        statusText: result.statusText,
+        body: result.body
+      });
+    }
+
+    return res.json({
+      ok: true,
+      printJob: result.data,
+      labels: {
+        title,
+        subtitle,
+        barcodeValue,
+        quantityPrinted: baseQty
+      }
+    });
+  } catch (err) {
+    if (isUpstreamTimeoutError(err)) {
+      return sendTimeoutResponse(res, err);
+    }
+    console.error("PrintNode GBOX barcode print error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",
       message: String(err?.message || err)

@@ -1,95 +1,143 @@
 # FLSS Build, Run, and Deployment Guide
 
-This guide reflects the current app architecture: a Node.js runtime server that serves both API routes and static frontend assets.
+FLSS runs directly from Node.js source. The same runtime serves the SPA, the `/api/v1` routes, compatibility redirects, `/deliver`, and `/ws/controller`.
 
-## 1) Runtime prerequisites
+## 1. Runtime prerequisites
 
-- Node.js **20+** recommended (18+ generally works).
-- npm **10+** recommended.
-- Environment variables for integrations you intend to use:
-  - Shopify Admin API credentials
-  - ParcelPerfect credentials/token
-  - PrintNode API key/printer IDs
-  - SMTP host/user/pass/sender for email features
+- Node.js 20+ recommended
+- npm 10+ recommended
+- SQLite access for `LOCAL_DB_PATH`
+- Optional integrations: Shopify, ParcelPerfect, PrintNode, SMTP, OAuth provider
+- Optional shell utilities for the legacy backup flow: `bash`, `zip`, and `unzip`
 
-## 2) Install dependencies
+## 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-For CI and reproducible installs:
+For reproducible CI installs:
 
 ```bash
 npm ci
 ```
 
-## 3) Configure `.env`
+## 3. Configure `.env`
 
-Minimum boot values:
+Create `.env` from `.env.example` and set the integrations you need.
 
-```bash
+Minimum local boot values:
+
+```dotenv
 PORT=3000
 HOST=0.0.0.0
 NODE_ENV=development
 FRONTEND_ORIGIN=http://localhost:3000
 ```
 
-For full integration values and UI tuning variables, use the environment section in `README.md`.
+Common additions:
 
-## 4) Start in development
+- OAuth: `OAUTH_*`
+- Shopify: `SHOPIFY_*`, `DELIVERY_CODE_SECRET`
+- ParcelPerfect: `PP_*`
+- PrintNode: `PRINTNODE_*`
+- SMTP: `SMTP_*`, `TRUCK_EMAIL_TO`
+- Dispatch controller: `ROTARY_TOKEN`, `REMOTE_TOKEN`, `ENV_*`
+
+See [config-reference.md](config-reference.md) for the full reference.
+
+## 4. Generate runtime artifacts
+
+```bash
+npm run build
+```
+
+`npm run build` generates:
+
+- `public/data/purchase-order-catalog.generated.json`
+- the traceability template workbook used by `/api/v1/traceability/template.xlsx`
+
+## 5. Start in development
 
 ```bash
 npm run dev
 ```
 
-The app serves:
+Open:
 
-- SPA shell at `http://localhost:3000`
-- API at `http://localhost:3000/api/v1`
-- static tools at `/shipping-matrix.html`, `/traceability.html`, etc.
+- SPA: `http://localhost:3000`
+- API: `http://localhost:3000/api/v1`
+- delivery check-in: `http://localhost:3000/deliver`
 
-## 5) Run tests
+## 6. Start in production
+
+Cross-platform production start:
+
+```bash
+npm start
+```
+
+`npm start` calls `node scripts/start-production.mjs`, which sets `NODE_ENV=production` before importing `server.js`.
+
+If you need to launch the server manually:
+
+- Bash: `NODE_ENV=production node server.js`
+- PowerShell: `$env:NODE_ENV='production'; node server.js`
+
+## 7. Tests
+
+Run the full suite:
 
 ```bash
 npm test
 ```
 
-Tests currently cover unit helpers and route-level behavior for key paths.
+Notes:
 
-## 6) Production start
+- The route tests boot the real app and validate docs, auth, dispatch, print, unified operations, and compatibility routes.
+- If your `.env` contains live Shopify credentials, some tests can hit the configured store APIs. Use a safe test store or a sanitized `.env` in CI.
 
-```bash
-NODE_ENV=production npm start
-```
+## 8. Deployment notes
 
-There is no bundling/transpile build stage in this repo; deployment runs source directly.
-
-## 7) Suggested deployment pipeline
+Suggested order:
 
 1. `npm ci`
-2. `npm test`
-3. Inject runtime secrets/config
-4. `NODE_ENV=production npm start`
+2. `npm run build`
+3. `npm test`
+4. Inject runtime secrets and integration config
+5. `npm start`
 
-## 8) Optional operational scripts
+The runtime writes `flss.pid` on boot and serves both APIs and static assets from one Node process.
 
-- Generate purchase-order catalog JSON:
+## 9. Optional GitHub webhook update flow
 
-```bash
-npm run po:catalog:generate
-```
+The root webhook endpoint is:
 
-- Generate traceability sample workbook:
+- `POST /__git_update`
 
-```bash
-npm run traceability:template:generate
-```
+Requirements:
 
-## 9) Common startup issues
+- `GITHUB_WEBHOOK_SECRET` must be set
+- the webhook payload `ref` must match `refs/heads/1.9`
+- `update.bat` must exist and be valid for the host
 
-- **CORS blocked:** check `FRONTEND_ORIGIN` list and origin host.
-- **Shopify calls fail:** validate `SHOPIFY_*` env values and API app permissions.
-- **ParcelPerfect requests fail:** verify base URL, token requirement, and account/place IDs.
-- **Print jobs fail:** confirm API key and printer IDs.
-- **Email endpoints fail:** ensure SMTP host/from credentials are set.
+The endpoint verifies the `x-hub-signature-256` HMAC before running the update script.
+
+## 10. Compatibility and legacy notes
+
+> Compatibility / legacy: old standalone HTML routes still exist as redirect entrypoints, but the supported runtime surfaces are `/`, `/stock`, `/buy`, `/make`, `/admin`, `/docs`, and `/deliver`.
+
+Examples:
+
+- `/purchase-orders.html` redirects to `/buy`
+- `/manufacturing.html` redirects to `/make`
+- `/traceability.html` redirects to `/stock?section=batches`
+
+## 11. Common issues
+
+- CORS failures: check `FRONTEND_ORIGIN`
+- OAuth redirect problems: check `OAUTH_REDIRECT_URI` and reverse-proxy headers
+- Print failures: confirm `PRINTNODE_*` values and printer mappings in system settings
+- Delivery QR failures: check `DELIVERY_CODE_SECRET`
+- Controller or Pi failures: verify `ROTARY_TOKEN`, `REMOTE_TOKEN`, and `FLSS_BASE_URL`
+- Backup snapshot failures on Windows: install `bash`, `zip`, and `unzip`, or avoid the legacy snapshot endpoints

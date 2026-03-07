@@ -1,79 +1,76 @@
-﻿# FLSS Button and Action Map (Repo 2.2)
+# FLSS Button and Action Map
 
-This file maps the major operator controls that matter in the current build.
+This map reflects the current shell in `public/index.html` and `public/app.js`.
 
-## 1. Main SPA shell
+## 1. Main shell navigation
 
 | Control | Location | Result |
 | --- | --- | --- |
 | `#navScan` | top nav | Opens the Orders and dispatch workspace. |
-| `#navFlocs` | top nav | Opens FLOCS order capture. |
-| `#navStock` | top nav | Opens Stock tools. |
-| `#navPriceManager` | top nav | Opens Price Manager when admin unlock is active. |
-| `#navDocs` | nav/footer | Opens the in-app documentation browser. |
-| `#navFlowcharts` | nav/footer | Opens the flow guidance view. |
-| `#navAdmin` | nav/footer | Opens the Admin launcher and embedded workspace. |
-| `#navFooterSettings` | footer | Opens the unified settings modal. |
-| `#navToggle` | shell | Collapses or expands the nav. |
+| `#navFulfillment` | top nav | Opens Fulfillment History. |
+| `#navStock` | top nav | Opens Stock. |
+| `#navBuy` | top nav | Opens Buy. |
+| `#navMake` | top nav | Opens Make. |
+| `#navDocs` | top nav | Opens the markdown docs browser. |
+| `#navNewOrder` | floating action button | Opens the new-order menu. |
+| `.flNewOrderMenuItem[data-route="/flocs"]` | new-order menu | Opens Sales Order capture. |
+| `.flNewOrderMenuItem[data-stock-tab="stocktakes"]` | new-order menu | Opens Stocktakes in Stock. |
+| `.flNewOrderMenuItem[data-route="/buy"]` | new-order menu | Opens Buy. |
+| `.flNewOrderMenuItem[data-route="/make"]` | new-order menu | Opens Make. |
+| `.flNewOrderMenuItem[data-flocs-action="new-customer"]` | new-order menu | Opens Order Capture with the new-customer flow. |
+| `#navFooterAdmin` | footer | Opens Admin. |
+| `#navFooterSettings` | footer | Opens the settings modal. |
 
-## 2. Dispatch board and controller
+## 2. Orders and dispatch
 
 | Control | Result |
 | --- | --- |
-| Keyboard `ArrowUp` / `ArrowDown` while controller is active | Sends mode-aware `prev` / `next`. |
-| Keyboard `Enter` while controller is active | Sends mode-aware `confirm`. |
-| `#dispatchControllerBackBtn` | Sends context-aware `back`. |
-| `#dispatchControllerConfirmBtn` | Sends mode-aware `confirm`. |
 | `.dispatchLineItem` in an unselected order | Selects the order only. |
 | `.dispatchLineItem` in the selected order | Toggles packed state. |
-| `.dispatchPackQtyBtn` | Opens or applies quantity-based packing for that line. |
-| `#truckBookBtn` | Sends `POST /alerts/book-truck`. |
-| `#dispatchPrepareDeliveries` | Runs grouped preparation logic for selected orders. |
-| `#dispatchCreateCombined` | Creates a combined shipment group from selected orders. |
+| `.dispatchPackQtyBtn` | Opens or updates packed quantity for the line. |
+| `#dispatchSelectionSidebarToggle` | Collapses or expands the selected-orders sidebar. |
+| `#dispatchSelectionClear` | Clears the current selected-order set. |
+| `#dispatchSelectionPrintBtn` | Prints supported documents for the selected orders. |
+| `#dispatchPrepareDeliveries` | Books the selected delivery orders. |
+| `#dispatchControllerBackBtn` | Sends the context-aware `back` action. |
+| `#dispatchControllerConfirmBtn` | Sends the context-aware `confirm` action. |
+| Keyboard `ArrowUp` / `ArrowDown` | Sends `prev` / `next` when controller navigation is active. |
+| Keyboard `Enter` | Sends `confirm` when controller navigation is active. |
 
-## 3. Settings modal
+## 3. Admin shortcuts
+
+| Control | Result |
+| --- | --- |
+| `.flAdminLauncherBtn[data-route="/admin/price-manager"]` | Opens Price Manager. |
+| `.flAdminLauncherBtn[data-route="/admin/agent-commissions"]` | Opens Agent Commissions. |
+| `.flAdminLauncherBtn[data-stock-inventory-tab="materials"]` | Opens raw materials in Stock. |
+| `.flAdminLauncherBtn[data-settings-tab-open="one-click-actions"]` | Opens the One Click Actions settings tab. |
+
+## 4. Settings modal
 
 | Control | Result |
 | --- | --- |
 | `[data-settings-tab="general"]` | Opens General settings. |
-| `[data-settings-tab="printers"]` | Opens printer settings and print tooling. |
-| `[data-settings-tab="controller"]` | Opens controller overlay and visibility options. |
-| `[data-settings-tab="notifications"]` | Opens notification bindings, recipients, and test send actions. |
-| `[data-settings-tab="monitoring"]` | Opens monitoring and runtime diagnostics. |
-| `#settingsTestPickupEmailBtn` | Sends a pickup-ready test email. |
-| `#settingsTestTruckEmailBtn` | Sends a truck-collection test email. |
+| `[data-settings-tab="one-click-actions"]` | Opens One Click Actions. |
+| `[data-settings-tab="printers"]` | Opens printer mappings and print tools. |
+| `[data-settings-tab="controller"]` | Opens controller overlay settings. |
+| `[data-settings-tab="notifications"]` | Opens notification bindings and test sends. |
+| `[data-settings-tab="monitoring"]` | Opens monitoring and print-history diagnostics. |
+| `#settingsTestStickerBtn` | Runs the best-before print test. |
+| `#settingsTestGboxBtn` | Runs the GBOX label print action. |
+| `#settingsTestPickupEmailBtn` | Sends a pickup notification test. |
+| `#settingsTestTruckEmailBtn` | Sends a truck notification test. |
 | `#settingsSaveBtn` | Persists the normalized settings payload. |
 
-## 4. Admin workspace
+## 5. Compatibility notes
 
-| Control | Result |
-| --- | --- |
-| `#adminLauncher [data-admin-tool-id]` | Opens the selected tool inside the Admin workspace iframe. |
-| `#adminWorkspaceOpenLink` | Opens the active tool in its direct standalone URL. |
+> Compatibility / legacy: the current shell no longer embeds an admin iframe and no longer exposes old standalone admin pages as first-class controls.
 
-## 5. Template tools
-
-### Notification templates
-
-| Control | Result |
-| --- | --- |
-| `#newTemplateBtn` | Clears the form for a new template. |
-| `#refreshPreviewBtn` | Renders the preview with sample data. |
-| `#saveTemplateBtn` | Creates or updates the template. |
-| `#deleteTemplateBtn` | Deletes the selected template. |
-
-### Liquid templates
-
-| Control | Result |
-| --- | --- |
-| `#newTemplateBtn` | Clears the editor for a new template. |
-| `#refreshPreviewBtn` | Renders the sample preview. |
-| `#saveTemplateBtn` | Creates or updates the template. |
-| `#deleteTemplateBtn` | Deletes the selected template. |
+If you still see references to `/purchase-orders.html`, `/product-management.html`, or other retired pages, treat them as redirect entrypoints rather than supported operator surfaces.
 
 ## 6. Raspberry Pi wired controller
 
-Default GPIO behavior for Repo 2.2:
+Default GPIO behavior for the current workspace:
 
 | Hardware control | Default GPIO | Result |
 | --- | --- | --- |
@@ -85,4 +82,4 @@ Default GPIO behavior for Repo 2.2:
 | Print button | `GPIO19` | `print`. |
 | Fulfill button | `GPIO26` | `fulfill`. |
 
-Holding the knob or confirm side button triggers `confirm_hold` so packed quantity mode remains available.
+Holding the knob or confirm side button sends `confirm_hold` so quantity mode can be adjusted without the mouse.

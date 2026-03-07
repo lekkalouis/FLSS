@@ -1,14 +1,14 @@
-# Shopify Theme Price Tier Rendering (No Extra App)
+# Shopify Theme Price Tier Rendering
 
 FLSS stores variant tier pricing in Shopify metafield `custom.price_tiers`.
 
-You can render customer-specific display pricing directly in the Shopify theme using this data.
+Use this guide when storefront display pricing should reflect the same tier data maintained in Admin -> Price Manager.
 
-> Theme logic affects **displayed** prices only. Checkout pricing still follows Shopify checkout rules unless you also implement B2B price lists, Shopify Functions, or direct variant price updates.
+> Compatibility note: this affects storefront display only. Checkout pricing still follows Shopify checkout logic unless you also apply Shopify-native pricing rules.
 
-## 1) Expected metafield shape
+## 1. Expected metafield shape
 
-`custom.price_tiers` is JSON containing tier keys such as:
+`custom.price_tiers` is JSON keyed by tier name, for example:
 
 - `default`
 - `agent`
@@ -19,7 +19,7 @@ You can render customer-specific display pricing directly in the Shopify theme u
 - `d2c`
 - `b2b`
 
-## 2) Add resolver snippet
+## 2. Add a resolver snippet
 
 Create `snippets/price-tier.liquid`:
 
@@ -58,12 +58,18 @@ Create `snippets/price-tier.liquid`:
 {%- endif -%}
 ```
 
-## 3) Render snippet in theme price blocks
+## 3. Render the snippet
 
 ```liquid
 {% render 'price-tier', product: product %}
 ```
 
-## 4) Keep metafields current
+## 4. Keep metafields current
 
-Use FLSS Price Manager to maintain tier data. Optionally syncing public variant price affects all customers globally.
+The supported maintenance flow is:
+
+1. open `/admin/price-manager`
+2. update tier values
+3. save or sync to Shopify
+
+If you write the metafield from somewhere else, keep the same JSON keys expected by your theme snippet.

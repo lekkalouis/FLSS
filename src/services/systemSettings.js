@@ -42,6 +42,16 @@ const DEFAULT_NOTIFICATION_EVENTS = Object.freeze({
   }
 });
 
+const DEFAULT_ONE_CLICK_ACTIONS = Object.freeze({
+  gbox: {
+    title: "GBOX",
+    barcodeValue: "GBOX",
+    subtitle: "Gift Box",
+    defaultQty: 24,
+    printerId: null
+  }
+});
+
 export const DEFAULT_SYSTEM_SETTINGS = Object.freeze({
   sticker: {
     shelfLifeMonths: 12,
@@ -73,6 +83,9 @@ export const DEFAULT_SYSTEM_SETTINGS = Object.freeze({
       pickupReady: { ...DEFAULT_NOTIFICATION_EVENTS.pickupReady },
       truckCollection: { ...DEFAULT_NOTIFICATION_EVENTS.truckCollection }
     }
+  },
+  oneClickActions: {
+    gbox: { ...DEFAULT_ONE_CLICK_ACTIONS.gbox }
   }
 });
 
@@ -195,6 +208,10 @@ export function normalizeSystemSettings(rawSettings = {}) {
   const relaySource = source.relay && typeof source.relay === "object" ? source.relay : {};
   const controllerSource = source.controller && typeof source.controller === "object" ? source.controller : {};
   const notificationsSource = source.notifications && typeof source.notifications === "object" ? source.notifications : {};
+  const oneClickActionsSource =
+    source.oneClickActions && typeof source.oneClickActions === "object" ? source.oneClickActions : {};
+  const gboxSource =
+    oneClickActionsSource.gbox && typeof oneClickActionsSource.gbox === "object" ? oneClickActionsSource.gbox : {};
   const notificationEventsSource =
     notificationsSource.events && typeof notificationsSource.events === "object"
       ? notificationsSource.events
@@ -330,6 +347,21 @@ export function normalizeSystemSettings(rawSettings = {}) {
           DEFAULT_NOTIFICATION_EVENTS.truckCollection
         )
       }
+    },
+    oneClickActions: {
+      gbox: {
+        title: String(gboxSource.title || DEFAULT_ONE_CLICK_ACTIONS.gbox.title).trim() || DEFAULT_ONE_CLICK_ACTIONS.gbox.title,
+        barcodeValue: String(gboxSource.barcodeValue || DEFAULT_ONE_CLICK_ACTIONS.gbox.barcodeValue).trim() || DEFAULT_ONE_CLICK_ACTIONS.gbox.barcodeValue,
+        subtitle: String(gboxSource.subtitle || DEFAULT_ONE_CLICK_ACTIONS.gbox.subtitle).trim(),
+        defaultQty: asFiniteInt(
+          gboxSource.defaultQty,
+          DEFAULT_ONE_CLICK_ACTIONS.gbox.defaultQty,
+          { min: 1, max: 1000 }
+        ),
+        printerId: gboxSource.printerId == null || gboxSource.printerId === ""
+          ? null
+          : asFiniteInt(gboxSource.printerId, null, { min: 1 })
+      }
     }
   };
 }
@@ -412,6 +444,14 @@ export function patchSystemSettings(partialSettings = {}) {
           ...(current.notifications?.events?.truckCollection || {}),
           ...(incomingNotificationEvents.truckCollection || {})
         }
+      }
+    },
+    oneClickActions: {
+      ...(current.oneClickActions || {}),
+      ...(incoming.oneClickActions || {}),
+      gbox: {
+        ...(current.oneClickActions?.gbox || {}),
+        ...(incoming.oneClickActions?.gbox || {})
       }
     }
   };

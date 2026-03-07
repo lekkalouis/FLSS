@@ -3,15 +3,16 @@
       --panel:#ffffff;
       --panel-soft:#f1f5f9;
       --panel-strong:#e2e8f0;
-      --accent:#38bdf8;
-      --accent-soft:rgba(56,189,248,.18);
-      --accent-strong:#22c55e;
+      --accent:#0f766e;
+      --accent-soft:rgba(15,118,110,.14);
+      --accent-strong:#b45309;
       --danger:#ef4444;
       --text:#0f172a;
       --muted:#5b6b7f;
       --radius-lg:.85rem;
       --radius-md:.6rem;
-      --sans:-apple-system,BlinkMacSystemFont,Inter,Roboto,"Segoe UI",system-ui,sans-serif;
+      --sans:var(--flss-theme-font, "Aptos", "Segoe UI", sans-serif);
+      --heading:var(--flss-theme-heading, "Bahnschrift", "Aptos", sans-serif);
       --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     }
     #viewPriceManager *{ box-sizing:border-box; }
@@ -51,6 +52,7 @@
       font-weight:700;
       letter-spacing:.04em;
       text-transform:uppercase;
+      font-family:var(--heading);
     }
     #viewPriceManager .pm-sub{
       font-size:.8rem;
@@ -79,12 +81,12 @@
       transition:all .2s ease;
     }
     #viewPriceManager .pm-linkBtn:hover{
-      border-color:rgba(34,211,238,.7);
-      color:#7dd3fc;
+      border-color:rgba(15,118,110,.38);
+      color:var(--text);
     }
 
     #viewPriceManager .pm-panel{
-      background:linear-gradient(to bottom right,rgba(255,255,255,.98),rgba(241,245,249,.9));
+      background:linear-gradient(to bottom right,rgba(255,255,255,.98),rgba(248,250,252,.92));
       border-radius:var(--radius-lg);
       border:1px solid var(--panel-strong);
       box-shadow:0 18px 40px rgba(15,23,42,.08);
@@ -123,9 +125,9 @@
     }
 
     #viewPriceManager .pm-btn{
-      background:linear-gradient(120deg, var(--accent), var(--accent-strong));
+      background:linear-gradient(120deg, var(--accent), #0b5f58);
       border:none;
-      color:#0f172a;
+      color:#f8fafc;
       border-radius:999px;
       padding:.55rem 1rem;
       font-weight:600;
@@ -162,7 +164,7 @@
       color:var(--muted);
     }
     #viewPriceManager .pm-productsTable tbody tr:hover{
-      background:rgba(56,189,248,.08);
+      background:rgba(15,118,110,.08);
     }
 
     #viewPriceManager .pm-sku{ font-family:var(--mono); font-size:.71rem; }
@@ -219,9 +221,9 @@
     }
 
     #viewPriceManager .pm-saveBtn{
-      background:linear-gradient(120deg, #22c55e, #16a34a);
+      background:linear-gradient(120deg, #0f766e, #0b5f58);
       border:none;
-      color:#052e16;
+      color:#f8fafc;
       border-radius:999px;
       padding:.28rem .65rem;
       font-weight:600;

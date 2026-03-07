@@ -1200,16 +1200,34 @@ test('printnode best-before sticker builder uses configurable calibration values
   assert.match(printnodeRoute, /line3YMm/);
   assert.match(printnodeRoute, /textRotation/);
   assert.match(printnodeRoute, /A\$\{x\},\$\{lineOneY\},\$\{textRotation\}/);
+  assert.match(printnodeRoute, /router\.post\(\"\/printnode\/print-gbox-barcodes\"/);
+  assert.match(printnodeRoute, /buildGboxBarcodePdfBase64/);
+  assert.match(printnodeRoute, /barcode\.tec-it\.com\/barcode\.ashx/);
+});
+
+test('production launcher is Windows-safe and heavy shell views are lazy loaded', async () => {
+  const packageJson = JSON.parse(await fs.readFile(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  const launcher = await fs.readFile(path.join(__dirname, '..', 'scripts', 'start-production.mjs'), 'utf8');
+  const appJs = await fs.readFile(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  assert.equal(packageJson.scripts.start, 'node scripts/start-production.mjs');
+  assert.match(launcher, /process\.env\.NODE_ENV = process\.env\.NODE_ENV \|\| "production"/);
+  assert.match(appJs, /import\("\.\/views\/flocs\.js"\)/);
+  assert.match(appJs, /import\("\.\/views\/stock\.js"\)/);
+  assert.match(appJs, /import\("\.\/views\/make\.js"\)/);
+  assert.doesNotMatch(appJs, /^import \{ initFlocsView \} from "\.\/views\/flocs\.js";/m);
+  assert.doesNotMatch(appJs, /^import \{ initStockView \} from "\.\/views\/stock\.js";/m);
 });
 
 test('legacy unified-operations entrypoints redirect into integrated routes', async () => {
   const { server, baseUrl } = await startServer();
   try {
     const cases = [
-      ['/admin', '/stock'],
       ['/purchase-orders.html', '/buy'],
       ['/manufacturing.html', '/make'],
       ['/product-management.html', '/stock?section=inventory&tab=raw-materials'],
+      ['/price-manager.html', '/admin/price-manager'],
+      ['/agent-commissions.html', '/admin/agent-commissions'],
       ['/dispatch-settings', '/stock?notice=tool-retired'],
       ['/logs', '/stock?notice=tool-retired']
     ];
@@ -1229,16 +1247,18 @@ test('main index uses unified stock-buy-make shell without embedded admin iframe
 
   assert.match(indexHtml, /id="navBuy"/);
   assert.match(indexHtml, /id="navMake"/);
-  assert.match(indexHtml, /id="navAgentCommissions"/);
   assert.match(indexHtml, /id="viewBuy"/);
   assert.match(indexHtml, /id="viewMake"/);
+  assert.match(indexHtml, /id="viewAdmin"/);
   assert.match(indexHtml, /id="viewAgentCommissions"/);
   assert.match(indexHtml, /data-stock-primary="inventory"/);
   assert.match(indexHtml, /data-stock-primary="batches"/);
   assert.match(indexHtml, /data-stock-primary="stocktakes"/);
   assert.doesNotMatch(indexHtml, /<iframe/i);
-  assert.doesNotMatch(indexHtml, /id="viewAdmin"/);
-  assert.doesNotMatch(indexHtml, /id="navFooterAdmin"/);
+  assert.match(indexHtml, /id="navFooterAdmin"/);
+  assert.match(indexHtml, /data-settings-tab="one-click-actions"/);
+  assert.doesNotMatch(indexHtml, /id="navAgentCommissions"/);
+  assert.doesNotMatch(indexHtml, /id="navPriceManager"/);
 });
 
 test('unified catalog supports material creation and BOM recipe authoring', async () => {
@@ -1278,6 +1298,29 @@ test('unified catalog supports material creation and BOM recipe authoring', asyn
     assert.equal(materialBody.material.sku, materialSku);
     assert.equal(materialBody.material.uom, 'kg');
     assert.ok(Number(materialBody.material.id) > 0);
+
+    const materialUpdateResponse = await fetch(`${baseUrl}/api/v1/catalog/materials/${materialBody.material.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Updated Material ${uniqueSuffix}`,
+        reorder_point: 12,
+        lead_time_days: 5,
+        shopify_variant_id: 123456789,
+        shopify_inventory_unit: 'g',
+        shopify_inventory_multiplier: 1000,
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(materialUpdateResponse.status, 200);
+    const materialUpdateBody = await materialUpdateResponse.json();
+    assert.equal(materialUpdateBody.material.title, `Updated Material ${uniqueSuffix}`);
+    assert.equal(Number(materialUpdateBody.material.reorder_point), 12);
+    assert.equal(Number(materialUpdateBody.material.lead_time_days), 5);
+    assert.equal(Number(materialUpdateBody.material.shopify_variant_id), 123456789);
+    assert.equal(materialUpdateBody.material.shopify_inventory_unit, 'g');
+    assert.equal(Number(materialUpdateBody.material.shopify_inventory_multiplier), 1000);
 
     const bomResponse = await fetch(`${baseUrl}/api/v1/catalog/boms`, {
       method: 'POST',

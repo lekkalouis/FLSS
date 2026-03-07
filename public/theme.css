@@ -69,6 +69,74 @@ textarea {
   border-radius: 12px;
 }
 
+:where(
+  .btn,
+  .dispatchSelectionBtn,
+  .stock-primaryBtn,
+  .stock-secondaryBtn,
+  .pm-btn,
+  .pm-saveBtn,
+  .pm-linkBtn,
+  .ac-linkBtn
+) {
+  border-radius: 12px;
+  font-weight: 600;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+:where(
+  .btn,
+  .dispatchSelectionBtn,
+  .stock-secondaryBtn,
+  .pm-linkBtn,
+  .ac-linkBtn
+) {
+  border: 1px solid var(--flss-theme-line);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--flss-theme-text);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+}
+
+:where(
+  .btn:hover,
+  .dispatchSelectionBtn:hover,
+  .stock-primaryBtn:hover,
+  .stock-secondaryBtn:hover,
+  .pm-btn:hover,
+  .pm-saveBtn:hover,
+  .pm-linkBtn:hover,
+  .ac-linkBtn:hover
+) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+}
+
+:where(
+  input,
+  select,
+  textarea,
+  .form-control,
+  .uo-input,
+  .uo-select,
+  .pm-input
+) {
+  border: 1px solid var(--flss-theme-line);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--flss-theme-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+:where(
+  .table th,
+  .table td,
+  .pm-productsTable th,
+  .pm-productsTable td,
+  .stock-table th,
+  .stock-table td
+) {
+  border-color: var(--flss-theme-line);
+}
+
 iframe {
   background: var(--flss-theme-surface-strong);
   border-radius: var(--flss-theme-radius);

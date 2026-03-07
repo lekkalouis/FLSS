@@ -1,47 +1,59 @@
 # Traceability Workflow Guide
 
-The traceability tool (`/traceability.html`) is used to produce a batch-level report combining sales activity and supplier/COA context.
+FLSS still exposes the traceability API, but the supported operator entrypoint is now the Stock batches workflow rather than the old standalone page.
 
-## 1) Inputs
+> Compatibility / legacy: `/traceability.html` now redirects to `/stock?section=batches`. Keep old bookmarks only for compatibility.
+
+## 1. Supported operator path
+
+Primary workflow:
+
+1. Open `/stock`
+2. Switch to the batches view
+3. Use batch history and traceability records to identify the target batch
+4. Use the traceability API or compatibility tooling when a workbook-driven report is still required
+
+## 2. Inputs
 
 Required:
 
-- **Batch number** in format similar to `DDMMYY/WW`
-- **Flavor**
+- `batchNumber`
+- `flavour`
 
 Optional uploads:
 
-- Purchase orders workbook (`.xlsx`/`.xls`)
-- COA/COC workbook (`.xlsx`/`.xls`)
+- purchase orders workbook (`.xlsx` or `.xls`)
+- COA or COC workbook (`.xlsx` or `.xls`)
 
-If optional files are omitted, the service falls back to available sample/default workbook logic.
+If optional files are omitted, the service falls back to the generated sample template and built-in defaults where possible.
 
-## 2) API endpoints involved
+## 3. API endpoints
 
-- `GET /api/v1/traceability/template.xlsx` — downloadable sample template
-- `POST /api/v1/traceability/report` — report generation endpoint
+- `GET /api/v1/traceability/template.xlsx`
+- `POST /api/v1/traceability/report`
 
-## 3) Report outputs
+## 4. Report output
 
-The response includes:
+The report payload combines:
 
-- Batch context (week and week date boundaries)
-- Matched sales lines for the period/flavor
-- Purchase rows augmented with COA/COC fields
-- Incoming vehicle inspection checklist projection per row
+- batch and week metadata
+- matched Shopify sales lines
+- normalized purchase rows
+- COA or COC enrichment
+- incoming-vehicle inspection checklist projections
 
-## 4) Operator flow
+## 5. Compatibility flow
 
-1. Open `/traceability.html`.
-2. Enter batch number and flavor.
-3. Optionally upload PO and COA files.
-4. Click **Run traceability**.
-5. Review sales table and purchase/inspection table.
-6. Download sample workbook when format alignment is needed.
+If you still use the old workbook-driven process:
 
-## 5) Troubleshooting
+1. download the template workbook from `GET /api/v1/traceability/template.xlsx`
+2. prepare the optional PO and COA/COC files
+3. submit them to `POST /api/v1/traceability/report`
+4. review the returned sales and purchase sections
 
-- **`batchNumber is required`**: required input missing.
-- **No sales lines**: no matching Shopify sales in computed week/flavor.
-- **No purchase rows**: uploaded workbook has no matching rows or mapping mismatch.
-- **Request failed**: inspect server logs for `TRACEABILITY_REPORT_FAILED` details.
+## 6. Troubleshooting
+
+- `batchNumber is required` - the request payload is missing the batch number.
+- No sales lines - Shopify returned no matching sales in the computed batch window.
+- No purchase rows - the uploaded workbook did not match the expected format or values.
+- Request failed - inspect the server logs for traceability errors and confirm the workbook inputs.
