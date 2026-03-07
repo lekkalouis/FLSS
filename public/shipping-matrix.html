@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shipping Matrix | FLSS</title>
+  <link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
+  <script src="/vendor/oneui/js/setTheme.js"></script>
+  <link rel="stylesheet" href="/oneui-shell.css" />
     <style>
       :root { font-family: Inter, system-ui, -apple-system, sans-serif; }
       body { margin: 0; background: #f4f6f8; color: #0f172a; }
@@ -25,7 +28,10 @@
       @media (max-width: 900px) { .controls { grid-template-columns: 1fr; } }
     </style>
   </head>
-  <body>
+  <body class="flss-oneui-page" data-page="shipping-matrix">
+  <div class="flss-shell">
+    <aside class="flss-sidenav" id="flssSidenav"></aside>
+    <main class="flss-page">
     <div class="wrap">
       <div class="card">
         <h1>South Africa Shipping Matrix</h1>
@@ -65,6 +71,10 @@
       </div>
     </div>
 
-    <script src="/shipping-matrix.js" type="module"></script>
+        </main>
+  </div>
+
+  <script src="/oneui-shell.js"></script>
+<script src="/shipping-matrix.js" type="module"></script>
   </body>
 </html>

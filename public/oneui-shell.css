@@ -1,0 +1,79 @@
+:root{
+  --flss-shell-bg: var(--bs-body-bg, #f8fafc);
+  --flss-side-bg: color-mix(in srgb, var(--bs-body-bg, #fff) 88%, #e2e8f0);
+  --flss-side-border: var(--bs-border-color, #cbd5e1);
+}
+
+body.flss-oneui-page{
+  background: var(--flss-shell-bg);
+}
+
+.flss-shell{
+  display:flex;
+  min-height:100dvh;
+}
+
+.flss-sidenav{
+  width:250px;
+  flex:0 0 250px;
+  border-right:1px solid var(--flss-side-border);
+  background:var(--flss-side-bg);
+  padding:1rem .8rem;
+  position:sticky;
+  top:0;
+  height:100dvh;
+  overflow:auto;
+}
+
+.flss-brand{
+  font-weight:800;
+  letter-spacing:.02em;
+  margin-bottom:1rem;
+}
+
+.flss-nav{
+  display:flex;
+  flex-direction:column;
+  gap:.35rem;
+}
+
+.flss-nav a{
+  display:block;
+  padding:.48rem .62rem;
+  border-radius:.55rem;
+  border:1px solid transparent;
+  color:var(--bs-body-color, #1e293b);
+  text-decoration:none;
+  font-size:.88rem;
+  font-weight:600;
+}
+
+.flss-nav a:hover{
+  border-color: color-mix(in srgb, var(--bs-primary, #6366f1) 40%, transparent);
+  background: color-mix(in srgb, var(--bs-primary, #6366f1) 10%, transparent);
+}
+
+.flss-nav a.is-active{
+  background: linear-gradient(135deg, var(--bs-primary, #6366f1), var(--bs-info, #0ea5e9));
+  color:#fff;
+}
+
+.flss-page{
+  flex:1;
+  min-width:0;
+}
+
+@media (max-width: 960px){
+  .flss-shell{flex-direction:column;}
+  .flss-sidenav{
+    width:100%;
+    height:auto;
+    position:static;
+    border-right:none;
+    border-bottom:1px solid var(--flss-side-border);
+  }
+  .flss-nav{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  }
+}

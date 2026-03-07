@@ -4,9 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Order Printer Pro Liquid Templates</title>
+  <link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
+  <script src="/vendor/oneui/js/setTheme.js"></script>
+  <link rel="stylesheet" href="/oneui-shell.css" />
   <link rel="stylesheet" href="/liquid-templates.css" />
 </head>
-<body>
+<body class="flss-oneui-page" data-page="liquid-templates">
+  <div class="flss-shell">
+    <aside class="flss-sidenav" id="flssSidenav"></aside>
+    <main class="flss-page">
   <main class="shell">
     <header class="pageHeader">
       <div>
@@ -55,6 +61,10 @@
     </section>
   </main>
 
-  <script type="module" src="/liquid-templates.js"></script>
+      </main>
+  </div>
+
+  <script src="/oneui-shell.js"></script>
+<script type="module" src="/liquid-templates.js"></script>
 </body>
 </html>

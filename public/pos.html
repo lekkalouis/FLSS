@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Flippen Lekka POS Walk-In</title>
+  <link rel="stylesheet" href="/vendor/oneui/css/oneui.min.css" />
+  <script src="/vendor/oneui/js/setTheme.js"></script>
+  <link rel="stylesheet" href="/oneui-shell.css" />
   <style>
     :root{
       --bg:#0f172a;
@@ -185,7 +188,10 @@
     }
   </style>
 </head>
-<body>
+<body class="flss-oneui-page" data-page="pos">
+  <div class="flss-shell">
+    <aside class="flss-sidenav" id="flssSidenav"></aside>
+    <main class="flss-page">
   <header>
     <h1>POS Walk-In</h1>
     <p>Scan a product code or SKU to add items. A cash order will be sent to Shopify.</p>
@@ -231,6 +237,10 @@
       <div class="status" id="pos-orderStatus"></div>
     </aside>
   </main>
-  <script src="/pos.js"></script>
+      </main>
+  </div>
+
+  <script src="/oneui-shell.js"></script>
+<script src="/pos.js"></script>
 </body>
 </html>
