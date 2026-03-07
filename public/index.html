@@ -4770,6 +4770,57 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
     min-width:0;
     flex:1 1 auto;
   }
+  .flAuthSession{
+    display:inline-flex;
+    align-items:center;
+    gap:.48rem;
+    min-width:0;
+    max-width:min(320px, 48vw);
+    padding:.18rem .22rem .18rem .56rem;
+    border:1px solid rgba(148,163,184,.22);
+    border-radius:999px;
+    background:rgba(248,250,252,.95);
+  }
+  .flAuthSession[hidden]{
+    display:none !important;
+  }
+  .flAuthSessionIdentity{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    gap:.08rem;
+  }
+  .flAuthSessionLabel{
+    font-size:.52rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:#64748b;
+    font-weight:800;
+    line-height:1;
+  }
+  .flAuthSessionUser{
+    font-size:.68rem;
+    color:#0f172a;
+    font-weight:700;
+    line-height:1.2;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .flAuthSessionBtn{
+    border:none;
+    border-radius:999px;
+    background:rgba(15,23,42,.08);
+    color:#0f172a;
+    font-size:.68rem;
+    font-weight:700;
+    padding:.34rem .72rem;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .flAuthSessionBtn:hover{
+    background:rgba(15,23,42,.14);
+  }
   .flHeaderUtilityRight .flHeaderEnvConnections{
     border:none;
     border-radius:0;
@@ -5899,6 +5950,13 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
               <span class="statusPill statusPill--ok"><span class="statusPillDot"></span></span>
             </div>
           </div>
+          <div id="authSessionBox" class="flAuthSession" hidden>
+            <div class="flAuthSessionIdentity">
+              <span id="authProviderLabel" class="flAuthSessionLabel">Signed in</span>
+              <span id="authUserLabel" class="flAuthSessionUser">Authenticated user</span>
+            </div>
+            <button id="authLogoutBtn" class="flAuthSessionBtn" type="button">Sign out</button>
+          </div>
           <button id="dispatchPrintBestBeforeBtn" class="dispatchIconBtn dispatchStickerBtn" type="button" aria-label="Print best-before stickers" title="Print best-before stickers">
             <span aria-hidden="true">BB</span>
           </button>
@@ -6755,6 +6813,7 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
                         <th>Flavour</th>
                         <th>Available</th>
                         <th>Draft qty</th>
+                        <th>BOM / recipe</th>
                       </tr>
                     </thead>
                     <tbody id="makeProductsBody"></tbody>
@@ -6837,6 +6896,167 @@ body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-li
                     </thead>
                     <tbody id="makeHistoryBody"></tbody>
                   </table>
+                </div>
+              </article>
+            </section>
+
+            <section class="uo-grid uo-grid--two" id="makeBomEditor">
+              <article class="uo-card">
+                <div class="uo-sectionHead">
+                  <div>
+                    <h3>BOM library</h3>
+                    <p>Review active and historical recipe versions for each finished product.</p>
+                  </div>
+                </div>
+                <div id="makeBomStatus" class="uo-inlineStatus">Loading BOM library...</div>
+                <div class="uo-tableWrap">
+                  <table class="stock-table">
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Version</th>
+                        <th>Effective</th>
+                        <th>Yield</th>
+                        <th>Waste</th>
+                        <th>Lines</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="makeBomLibraryBody"></tbody>
+                  </table>
+                </div>
+              </article>
+
+              <article class="uo-card">
+                <div class="uo-sectionHead">
+                  <div>
+                    <h3>BOM studio</h3>
+                    <p>Create recipe versions, edit existing BOMs, and add raw materials without leaving Make.</p>
+                  </div>
+                </div>
+
+                <div class="uo-formGrid">
+                  <label class="uo-label">
+                    Product
+                    <select id="makeBomProduct" class="uo-select"></select>
+                  </label>
+                  <label class="uo-label">
+                    Version
+                    <input id="makeBomVersion" class="uo-input" type="text" placeholder="v1" />
+                  </label>
+                  <label class="uo-label">
+                    Effective from
+                    <input id="makeBomEffectiveFrom" class="uo-input" type="date" />
+                  </label>
+                  <label class="uo-label">
+                    Yield %
+                    <input id="makeBomYield" class="uo-input" type="number" min="0" step="0.01" value="100" />
+                  </label>
+                  <label class="uo-label">
+                    Waste %
+                    <input id="makeBomWaste" class="uo-input" type="number" min="0" step="0.01" value="0" />
+                  </label>
+                  <label class="uo-label uo-checkbox">
+                    <input id="makeBomActive" type="checkbox" checked />
+                    <span>Set as active BOM</span>
+                  </label>
+                </div>
+
+                <div class="uo-card uo-card--inner">
+                  <div class="uo-sectionHead">
+                    <div>
+                      <h3>Quick raw material</h3>
+                      <p>Create a material and assign its preferred supplier for new recipes.</p>
+                    </div>
+                  </div>
+                  <div class="uo-formGrid uo-formGrid--compact">
+                    <label class="uo-label">
+                      SKU
+                      <input id="makeMaterialSku" class="uo-input" type="text" placeholder="RAW-NEW" />
+                    </label>
+                    <label class="uo-label">
+                      Title
+                      <input id="makeMaterialTitle" class="uo-input" type="text" placeholder="New raw material" />
+                    </label>
+                    <label class="uo-label">
+                      Category
+                      <select id="makeMaterialCategory" class="uo-select">
+                        <option value="ingredient">Ingredient</option>
+                        <option value="packaging">Packaging</option>
+                        <option value="labels">Labels</option>
+                        <option value="consumable">Consumable</option>
+                      </select>
+                    </label>
+                    <label class="uo-label">
+                      UoM
+                      <input id="makeMaterialUom" class="uo-input" type="text" placeholder="kg" value="kg" />
+                    </label>
+                    <label class="uo-label">
+                      Icon
+                      <input id="makeMaterialIcon" class="uo-input" type="text" placeholder="*" maxlength="4" />
+                    </label>
+                    <label class="uo-label">
+                      Preferred supplier
+                      <select id="makeMaterialSupplier" class="uo-select"></select>
+                    </label>
+                  </div>
+                  <div class="uo-actions">
+                    <button id="makeMaterialCreate" class="stock-secondaryBtn" type="button">Create material</button>
+                  </div>
+                  <div id="makeMaterialStatus" class="uo-inlineStatus">Use this when a BOM needs a material that does not exist yet.</div>
+                </div>
+
+                <div class="uo-card uo-card--inner">
+                  <div class="uo-sectionHead">
+                    <div>
+                      <h3>Recipe lines</h3>
+                      <p>Add ingredients, packaging, labels, and consumables to the BOM version.</p>
+                    </div>
+                  </div>
+                  <div class="uo-formGrid uo-formGrid--compact">
+                    <label class="uo-label">
+                      Material
+                      <select id="makeBomLineMaterial" class="uo-select"></select>
+                    </label>
+                    <label class="uo-label">
+                      Qty per finished unit
+                      <input id="makeBomLineQty" class="uo-input" type="number" min="0" step="0.01" value="0" />
+                    </label>
+                    <label class="uo-label">
+                      UoM
+                      <input id="makeBomLineUom" class="uo-input" type="text" placeholder="g" />
+                    </label>
+                    <label class="uo-label">
+                      Line type
+                      <select id="makeBomLineType" class="uo-select">
+                        <option value="ingredient">Ingredient</option>
+                        <option value="packaging">Packaging</option>
+                        <option value="label">Label</option>
+                        <option value="consumable">Consumable</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="uo-actions">
+                    <button id="makeBomAddLine" class="stock-secondaryBtn" type="button">Add recipe line</button>
+                    <button id="makeBomSave" class="stock-primaryBtn" type="button">Save BOM</button>
+                    <button id="makeBomReset" class="stock-secondaryBtn" type="button">Reset editor</button>
+                  </div>
+                  <div class="uo-tableWrap">
+                    <table class="stock-table">
+                      <thead>
+                        <tr>
+                          <th>Material SKU</th>
+                          <th>Material</th>
+                          <th>Type</th>
+                          <th>Qty</th>
+                          <th>UoM</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody id="makeBomLinesBody"></tbody>
+                    </table>
+                  </div>
                 </div>
               </article>
             </section>

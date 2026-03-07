@@ -3,6 +3,8 @@ import express from "express";
 import {
   completeManufacturingOrder,
   createBuyPurchaseOrders,
+  createCatalogBom,
+  createCatalogMaterial,
   createLinkedPurchaseOrdersFromShortages,
   createManufacturingOrder,
   createStocktake,
@@ -18,7 +20,8 @@ import {
   listInventoryMovements,
   listInventoryStocktakes,
   listManufacturingOrders,
-  retryBuyPurchaseOrderDispatch
+  retryBuyPurchaseOrderDispatch,
+  updateCatalogBom
 } from "../services/unifiedOperations.js";
 
 const router = express.Router();
@@ -46,6 +49,16 @@ router.get("/catalog/materials", (_req, res) => {
   }
 });
 
+router.post("/catalog/materials", (req, res) => {
+  try {
+    const result = createCatalogMaterial(req.body || {});
+    if (result?.error) return res.status(400).json({ error: result.error });
+    return res.status(201).json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not create material");
+  }
+});
+
 router.get("/catalog/suppliers", (_req, res) => {
   try {
     return res.json({ suppliers: listCatalogSuppliers() });
@@ -54,11 +67,31 @@ router.get("/catalog/suppliers", (_req, res) => {
   }
 });
 
-router.get("/catalog/boms", (_req, res) => {
+router.get("/catalog/boms", (req, res) => {
   try {
-    return res.json({ boms: listCatalogBoms() });
+    return res.json({ boms: listCatalogBoms(req.query || {}) });
   } catch (error) {
     return handleError(res, error, "Could not load BOMs");
+  }
+});
+
+router.post("/catalog/boms", (req, res) => {
+  try {
+    const result = createCatalogBom(req.body || {});
+    if (result?.error) return res.status(400).json({ error: result.error });
+    return res.status(201).json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not create BOM");
+  }
+});
+
+router.put("/catalog/boms/:id", (req, res) => {
+  try {
+    const result = updateCatalogBom(req.params.id, req.body || {});
+    if (result?.error) return res.status(result.error === "BOM not found" ? 404 : 400).json({ error: result.error });
+    return res.json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not update BOM");
   }
 });
 

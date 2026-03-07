@@ -99,6 +99,7 @@ Create `.env` from `.env.example` and set the integrations you use.
 Common groups:
 
 - Core server: `PORT`, `HOST`, `NODE_ENV`, `FRONTEND_ORIGIN`
+- OAuth 2.0 / SSO: `OAUTH_*`
 - Shopify: `SHOPIFY_*`
 - ParcelPerfect: `PP_*`
 - PrintNode: `PRINTNODE_*`

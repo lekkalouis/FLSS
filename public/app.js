@@ -18,6 +18,15 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     SERVER_STATUS_POLL_INTERVAL_MS: 45000
   };
   const API_BASE = "/api/v1";
+  const AUTH = {
+    authenticated: false,
+    enabled: false,
+    loginPath: `${API_BASE}/auth/login`,
+    logoutPath: `${API_BASE}/auth/logout`,
+    providerName: "SSO",
+    user: null
+  };
+  let authRedirectInFlight = false;
   const FLAVOUR_COLORS = {
     "hot & spicy": "#DA291C",
     "original": "#8BAF84",
@@ -127,7 +136,51 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     if (!res.ok) throw new Error(`Config fetch failed: ${res.status}`);
     const data = await res.json();
     Object.assign(CONFIG, data);
+    const authState = data && typeof data.AUTH === "object" ? data.AUTH : {};
+    AUTH.enabled = Boolean(authState.enabled);
+    AUTH.authenticated = Boolean(authState.authenticated);
+    AUTH.providerName = String(authState.providerName || "SSO").trim() || "SSO";
+    AUTH.loginPath = String(authState.loginPath || `${API_BASE}/auth/login`).trim() || `${API_BASE}/auth/login`;
+    AUTH.logoutPath = String(authState.logoutPath || `${API_BASE}/auth/logout`).trim() || `${API_BASE}/auth/logout`;
+    AUTH.user = authState.user && typeof authState.user === "object" ? authState.user : null;
   };
+
+  function getCurrentReturnTo() {
+    return `${window.location.pathname}${window.location.search}${window.location.hash}` || "/";
+  }
+
+  function buildAuthUrl(basePath, returnTo = getCurrentReturnTo()) {
+    const url = new URL(basePath || `${API_BASE}/auth/login`, window.location.origin);
+    url.searchParams.set("returnTo", returnTo || "/");
+    return url.toString();
+  }
+
+  function triggerAuthLogin(returnTo = getCurrentReturnTo()) {
+    if (!AUTH.enabled || authRedirectInFlight) return;
+    authRedirectInFlight = true;
+    window.location.assign(buildAuthUrl(AUTH.loginPath, returnTo));
+  }
+
+  function maybeHandleAuthFailure(response, input) {
+    if (!AUTH.enabled || authRedirectInFlight || !response || response.status !== 401) return;
+    const requestUrl = typeof input === "string" ? input : input?.url || response.url || "";
+    const resolvedUrl = new URL(requestUrl || window.location.href, window.location.origin);
+    if (resolvedUrl.origin !== window.location.origin) return;
+    if (!resolvedUrl.pathname.startsWith(`${API_BASE}/`)) return;
+    if (resolvedUrl.pathname.startsWith(`${API_BASE}/auth/`)) return;
+    triggerAuthLogin();
+  }
+
+  function installAuthFetchInterceptor() {
+    if (!AUTH.enabled || window.__flAuthFetchWrapped) return;
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const response = await nativeFetch(input, init);
+      maybeHandleAuthFailure(response, input);
+      return response;
+    };
+    window.__flAuthFetchWrapped = true;
+  }
 
   const $ = (id) => document.getElementById(id);
   const pageLoader = $("pageLoader");
@@ -152,6 +205,10 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const quoteBox = $("quoteBox");
   const printMount = $("printMount");
   const serverStatusBar = $("serverStatusBar");
+  const authSessionBox = $("authSessionBox");
+  const authProviderLabel = $("authProviderLabel");
+  const authUserLabel = $("authUserLabel");
+  const authLogoutBtn = $("authLogoutBtn");
   const multiShipmentBtn = $("multiShipmentBtn");
   const addrSearch = $("addrSearch");
   const addrResults = $("addrResults");
@@ -8713,6 +8770,25 @@ async function startOrder(orderNo) {
   };
   let pendingStockIntent = null;
 
+  function renderAuthState() {
+    if (!authSessionBox) return;
+    const shouldShow = AUTH.enabled && AUTH.authenticated;
+    authSessionBox.hidden = !shouldShow;
+    if (!shouldShow) return;
+    const userLabel =
+      AUTH.user?.displayName ||
+      AUTH.user?.email ||
+      AUTH.user?.username ||
+      "Authenticated user";
+    if (authProviderLabel) {
+      authProviderLabel.textContent = `Signed in via ${AUTH.providerName || "SSO"}`;
+    }
+    if (authUserLabel) {
+      authUserLabel.textContent = userLabel;
+      authUserLabel.title = userLabel;
+    }
+  }
+
   function queueStockIntentFromRouteElement(routeEl) {
     if (!(routeEl instanceof HTMLElement)) {
       pendingStockIntent = null;
@@ -11261,6 +11337,15 @@ async function startOrder(orderNo) {
         return;
       }
 
+      renderAuthState();
+      installAuthFetchInterceptor();
+
+      const currentPath = normalizePath(window.location.pathname);
+      if (AUTH.enabled && !AUTH.authenticated && currentPath !== "/deliver") {
+        triggerAuthLogin();
+        return;
+      }
+
       loadBookedOrders();
       loadPackingState();
       loadDispatchPriorityState();
@@ -11282,7 +11367,6 @@ async function startOrder(orderNo) {
       setInterval(renderDateTimeHeaderWidget, 60000);
       renderModuleDashboard();
 
-      const currentPath = normalizePath(window.location.pathname);
       if (currentPath === "/deliver") {
         const params = new URLSearchParams(window.location.search || "");
         const code = params.get("code") || "";
@@ -11319,6 +11403,10 @@ async function startOrder(orderNo) {
   };
 
   boot();
+
+  authLogoutBtn?.addEventListener("click", () => {
+    window.location.assign(buildAuthUrl(AUTH.logoutPath, getCurrentReturnTo()));
+  });
 })();
 
 

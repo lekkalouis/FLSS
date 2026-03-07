@@ -314,6 +314,116 @@ function productBySku(productSku) {
   return productCatalog().find((product) => String(product.sku) === String(productSku)) || null;
 }
 
+function productRecordBySku(productSku) {
+  return db().prepare("SELECT * FROM products WHERE sku = ?").get(String(productSku).trim()) || null;
+}
+
+function defaultLineTypeForMaterial(material) {
+  const category = String(material?.category || "").trim().toLowerCase();
+  if (category.includes("pack")) return "packaging";
+  if (category.includes("label")) return "label";
+  if (category.includes("consum")) return "consumable";
+  return "ingredient";
+}
+
+function nextBomVersionForSku(productSku) {
+  const row = db().prepare(
+    `SELECT COUNT(*) AS count
+     FROM bom_headers
+     WHERE product_sku = ?`
+  ).get(String(productSku).trim());
+  return `v${Number(row?.count || 0) + 1}`;
+}
+
+function hydrateBomHeader(header) {
+  const product = productBySku(header.product_sku) || productRecordBySku(header.product_sku);
+  const lines = bomLinesForHeader(header.id);
+  return {
+    ...header,
+    product_title: product?.title || String(header.product_sku || ""),
+    line_count: lines.length,
+    lines
+  };
+}
+
+function normalizeBomLines(lines = []) {
+  const source = Array.isArray(lines) ? lines : [];
+  const aggregated = new Map();
+  for (const line of source) {
+    const materialId = Number(line?.material_id ?? line?.materialId);
+    if (!Number.isFinite(materialId) || materialId <= 0) {
+      throw new Error("Each BOM line requires a valid material");
+    }
+    const material = materialById(materialId);
+    if (!material) {
+      throw new Error(`Material ${materialId} was not found`);
+    }
+    const quantity = round2(line?.quantity);
+    if (!(quantity > 0)) {
+      throw new Error(`Material ${material.sku} requires a quantity greater than zero`);
+    }
+    const uom = String(line?.uom || material.uom || "unit").trim() || "unit";
+    const lineType = String(line?.line_type || line?.lineType || defaultLineTypeForMaterial(material)).trim().toLowerCase() || "ingredient";
+    const key = `${materialId}:${uom}:${lineType}`;
+    const existing = aggregated.get(key) || {
+      material_id: materialId,
+      quantity: 0,
+      uom,
+      line_type: lineType
+    };
+    existing.quantity = round2(existing.quantity + quantity);
+    aggregated.set(key, existing);
+  }
+  const normalized = Array.from(aggregated.values());
+  if (!normalized.length) {
+    throw new Error("At least one BOM line is required");
+  }
+  return normalized;
+}
+
+function upsertPreferredSupplierForMaterial(materialId, payload = {}) {
+  const supplierId = Number(payload?.preferred_supplier_id || payload?.preferredSupplierId || payload?.supplier_id || 0);
+  if (!Number.isFinite(supplierId) || supplierId <= 0) return;
+  const supplier = db().prepare("SELECT id FROM suppliers WHERE id = ?").get(supplierId);
+  if (!supplier) {
+    throw new Error("Preferred supplier was not found");
+  }
+  db().prepare(
+    `UPDATE supplier_materials
+     SET is_preferred = 0, updated_at = ?
+     WHERE material_id = ?`
+  ).run(now(), Number(materialId));
+  db().prepare(
+    `INSERT INTO supplier_materials (
+      supplier_id,
+      material_id,
+      supplier_sku,
+      is_preferred,
+      price_per_unit,
+      min_order_qty,
+      lead_time_days,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
+    ON CONFLICT(supplier_id, material_id) DO UPDATE SET
+      supplier_sku = excluded.supplier_sku,
+      is_preferred = 1,
+      price_per_unit = excluded.price_per_unit,
+      min_order_qty = excluded.min_order_qty,
+      lead_time_days = excluded.lead_time_days,
+      updated_at = excluded.updated_at`
+  ).run(
+    supplierId,
+    Number(materialId),
+    payload?.supplier_sku || null,
+    round2(payload?.price_per_unit),
+    round2(payload?.min_order_qty),
+    Math.max(0, Math.floor(asNumber(payload?.lead_time_days, 0))),
+    now(),
+    now()
+  );
+}
+
 export async function listCatalogProducts() {
   ensureOperationalSeedData();
   const movementStock = productMovementStockBySku();
@@ -414,17 +524,278 @@ export function listCatalogSuppliers() {
   ).all();
 }
 
-export function listCatalogBoms() {
+export function listCatalogBoms(filters = {}) {
   ensureOperationalSeedData();
+  const clauses = [];
+  const params = [];
+  if (filters?.product_sku) {
+    clauses.push("product_sku = ?");
+    params.push(String(filters.product_sku).trim());
+  }
+  if (filters?.is_active != null && String(filters.is_active).trim() !== "") {
+    const activeValue = String(filters.is_active).trim().toLowerCase();
+    clauses.push("is_active = ?");
+    params.push(["1", "true", "yes", "active"].includes(activeValue) ? 1 : 0);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
   const headers = db().prepare(
     `SELECT *
      FROM bom_headers
+     ${where}
      ORDER BY product_sku ASC, effective_from DESC, id DESC`
-  ).all();
-  return headers.map((header) => ({
-    ...header,
-    lines: bomLinesForHeader(header.id)
-  }));
+  ).all(...params);
+  return headers.map((header) => hydrateBomHeader(header));
+}
+
+export function createCatalogMaterial(payload = {}) {
+  ensureOperationalSeedData();
+  const sku = String(payload?.sku || "").trim().toUpperCase();
+  const title = String(payload?.title || "").trim();
+  if (!sku) return { error: "Material SKU is required" };
+  if (!title) return { error: "Material title is required" };
+  const existing = db().prepare("SELECT id FROM materials WHERE sku = ?").get(sku);
+  if (existing) return { error: `Material SKU already exists: ${sku}` };
+
+  const requestId = payload?.request_id || nextRequestId("material");
+  const category = String(payload?.category || "ingredient").trim().toLowerCase() || "ingredient";
+  const uom = String(payload?.uom || "unit").trim() || "unit";
+  const icon = String(payload?.icon || "").trim() || null;
+  const tx = db().transaction(() => {
+    const result = db().prepare(
+      `INSERT INTO materials (
+        sku,
+        title,
+        category,
+        uom,
+        icon,
+        reorder_point,
+        lead_time_days,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      sku,
+      title,
+      category,
+      uom,
+      icon,
+      round2(payload?.reorder_point),
+      Math.max(0, Math.floor(asNumber(payload?.lead_time_days, 0))),
+      now(),
+      now()
+    );
+    upsertPreferredSupplierForMaterial(result.lastInsertRowid, payload);
+    recordAppAudit({
+      actor_type: payload?.actor_type || "system",
+      actor_id: payload?.actor_id || "system",
+      surface: "catalog",
+      action: "material_created",
+      entity_type: "material",
+      entity_id: String(result.lastInsertRowid),
+      request_id: requestId,
+      details: { sku, title, category, uom }
+    });
+    return Number(result.lastInsertRowid);
+  });
+  const materialId = tx();
+  const material = listCatalogMaterials().find((entry) => Number(entry.id) === materialId) || null;
+  return { material, request_id: requestId };
+}
+
+export function createCatalogBom(payload = {}) {
+  ensureOperationalSeedData();
+  const productSku = String(payload?.product_sku || payload?.productSku || "").trim();
+  if (!productSku) return { error: "Product SKU is required" };
+  const product = productBySku(productSku) || productRecordBySku(productSku);
+  if (!product) return { error: `Unknown product SKU: ${productSku}` };
+
+  let normalizedLines;
+  try {
+    normalizedLines = normalizeBomLines(payload?.lines);
+  } catch (error) {
+    return { error: String(error?.message || error) };
+  }
+
+  const requestId = payload?.request_id || nextRequestId("bom");
+  const version = String(payload?.version || "").trim() || nextBomVersionForSku(productSku);
+  const effectiveFrom = String(payload?.effective_from || payload?.effectiveFrom || "").trim() || new Date().toISOString().slice(0, 10);
+  const yieldPct = round2(payload?.yield_pct ?? payload?.yieldPct ?? 100);
+  const wastePct = round2(payload?.waste_pct ?? payload?.wastePct ?? 0);
+  const activeFlag = payload?.is_active === false || payload?.is_active === 0 || String(payload?.is_active || "").toLowerCase() === "false" ? 0 : 1;
+
+  const tx = db().transaction(() => {
+    if (activeFlag) {
+      db().prepare(
+        `UPDATE bom_headers
+         SET is_active = 0, updated_at = ?
+         WHERE product_sku = ?`
+      ).run(now(), productSku);
+    }
+    const productRow = productRecordBySku(productSku);
+    const result = db().prepare(
+      `INSERT INTO bom_headers (
+        product_id,
+        product_sku,
+        version,
+        effective_from,
+        yield_pct,
+        waste_pct,
+        is_active,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      productRow?.id || null,
+      productSku,
+      version,
+      effectiveFrom,
+      yieldPct,
+      wastePct,
+      activeFlag,
+      now(),
+      now()
+    );
+    const bomHeaderId = Number(result.lastInsertRowid);
+    normalizedLines.forEach((line) => {
+      db().prepare(
+        `INSERT INTO bom_material_lines (
+          bom_header_id,
+          material_id,
+          quantity,
+          uom,
+          line_type,
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`
+      ).run(
+        bomHeaderId,
+        line.material_id,
+        line.quantity,
+        line.uom,
+        line.line_type,
+        now()
+      );
+    });
+    recordAppAudit({
+      actor_type: payload?.actor_type || "system",
+      actor_id: payload?.actor_id || "system",
+      surface: "make",
+      action: "bom_created",
+      entity_type: "bom_header",
+      entity_id: String(bomHeaderId),
+      related_entity_type: "product",
+      related_entity_id: productSku,
+      request_id: requestId,
+      details: {
+        version,
+        effective_from: effectiveFrom,
+        line_count: normalizedLines.length
+      }
+    });
+    return bomHeaderId;
+  });
+  const bomHeaderId = tx();
+  const bom = listCatalogBoms({ product_sku: productSku }).find((entry) => Number(entry.id) === bomHeaderId) || null;
+  return { bom, request_id: requestId };
+}
+
+export function updateCatalogBom(bomHeaderId, payload = {}) {
+  ensureOperationalSeedData();
+  const existing = db().prepare("SELECT * FROM bom_headers WHERE id = ?").get(Number(bomHeaderId));
+  if (!existing) return { error: "BOM not found" };
+
+  let normalizedLines;
+  try {
+    normalizedLines = normalizeBomLines(payload?.lines);
+  } catch (error) {
+    return { error: String(error?.message || error) };
+  }
+
+  const productSku = String(payload?.product_sku || payload?.productSku || existing.product_sku || "").trim();
+  const product = productBySku(productSku) || productRecordBySku(productSku);
+  if (!product) return { error: `Unknown product SKU: ${productSku}` };
+
+  const requestId = payload?.request_id || nextRequestId("bom-update");
+  const version = String(payload?.version || existing.version || "").trim() || existing.version || nextBomVersionForSku(productSku);
+  const effectiveFrom = String(payload?.effective_from || payload?.effectiveFrom || existing.effective_from || "").trim() || existing.effective_from;
+  const yieldPct = round2(payload?.yield_pct ?? payload?.yieldPct ?? existing.yield_pct ?? 100);
+  const wastePct = round2(payload?.waste_pct ?? payload?.wastePct ?? existing.waste_pct ?? 0);
+  const activeFlag = payload?.is_active == null
+    ? Number(existing.is_active || 0)
+    : payload?.is_active === false || payload?.is_active === 0 || String(payload?.is_active || "").toLowerCase() === "false"
+      ? 0
+      : 1;
+
+  const tx = db().transaction(() => {
+    if (activeFlag) {
+      db().prepare(
+        `UPDATE bom_headers
+         SET is_active = 0, updated_at = ?
+         WHERE product_sku = ? AND id <> ?`
+      ).run(now(), productSku, Number(bomHeaderId));
+    }
+    const productRow = productRecordBySku(productSku);
+    db().prepare(
+      `UPDATE bom_headers
+       SET product_id = ?,
+           product_sku = ?,
+           version = ?,
+           effective_from = ?,
+           yield_pct = ?,
+           waste_pct = ?,
+           is_active = ?,
+           updated_at = ?
+       WHERE id = ?`
+    ).run(
+      productRow?.id || null,
+      productSku,
+      version,
+      effectiveFrom,
+      yieldPct,
+      wastePct,
+      activeFlag,
+      now(),
+      Number(bomHeaderId)
+    );
+    db().prepare("DELETE FROM bom_material_lines WHERE bom_header_id = ?").run(Number(bomHeaderId));
+    normalizedLines.forEach((line) => {
+      db().prepare(
+        `INSERT INTO bom_material_lines (
+          bom_header_id,
+          material_id,
+          quantity,
+          uom,
+          line_type,
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`
+      ).run(
+        Number(bomHeaderId),
+        line.material_id,
+        line.quantity,
+        line.uom,
+        line.line_type,
+        now()
+      );
+    });
+    recordAppAudit({
+      actor_type: payload?.actor_type || "system",
+      actor_id: payload?.actor_id || "system",
+      surface: "make",
+      action: "bom_updated",
+      entity_type: "bom_header",
+      entity_id: String(bomHeaderId),
+      related_entity_type: "product",
+      related_entity_id: productSku,
+      request_id: requestId,
+      details: {
+        version,
+        effective_from: effectiveFrom,
+        line_count: normalizedLines.length
+      }
+    });
+  });
+  tx();
+  const bom = listCatalogBoms({ product_sku: productSku }).find((entry) => Number(entry.id) === Number(bomHeaderId)) || null;
+  return { bom, request_id: requestId };
 }
 
 export async function getInventoryOverview() {

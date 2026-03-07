@@ -54,6 +54,19 @@ export const config = {
 
   FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
 
+  OAUTH_PROVIDER_NAME: process.env.OAUTH_PROVIDER_NAME || "SSO",
+  OAUTH_AUTHORIZATION_URL: process.env.OAUTH_AUTHORIZATION_URL || "",
+  OAUTH_TOKEN_URL: process.env.OAUTH_TOKEN_URL || "",
+  OAUTH_USERINFO_URL: process.env.OAUTH_USERINFO_URL || "",
+  OAUTH_CLIENT_ID: process.env.OAUTH_CLIENT_ID || "",
+  OAUTH_CLIENT_SECRET: process.env.OAUTH_CLIENT_SECRET || "",
+  OAUTH_SCOPE: process.env.OAUTH_SCOPE || "openid profile email",
+  OAUTH_REDIRECT_URI: process.env.OAUTH_REDIRECT_URI || "",
+  OAUTH_COOKIE_SECURE: process.env.OAUTH_COOKIE_SECURE || "",
+  OAUTH_SESSION_TTL_MS: numberOrDefault(process.env.OAUTH_SESSION_TTL_MS, 8 * 60 * 60 * 1000, {
+    min: 60000
+  }),
+
   LOCAL_DB_PATH: process.env.LOCAL_DB_PATH || "data/flss-products.sqlite",
   ASSETS_PATH: process.env.ASSETS_PATH || "data/assets",
   BACKUPS_PATH: process.env.BACKUPS_PATH || "data/backups",

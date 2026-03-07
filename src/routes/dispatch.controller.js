@@ -2,6 +2,11 @@ import { Router } from "express";
 
 import { config } from "../config.js";
 import {
+  hasOAuthSession,
+  isOAuthEnabled,
+  sendOAuthApiUnauthorized
+} from "../services/oauth.js";
+import {
   back,
   confirm,
   requestFulfill,
@@ -42,6 +47,7 @@ function isPrivateIp(ip) {
 }
 
 function isAuthorized(req) {
+  if (hasOAuthSession(req)) return true;
   const token = String(config.ROTARY_TOKEN || "").trim();
   const authHeader = String(req.get("authorization") || "").trim();
   const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
@@ -54,11 +60,18 @@ function isAuthorized(req) {
 }
 
 function isRemoteAuthorized(req) {
+  if (hasOAuthSession(req)) return true;
   const token = String(config.REMOTE_TOKEN || "").trim();
   if (!token) return isAuthorized(req);
   const authHeader = String(req.get("authorization") || "").trim();
   const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   return bearerToken && bearerToken === token;
+}
+
+function requireDispatchViewAccess(req, res, next) {
+  if (!isOAuthEnabled()) return next();
+  if (hasOAuthSession(req)) return next();
+  return sendOAuthApiUnauthorized(req, res);
 }
 
 function unauthorizedResponse(res) {
@@ -101,12 +114,12 @@ function logAction(action, req, beforeState, afterState) {
   });
 }
 
-router.get("/dispatch/state", (req, res) => {
+router.get("/dispatch/state", requireDispatchViewAccess, (req, res) => {
   const state = getState();
   res.json({ ok: true, ...state });
 });
 
-router.post("/dispatch/state", (req, res) => {
+router.post("/dispatch/state", requireDispatchViewAccess, (req, res) => {
   const state = syncState({
     queueOrderIds: req.body?.queueOrderIds,
     lineItemKeysByOrderId: req.body?.lineItemKeysByOrderId,
@@ -116,7 +129,7 @@ router.post("/dispatch/state", (req, res) => {
   res.json({ ok: true, ...state });
 });
 
-router.get("/dispatch/environment", (req, res) => {
+router.get("/dispatch/environment", requireDispatchViewAccess, (req, res) => {
   const environment = getEnvironmentState({ staleMs: config.ENV_STALE_MS });
   res.json({ ok: true, environment });
 });
@@ -240,7 +253,7 @@ router.post("/dispatch/remote/action", (req, res) => {
   }
 });
 
-router.get("/dispatch/events", (req, res) => {
+router.get("/dispatch/events", requireDispatchViewAccess, (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");

@@ -9,6 +9,11 @@ import rateLimit from "express-rate-limit";
 
 import { config, getFrontendOrigin } from "./config.js";
 import { apiRouters } from "./routes/index.js";
+import {
+  attachOAuthSession,
+  requireOAuthApiSession,
+  requireOAuthPageSession
+} from "./services/oauth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,6 +64,7 @@ function buildCorsConfig() {
 
 function mountApiRouters(app, basePath = "/api/v1") {
   const apiRouter = express.Router();
+  apiRouter.use(requireOAuthApiSession);
   apiRouters.forEach(({ router }) => apiRouter.use(router));
   app.use(basePath, apiRouter);
   app.use(basePath, (_req, res) => res.status(404).json({ error: "Not found" }));
@@ -94,6 +100,7 @@ export function createApp() {
       req.rawBody = buf;
     }
   }));
+  app.use(attachOAuthSession);
 
   const corsConfig = buildCorsConfig();
   app.use(corsConfig.middleware);
@@ -134,6 +141,8 @@ export function createApp() {
   legacyRedirects.forEach((target, source) => {
     app.get(source, (_req, res) => res.redirect(302, target));
   });
+
+  app.use(requireOAuthPageSession);
 
   const publicDir = path.join(__dirname, "..", "public");
   const oneUiAssetsDir = path.join(__dirname, "..", "ONEUI", "OneUI by pixelcave", "OneUI 5.12", "01 OneUI Source (HTML)", "src", "assets");

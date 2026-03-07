@@ -13,6 +13,19 @@ Use `.env` for process-level secrets, upstream hosts, and station runtime behavi
 - `NODE_ENV`
 - `FRONTEND_ORIGIN`
 
+### OAuth 2.0 / SSO
+
+- `OAUTH_PROVIDER_NAME`
+- `OAUTH_AUTHORIZATION_URL`
+- `OAUTH_TOKEN_URL`
+- `OAUTH_USERINFO_URL`
+- `OAUTH_CLIENT_ID`
+- `OAUTH_CLIENT_SECRET`
+- `OAUTH_SCOPE`
+- `OAUTH_REDIRECT_URI`
+- `OAUTH_COOKIE_SECURE`
+- `OAUTH_SESSION_TTL_MS`
+
 ### ParcelPerfect
 
 - `PP_BASE_URL`

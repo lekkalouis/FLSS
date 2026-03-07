@@ -1240,3 +1240,100 @@ test('main index uses unified stock-buy-make shell without embedded admin iframe
   assert.doesNotMatch(indexHtml, /id="viewAdmin"/);
   assert.doesNotMatch(indexHtml, /id="navFooterAdmin"/);
 });
+
+test('unified catalog supports material creation and BOM recipe authoring', async () => {
+  runMigrations();
+  const { server, baseUrl } = await startServer();
+  try {
+    const productsResponse = await fetch(`${baseUrl}/api/v1/catalog/products`);
+    assert.equal(productsResponse.status, 200);
+    const productsBody = await productsResponse.json();
+    assert.ok(Array.isArray(productsBody.products));
+    assert.ok(productsBody.products.length > 0);
+    const productSku = productsBody.products[0].sku;
+
+    const suppliersResponse = await fetch(`${baseUrl}/api/v1/catalog/suppliers`);
+    assert.equal(suppliersResponse.status, 200);
+    const suppliersBody = await suppliersResponse.json();
+    const supplierId = Number(suppliersBody.suppliers?.[0]?.id || 0) || undefined;
+
+    const uniqueSuffix = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const materialSku = `TEST-MAT-${uniqueSuffix}`;
+
+    const materialResponse = await fetch(`${baseUrl}/api/v1/catalog/materials`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sku: materialSku,
+        title: `Test Material ${uniqueSuffix}`,
+        category: 'ingredient',
+        uom: 'kg',
+        preferred_supplier_id: supplierId,
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(materialResponse.status, 201);
+    const materialBody = await materialResponse.json();
+    assert.equal(materialBody.material.sku, materialSku);
+    assert.equal(materialBody.material.uom, 'kg');
+    assert.ok(Number(materialBody.material.id) > 0);
+
+    const bomResponse = await fetch(`${baseUrl}/api/v1/catalog/boms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_sku: productSku,
+        version: `test-${uniqueSuffix}`,
+        effective_from: '2026-03-07',
+        is_active: false,
+        lines: [
+          {
+            material_id: materialBody.material.id,
+            quantity: 1.25,
+            uom: 'kg',
+            line_type: 'ingredient'
+          }
+        ],
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(bomResponse.status, 201);
+    const bomBody = await bomResponse.json();
+    assert.equal(bomBody.bom.product_sku, productSku);
+    assert.equal(bomBody.bom.version, `test-${uniqueSuffix}`);
+    assert.equal(Array.isArray(bomBody.bom.lines), true);
+    assert.equal(bomBody.bom.lines.length, 1);
+    assert.equal(Number(bomBody.bom.lines[0].quantity), 1.25);
+
+    const updateResponse = await fetch(`${baseUrl}/api/v1/catalog/boms/${bomBody.bom.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_sku: productSku,
+        version: `test-${uniqueSuffix}-rev2`,
+        effective_from: '2026-03-08',
+        is_active: false,
+        lines: [
+          {
+            material_id: materialBody.material.id,
+            quantity: 2.5,
+            uom: 'kg',
+            line_type: 'ingredient'
+          }
+        ],
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(updateResponse.status, 200);
+    const updateBody = await updateResponse.json();
+    assert.equal(updateBody.bom.version, `test-${uniqueSuffix}-rev2`);
+    assert.equal(updateBody.bom.effective_from, '2026-03-08');
+    assert.equal(updateBody.bom.lines.length, 1);
+    assert.equal(Number(updateBody.bom.lines[0].quantity), 2.5);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
