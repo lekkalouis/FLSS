@@ -2,11 +2,6 @@ import { Router } from "express";
 
 import { config } from "../config.js";
 import {
-  hasOAuthSession,
-  isOAuthEnabled,
-  sendOAuthApiUnauthorized
-} from "../services/oauth.js";
-import {
   back,
   confirm,
   requestFulfill,
@@ -47,7 +42,6 @@ function isPrivateIp(ip) {
 }
 
 function isAuthorized(req) {
-  if (hasOAuthSession(req)) return true;
   const token = String(config.ROTARY_TOKEN || "").trim();
   const authHeader = String(req.get("authorization") || "").trim();
   const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
@@ -60,7 +54,6 @@ function isAuthorized(req) {
 }
 
 function isRemoteAuthorized(req) {
-  if (hasOAuthSession(req)) return true;
   const token = String(config.REMOTE_TOKEN || "").trim();
   if (!token) return isAuthorized(req);
   const authHeader = String(req.get("authorization") || "").trim();
@@ -69,9 +62,7 @@ function isRemoteAuthorized(req) {
 }
 
 function requireDispatchViewAccess(req, res, next) {
-  if (!isOAuthEnabled()) return next();
-  if (hasOAuthSession(req)) return next();
-  return sendOAuthApiUnauthorized(req, res);
+  return next();
 }
 
 function unauthorizedResponse(res) {

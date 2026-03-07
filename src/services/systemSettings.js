@@ -22,7 +22,9 @@ const DEFAULT_DOCUMENT_PRINTERS = Object.freeze({
   printDocs: 74901099,
   taxInvoice: 74467271,
   parcelStickers: 74901099,
-  lineItemStickers: 74901099
+  lineItemStickers: 74901099,
+  purchaseOrder: null,
+  manufacturingOrder: null
 });
 
 const DEFAULT_NOTIFICATION_EVENTS = Object.freeze({

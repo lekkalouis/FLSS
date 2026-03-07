@@ -10,10 +10,12 @@ import rateLimit from "express-rate-limit";
 import { config, getFrontendOrigin } from "./config.js";
 import { apiRouters } from "./routes/index.js";
 import {
-  attachOAuthSession,
-  requireOAuthApiSession,
-  requireOAuthPageSession
-} from "./services/oauth.js";
+  attachShopifyCustomerSession,
+  buildShopifyCustomerLoginPath,
+  hasShopifyCustomerSession,
+  isShopifyCustomerAuthEnabled,
+  renderPortalUnavailablePage
+} from "./services/shopifyCustomerAuth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -64,7 +66,6 @@ function buildCorsConfig() {
 
 function mountApiRouters(app, basePath = "/api/v1") {
   const apiRouter = express.Router();
-  apiRouter.use(requireOAuthApiSession);
   apiRouters.forEach(({ router }) => apiRouter.use(router));
   app.use(basePath, apiRouter);
   app.use(basePath, (_req, res) => res.status(404).json({ error: "Not found" }));
@@ -87,6 +88,17 @@ function setPublicAssetHeaders(res, filePath) {
 
 export function createApp() {
   const app = express();
+  const publicDir = path.join(__dirname, "..", "public");
+  const oneUiAssetsDir = path.join(
+    __dirname,
+    "..",
+    "ONEUI",
+    "OneUI by pixelcave",
+    "OneUI 5.12",
+    "01 OneUI Source (HTML)",
+    "src",
+    "assets"
+  );
   const googleMapsCspSources = [
     "https://*.googleapis.com",
     "https://*.gstatic.com",
@@ -109,13 +121,15 @@ export function createApp() {
       }
     })
   );
-  app.use(express.json({
-    limit: "1mb",
-    verify: (req, _res, buf) => {
-      req.rawBody = buf;
-    }
-  }));
-  app.use(attachOAuthSession);
+  app.use(
+    express.json({
+      limit: "1mb",
+      verify: (req, _res, buf) => {
+        req.rawBody = buf;
+      }
+    })
+  );
+  app.use(attachShopifyCustomerSession);
 
   const corsConfig = buildCorsConfig();
   app.use(corsConfig.middleware);
@@ -147,7 +161,7 @@ export function createApp() {
     ["/pos.html", "/stock?notice=tool-retired"],
     ["/shipping-matrix.html", "/stock?notice=tool-retired"],
     ["/order-capture-custom.html", "/stock?notice=tool-retired"],
-    ["/customer-accounts.html", "/stock?notice=tool-retired"],
+    ["/customer-accounts.html", "/portal"],
     ["/liquid-templates.html", "/stock?notice=tool-retired"],
     ["/notification-templates.html", "/stock?notice=tool-retired"],
     ["/traceability.html", "/stock?section=batches"]
@@ -156,10 +170,19 @@ export function createApp() {
     app.get(source, (_req, res) => res.redirect(302, target));
   });
 
-  app.use(requireOAuthPageSession);
+  app.get("/portal", (req, res) => {
+    if (!isShopifyCustomerAuthEnabled()) {
+      return res.status(503).type("html").send(renderPortalUnavailablePage());
+    }
+    if (!hasShopifyCustomerSession(req)) {
+      return res.redirect(302, buildShopifyCustomerLoginPath("/portal"));
+    }
+    res.setHeader("Cache-Control", "no-cache");
+    return res.sendFile(path.join(publicDir, "portal.html"));
+  });
+  app.get("/portal/", (_req, res) => res.redirect(302, "/portal"));
+  app.get("/portal.html", (_req, res) => res.redirect(302, "/portal"));
 
-  const publicDir = path.join(__dirname, "..", "public");
-  const oneUiAssetsDir = path.join(__dirname, "..", "ONEUI", "OneUI by pixelcave", "OneUI 5.12", "01 OneUI Source (HTML)", "src", "assets");
   app.use("/vendor/oneui", express.static(oneUiAssetsDir, {
     immutable: config.NODE_ENV === "production",
     maxAge: config.NODE_ENV === "production" ? "30d" : 0

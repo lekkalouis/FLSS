@@ -11,15 +11,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     SERVER_STATUS_POLL_INTERVAL_MS: 45000
   };
   const API_BASE = "/api/v1";
-  const AUTH = {
-    authenticated: false,
-    enabled: false,
-    loginPath: `${API_BASE}/auth/login`,
-    logoutPath: `${API_BASE}/auth/logout`,
-    providerName: "SSO",
-    user: null
-  };
-  let authRedirectInFlight = false;
   const FLAVOUR_COLORS = {
     "hot & spicy": "#DA291C",
     "original": "#8BAF84",
@@ -129,51 +120,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     if (!res.ok) throw new Error(`Config fetch failed: ${res.status}`);
     const data = await res.json();
     Object.assign(CONFIG, data);
-    const authState = data && typeof data.AUTH === "object" ? data.AUTH : {};
-    AUTH.enabled = Boolean(authState.enabled);
-    AUTH.authenticated = Boolean(authState.authenticated);
-    AUTH.providerName = String(authState.providerName || "SSO").trim() || "SSO";
-    AUTH.loginPath = String(authState.loginPath || `${API_BASE}/auth/login`).trim() || `${API_BASE}/auth/login`;
-    AUTH.logoutPath = String(authState.logoutPath || `${API_BASE}/auth/logout`).trim() || `${API_BASE}/auth/logout`;
-    AUTH.user = authState.user && typeof authState.user === "object" ? authState.user : null;
   };
-
-  function getCurrentReturnTo() {
-    return `${window.location.pathname}${window.location.search}${window.location.hash}` || "/";
-  }
-
-  function buildAuthUrl(basePath, returnTo = getCurrentReturnTo()) {
-    const url = new URL(basePath || `${API_BASE}/auth/login`, window.location.origin);
-    url.searchParams.set("returnTo", returnTo || "/");
-    return url.toString();
-  }
-
-  function triggerAuthLogin(returnTo = getCurrentReturnTo()) {
-    if (!AUTH.enabled || authRedirectInFlight) return;
-    authRedirectInFlight = true;
-    window.location.assign(buildAuthUrl(AUTH.loginPath, returnTo));
-  }
-
-  function maybeHandleAuthFailure(response, input) {
-    if (!AUTH.enabled || authRedirectInFlight || !response || response.status !== 401) return;
-    const requestUrl = typeof input === "string" ? input : input?.url || response.url || "";
-    const resolvedUrl = new URL(requestUrl || window.location.href, window.location.origin);
-    if (resolvedUrl.origin !== window.location.origin) return;
-    if (!resolvedUrl.pathname.startsWith(`${API_BASE}/`)) return;
-    if (resolvedUrl.pathname.startsWith(`${API_BASE}/auth/`)) return;
-    triggerAuthLogin();
-  }
-
-  function installAuthFetchInterceptor() {
-    if (!AUTH.enabled || window.__flAuthFetchWrapped) return;
-    const nativeFetch = window.fetch.bind(window);
-    window.fetch = async (input, init) => {
-      const response = await nativeFetch(input, init);
-      maybeHandleAuthFailure(response, input);
-      return response;
-    };
-    window.__flAuthFetchWrapped = true;
-  }
 
   const $ = (id) => document.getElementById(id);
   const pageLoader = $("pageLoader");
@@ -198,10 +145,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const quoteBox = $("quoteBox");
   const printMount = $("printMount");
   const serverStatusBar = $("serverStatusBar");
-  const authSessionBox = $("authSessionBox");
-  const authProviderLabel = $("authProviderLabel");
-  const authUserLabel = $("authUserLabel");
-  const authLogoutBtn = $("authLogoutBtn");
   const multiShipmentBtn = $("multiShipmentBtn");
   const addrSearch = $("addrSearch");
   const addrResults = $("addrResults");
@@ -284,6 +227,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchOverlayProgressLabel = $("dispatchOverlayProgressLabel");
   const dispatchPrintBestBeforeBtn = $("dispatchPrintBestBeforeBtn");
   const dispatchLegendOpenBtn = $("dispatchLegendOpenBtn");
+  const flHeaderUtilityRight = document.querySelector(".flHeaderUtilityRight");
   const dispatchLegend = $("dispatchLegendModal");
   const dispatchLegendToggle = $("dispatchLegendToggle");
   const dispatchLegendContent = $("dispatchLegendContent");
@@ -391,6 +335,9 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   let globalLoaderCount = 0;
   let isNewOrderMenuOpen = false;
   let settingsModalOpen = false;
+  let shortcutsModalOpen = false;
+  let shortcutsButton = null;
+  let shortcutsModal = null;
   let settingsState = null;
   let settingsActiveTab = "general";
   let settingsPrinterRows = [];
@@ -526,11 +473,11 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     },
     {
       id: "customer-accounts",
-      title: "Customer Accounts",
-      description: "Customer login and self-service profile updates.",
+      title: "Customer Portal",
+      description: "Shopify customer account sign-in and verified identity surface.",
       type: "link",
-      target: "/customer-accounts.html",
-      meta: "Customer self-service",
+      target: "/portal",
+      meta: "Customer identity",
       tag: "Module"
     },
     {
@@ -692,11 +639,14 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const PRINTER_ROLE_DEFINITIONS = [
     { key: "sticker", label: "Best-before stickers", description: "Raw shelf-life and batch sticker jobs." },
     { key: "deliveryNote", label: "Delivery note", description: "Shopify delivery note PDFs." },
+    { key: "purchaseOrder", label: "Purchase order", description: "Supplier purchase order PDFs." },
+    { key: "manufacturingOrder", label: "Manufacturing order", description: "Manufacturing job sheets and summaries." },
     { key: "printDocs", label: "Print docs", description: "General Shopify print-doc jobs." },
     { key: "taxInvoice", label: "Tax invoice", description: "Customer tax invoice PDFs." },
     { key: "parcelStickers", label: "Parcel stickers", description: "Parcel sticker sheets." },
     { key: "lineItemStickers", label: "Line item stickers", description: "Item sticker sheets." }
   ];
+  const DOCUMENT_PRINTER_TEST_PDF_BASE64 = "JVBERi0xLjMKJf////8KNyAwIG9iago8PAovVHlwZSAvUGFnZQovUGFyZW50IDEgMCBSCi9NZWRpYUJveCBbMCAwIDYxMiA3OTJdCi9Db250ZW50cyA1IDAgUgovUmVzb3VyY2VzIDYgMCBSCj4+CmVuZG9iago2IDAgb2JqCjw8Ci9Qcm9jU2V0IFsvUERGIC9UZXh0IC9JbWFnZUIgL0ltYWdlQyAvSW1hZ2VJXQovRm9udCA8PAovRjEgOCAwIFIKPj4KL0NvbG9yU3BhY2UgPDwKPj4KPj4KZW5kb2JqCjUgMCBvYmoKPDwKL0xlbmd0aCAxODEKL0ZpbHRlciAvRmxhdGVEZWNvZGUKPj4Kc3RyZWFtCnicjY67CgJBDEX7+Yr8gJpkJje7sGwhaGEnTCcWsut2Fv5/Y3wgvgoJhNxT5B4hjplJLG+VhlM6J/liy/qAQqUhzzJnB9VTWqyFpKE6pV1XUAbLlpVLwYTshhGGoxdlY9c+Xhp1aK8I5qrckzF1VnoSjSNg9gi8p7pJq5q2/9hwmTftU0buMhavYMrR1KD1kMIhpPRGptjoSe1W+SKGaGB82o/+294Vk1ukYHA9volfAIQnSAIKZW5kc3RyZWFtCmVuZG9iagoxMCAwIG9iagooUERGS2l0KQplbmRvYmoKMTEgMCBvYmoKKFBERktpdCkKZW5kb2JqCjEyIDAgb2JqCihEOjIwMjYwMzA3MTkwNjAyWikKZW5kb2JqCjkgMCBvYmoKPDwKL1Byb2R1Y2VyIDEwIDAgUgovQ3JlYXRvciAxMSAwIFIKL0NyZWF0aW9uRGF0ZSAxMiAwIFIKPj4KZW5kb2JqCjggMCBvYmoKPDwKL1R5cGUgL0ZvbnQKL0Jhc2VGb250IC9IZWx2ZXRpY2EKL1N1YnR5cGUgL1R5cGUxCi9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nCj4+CmVuZG9iago0IDAgb2JqCjw8Cj4+CmVuZG9iagozIDAgb2JqCjw8Ci9UeXBlIC9DYXRhbG9nCi9QYWdlcyAxIDAgUgovTmFtZXMgMiAwIFIKPj4KZW5kb2JqCjEgMCBvYmoKPDwKL1R5cGUgL1BhZ2VzCi9Db3VudCAxCi9LaWRzIFs3IDAgUl0KPj4KZW5kb2JqCjIgMCBvYmoKPDwKL0Rlc3RzIDw8CiAgL05hbWVzIFsKXQo+Pgo+PgplbmRvYmoKeHJlZgowIDEzCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDgyMCAwMDAwMCBuIAowMDAwMDAwODc3IDAwMDAwIG4gCjAwMDAwMDA3NTggMDAwMDAgbiAKMDAwMDAwMDczNyAwMDAwMCBuIAowMDAwMDAwMjI2IDAwMDAwIG4gCjAwMDAwMDAxMTkgMDAwMDAgbiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwNjQwIDAwMDAwIG4gCjAwMDAwMDA1NjUgMDAwMDAgbiAKMDAwMDAwMDQ3OSAwMDAwMCBuIAowMDAwMDAwNTA0IDAwMDAwIG4gCjAwMDAwMDA1MjkgMDAwMDAgbiAKdHJhaWxlcgo8PAovU2l6ZSAxMwovUm9vdCAzIDAgUgovSW5mbyA5IDAgUgovSUQgWzw3OWMxNmNhOTM3OGExYmY3MmRhNTU0M2JlNzE1ZmRmNj4gPDc5YzE2Y2E5Mzc4YTFiZjcyZGE1NTQzYmU3MTVmZGY2Pl0KPj4Kc3RhcnR4cmVmCjkyNAolJUVPRgo=";
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
   if (dbgOn && debugLog) debugLog.style.display = "block";
@@ -8681,25 +8631,9 @@ async function startOrder(orderNo) {
     markdownCache: new Map()
   };
   let pendingStockIntent = null;
-
-  function renderAuthState() {
-    if (!authSessionBox) return;
-    const shouldShow = AUTH.enabled && AUTH.authenticated;
-    authSessionBox.hidden = !shouldShow;
-    if (!shouldShow) return;
-    const userLabel =
-      AUTH.user?.displayName ||
-      AUTH.user?.email ||
-      AUTH.user?.username ||
-      "Authenticated user";
-    if (authProviderLabel) {
-      authProviderLabel.textContent = `Signed in via ${AUTH.providerName || "SSO"}`;
-    }
-    if (authUserLabel) {
-      authUserLabel.textContent = userLabel;
-      authUserLabel.title = userLabel;
-    }
-  }
+  let pendingBuyIntent = null;
+  let pendingMakeIntent = null;
+  let pendingAdminIntent = null;
 
   function queueStockIntentFromRouteElement(routeEl) {
     if (!(routeEl instanceof HTMLElement)) {
@@ -8714,6 +8648,33 @@ async function startOrder(orderNo) {
       return;
     }
     pendingStockIntent = { stockTab, stockMode, stockInventoryTab };
+  }
+
+  function queueBuyIntentFromRouteElement(routeEl) {
+    if (!(routeEl instanceof HTMLElement)) {
+      pendingBuyIntent = null;
+      return;
+    }
+    const buyTab = String(routeEl.dataset.buyTab || "").trim().toLowerCase();
+    pendingBuyIntent = buyTab ? { buyTab } : null;
+  }
+
+  function queueMakeIntentFromRouteElement(routeEl) {
+    if (!(routeEl instanceof HTMLElement)) {
+      pendingMakeIntent = null;
+      return;
+    }
+    const makeTab = String(routeEl.dataset.makeTab || "").trim().toLowerCase();
+    pendingMakeIntent = makeTab ? { makeTab } : null;
+  }
+
+  function queueAdminIntentFromRouteElement(routeEl) {
+    if (!(routeEl instanceof HTMLElement)) {
+      pendingAdminIntent = null;
+      return;
+    }
+    const adminTab = String(routeEl.dataset.adminTab || "").trim().toLowerCase();
+    pendingAdminIntent = adminTab ? { adminTab } : null;
   }
 
   function applyPendingStockIntent() {
@@ -8731,6 +8692,33 @@ async function startOrder(orderNo) {
     if (stockMode) {
       const modeBtn = document.querySelector(`[data-stock-mode-target="${stockMode}"]`) || document.querySelector(`.stock-modeBtn[data-mode="${stockMode}"]`);
       modeBtn?.click();
+    }
+  }
+
+  function applyPendingBuyIntent() {
+    if (!pendingBuyIntent) return;
+    const { buyTab } = pendingBuyIntent;
+    pendingBuyIntent = null;
+    if (buyTab) {
+      document.querySelector(`[data-buy-tab="${buyTab}"]`)?.click();
+    }
+  }
+
+  function applyPendingMakeIntent() {
+    if (!pendingMakeIntent) return;
+    const { makeTab } = pendingMakeIntent;
+    pendingMakeIntent = null;
+    if (makeTab) {
+      document.querySelector(`[data-make-tab="${makeTab}"]`)?.click();
+    }
+  }
+
+  function applyPendingAdminIntent() {
+    if (!pendingAdminIntent) return;
+    const { adminTab } = pendingAdminIntent;
+    pendingAdminIntent = null;
+    if (adminTab) {
+      document.querySelector(`[data-admin-tab="${adminTab}"]`)?.click();
     }
   }
 
@@ -9205,12 +9193,39 @@ async function startOrder(orderNo) {
           </select>
         </label>
       `;
-    }).join("");
+    }).join("") + `
+      <div class="settingsPrinterCard">
+        <strong>Document printer tests</strong>
+        <span>Send a sample PDF through the purchase-order and manufacturing-order document routes.</span>
+        <div class="uo-actions">
+          <button type="button" class="dispatchSelectionBtn" data-action="settings-test-document-printer" data-document-type="purchaseOrder">Test PO printer</button>
+          <button type="button" class="dispatchSelectionBtn" data-action="settings-test-document-printer" data-document-type="manufacturingOrder">Test MO printer</button>
+        </div>
+      </div>
+    `;
     settingsPrinterAssignments.querySelectorAll("select[data-role-key]").forEach((select) => {
       const roleKey = String(select.getAttribute("data-role-key") || "").trim();
       const selected = getAssignedPrinterIdForRole(roleKey);
       select.value = selected ? String(selected) : "";
     });
+  }
+
+  async function runDocumentPrinterTest(documentType) {
+    const label = documentType === "purchaseOrder" ? "purchase order" : "manufacturing order";
+    if (settingsPrintersStatus) settingsPrintersStatus.textContent = `Sending ${label} printer test...`;
+    const { response, data } = await fetchJsonWithDetails(`${API_BASE}/printnode/print`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pdfBase64: DOCUMENT_PRINTER_TEST_PDF_BASE64,
+        title: `FLSS ${label} printer test`,
+        documentType
+      })
+    });
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || `Could not send ${label} printer test (${response.status})`);
+    }
+    if (settingsPrintersStatus) settingsPrintersStatus.textContent = `Sent ${label} printer test successfully.`;
   }
 
   async function sendSettingsNotificationTest(eventKey) {
@@ -9742,6 +9757,7 @@ async function startOrder(orderNo) {
     stock: async () => (await import("./views/stock.js")).initStockView,
     buy: async () => (await import("./views/buy.js")).initBuyView,
     make: async () => (await import("./views/make.js")).initMakeView,
+    admin: async () => (await import("./views/admin.js")).initAdminView,
     docs: async () => initDocsView,
     "price-manager": async () => (await import("./views/price-manager.js")).initPriceManagerView,
     "agent-commissions": async () => (await import("./views/agent-commissions.js")).initAgentCommissionsView
@@ -9796,8 +9812,17 @@ async function startOrder(orderNo) {
     const view = viewForPath(path);
     switchMainView(view);
     await initViewIfNeeded(view);
+    if (shortcutsModalOpen) {
+      renderShortcutsModal();
+    }
     if (view === "stock") {
       applyPendingStockIntent();
+    } else if (view === "buy") {
+      applyPendingBuyIntent();
+    } else if (view === "make") {
+      applyPendingMakeIntent();
+    } else if (view === "admin") {
+      applyPendingAdminIntent();
     }
   }
 
@@ -9810,6 +9835,163 @@ async function startOrder(orderNo) {
       window.history.pushState({}, "", next);
     }
     await renderRoute(next);
+  }
+
+  function buildShortcutsModalBody() {
+    const activeView = viewForPath(window.location.pathname);
+    const viewSpecific = {
+      scan: [
+        ["Arrow keys", "Move through order cards"],
+        ["Enter", "Open the selected order / action"],
+        ["Escape", "Close open order details or overlays"]
+      ],
+      stock: [
+        ["Stock tabs", "Switch between Inventory, Batches, and Stocktakes"],
+        ["Batch rows", "Open the traceability drawer for a selected batch"]
+      ],
+      buy: [
+        ["Plan tab", "Set supplier and quantity per material before preview"],
+        ["Review tab", "Validate grouped purchase orders before creating them"]
+      ],
+      make: [
+        ["Planner tab", "Queue products and create a draft manufacturing order"],
+        ["Orders tab", "Release, print, buy shortages, or complete orders"]
+      ],
+      admin: [
+        ["Products", "Manage DB-backed operational products and Shopify mapping"],
+        ["Materials", "Manage supplier mappings, reorder points, and stock units"]
+      ]
+    };
+    const globalRows = [
+      ["Alt+1", "Orders"],
+      ["Alt+2", "Fulfillment History"],
+      ["Alt+3", "Stock"],
+      ["Alt+4", "Buy"],
+      ["Alt+5", "Make"],
+      ["Alt+6", "Docs"],
+      ["Alt+A", "Admin"],
+      ["Alt+N", "New order menu"],
+      ["Alt+,", "Settings"],
+      ["?", "Open shortcuts"],
+      ["Escape", "Close the current overlay or modal"]
+    ];
+    const rowsToHtml = (rows = []) => rows.map(
+      ([shortcut, action]) => `<div class="dispatchDetailCard" style="padding:.6rem .7rem;"><div class="dispatchDetailCard__label">${escapeHtml(shortcut)}</div><div class="dispatchDetailCard__value" style="font-size:.78rem;">${escapeHtml(action)}</div></div>`
+    ).join("");
+    return `
+      <div class="dispatchDetailGrid dispatchDetailGrid--compact">
+        ${rowsToHtml(globalRows)}
+      </div>
+      <div class="dispatchDetailCard dispatchDetailCard--span" style="margin-top:.6rem;">
+        <div class="dispatchDetailCard__label">View-specific</div>
+        <div class="dispatchDetailCard__value" style="font-size:.82rem; margin-bottom:.55rem;">${escapeHtml(activeView === "scan" ? "Orders" : activeView.charAt(0).toUpperCase() + activeView.slice(1))}</div>
+        <div class="dispatchDetailGrid dispatchDetailGrid--compact">
+          ${rowsToHtml(viewSpecific[activeView] || [["No dedicated shortcuts", "This view currently uses the global shortcuts only"]])}
+        </div>
+      </div>
+    `;
+  }
+
+  function ensureShortcutsUi() {
+    if (!flHeaderUtilityRight) return;
+    if (!shortcutsButton) {
+      shortcutsButton = document.createElement("button");
+      shortcutsButton.id = "dispatchShortcutsOpenBtn";
+      shortcutsButton.className = "dispatchIconBtn dispatchLegendIconBtn";
+      shortcutsButton.type = "button";
+      shortcutsButton.setAttribute("aria-label", "Open shortcuts");
+      shortcutsButton.setAttribute("title", "Keyboard shortcuts");
+      shortcutsButton.innerHTML = '<span aria-hidden="true">?</span>';
+      shortcutsButton.addEventListener("click", () => {
+        setShortcutsModalOpen(!shortcutsModalOpen);
+      });
+      flHeaderUtilityRight.appendChild(shortcutsButton);
+    }
+    if (!shortcutsModal) {
+      shortcutsModal = document.createElement("div");
+      shortcutsModal.id = "dispatchShortcutsModal";
+      shortcutsModal.className = "dispatchSiteAlertModal";
+      shortcutsModal.hidden = true;
+      shortcutsModal.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.dataset.action === "close-shortcuts-modal") {
+          setShortcutsModalOpen(false);
+        }
+      });
+      document.body.appendChild(shortcutsModal);
+    }
+  }
+
+  function renderShortcutsModal() {
+    if (!shortcutsModal) return;
+    shortcutsModal.innerHTML = `
+      <div class="dispatchSiteAlertModal__backdrop" data-action="close-shortcuts-modal" aria-hidden="true"></div>
+      <div class="dispatchSiteAlertModal__content dispatchSiteAlertModal__content--ok" role="dialog" aria-modal="true" aria-labelledby="dispatchShortcutsTitle" style="width:min(92vw, 52rem);">
+        <div class="dispatchSiteAlertModal__header">
+          <h3 id="dispatchShortcutsTitle">Keyboard shortcuts</h3>
+          <button type="button" class="dispatchSiteAlertModal__close" data-action="close-shortcuts-modal" aria-label="Close shortcuts">x</button>
+        </div>
+        <div class="dispatchSiteAlertModal__body">
+          ${buildShortcutsModalBody()}
+        </div>
+      </div>
+    `;
+  }
+
+  function setShortcutsModalOpen(nextOpen) {
+    ensureShortcutsUi();
+    shortcutsModalOpen = Boolean(nextOpen);
+    if (!shortcutsModal || !shortcutsButton) return;
+    if (shortcutsModalOpen) {
+      renderShortcutsModal();
+      shortcutsModal.hidden = false;
+    } else {
+      shortcutsModal.hidden = true;
+    }
+    shortcutsButton.setAttribute("aria-expanded", shortcutsModalOpen ? "true" : "false");
+    if (!shortcutsModalOpen) {
+      shortcutsButton.focus();
+    }
+  }
+
+  async function handleGlobalShortcut(event) {
+    const target = event.target;
+    const isFormField = target instanceof HTMLElement
+      && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+    if (!event.altKey && isFormField) return;
+
+    const key = String(event.key || "").toLowerCase();
+    if (!event.altKey && key === "?") {
+      event.preventDefault();
+      setShortcutsModalOpen(true);
+      return;
+    }
+    if (!event.altKey) return;
+
+    const navigationMap = {
+      "1": "/",
+      "2": "/fulfillment-history",
+      "3": "/stock",
+      "4": "/buy",
+      "5": "/make",
+      "6": "/docs",
+      "a": "/admin"
+    };
+    if (navigationMap[key]) {
+      event.preventDefault();
+      await navigateTo(navigationMap[key]);
+      return;
+    }
+    if (key === "n") {
+      event.preventDefault();
+      setNewOrderMenuOpen(!isNewOrderMenuOpen);
+      return;
+    }
+    if (event.key === ",") {
+      event.preventDefault();
+      setSettingsModalOpen(true, { tab: settingsActiveTab || "general" });
+    }
   }
 
   const NAV_COLLAPSE_KEY = "fl_nav_collapsed";
@@ -10192,6 +10374,23 @@ async function startOrder(orderNo) {
     }
   });
 
+  settingsPrinterAssignments?.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest('[data-action="settings-test-document-printer"]');
+    if (!(button instanceof HTMLButtonElement)) return;
+    const documentType = String(button.dataset.documentType || "").trim();
+    if (!documentType) return;
+    button.disabled = true;
+    try {
+      await runDocumentPrinterTest(documentType);
+    } catch (error) {
+      if (settingsPrintersStatus) settingsPrintersStatus.textContent = String(error?.message || error);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   settingsRefreshMonitoringBtn?.addEventListener("click", async () => {
     settingsRefreshMonitoringBtn.disabled = true;
     try {
@@ -10261,6 +10460,9 @@ async function startOrder(orderNo) {
       sessionStorage.setItem(FLOCS_NEW_CUSTOMER_INTENT_KEY, "1");
     }
     queueStockIntentFromRouteElement(routeEl);
+    queueBuyIntentFromRouteElement(routeEl);
+    queueMakeIntentFromRouteElement(routeEl);
+    queueAdminIntentFromRouteElement(routeEl);
     setNewOrderMenuOpen(false);
     await navigateTo(route);
     if (wantsNewCustomerModal && normalizePath(route) === "/flocs") {
@@ -11212,6 +11414,10 @@ async function startOrder(orderNo) {
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
+      if (shortcutsModalOpen) {
+        setShortcutsModalOpen(false);
+        return;
+      }
       if (settingsModalOpen) {
         setSettingsModalOpen(false);
         return;
@@ -11234,6 +11440,9 @@ async function startOrder(orderNo) {
     if (slotSecretBuffer === slotSecret) {
       openSlotEgg();
     }
+  });
+  document.addEventListener("keydown", (event) => {
+    void handleGlobalShortcut(event);
   });
   function renderDeliveryDriverPage(initialCode = "") {
     document.body.innerHTML = `
@@ -11304,15 +11513,7 @@ async function startOrder(orderNo) {
         return;
       }
 
-      renderAuthState();
-      installAuthFetchInterceptor();
-
       const currentPath = normalizePath(window.location.pathname);
-      if (AUTH.enabled && !AUTH.authenticated && currentPath !== "/deliver") {
-        triggerAuthLogin();
-        return;
-      }
-
       loadBookedOrders();
       loadPackingState();
       loadDispatchPriorityState();
@@ -11333,6 +11534,7 @@ async function startOrder(orderNo) {
       renderDateTimeHeaderWidget();
       setInterval(renderDateTimeHeaderWidget, 60000);
       renderModuleDashboard();
+      ensureShortcutsUi();
 
       if (currentPath === "/deliver") {
         const params = new URLSearchParams(window.location.search || "");
@@ -11369,10 +11571,6 @@ async function startOrder(orderNo) {
   };
 
   boot();
-
-  authLogoutBtn?.addEventListener("click", () => {
-    window.location.assign(buildAuthUrl(AUTH.logoutPath, getCurrentReturnTo()));
-  });
 })();
 
 

@@ -157,4 +157,4 @@ Treat the main shell routes as the supported workflow.
 2. Clear the selected-orders sidebar if it still contains working sets from the shift.
 3. Confirm delivery paperwork, truck bookings, and notifications are complete where required.
 4. Review `Fulfillment History` if you need a final dispatch sanity check.
-5. Close the session or sign out through the configured OAuth provider.
+5. If you used `/portal`, sign out through the Shopify customer account session before closing the browser.

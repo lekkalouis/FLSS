@@ -9,6 +9,7 @@ The current workspace serves the SPA, compatibility pages, APIs, and controller 
 Main operator routes:
 
 - `/` - Orders and dispatch workspace
+- `/portal` - Shopify customer account portal
 - `/fulfillment-history` - Recently fulfilled orders and delivery history
 - `/flocs` - Sales order capture
 - `/stock` - Inventory, raw materials, batches, and stocktakes
@@ -40,7 +41,7 @@ Public utility route:
 - `/pos.html` -> `/stock?notice=tool-retired`
 - `/shipping-matrix.html` -> `/stock?notice=tool-retired`
 - `/order-capture-custom.html` -> `/stock?notice=tool-retired`
-- `/customer-accounts.html` -> `/stock?notice=tool-retired`
+- `/customer-accounts.html` -> `/portal`
 - `/liquid-templates.html` -> `/stock?notice=tool-retired`
 - `/notification-templates.html` -> `/stock?notice=tool-retired`
 
@@ -90,7 +91,7 @@ Copy `.env.example` to `.env` and fill in the integrations you use.
 Common groups:
 
 - Core runtime: `PORT`, `HOST`, `NODE_ENV`, `FRONTEND_ORIGIN`
-- OAuth / SSO: `OAUTH_*`
+- Shopify customer portal auth: `SHOPIFY_CUSTOMER_ACCOUNT_*`
 - Shopify and delivery flows: `SHOPIFY_*`, `DELIVERY_CODE_SECRET`, `TRACKING_COMPANY`
 - ParcelPerfect: `PP_*`
 - PrintNode: `PRINTNODE_*`

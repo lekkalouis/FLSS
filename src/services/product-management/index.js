@@ -21,30 +21,166 @@ function audit(action, entityType, entityId, details = {}) {
     .run(action, entityType || null, entityId ? String(entityId) : null, JSON.stringify(details));
 }
 
-export function upsertProduct(payload) {
-  const sku = String(payload?.sku || "").trim();
-  const title = String(payload?.title || "").trim();
-  if (!sku || !title) return { error: "sku and title are required" };
+function asFiniteNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
 
-  const existing = db().prepare("SELECT * FROM products WHERE sku = ?").get(sku);
+function asFiniteInt(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.trunc(parsed) : fallback;
+}
+
+function normalizeBoolFlag(value, fallback = true) {
+  if (typeof value === "boolean") return value ? 1 : 0;
+  if (typeof value === "number") return value > 0 ? 1 : 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["0", "false", "no", "inactive", "archived"].includes(normalized)) return 0;
+    if (["1", "true", "yes", "active"].includes(normalized)) return 1;
+  }
+  return fallback ? 1 : 0;
+}
+
+function mapProductRow(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    weight_kg: asFiniteNumber(row.weight_kg, 0),
+    crate_units: asFiniteInt(row.crate_units, 0),
+    is_active: normalizeBoolFlag(row.is_active, true)
+  };
+}
+
+function normalizeProductPayload(payload = {}, existing = null) {
+  const sku = String(payload?.sku ?? existing?.sku ?? "").trim().toUpperCase();
+  const title = String(payload?.title ?? existing?.title ?? "").trim();
+  const status = String(payload?.status ?? existing?.status ?? "draft").trim() || "draft";
+  const isActiveSource =
+    payload?.is_active ?? payload?.isActive ?? existing?.is_active ?? (status.toLowerCase() === "archived" ? 0 : 1);
+  return {
+    sku,
+    barcode: payload?.barcode ?? existing?.barcode ?? null,
+    title,
+    status,
+    compliance_ingredients_text: payload?.compliance_ingredients_text ?? existing?.compliance_ingredients_text ?? null,
+    compliance_allergens: payload?.compliance_allergens ?? existing?.compliance_allergens ?? null,
+    shopify_product_id: payload?.shopify_product_id ?? payload?.shopifyProductId ?? existing?.shopify_product_id ?? null,
+    shopify_variant_id: payload?.shopify_variant_id ?? payload?.shopifyVariantId ?? existing?.shopify_variant_id ?? null,
+    flavour: String(payload?.flavour ?? existing?.flavour ?? "").trim(),
+    size: String(payload?.size ?? existing?.size ?? "").trim(),
+    weight_kg: asFiniteNumber(payload?.weight_kg ?? payload?.weightKg ?? existing?.weight_kg, 0),
+    crate_units: Math.max(0, asFiniteInt(payload?.crate_units ?? payload?.crateUnits ?? existing?.crate_units, 0)),
+    is_active: normalizeBoolFlag(isActiveSource, true)
+  };
+}
+
+export function getProductById(productId) {
+  return mapProductRow(db().prepare("SELECT * FROM products WHERE id = ?").get(Number(productId)));
+}
+
+export function getProductBySku(sku) {
+  return mapProductRow(db().prepare("SELECT * FROM products WHERE sku = ?").get(String(sku || "").trim().toUpperCase()));
+}
+
+export function upsertProduct(payload) {
+  const requestedId = Number(payload?.id || 0);
+  const existingById = requestedId > 0 ? db().prepare("SELECT * FROM products WHERE id = ?").get(requestedId) : null;
+  const existingBySku = !existingById
+    ? db().prepare("SELECT * FROM products WHERE sku = ?").get(String(payload?.sku || "").trim().toUpperCase())
+    : null;
+  const existing = existingById || existingBySku || null;
+  const normalized = normalizeProductPayload(payload, existing);
+  if (!normalized.sku || !normalized.title) return { error: "sku and title are required" };
+
+  const duplicate = db().prepare("SELECT id FROM products WHERE sku = ? AND id <> ?").get(
+    normalized.sku,
+    Number(existing?.id || 0)
+  );
+  if (duplicate) return { error: `sku already exists: ${normalized.sku}` };
+
   if (existing) {
-    db().prepare(`UPDATE products SET barcode=?, title=?, status=?, compliance_ingredients_text=?, compliance_allergens=?, shopify_product_id=?, shopify_variant_id=?, updated_at=? WHERE id=?`)
-      .run(payload?.barcode || null, payload?.title, payload?.status || existing.status, payload?.compliance_ingredients_text || null, payload?.compliance_allergens || null, payload?.shopify_product_id || null, payload?.shopify_variant_id || null, now(), existing.id);
-    queueChange("products", existing.id, "update", payload);
-    audit("product_updated", "products", existing.id, payload);
-    return { product: db().prepare("SELECT * FROM products WHERE id=?").get(existing.id) };
+    db().prepare(
+      `UPDATE products
+       SET sku=?,
+           barcode=?,
+           title=?,
+           status=?,
+           compliance_ingredients_text=?,
+           compliance_allergens=?,
+           shopify_product_id=?,
+           shopify_variant_id=?,
+           flavour=?,
+           size=?,
+           weight_kg=?,
+           crate_units=?,
+           is_active=?,
+           updated_at=?
+       WHERE id=?`
+    ).run(
+      normalized.sku,
+      normalized.barcode,
+      normalized.title,
+      normalized.status,
+      normalized.compliance_ingredients_text,
+      normalized.compliance_allergens,
+      normalized.shopify_product_id,
+      normalized.shopify_variant_id,
+      normalized.flavour,
+      normalized.size,
+      normalized.weight_kg,
+      normalized.crate_units,
+      normalized.is_active,
+      now(),
+      existing.id
+    );
+    queueChange("products", existing.id, "update", normalized);
+    audit("product_updated", "products", existing.id, normalized);
+    return { product: getProductById(existing.id) };
   }
 
-  const res = db().prepare(`INSERT INTO products (sku, barcode, title, status, compliance_ingredients_text, compliance_allergens, shopify_product_id, shopify_variant_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(sku, payload?.barcode || null, title, payload?.status || "draft", payload?.compliance_ingredients_text || null, payload?.compliance_allergens || null, payload?.shopify_product_id || null, payload?.shopify_variant_id || null, now(), now());
-  queueChange("products", res.lastInsertRowid, "create", payload);
-  audit("product_created", "products", res.lastInsertRowid, payload);
-  return { product: db().prepare("SELECT * FROM products WHERE id=?").get(res.lastInsertRowid) };
+  const res = db().prepare(
+    `INSERT INTO products (
+      sku,
+      barcode,
+      title,
+      status,
+      compliance_ingredients_text,
+      compliance_allergens,
+      shopify_product_id,
+      shopify_variant_id,
+      flavour,
+      size,
+      weight_kg,
+      crate_units,
+      is_active,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    normalized.sku,
+    normalized.barcode,
+    normalized.title,
+    normalized.status,
+    normalized.compliance_ingredients_text,
+    normalized.compliance_allergens,
+    normalized.shopify_product_id,
+    normalized.shopify_variant_id,
+    normalized.flavour,
+    normalized.size,
+    normalized.weight_kg,
+    normalized.crate_units,
+    normalized.is_active,
+    now(),
+    now()
+  );
+  queueChange("products", res.lastInsertRowid, "create", normalized);
+  audit("product_created", "products", res.lastInsertRowid, normalized);
+  return { product: getProductById(res.lastInsertRowid) };
 }
 
 export function listProducts() {
-  return db().prepare("SELECT * FROM products ORDER BY updated_at DESC").all();
+  return db().prepare("SELECT * FROM products ORDER BY title ASC, sku ASC").all().map(mapProductRow);
 }
 
 export function createIngredient(payload) {
@@ -61,16 +197,55 @@ export function listIngredients() {
   return db().prepare("SELECT * FROM ingredients ORDER BY name ASC").all().map((row) => ({ ...row, allergen_flags: JSON.parse(row.allergen_flags || "[]") }));
 }
 
-export function createSupplier(payload) {
-  const name = String(payload?.name || "").trim();
-  if (!name) return { error: "name is required" };
-  const res = db().prepare("INSERT INTO suppliers (name, contact_name, email, phone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(name, payload?.contact_name || null, payload?.email || null, payload?.phone || null, now(), now());
-  queueChange("suppliers", res.lastInsertRowid, "create", payload);
-  return { supplier: db().prepare("SELECT * FROM suppliers WHERE id=?").get(res.lastInsertRowid) };
+function mapSupplierRow(row) {
+  return row ? { ...row } : null;
 }
 
-export function listSuppliers() { return db().prepare("SELECT * FROM suppliers ORDER BY name").all(); }
+function normalizeSupplierPayload(payload = {}, existing = null) {
+  return {
+    name: String(payload?.name ?? existing?.name ?? "").trim(),
+    contact_name: String(payload?.contact_name ?? payload?.contactName ?? existing?.contact_name ?? "").trim() || null,
+    email: String(payload?.email ?? existing?.email ?? "").trim() || null,
+    phone: String(payload?.phone ?? existing?.phone ?? "").trim() || null
+  };
+}
+
+export function getSupplierById(supplierId) {
+  return mapSupplierRow(db().prepare("SELECT * FROM suppliers WHERE id = ?").get(Number(supplierId)));
+}
+
+export function createSupplier(payload) {
+  const normalized = normalizeSupplierPayload(payload);
+  if (!normalized.name) return { error: "name is required" };
+  const existing = db().prepare("SELECT id FROM suppliers WHERE name = ?").get(normalized.name);
+  if (existing) return { error: `supplier already exists: ${normalized.name}` };
+  const res = db().prepare("INSERT INTO suppliers (name, contact_name, email, phone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(normalized.name, normalized.contact_name, normalized.email, normalized.phone, now(), now());
+  queueChange("suppliers", res.lastInsertRowid, "create", normalized);
+  audit("supplier_created", "suppliers", res.lastInsertRowid, normalized);
+  return { supplier: getSupplierById(res.lastInsertRowid) };
+}
+
+export function updateSupplier(supplierId, payload) {
+  const existing = db().prepare("SELECT * FROM suppliers WHERE id = ?").get(Number(supplierId));
+  if (!existing) return { error: "supplier not found" };
+  const normalized = normalizeSupplierPayload(payload, existing);
+  if (!normalized.name) return { error: "name is required" };
+  const duplicate = db().prepare("SELECT id FROM suppliers WHERE name = ? AND id <> ?").get(normalized.name, Number(supplierId));
+  if (duplicate) return { error: `supplier already exists: ${normalized.name}` };
+  db().prepare(
+    `UPDATE suppliers
+     SET name = ?, contact_name = ?, email = ?, phone = ?, updated_at = ?
+     WHERE id = ?`
+  ).run(normalized.name, normalized.contact_name, normalized.email, normalized.phone, now(), Number(supplierId));
+  queueChange("suppliers", Number(supplierId), "update", normalized);
+  audit("supplier_updated", "suppliers", supplierId, normalized);
+  return { supplier: getSupplierById(supplierId) };
+}
+
+export function listSuppliers() {
+  return db().prepare("SELECT * FROM suppliers ORDER BY name ASC").all().map(mapSupplierRow);
+}
 
 export function addIngredientPrice(payload) {
   const ingredientId = Number(payload?.ingredient_id);

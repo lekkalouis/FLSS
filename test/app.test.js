@@ -40,6 +40,12 @@ function withRotaryAuth(headers = {}) {
   return { ...headers, Authorization: `Bearer ${token}` };
 }
 
+function decodePdfHexText(buffer) {
+  return Array.from(buffer.toString('latin1').matchAll(/<([0-9A-Fa-f]+)>/g))
+    .map((match) => Buffer.from(match[1], 'hex').toString('latin1'))
+    .join('');
+}
+
 test('GET /api/v1/healthz returns healthy payload', async () => {
   const { server, baseUrl } = await startServer();
   try {
@@ -65,6 +71,7 @@ test('GET /api/v1/config returns expected config keys', async () => {
     assert.equal(typeof body.PP_ENDPOINT, 'string');
     assert.equal(body.SHOPIFY.PROXY_BASE, '/api/v1/shopify');
     assert.equal(typeof body.FEATURE_FLAGS.MULTI_SHIP, 'boolean');
+    assert.equal(Object.hasOwn(body, 'AUTH'), false);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -1229,7 +1236,8 @@ test('legacy unified-operations entrypoints redirect into integrated routes', as
       ['/price-manager.html', '/admin/price-manager'],
       ['/agent-commissions.html', '/admin/agent-commissions'],
       ['/dispatch-settings', '/stock?notice=tool-retired'],
-      ['/logs', '/stock?notice=tool-retired']
+      ['/logs', '/stock?notice=tool-retired'],
+      ['/customer-accounts.html', '/portal']
     ];
 
     for (const [source, target] of cases) {
@@ -1259,6 +1267,64 @@ test('main index uses unified stock-buy-make shell without embedded admin iframe
   assert.match(indexHtml, /data-settings-tab="one-click-actions"/);
   assert.doesNotMatch(indexHtml, /id="navAgentCommissions"/);
   assert.doesNotMatch(indexHtml, /id="navPriceManager"/);
+});
+
+test('operations shell exposes tabbed subviews, shortcuts overlay hooks, and document printer tests', async () => {
+  const appJs = await fs.readFile(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const buyView = await fs.readFile(path.join(__dirname, '..', 'public', 'views', 'buy.js'), 'utf8');
+  const makeView = await fs.readFile(path.join(__dirname, '..', 'public', 'views', 'make.js'), 'utf8');
+  const adminView = await fs.readFile(path.join(__dirname, '..', 'public', 'views', 'admin.js'), 'utf8');
+
+  assert.match(appJs, /dispatchShortcutsOpenBtn/);
+  assert.match(appJs, /dispatchShortcutsModal/);
+  assert.match(appJs, /\["Alt\+1", "Orders"\]/);
+  assert.match(appJs, /\["Alt\+6", "Docs"\]/);
+  assert.match(appJs, /\["Alt\+A", "Admin"\]/);
+  assert.match(appJs, /\["Alt\+,", "Settings"\]/);
+  assert.match(appJs, /\["\?", "Open shortcuts"\]/);
+  assert.match(appJs, /data-action="settings-test-document-printer"/);
+  assert.match(appJs, /data-document-type="purchaseOrder"/);
+  assert.match(appJs, /data-document-type="manufacturingOrder"/);
+  assert.match(appJs, /data-buy-tab/);
+  assert.match(appJs, /data-make-tab/);
+  assert.match(appJs, /data-admin-tab/);
+
+  assert.match(buyView, /data-buy-tab="plan"/);
+  assert.match(buyView, /data-buy-tab="review"/);
+  assert.match(buyView, /data-buy-tab="history"/);
+
+  assert.match(makeView, /data-make-tab="planner"/);
+  assert.match(makeView, /data-make-tab="orders"/);
+  assert.match(makeView, /data-make-tab="recipes"/);
+
+  assert.match(adminView, /data-admin-tab="products"/);
+  assert.match(adminView, /data-admin-tab="materials"/);
+  assert.match(adminView, /data-admin-tab="suppliers"/);
+});
+
+test('catalog endpoints support lightweight admin mode', async () => {
+  runMigrations();
+  const { server, baseUrl } = await startServer();
+  try {
+    const productsResponse = await fetch(`${baseUrl}/api/v1/catalog/products?live=0`);
+    assert.equal(productsResponse.status, 200);
+    const productsBody = await productsResponse.json();
+    assert.ok(Array.isArray(productsBody.products));
+    if (productsBody.products.length) {
+      assert.equal(productsBody.products[0].demand_source, 'disabled');
+      assert.equal(productsBody.products[0].inventory_source, 'local');
+    }
+
+    const materialsResponse = await fetch(`${baseUrl}/api/v1/catalog/materials?live=0`);
+    assert.equal(materialsResponse.status, 200);
+    const materialsBody = await materialsResponse.json();
+    assert.ok(Array.isArray(materialsBody.materials));
+    if (materialsBody.materials.length) {
+      assert.equal(materialsBody.materials[0].inventory_source, 'local');
+    }
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
 
 test('unified catalog supports material creation and BOM recipe authoring', async () => {
@@ -1376,6 +1442,334 @@ test('unified catalog supports material creation and BOM recipe authoring', asyn
     assert.equal(updateBody.bom.effective_from, '2026-03-08');
     assert.equal(updateBody.bom.lines.length, 1);
     assert.equal(Number(updateBody.bom.lines[0].quantity), 2.5);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('system settings expose purchase-order and manufacturing-order printer roles', async () => {
+  runMigrations();
+  getDb().prepare('DELETE FROM system_settings').run();
+  const { server, baseUrl } = await startServer();
+  try {
+    const initialResponse = await fetch(`${baseUrl}/api/v1/system/settings`);
+    assert.equal(initialResponse.status, 200);
+    const initialBody = await initialResponse.json();
+    assert.equal(initialBody.settings.printers.documents.purchaseOrder, null);
+    assert.equal(initialBody.settings.printers.documents.manufacturingOrder, null);
+
+    const updateResponse = await fetch(`${baseUrl}/api/v1/system/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        printers: {
+          documents: {
+            purchaseOrder: 101,
+            manufacturingOrder: 202
+          }
+        }
+      })
+    });
+    assert.equal(updateResponse.status, 200);
+    const updateBody = await updateResponse.json();
+    assert.equal(updateBody.settings.printers.documents.purchaseOrder, 101);
+    assert.equal(updateBody.settings.printers.documents.manufacturingOrder, 202);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('unified operations support catalog CRUD, PO preview and receipt, and MO release/completion', async () => {
+  runMigrations();
+  const { server, baseUrl } = await startServer();
+  try {
+    const uniqueSuffix = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    const supplierCreateResponse = await fetch(`${baseUrl}/api/v1/catalog/suppliers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: `Supplier ${uniqueSuffix}`,
+        email: `supplier-${uniqueSuffix}@example.com`,
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(supplierCreateResponse.status, 201);
+    const supplierCreateBody = await supplierCreateResponse.json();
+    const supplierId = Number(supplierCreateBody.supplier.id);
+    assert.ok(supplierId > 0);
+
+    const supplierUpdateResponse = await fetch(`${baseUrl}/api/v1/catalog/suppliers/${supplierId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: '+27 11 000 0000',
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(supplierUpdateResponse.status, 200);
+    const supplierUpdateBody = await supplierUpdateResponse.json();
+    assert.equal(supplierUpdateBody.supplier.phone, '+27 11 000 0000');
+
+    const productSku = `TEST-FG-${uniqueSuffix}`;
+    const productCreateResponse = await fetch(`${baseUrl}/api/v1/catalog/products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sku: productSku,
+        title: `Product ${uniqueSuffix}`,
+        flavour: 'Original',
+        size: '200ml',
+        weight_kg: 0.2,
+        crate_units: 12,
+        status: 'active',
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(productCreateResponse.status, 201);
+    const productCreateBody = await productCreateResponse.json();
+    const productId = Number(productCreateBody.product.id);
+    assert.ok(productId > 0);
+
+    const productUpdateResponse = await fetch(`${baseUrl}/api/v1/catalog/products/${productId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Updated Product ${uniqueSuffix}`,
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(productUpdateResponse.status, 200);
+    const productUpdateBody = await productUpdateResponse.json();
+    assert.equal(productUpdateBody.product.title, `Updated Product ${uniqueSuffix}`);
+
+    const materialSku = `TEST-RM-${uniqueSuffix}`;
+    const materialCreateResponse = await fetch(`${baseUrl}/api/v1/catalog/materials`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sku: materialSku,
+        title: `Material ${uniqueSuffix}`,
+        category: 'ingredient',
+        uom: 'kg',
+        reorder_point: 10,
+        supplier_options: [
+          {
+            supplier_id: supplierId,
+            is_preferred: true,
+            min_order_qty: 5,
+            lead_time_days: 4
+          }
+        ],
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(materialCreateResponse.status, 201);
+    const materialCreateBody = await materialCreateResponse.json();
+    const materialId = Number(materialCreateBody.material.id);
+    assert.ok(materialId > 0);
+    assert.equal(materialCreateBody.material.supplier_options.length, 1);
+
+    const bomCreateResponse = await fetch(`${baseUrl}/api/v1/catalog/boms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_sku: productSku,
+        version: `ops-${uniqueSuffix}`,
+        effective_from: '2026-03-07',
+        is_active: true,
+        lines: [
+          {
+            material_id: materialId,
+            quantity: 3,
+            uom: 'kg',
+            line_type: 'ingredient'
+          }
+        ],
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(bomCreateResponse.status, 201);
+
+    const stocktakeResponse = await fetch(`${baseUrl}/api/v1/inventory/stocktakes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'raw-materials',
+        lines: [
+          {
+            entity_type: 'material',
+            material_id: materialId,
+            counted_qty: 30
+          }
+        ],
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(stocktakeResponse.status, 201);
+
+    const previewResponse = await fetch(`${baseUrl}/api/v1/buy/purchase-orders/preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        selections: [
+          {
+            material_id: materialId,
+            quantity: 2,
+            supplier_id: supplierId
+          }
+        ]
+      })
+    });
+    assert.equal(previewResponse.status, 200);
+    const previewBody = await previewResponse.json();
+    assert.equal(previewBody.groups.length, 1);
+    assert.equal(Number(previewBody.groups[0].items[0].order_qty), 5);
+
+    const purchaseOrderCreateResponse = await fetch(`${baseUrl}/api/v1/buy/purchase-orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        selections: [
+          {
+            material_id: materialId,
+            quantity: 2,
+            supplier_id: supplierId
+          }
+        ],
+        dispatch: {
+          shopify: false,
+          email: false,
+          print: false
+        },
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(purchaseOrderCreateResponse.status, 201);
+    const purchaseOrderCreateBody = await purchaseOrderCreateResponse.json();
+    const purchaseOrderId = Number(purchaseOrderCreateBody.results[0].purchase_order_id);
+    assert.ok(purchaseOrderId > 0);
+    assert.equal(purchaseOrderCreateBody.results[0].document.includes_incoming_vehicle_inspection, true);
+    const purchaseOrderPdfBuffer = await fs.readFile(purchaseOrderCreateBody.results[0].document.path);
+    const purchaseOrderPdfRaw = purchaseOrderPdfBuffer.toString('latin1');
+    const purchaseOrderPdfText = decodePdfHexText(purchaseOrderPdfBuffer);
+    assert.match(purchaseOrderPdfRaw, /\/Count 2/);
+    assert.match(purchaseOrderPdfText, /Incoming Vehicle Inspection Sheet/);
+    assert.match(purchaseOrderPdfText, /Vehicle clean and suitable for food-grade materials\?/);
+
+    const purchaseOrdersResponse = await fetch(`${baseUrl}/api/v1/buy/purchase-orders`);
+    assert.equal(purchaseOrdersResponse.status, 200);
+    const purchaseOrdersBody = await purchaseOrdersResponse.json();
+    const purchaseOrder = purchaseOrdersBody.purchaseOrders.find((entry) => Number(entry.id) === purchaseOrderId);
+    assert.ok(purchaseOrder);
+    assert.equal(purchaseOrder.lifecycle_status, 'ordered');
+    const vehicleRegistrationNumber = `TRK-${uniqueSuffix}`;
+
+    const receiveResponse = await fetch(`${baseUrl}/api/v1/buy/purchase-orders/${purchaseOrderId}/receive`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lines: [
+          {
+            line_id: purchaseOrder.lines[0].id,
+            received_qty: 5,
+            supplier_lot: `LOT-${uniqueSuffix}`,
+            expiry_date: '2026-12-31',
+            coa_status: 'pass'
+          }
+        ],
+        inspection: {
+          receipt_date: '2026-03-07',
+          vehicle_registration_number: vehicleRegistrationNumber,
+          driver_name: 'Driver Test',
+          delivery_reference: `DN-${uniqueSuffix}`,
+          coa_reference: `COA-${uniqueSuffix}`,
+          checked_by: 'QA User',
+          notes: 'Seal intact and no visible contamination.',
+          checks: [
+            { key: 'vehicleClean', answer: 'yes' },
+            { key: 'packagingUndamaged', answer: 'yes' },
+            { key: 'temperatureAcceptable', answer: 'yes' },
+            { key: 'contaminationFree', answer: 'yes' }
+          ]
+        },
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(receiveResponse.status, 200);
+    const receiveBody = await receiveResponse.json();
+    assert.equal(receiveBody.purchase_order.lifecycle_status, 'received');
+    const receivedBatchId = Number(receiveBody.batches[0].id);
+    assert.ok(receivedBatchId > 0);
+
+    const batchDetailResponse = await fetch(`${baseUrl}/api/v1/inventory/batches/${receivedBatchId}`);
+    assert.equal(batchDetailResponse.status, 200);
+    const batchDetailBody = await batchDetailResponse.json();
+    assert.equal(batchDetailBody.batch.batch_type, 'receipt');
+    assert.equal(Number(batchDetailBody.batch.purchase_order_id), purchaseOrderId);
+    assert.equal(batchDetailBody.batch.coa_status, 'pass');
+    assert.equal(batchDetailBody.batch.details.inspection.vehicleRegistrationNumber, vehicleRegistrationNumber);
+    assert.equal(batchDetailBody.batch.details.inspection.coaReference, `COA-${uniqueSuffix}`);
+    assert.equal(batchDetailBody.batch.details.inspection.checks[0].answer, 'yes');
+
+    const createManufacturingOrderResponse = await fetch(`${baseUrl}/api/v1/make/manufacturing-orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        lines: [
+          {
+            product_sku: productSku,
+            quantity: 2
+          }
+        ],
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(createManufacturingOrderResponse.status, 201);
+    const createManufacturingOrderBody = await createManufacturingOrderResponse.json();
+    const manufacturingOrderId = Number(createManufacturingOrderBody.manufacturing_order.id);
+    assert.ok(manufacturingOrderId > 0);
+    assert.equal(Number(createManufacturingOrderBody.manufacturing_order.requirements[0].reserved_qty), 0);
+
+    const releaseResponse = await fetch(`${baseUrl}/api/v1/make/manufacturing-orders/${manufacturingOrderId}/release`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(releaseResponse.status, 200);
+    const releaseBody = await releaseResponse.json();
+    assert.equal(releaseBody.manufacturing_order.status, 'released');
+    assert.ok(releaseBody.allocations.length > 0);
+    assert.deepEqual(
+      [...new Set(releaseBody.allocations.map((allocation) => allocation.batch_type))].sort(),
+      ['opening', 'receipt']
+    );
+
+    const completeResponse = await fetch(`${baseUrl}/api/v1/make/manufacturing-orders/${manufacturingOrderId}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actor_type: 'test',
+        actor_id: 'app-test'
+      })
+    });
+    assert.equal(completeResponse.status, 200);
+    const completeBody = await completeResponse.json();
+    assert.equal(completeBody.manufacturing_order.status, 'completed');
+    assert.equal(completeBody.batch.batch_type, 'finished');
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

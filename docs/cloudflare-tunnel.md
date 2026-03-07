@@ -61,14 +61,14 @@ Then open `https://flss.example.com`.
 
 ## 7. Operational notes
 
-- OAuth deployments usually need `OAUTH_REDIRECT_URI` to point at the public hostname.
+- Shopify customer-account deployments usually need `SHOPIFY_CUSTOMER_ACCOUNT_REDIRECT_URI` to point at the public hostname.
 - The public `/deliver` route can stay on the same hostname as the main app.
 - If you use the GitHub update webhook, point the webhook at `https://flss.example.com/__git_update`.
 
 ## 8. Troubleshooting
 
 - `502` errors: FLSS is not listening on the target local port.
-- Login redirect loops: `FRONTEND_ORIGIN` or `OAUTH_REDIRECT_URI` does not match the public hostname.
+- Login redirect loops: `FRONTEND_ORIGIN` or `SHOPIFY_CUSTOMER_ACCOUNT_REDIRECT_URI` does not match the public hostname.
 - WebSocket clients fail: confirm the tunnel is serving the same hostname used by `/ws/controller`.
 - Quick temporary test:
 

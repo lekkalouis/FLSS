@@ -1,6 +1,7 @@
 import XLSX from "xlsx";
 
 import { config } from "../config.js";
+import { buildIncomingVehicleInspectionSheet } from "./incomingVehicleInspection.js";
 import { shopifyFetch } from "./shopify.js";
 
 const SAMPLE_PURCHASE_ORDERS = [
@@ -161,20 +162,6 @@ export function loadTraceabilityWorkbook({ purchasesFileBase64, coaFileBase64 } 
   };
 }
 
-function buildInspectionSheet(po) {
-  return {
-    supplierName: po.supplierName,
-    purchaseOrderNumber: po.purchaseOrderNumber,
-    date: po.date,
-    vehicleRegistrationNumber: "",
-    checks: [
-      { question: "Vehicle clean and suitable for food-grade materials?", answer: "" },
-      { question: "Packaging undamaged and sealed on arrival?", answer: "" },
-      { question: "Temperature/condition acceptable on receipt?", answer: "" }
-    ]
-  };
-}
-
 async function fetchShopifySales({ startDate, endDate, flavor }) {
   if (!config.SHOPIFY_STORE || !config.SHOPIFY_CLIENT_ID || !config.SHOPIFY_CLIENT_SECRET) {
     return [];
@@ -243,7 +230,11 @@ export async function buildTraceabilityReport({ batchNumber, flavor, purchasesFi
   const purchasesWithDocs = purchasesForBatch.map((po) => ({
     ...po,
     coa: coaMap.get(normalizeText(po.batchNumber)) || null,
-    incomingVehicleInspection: buildInspectionSheet(po)
+    incomingVehicleInspection: buildIncomingVehicleInspectionSheet({
+      supplierName: po.supplierName,
+      purchaseOrderNumber: po.purchaseOrderNumber,
+      date: po.date
+    })
   }));
 
   const sales = await fetchShopifySales({ startDate: start, endDate: end, flavor });

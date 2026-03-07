@@ -5,6 +5,12 @@ import { config } from "../config.js";
 import { purgePrintHistoryOlderThan, recordPrintHistory } from "../services/printHistory.js";
 import { getSystemSettings } from "../services/systemSettings.js";
 import {
+  resolveDefaultPrinterId,
+  resolveDocumentPrinterId,
+  resolveGboxPrinterId,
+  resolveStickerPrinterId
+} from "../services/printRouting.js";
+import {
   fetchWithTimeout,
   isUpstreamTimeoutError,
   sendTimeoutResponse
@@ -14,41 +20,10 @@ const router = Router();
 const PRINTNODE_PRINTJOBS_URL = "https://api.printnode.com/printjobs";
 const PRINTNODE_PRINTERS_URL = "https://api.printnode.com/printers";
 
-function parsePrinterIdList(rawValue) {
-  return String(rawValue || "")
-    .split(",")
-    .map((value) => Number(String(value || "").trim()))
-    .filter((value) => Number.isInteger(value) && value > 0);
-}
-
-function resolveDefaultPrinterId() {
-  const value = Number(config.PRINTNODE_PRINTER_ID);
-  return Number.isInteger(value) && value > 0 ? value : null;
-}
-
-function resolveDeliveryNotePrinterIds() {
-  const list = parsePrinterIdList(config.PRINTNODE_DELIVERY_NOTE_PRINTER_IDS);
-  const single = Number(config.PRINTNODE_DELIVERY_NOTE_PRINTER_ID);
-  if (Number.isInteger(single) && single > 0) {
-    list.push(single);
-  }
-  return Array.from(new Set(list));
-}
-
-function selectDeliveryNotePrinterId(orderNo = "") {
-  const deliveryPrinters = resolveDeliveryNotePrinterIds();
-  if (deliveryPrinters.length) {
-    const chars = String(orderNo || "").split("");
-    const hash = chars.reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-    return deliveryPrinters[hash % deliveryPrinters.length];
-  }
-  return resolveDefaultPrinterId();
-}
-
 function requirePrintNodeConfigured(res, options = {}) {
   const { allowDeliveryPrinterFallback = false } = options;
   const hasDefaultPrinter = Boolean(resolveDefaultPrinterId());
-  const hasDeliveryPrinters = resolveDeliveryNotePrinterIds().length > 0;
+  const hasDeliveryPrinters = Boolean(resolveDocumentPrinterId("deliveryNote", null, { orderNo: "fallback" }));
 
   if (!config.PRINTNODE_API_KEY || (!hasDefaultPrinter && !(allowDeliveryPrinterFallback && hasDeliveryPrinters))) {
     res.status(500).json({
@@ -205,57 +180,6 @@ function buildPplbStickerRaw({
     raw: `${lines.join("\n")}\n`
   };
 }
-
-function selectStickerPrinterId(explicitPrinterId) {
-  const explicit = Number(explicitPrinterId);
-  if (Number.isInteger(explicit) && explicit > 0) return explicit;
-  try {
-    const configured = Number(getSystemSettings()?.sticker?.stickerPrinterId);
-    if (Number.isInteger(configured) && configured > 0) return configured;
-  } catch {
-    // Ignore settings read failures, fallback to default printer.
-  }
-  return resolveDefaultPrinterId();
-}
-
-function getConfiguredDocumentPrinterId(documentType) {
-  const key = String(documentType || "").trim();
-  if (!key) return null;
-  try {
-    const configured = Number(getSystemSettings()?.printers?.documents?.[key]);
-    if (Number.isInteger(configured) && configured > 0) return configured;
-  } catch {
-    // Ignore settings read failures, fallback to route defaults.
-  }
-  return null;
-}
-
-function selectDocumentPrinterId(documentType, explicitPrinterId, options = {}) {
-  const explicit = Number(explicitPrinterId);
-  if (Number.isInteger(explicit) && explicit > 0) return explicit;
-
-  const configured = getConfiguredDocumentPrinterId(documentType);
-  if (Number.isInteger(configured) && configured > 0) return configured;
-
-  if (String(documentType || "").trim() === "deliveryNote") {
-    return selectDeliveryNotePrinterId(options.orderNo || "");
-  }
-
-  return resolveDefaultPrinterId();
-}
-
-function selectGboxPrinterId(explicitPrinterId) {
-  const explicit = Number(explicitPrinterId);
-  if (Number.isInteger(explicit) && explicit > 0) return explicit;
-  try {
-    const configured = Number(getSystemSettings()?.oneClickActions?.gbox?.printerId);
-    if (Number.isInteger(configured) && configured > 0) return configured;
-  } catch {
-    // Ignore settings read failures, fallback to default printer.
-  }
-  return resolveDefaultPrinterId();
-}
-
 
 function formatAddressLines(section = {}) {
   const lines = [];
@@ -725,7 +649,7 @@ router.post("/printnode/print-best-before-stickers", async (req, res) => {
     const bestBeforeDateLine = formatBestBeforeMonthYear(bestBeforeDate);
     const bestBeforeLine = `${bestBeforeTitleLine}: ${bestBeforeDateLine}`;
     const batchLine = `BN:${formatBatchCode(productionDate)}`;
-    const stickerPrinterId = selectStickerPrinterId(input.printerId);
+    const stickerPrinterId = resolveStickerPrinterId(input.printerId);
 
     if (!requirePrintNodeApiConfigured(res)) return;
     if (!Number.isInteger(stickerPrinterId) || stickerPrinterId <= 0) {
@@ -811,7 +735,7 @@ router.post("/printnode/print-gbox-barcodes", async (req, res) => {
     const baseQty = Number.isFinite(requestedQty) && requestedQty > 0
       ? Math.trunc(requestedQty)
       : Number(gboxSettings.defaultQty) || 24;
-    const printerId = selectGboxPrinterId(input.printerId);
+    const printerId = resolveGboxPrinterId(input.printerId);
 
     if (!requirePrintNodeApiConfigured(res)) return;
     if (!Number.isInteger(printerId) || printerId <= 0) {
@@ -875,7 +799,7 @@ router.post("/printnode/print-gbox-barcodes", async (req, res) => {
 
 router.post("/printnode/print", async (req, res) => {
   try {
-    const { pdfBase64, title } = req.body || {};
+    const { pdfBase64, title, printerId, documentType } = req.body || {};
 
     if (!pdfBase64) {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Missing pdfBase64" });
@@ -886,6 +810,7 @@ router.post("/printnode/print", async (req, res) => {
     const result = await sendPrintNodeJob({
       pdfBase64,
       title,
+      printerId: resolveDocumentPrinterId(documentType, printerId),
       jobType: "generic_pdf",
       route: "POST /printnode/print"
     });
@@ -922,7 +847,7 @@ router.post("/printnode/print-delivery-note", async (req, res) => {
 
     if (!requirePrintNodeConfigured(res, { allowDeliveryPrinterFallback: true })) return;
 
-    const selectedPrinterId = selectDocumentPrinterId("deliveryNote", printerId, {
+    const selectedPrinterId = resolveDocumentPrinterId("deliveryNote", printerId, {
       orderNo: deliveryNote.orderNo
     });
 
@@ -981,7 +906,7 @@ router.post("/printnode/print-url", async (req, res) => {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Invalid invoiceUrl" });
     }
 
-    const selectedPrinterId = selectDocumentPrinterId(documentType, printerId);
+    const selectedPrinterId = resolveDocumentPrinterId(documentType, printerId);
 
     if (usePdfUri) {
       const result = await sendPrintNodeJob({

@@ -1,13 +1,12 @@
 import { Router } from "express";
 
 import { config } from "../config.js";
-import { getClientOAuthState } from "../services/oauth.js";
 import { numberOrDefault } from "../utils/number.js";
 
 const router = Router();
 const API_BASE = "/api/v1";
 
-router.get("/config", (req, res) => {
+router.get("/config", (_req, res) => {
   const uiConfig = {
     COST_ALERT_THRESHOLD: numberOrDefault(config.UI_COST_ALERT_THRESHOLD, 250),
     BOOKING_IDLE_MS: numberOrDefault(config.UI_BOOKING_IDLE_MS, 6000),
@@ -38,7 +37,6 @@ router.get("/config", (req, res) => {
     SHOPIFY: { PROXY_BASE: `${API_BASE}/shopify` },
     FLOW_TRIGGER_TAG: config.SHOPIFY_FLOW_TAG || "dispatch_flow",
     GOOGLE_MAPS_API_KEY: config.GOOGLE_MAPS_API_KEY || "",
-    AUTH: getClientOAuthState(req),
     FEATURE_FLAGS: {
       MULTI_SHIP: config.UI_FEATURE_MULTI_SHIP
         ? String(config.UI_FEATURE_MULTI_SHIP).toLowerCase() !== "false"

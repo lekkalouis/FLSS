@@ -75,6 +75,8 @@ test("API reference documents every route and root runtime interface", async () 
 
   assert.ok(apiReference.includes("POST /__git_update"), "docs/api-reference.md is missing POST /__git_update");
   assert.ok(apiReference.includes("/ws/controller"), "docs/api-reference.md is missing /ws/controller");
+  assert.ok(apiReference.includes("GET /portal"), "docs/api-reference.md is missing GET /portal");
+  assert.doesNotMatch(apiReference, /\/customer-accounts\//, "docs/api-reference.md still references removed customer account routes");
 });
 
 test("live docs index includes current docs and excludes archived docs", async () => {

@@ -1,0 +1,7 @@
+ALTER TABLE products ADD COLUMN flavour TEXT;
+ALTER TABLE products ADD COLUMN size TEXT;
+ALTER TABLE products ADD COLUMN weight_kg REAL NOT NULL DEFAULT 0;
+ALTER TABLE products ADD COLUMN crate_units INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE products ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;
+
+CREATE INDEX IF NOT EXISTS idx_products_active_sku ON products(is_active, sku);

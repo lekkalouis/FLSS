@@ -1,13 +1,13 @@
 # FLSS Build, Run, and Deployment Guide
 
-FLSS runs directly from Node.js source. The same runtime serves the SPA, the `/api/v1` routes, compatibility redirects, `/deliver`, and `/ws/controller`.
+FLSS runs directly from Node.js source. The same runtime serves the SPA, `/portal`, the `/api/v1` routes, compatibility redirects, `/deliver`, and `/ws/controller`.
 
 ## 1. Runtime prerequisites
 
 - Node.js 20+ recommended
 - npm 10+ recommended
 - SQLite access for `LOCAL_DB_PATH`
-- Optional integrations: Shopify, ParcelPerfect, PrintNode, SMTP, OAuth provider
+- Optional integrations: Shopify Admin API, Shopify customer accounts, ParcelPerfect, PrintNode, SMTP
 - Optional shell utilities for the legacy backup flow: `bash`, `zip`, and `unzip`
 
 ## 2. Install dependencies
@@ -37,7 +37,7 @@ FRONTEND_ORIGIN=http://localhost:3000
 
 Common additions:
 
-- OAuth: `OAUTH_*`
+- Shopify customer portal auth: `SHOPIFY_CUSTOMER_ACCOUNT_*`
 - Shopify: `SHOPIFY_*`, `DELIVERY_CODE_SECRET`
 - ParcelPerfect: `PP_*`
 - PrintNode: `PRINTNODE_*`
@@ -125,7 +125,7 @@ The endpoint verifies the `x-hub-signature-256` HMAC before running the update s
 
 ## 10. Compatibility and legacy notes
 
-> Compatibility / legacy: old standalone HTML routes still exist as redirect entrypoints, but the supported runtime surfaces are `/`, `/stock`, `/buy`, `/make`, `/admin`, `/docs`, and `/deliver`.
+> Compatibility / legacy: old standalone HTML routes still exist as redirect entrypoints, but the supported runtime surfaces are `/`, `/portal`, `/stock`, `/buy`, `/make`, `/admin`, `/docs`, and `/deliver`.
 
 Examples:
 
@@ -136,7 +136,7 @@ Examples:
 ## 11. Common issues
 
 - CORS failures: check `FRONTEND_ORIGIN`
-- OAuth redirect problems: check `OAUTH_REDIRECT_URI` and reverse-proxy headers
+- Customer portal redirect problems: check `SHOPIFY_CUSTOMER_ACCOUNT_REDIRECT_URI` and reverse-proxy headers
 - Print failures: confirm `PRINTNODE_*` values and printer mappings in system settings
 - Delivery QR failures: check `DELIVERY_CODE_SECRET`
 - Controller or Pi failures: verify `ROTARY_TOKEN`, `REMOTE_TOKEN`, and `FLSS_BASE_URL`

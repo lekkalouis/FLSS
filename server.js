@@ -138,4 +138,13 @@ server.listen(config.PORT, config.HOST, () => {
     "Shopify configured:",
     Boolean(config.SHOPIFY_STORE && config.SHOPIFY_CLIENT_ID && config.SHOPIFY_CLIENT_SECRET)
   );
+  console.log(
+    "Shopify customer portal configured:",
+    Boolean(
+      config.SHOPIFY_CUSTOMER_ACCOUNT_DOMAIN &&
+        config.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID &&
+        config.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_SECRET &&
+        config.SHOPIFY_CUSTOMER_ACCOUNT_REDIRECT_URI
+    )
+  );
 });

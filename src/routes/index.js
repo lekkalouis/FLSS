@@ -3,7 +3,6 @@ import alertsRouter from "./alerts.js";
 import authRouter from "./auth.js";
 import configRouter from "./config.js";
 import controllerRouter from "./controller.js";
-import customerAccountsRouter from "./customer-accounts.js";
 import dispatchControllerRouter from "./dispatch.controller.js";
 import docsRouter from "./docs.js";
 import environmentRouter from "./environment.js";
@@ -27,7 +26,6 @@ export const apiRouters = [
   { name: "agentCommissions", router: agentCommissionsRouter },
   { name: "config", router: configRouter },
   { name: "controller", router: controllerRouter },
-  { name: "customerAccounts", router: customerAccountsRouter },
   { name: "dispatchController", router: dispatchControllerRouter },
   { name: "environment", router: environmentRouter },
   { name: "docs", router: docsRouter },

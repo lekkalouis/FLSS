@@ -13,18 +13,16 @@ Use `.env` for secrets, upstream hosts, runtime behavior, and compatibility help
 - `NODE_ENV` - runtime mode. Typical values: `development`, `production`.
 - `FRONTEND_ORIGIN` - comma-separated allowed browser origins. Use the public hostname in deployed environments.
 
-### OAuth 2.0 / SSO
+### Shopify customer portal auth
 
-- `OAUTH_PROVIDER_NAME` - provider label shown in auth state.
-- `OAUTH_AUTHORIZATION_URL` - OAuth authorization endpoint.
-- `OAUTH_TOKEN_URL` - OAuth token endpoint.
-- `OAUTH_USERINFO_URL` - optional user-profile endpoint.
-- `OAUTH_CLIENT_ID` - OAuth client ID.
-- `OAUTH_CLIENT_SECRET` - OAuth client secret.
-- `OAUTH_SCOPE` - requested OAuth scopes.
-- `OAUTH_REDIRECT_URI` - explicit callback URL override.
-- `OAUTH_COOKIE_SECURE` - secure-cookie override. If unset, production defaults to secure cookies.
-- `OAUTH_SESSION_TTL_MS` - session lifetime in milliseconds. Default: 8 hours.
+- `SHOPIFY_CUSTOMER_ACCOUNT_DOMAIN` - Shopify customer-account domain or base URL used for OIDC discovery.
+- `SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID` - Shopify customer-account client ID.
+- `SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_SECRET` - Shopify customer-account client secret.
+- `SHOPIFY_CUSTOMER_ACCOUNT_SCOPES` - requested customer-account scopes. Default: `openid email customer-account-api:full`.
+- `SHOPIFY_CUSTOMER_ACCOUNT_REDIRECT_URI` - callback URL registered with Shopify customer accounts.
+- `SHOPIFY_CUSTOMER_ACCOUNT_POST_LOGOUT_REDIRECT_URI` - post-logout redirect URL registered with Shopify customer accounts.
+- `SHOPIFY_CUSTOMER_ACCOUNT_COOKIE_SECURE` - secure-cookie override for the portal session. If unset, production defaults to secure cookies.
+- `SHOPIFY_CUSTOMER_ACCOUNT_SESSION_TTL_MS` - portal session lifetime cap in milliseconds. Default: 8 hours.
 
 ### ParcelPerfect
 
@@ -37,6 +35,7 @@ Use `.env` for secrets, upstream hosts, runtime behavior, and compatibility help
 
 ### Shopify, pricing, and delivery flows
 
+- `SHOPIFY_*` variables below are the server-side Shopify Admin API integration settings. They are separate from `SHOPIFY_CUSTOMER_ACCOUNT_*`.
 - `SHOPIFY_STORE` - Shopify store hostname.
 - `SHOPIFY_CLIENT_ID` - Shopify app client ID.
 - `SHOPIFY_CLIENT_SECRET` - Shopify app client secret or access secret used by the current integration code.

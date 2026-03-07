@@ -18,18 +18,6 @@ function round2(value) {
   return Math.round((asNumber(value, 0) + Number.EPSILON) * 100) / 100;
 }
 
-function formatShopifySyncSummary(sync) {
-  if (!sync) return "";
-  if (!sync.configured) return "Shopify inventory sync was skipped because Shopify inventory is not configured.";
-  const synced = Array.isArray(sync.succeeded) ? sync.succeeded.length : 0;
-  const failed = Array.isArray(sync.failed) ? sync.failed.length : 0;
-  const skipped = Array.isArray(sync.skipped) ? sync.skipped.length : 0;
-  const parts = [`Shopify synced ${synced}`];
-  if (skipped) parts.push(`${skipped} skipped`);
-  if (failed) parts.push(`${failed} failed`);
-  return parts.join(" | ");
-}
-
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -39,20 +27,148 @@ export function initMakeView() {
   makeInitialized = true;
 
   const API_BASE = "/api/v1";
+  const root = document.getElementById("viewMake");
+  if (!root) return;
+
+  root.innerHTML = `
+    <div class="uo-shell">
+      <section class="uo-hero">
+        <div>
+          <p class="uo-eyebrow">Make</p>
+          <h2>Draft, release, and complete</h2>
+          <p class="uo-copy">Planner creates drafts only. Orders handles release, shortage buying, printing, and completion. Recipes owns the BOM library.</p>
+        </div>
+        <div class="uo-toolbar">
+          <input id="makeSearch" class="uo-input" type="search" placeholder="Search finished goods" />
+          <input id="makeTargetDate" class="uo-input" type="date" />
+        </div>
+      </section>
+
+      <section class="uo-card">
+        <div class="uo-tabRow" role="tablist" aria-label="Make tabs">
+          <button class="uo-tabBtn is-active" type="button" data-make-tab="planner" aria-selected="true">Planner</button>
+          <button class="uo-tabBtn" type="button" data-make-tab="orders" aria-selected="false">Orders</button>
+          <button class="uo-tabBtn" type="button" data-make-tab="recipes" aria-selected="false">Recipes</button>
+        </div>
+        <div id="makeStatus" class="uo-inlineStatus">Loading products...</div>
+      </section>
+
+      <section data-make-panel="planner"></section>
+      <section data-make-panel="orders" hidden></section>
+      <section data-make-panel="recipes" hidden></section>
+    </div>
+  `;
+
+  root.querySelector('[data-make-panel="planner"]').innerHTML = `
+    <div class="uo-grid uo-grid--two">
+      <article class="uo-card uo-card--inner">
+        <div class="uo-sectionHead"><div><h3>Planner</h3><p>Queue products and review live requirements. Draft orders do not reserve raw material.</p></div></div>
+        <div class="uo-tableWrap">
+          <table class="stock-table">
+            <thead><tr><th>SKU</th><th>Product</th><th>On hand</th><th>Open sales demand</th><th>Free stock</th><th>Planned incoming</th><th>Draft qty</th></tr></thead>
+            <tbody id="makeProductsBody"></tbody>
+          </table>
+        </div>
+      </article>
+      <article class="uo-card uo-card--inner">
+        <div class="uo-sectionHead"><div><h3>Draft order</h3><p>Create a draft MO or buy current shortages from the queued lines.</p></div></div>
+        <textarea id="makeNotes" class="uo-textarea" rows="4" placeholder="Manufacturing notes"></textarea>
+        <div class="uo-actions">
+          <button id="makeCreateOrder" class="stock-primaryBtn" type="button">Create draft</button>
+          <button id="makeCreateShortagePos" class="stock-secondaryBtn" type="button">Create linked POs</button>
+        </div>
+        <div class="uo-tableWrap">
+          <table class="stock-table">
+            <thead><tr><th>SKU</th><th>Product</th><th>Qty</th></tr></thead>
+            <tbody id="makeDraftBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+    <article class="uo-card uo-card--inner">
+      <div class="uo-sectionHead"><div><h3>Requirements</h3><p>Live raw-material requirements against currently available stock.</p></div></div>
+      <div class="uo-tableWrap">
+        <table class="stock-table">
+          <thead><tr><th>Material SKU</th><th>Material</th><th>Required</th><th>Available</th><th>Shortage</th><th>Preferred supplier</th></tr></thead>
+          <tbody id="makeRequirementsBody"></tbody>
+        </table>
+      </div>
+    </article>
+  `;
+  root.querySelector('[data-make-panel="orders"]').innerHTML = `
+    <article class="uo-card uo-card--inner">
+      <div class="uo-sectionHead"><div><h3>Orders</h3><p>Release reserves by FEFO batch allocation. Complete consumes the allocated source batches and creates a finished batch.</p></div></div>
+      <div class="uo-tableWrap">
+        <table class="stock-table">
+          <thead><tr><th>MO</th><th>Status</th><th>Target date</th><th>Products</th><th>Requirements</th><th>Action</th></tr></thead>
+          <tbody id="makeOrdersBody"></tbody>
+        </table>
+      </div>
+    </article>
+  `;
+  root.querySelector('[data-make-panel="recipes"]').innerHTML = `
+    <div class="uo-grid uo-grid--two">
+      <article class="uo-card uo-card--inner">
+        <div class="uo-sectionHead"><div><h3>BOM library</h3><p>Create and maintain recipe versions. Product and material master data now lives in Admin.</p></div></div>
+        <div class="uo-actions">
+          <button class="stock-secondaryBtn" type="button" data-route="/admin" data-admin-tab="products">Manage products</button>
+          <button class="stock-secondaryBtn" type="button" data-route="/admin" data-admin-tab="materials">Manage materials</button>
+        </div>
+        <div id="makeBomStatus" class="uo-inlineStatus">Loading BOM library...</div>
+        <div class="uo-tableWrap">
+          <table class="stock-table">
+            <thead><tr><th>Product</th><th>Version</th><th>Effective</th><th>Yield</th><th>Waste</th><th>Lines</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="makeBomLibraryBody"></tbody>
+          </table>
+        </div>
+      </article>
+      <article class="uo-card uo-card--inner">
+        <div class="uo-sectionHead"><div><h3>BOM editor</h3><p>Add or edit a recipe version without leaving Make.</p></div></div>
+        <div class="uo-formGrid uo-formGrid--compact">
+          <label class="uo-label">Product<select id="makeBomProduct" class="uo-select"></select></label>
+          <label class="uo-label">Version<input id="makeBomVersion" class="uo-input" type="text" placeholder="v1" /></label>
+          <label class="uo-label">Effective from<input id="makeBomEffectiveFrom" class="uo-input" type="date" /></label>
+          <label class="uo-label">Yield %<input id="makeBomYield" class="uo-input" type="number" step="0.01" value="100" /></label>
+          <label class="uo-label">Waste %<input id="makeBomWaste" class="uo-input" type="number" step="0.01" value="0" /></label>
+          <label class="uo-label uo-checkbox"><input id="makeBomActive" type="checkbox" checked /><span>Active recipe</span></label>
+        </div>
+        <div class="uo-sectionHead"><div><h3>Recipe lines</h3><p>Lines are aggregated by material, type, and UoM.</p></div></div>
+        <div class="uo-formGrid uo-formGrid--compact">
+          <label class="uo-label">Material<select id="makeBomLineMaterial" class="uo-select"></select></label>
+          <label class="uo-label">Qty<input id="makeBomLineQty" class="uo-input" type="number" step="0.01" value="0" /></label>
+          <label class="uo-label">UoM<input id="makeBomLineUom" class="uo-input" type="text" /></label>
+          <label class="uo-label">Type<select id="makeBomLineType" class="uo-select"><option value="ingredient">Ingredient</option><option value="packaging">Packaging</option><option value="label">Label</option><option value="consumable">Consumable</option></select></label>
+        </div>
+        <div class="uo-actions"><button id="makeBomAddLine" class="stock-secondaryBtn" type="button">Add line</button></div>
+        <div class="uo-tableWrap">
+          <table class="stock-table">
+            <thead><tr><th>SKU</th><th>Material</th><th>Type</th><th>Qty</th><th>UoM</th><th>Action</th></tr></thead>
+            <tbody id="makeBomLinesBody"></tbody>
+          </table>
+        </div>
+        <div class="uo-actions">
+          <button id="makeBomSave" class="stock-primaryBtn" type="button">Save BOM</button>
+          <button id="makeBomReset" class="stock-secondaryBtn" type="button">New BOM</button>
+        </div>
+      </article>
+    </div>
+  `;
+
   const els = {
+    tabs: Array.from(root.querySelectorAll("[data-make-tab]")),
+    panels: Array.from(root.querySelectorAll("[data-make-panel]")),
     search: document.getElementById("makeSearch"),
-    productBody: document.getElementById("makeProductsBody"),
-    draftBody: document.getElementById("makeDraftBody"),
-    requirementsBody: document.getElementById("makeRequirementsBody"),
-    status: document.getElementById("makeStatus"),
     targetDate: document.getElementById("makeTargetDate"),
     notes: document.getElementById("makeNotes"),
+    status: document.getElementById("makeStatus"),
+    productsBody: document.getElementById("makeProductsBody"),
+    draftBody: document.getElementById("makeDraftBody"),
+    requirementsBody: document.getElementById("makeRequirementsBody"),
     createOrder: document.getElementById("makeCreateOrder"),
     createShortagePos: document.getElementById("makeCreateShortagePos"),
-    historyBody: document.getElementById("makeHistoryBody"),
-    bomEditor: document.getElementById("makeBomEditor"),
-    bomLibraryBody: document.getElementById("makeBomLibraryBody"),
+    ordersBody: document.getElementById("makeOrdersBody"),
     bomStatus: document.getElementById("makeBomStatus"),
+    bomLibraryBody: document.getElementById("makeBomLibraryBody"),
     bomProduct: document.getElementById("makeBomProduct"),
     bomVersion: document.getElementById("makeBomVersion"),
     bomEffectiveFrom: document.getElementById("makeBomEffectiveFrom"),
@@ -66,679 +182,390 @@ export function initMakeView() {
     bomAddLine: document.getElementById("makeBomAddLine"),
     bomLinesBody: document.getElementById("makeBomLinesBody"),
     bomSave: document.getElementById("makeBomSave"),
-    bomReset: document.getElementById("makeBomReset"),
-    materialSku: document.getElementById("makeMaterialSku"),
-    materialTitle: document.getElementById("makeMaterialTitle"),
-    materialCategory: document.getElementById("makeMaterialCategory"),
-    materialUom: document.getElementById("makeMaterialUom"),
-    materialIcon: document.getElementById("makeMaterialIcon"),
-    materialSupplier: document.getElementById("makeMaterialSupplier"),
-    materialCreate: document.getElementById("makeMaterialCreate"),
-    materialStatus: document.getElementById("makeMaterialStatus")
+    bomReset: document.getElementById("makeBomReset")
   };
 
   const state = {
+    activeTab: "planner",
     products: [],
     materials: [],
-    suppliers: [],
     boms: [],
     manufacturingOrders: [],
     qtyBySku: new Map(),
-    latestRequirements: [],
+    requirements: [],
     missingBom: [],
     editingBomId: null,
-    bomEditorLines: []
+    bomLines: []
   };
 
-  function materialById(materialId) {
-    return state.materials.find((material) => Number(material.id) === Number(materialId)) || null;
-  }
+  let requirementsTimer = null;
 
-  function activeBomBySkuMap() {
-    const map = new Map();
-    state.boms.forEach((bom) => {
-      if (!Number(bom?.is_active)) return;
-      const existing = map.get(String(bom.product_sku));
-      if (!existing) {
-        map.set(String(bom.product_sku), bom);
-        return;
-      }
-      const left = `${existing.effective_from || ""}|${existing.id || 0}`;
-      const right = `${bom.effective_from || ""}|${bom.id || 0}`;
-      if (right > left) {
-        map.set(String(bom.product_sku), bom);
-      }
-    });
-    return map;
-  }
-
-  function defaultLineType(material) {
-    const category = String(material?.category || "").toLowerCase();
-    if (category.includes("pack")) return "packaging";
-    if (category.includes("label")) return "label";
-    if (category.includes("consum")) return "consumable";
-    return "ingredient";
-  }
-
-  function defaultBomVersion(productSku) {
-    const count = state.boms.filter((bom) => String(bom.product_sku) === String(productSku)).length;
-    return `v${count + 1}`;
-  }
-
-  function setMakeStatus(message) {
+  const setStatus = (message) => {
     if (els.status) els.status.textContent = String(message || "");
-  }
+  };
 
-  function setBomStatus(message) {
-    if (els.bomStatus) els.bomStatus.textContent = String(message || "");
-  }
+  const setActiveTab = (tab) => {
+    state.activeTab = tab;
+    els.tabs.forEach((button) => {
+      const active = button.dataset.makeTab === tab;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    els.panels.forEach((panel) => {
+      panel.hidden = panel.dataset.makePanel !== tab;
+    });
+  };
 
-  function setMaterialStatus(message) {
-    if (els.materialStatus) els.materialStatus.textContent = String(message || "");
-  }
+  const draftLines = () => Array.from(state.qtyBySku.entries())
+    .map(([product_sku, quantity]) => ({ product_sku, quantity: round2(quantity) }))
+    .filter((entry) => entry.quantity > 0);
 
-  function filteredProducts() {
-    const query = String(els.search?.value || "").trim().toLowerCase();
+  const filteredProducts = () => {
+    const query = String(els.search.value || "").trim().toLowerCase();
     return state.products.filter((product) => {
       const haystack = `${product.sku} ${product.title} ${product.flavour || ""}`.toLowerCase();
       return !query || haystack.includes(query);
     });
-  }
+  };
 
-  function makeLines() {
-    return Array.from(state.qtyBySku.entries())
-      .map(([product_sku, quantity]) => ({ product_sku, quantity: Number(quantity || 0) }))
-      .filter((line) => line.quantity > 0);
-  }
-
-  function renderBomProductOptions() {
-    if (!els.bomProduct) return;
-    const selected = String(els.bomProduct.value || "");
-    const options = state.products.map((product) => `
-      <option value="${escapeHtml(product.sku)}">${escapeHtml(product.sku)} - ${escapeHtml(product.title)}</option>
-    `).join("");
-    els.bomProduct.innerHTML = `<option value="">Select product</option>${options}`;
-    if (selected && state.products.some((product) => String(product.sku) === selected)) {
-      els.bomProduct.value = selected;
-    }
-  }
-
-  function renderBomMaterialOptions(selectedId = "") {
-    if (!els.bomLineMaterial) return;
-    const current = String(selectedId || els.bomLineMaterial.value || "");
-    const options = state.materials.map((material) => `
-      <option value="${material.id}">${escapeHtml(material.sku)} - ${escapeHtml(material.title)}</option>
-    `).join("");
-    els.bomLineMaterial.innerHTML = `<option value="">Select material</option>${options}`;
-    if (current && state.materials.some((material) => String(material.id) === current)) {
-      els.bomLineMaterial.value = current;
-    }
-  }
-
-  function renderSupplierOptions(selectedId = "") {
-    if (!els.materialSupplier) return;
-    const current = String(selectedId || els.materialSupplier.value || "");
-    const options = state.suppliers.map((supplier) => `
-      <option value="${supplier.id}">${escapeHtml(supplier.name)}</option>
-    `).join("");
-    els.materialSupplier.innerHTML = `<option value="">Select supplier</option>${options}`;
-    if (current && state.suppliers.some((supplier) => String(supplier.id) === current)) {
-      els.materialSupplier.value = current;
-    }
-  }
+  const activeBomMap = () => {
+    const map = new Map();
+    state.boms.forEach((bom) => {
+      if (!Number(bom.is_active)) return;
+      map.set(String(bom.product_sku), bom);
+    });
+    return map;
+  };
 
   function renderProducts() {
-    if (!els.productBody) return;
-    const activeBoms = activeBomBySkuMap();
-    const rows = filteredProducts();
-    els.productBody.innerHTML = rows.length
-      ? rows.map((product) => {
-          const activeBom = activeBoms.get(product.sku) || null;
-          return `
-            <tr>
-              <td><strong>${escapeHtml(product.sku)}</strong></td>
-              <td>${escapeHtml(product.title)}</td>
-              <td>${escapeHtml(product.flavour || "-")}</td>
-              <td>${Number(product.available || 0)}</td>
-              <td><input class="uo-input" type="number" min="0" step="1" value="${Number(state.qtyBySku.get(product.sku) || 0)}" data-make-sku="${escapeHtml(product.sku)}" /></td>
-              <td>
-                <button class="stock-secondaryBtn" type="button" data-make-edit-bom-sku="${escapeHtml(product.sku)}">${activeBom ? `Edit ${escapeHtml(activeBom.version || "BOM")}` : "Create BOM"}</button>
-                <div class="uo-meta">${activeBom ? `${Number(activeBom.line_count || activeBom.lines?.length || 0)} lines` : "No active BOM"}</div>
-              </td>
-            </tr>
-          `;
-        }).join("")
-      : `<tr><td colspan="6" class="stock-emptyCell">No products match this filter.</td></tr>`;
+    els.productsBody.innerHTML = filteredProducts().length
+      ? filteredProducts().map((product) => `
+          <tr>
+            <td><strong>${escapeHtml(product.sku)}</strong></td>
+            <td>${escapeHtml(product.title)}</td>
+            <td>${round2(product.on_hand)}</td>
+            <td>${round2(product.open_demand)}</td>
+            <td>${round2(product.free_stock)}</td>
+            <td>${round2(product.planned_incoming)}</td>
+            <td><input class="uo-input" type="number" min="0" step="1" data-make-sku="${escapeHtml(product.sku)}" value="${round2(state.qtyBySku.get(product.sku) || 0)}" /></td>
+          </tr>
+        `).join("")
+      : `<tr><td colspan="7" class="stock-emptyCell">No products match this filter.</td></tr>`;
   }
 
   function renderDraft() {
-    if (!els.draftBody) return;
-    const lines = makeLines();
-    els.draftBody.innerHTML = lines.length
-      ? lines.map((line) => {
-          const product = state.products.find((entry) => entry.sku === line.product_sku);
-          return `
-            <tr>
-              <td><strong>${escapeHtml(line.product_sku)}</strong></td>
-              <td>${escapeHtml(product?.title || line.product_sku)}</td>
-              <td>${Number(line.quantity || 0)}</td>
-            </tr>
-          `;
-        }).join("")
-      : `<tr><td colspan="3" class="stock-emptyCell">No products queued yet.</td></tr>`;
+    els.draftBody.innerHTML = draftLines().length
+      ? draftLines().map((line) => {
+        const product = state.products.find((entry) => entry.sku === line.product_sku);
+        return `<tr><td><strong>${escapeHtml(line.product_sku)}</strong></td><td>${escapeHtml(product?.title || line.product_sku)}</td><td>${round2(line.quantity)}</td></tr>`;
+      }).join("")
+      : `<tr><td colspan="3" class="stock-emptyCell">Queue products in the planner to build a draft.</td></tr>`;
   }
 
   function renderRequirements() {
-    if (!els.requirementsBody) return;
-    if (!state.latestRequirements.length && state.missingBom.length) {
-      els.requirementsBody.innerHTML = `
-        <tr>
-          <td colspan="6" class="stock-emptyCell">Missing active BOM for: ${escapeHtml(state.missingBom.join(", "))}</td>
-        </tr>`;
+    if (!state.requirements.length && state.missingBom.length) {
+      els.requirementsBody.innerHTML = `<tr><td colspan="6" class="stock-emptyCell">Missing active BOM for: ${escapeHtml(state.missingBom.join(", "))}</td></tr>`;
       return;
     }
-    els.requirementsBody.innerHTML = state.latestRequirements.length
-      ? state.latestRequirements.map((requirement) => `
+    els.requirementsBody.innerHTML = state.requirements.length
+      ? state.requirements.map((requirement) => `
           <tr>
             <td>${escapeHtml(requirement.material_sku || "-")}</td>
-            <td>
-              ${escapeHtml(requirement.material_title || "-")}
-              <div class="uo-meta">Inventory: ${escapeHtml(requirement.inventory_source || "local")}</div>
-            </td>
-            <td>${Number(requirement.required_qty || 0)}</td>
-            <td>${Number(requirement.available_qty || 0)}</td>
-            <td class="${Number(requirement.shortage_qty || 0) > 0 ? "stock-neg" : ""}">${Number(requirement.shortage_qty || 0)}</td>
+            <td>${escapeHtml(requirement.material_title || "-")}</td>
+            <td>${round2(requirement.required_qty)}</td>
+            <td>${round2(requirement.available_qty)}</td>
+            <td class="${Number(requirement.shortage_qty || 0) > 0 ? "stock-neg" : ""}">${round2(requirement.shortage_qty)}</td>
             <td>${escapeHtml(requirement.preferred_supplier?.name || "-")}</td>
           </tr>
         `).join("")
-      : `<tr><td colspan="6" class="stock-emptyCell">Add draft quantities to see BOM requirements.</td></tr>`;
+      : `<tr><td colspan="6" class="stock-emptyCell">No draft lines yet.</td></tr>`;
   }
 
-  function renderHistory() {
-    if (!els.historyBody) return;
-    els.historyBody.innerHTML = state.manufacturingOrders.length
-      ? state.manufacturingOrders.map((order) => `
+  function renderOrders() {
+    els.ordersBody.innerHTML = state.manufacturingOrders.length
+      ? state.manufacturingOrders.map((order) => {
+        const shortageCount = (order.requirements || []).filter((requirement) => Number(requirement.shortage_qty || 0) > 0).length;
+        return `
           <tr>
-            <td><strong>#${order.id}</strong></td>
-            <td>${escapeHtml(order.status || "-")}</td>
-            <td>${escapeHtml(order.shopify_draft_order_name || "-")}</td>
+            <td><strong>#${order.id}</strong><div class="uo-meta">${escapeHtml(order.shopify_draft_order_name || "-")}</div></td>
+            <td>${escapeHtml(order.status || "-")}${shortageCount ? ` <span class="uo-chip uo-chip--warn">${shortageCount} shortage${shortageCount === 1 ? "" : "s"}</span>` : ""}</td>
             <td>${escapeHtml(order.target_date || "-")}</td>
-            <td><button class="stock-primaryBtn" type="button" data-make-complete="${order.id}" ${order.status === "completed" ? "disabled" : ""}>Complete</button></td>
+            <td>${(order.lines || []).map((line) => `${escapeHtml(line.product_sku)} x ${round2(line.quantity)}`).join(" | ")}</td>
+            <td>${(order.requirements || []).length}${shortageCount ? `<div class="uo-meta">${shortageCount} still to buy</div>` : ""}</td>
+            <td>
+              <button class="stock-secondaryBtn" type="button" data-make-action="release" data-make-order="${order.id}" ${order.status === "draft" ? "" : "disabled"}>Release</button>
+              <button class="stock-secondaryBtn" type="button" data-make-action="buy" data-make-order="${order.id}">Create linked POs</button>
+              <button class="stock-secondaryBtn" type="button" data-make-action="print" data-make-order="${order.id}">Print</button>
+              <button class="stock-primaryBtn" type="button" data-make-action="complete" data-make-order="${order.id}" ${["draft", "released"].includes(order.status) ? "" : "disabled"}>Complete</button>
+            </td>
           </tr>
-        `).join("")
-      : `<tr><td colspan="5" class="stock-emptyCell">No manufacturing orders created yet.</td></tr>`;
+        `;
+      }).join("")
+      : `<tr><td colspan="6" class="stock-emptyCell">No manufacturing orders yet.</td></tr>`;
+  }
+
+  function renderBomOptions() {
+    els.bomProduct.innerHTML = `<option value="">Select product</option>${state.products.map((product) => `<option value="${escapeHtml(product.sku)}">${escapeHtml(product.sku)} - ${escapeHtml(product.title)}</option>`).join("")}`;
+    els.bomLineMaterial.innerHTML = `<option value="">Select material</option>${state.materials.map((material) => `<option value="${material.id}">${escapeHtml(material.sku)} - ${escapeHtml(material.title)}</option>`).join("")}`;
   }
 
   function renderBomLibrary() {
-    if (!els.bomLibraryBody) return;
     els.bomLibraryBody.innerHTML = state.boms.length
       ? state.boms.map((bom) => `
           <tr>
-            <td>
-              <strong>${escapeHtml(bom.product_sku)}</strong>
-              <div class="uo-meta">${escapeHtml(bom.product_title || bom.product_sku)}</div>
-            </td>
+            <td><strong>${escapeHtml(bom.product_sku)}</strong><div class="uo-meta">${escapeHtml(bom.product_title || bom.product_sku)}</div></td>
             <td>${escapeHtml(bom.version || "-")}</td>
             <td>${escapeHtml(bom.effective_from || "-")}</td>
-            <td>${Number(bom.yield_pct || 0)}%</td>
-            <td>${Number(bom.waste_pct || 0)}%</td>
+            <td>${round2(bom.yield_pct)}%</td>
+            <td>${round2(bom.waste_pct)}%</td>
             <td>${Number(bom.line_count || bom.lines?.length || 0)}</td>
-            <td><span class="uo-chip ${Number(bom.is_active) ? "uo-chip--success" : "uo-chip--muted"}">${Number(bom.is_active) ? "Active" : "History"}</span></td>
-            <td><button class="stock-secondaryBtn" type="button" data-make-edit-bom-id="${bom.id}">Edit</button></td>
+            <td>${Number(bom.is_active) ? `<span class="uo-chip uo-chip--success">Active</span>` : `<span class="uo-chip uo-chip--muted">History</span>`}</td>
+            <td><button class="stock-secondaryBtn" type="button" data-bom-edit="${bom.id}">Edit</button></td>
           </tr>
         `).join("")
-      : `<tr><td colspan="8" class="stock-emptyCell">No BOMs have been created yet.</td></tr>`;
-    setBomStatus(
-      state.editingBomId
-        ? `Editing BOM #${state.editingBomId}.`
-        : `Loaded ${state.boms.length} BOM version${state.boms.length === 1 ? "" : "s"}.`
-    );
+      : `<tr><td colspan="8" class="stock-emptyCell">No BOMs yet.</td></tr>`;
+    els.bomStatus.textContent = state.editingBomId ? `Editing BOM #${state.editingBomId}.` : "Loading BOM library...";
   }
 
   function renderBomLines() {
-    if (!els.bomLinesBody) return;
-    els.bomLinesBody.innerHTML = state.bomEditorLines.length
-      ? state.bomEditorLines.map((line, index) => {
-          const material = materialById(line.material_id);
-          return `
-            <tr>
-              <td><strong>${escapeHtml(material?.sku || "-")}</strong></td>
-              <td>${escapeHtml(material?.title || `Material ${line.material_id}`)}</td>
-              <td>
-                <select class="uo-select" data-bom-line-index="${index}" data-bom-line-field="line_type">
-                  <option value="ingredient" ${line.line_type === "ingredient" ? "selected" : ""}>Ingredient</option>
-                  <option value="packaging" ${line.line_type === "packaging" ? "selected" : ""}>Packaging</option>
-                  <option value="label" ${line.line_type === "label" ? "selected" : ""}>Label</option>
-                  <option value="consumable" ${line.line_type === "consumable" ? "selected" : ""}>Consumable</option>
-                </select>
-              </td>
-              <td><input class="uo-input" type="number" min="0" step="0.01" value="${Number(line.quantity || 0)}" data-bom-line-index="${index}" data-bom-line-field="quantity" /></td>
-              <td><input class="uo-input" type="text" value="${escapeHtml(line.uom || "unit")}" data-bom-line-index="${index}" data-bom-line-field="uom" /></td>
-              <td><button class="stock-secondaryBtn" type="button" data-bom-line-remove="${index}">Remove</button></td>
-            </tr>
-          `;
-        }).join("")
-      : `<tr><td colspan="6" class="stock-emptyCell">Add recipe lines to build a BOM version.</td></tr>`;
+    els.bomLinesBody.innerHTML = state.bomLines.length
+      ? state.bomLines.map((line, index) => {
+        const material = state.materials.find((entry) => Number(entry.id) === Number(line.material_id));
+        return `<tr><td><strong>${escapeHtml(material?.sku || "-")}</strong></td><td>${escapeHtml(material?.title || `Material ${line.material_id}`)}</td><td>${escapeHtml(line.line_type)}</td><td>${round2(line.quantity)}</td><td>${escapeHtml(line.uom)}</td><td><button class="stock-secondaryBtn" type="button" data-bom-remove="${index}">Remove</button></td></tr>`;
+      }).join("")
+      : `<tr><td colspan="6" class="stock-emptyCell">Add one or more recipe lines.</td></tr>`;
   }
 
-  function syncBomVersionSuggestion(force = false) {
-    if (!els.bomProduct || !els.bomVersion) return;
-    if (state.editingBomId && !force) return;
-    const productSku = String(els.bomProduct.value || "").trim();
-    if (!productSku) return;
-    if (!force && String(els.bomVersion.value || "").trim()) return;
-    els.bomVersion.value = defaultBomVersion(productSku);
-  }
-
-  function syncBomLineDefaults() {
-    const material = materialById(els.bomLineMaterial?.value);
-    if (!material) return;
-    if (els.bomLineUom && !String(els.bomLineUom.value || "").trim()) {
-      els.bomLineUom.value = material.uom || "unit";
-    }
-    if (els.bomLineType && !String(els.bomLineType.value || "").trim()) {
-      els.bomLineType.value = defaultLineType(material);
-    }
-  }
-
-  function scrollBomEditor() {
-    els.bomEditor?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  function resetBomEditor(productSku = "") {
+  function resetBomEditor() {
     state.editingBomId = null;
-    state.bomEditorLines = [];
-    if (els.bomProduct) els.bomProduct.value = productSku || "";
-    if (els.bomVersion) els.bomVersion.value = productSku ? defaultBomVersion(productSku) : "";
-    if (els.bomEffectiveFrom) els.bomEffectiveFrom.value = todayIso();
-    if (els.bomYield) els.bomYield.value = "100";
-    if (els.bomWaste) els.bomWaste.value = "0";
-    if (els.bomActive) els.bomActive.checked = true;
-    if (els.bomLineMaterial) els.bomLineMaterial.value = "";
-    if (els.bomLineQty) els.bomLineQty.value = "0";
-    if (els.bomLineUom) els.bomLineUom.value = "";
-    if (els.bomLineType) els.bomLineType.value = "ingredient";
+    state.bomLines = [];
+    els.bomProduct.value = "";
+    els.bomVersion.value = "";
+    els.bomEffectiveFrom.value = todayIso();
+    els.bomYield.value = "100";
+    els.bomWaste.value = "0";
+    els.bomActive.checked = true;
+    els.bomLineMaterial.value = "";
+    els.bomLineQty.value = "0";
+    els.bomLineUom.value = "";
+    els.bomLineType.value = "ingredient";
     renderBomLines();
-    renderBomLibrary();
-    setBomStatus(productSku ? `Create a new BOM for ${productSku}.` : "Select a product and build its recipe.");
+    els.bomStatus.textContent = "Build a new BOM version.";
   }
 
-  function loadBomIntoEditor(bom) {
+  function loadBomIntoEditor(bomId) {
+    const bom = state.boms.find((entry) => Number(entry.id) === Number(bomId));
     if (!bom) return;
     state.editingBomId = Number(bom.id);
-    state.bomEditorLines = Array.isArray(bom.lines)
-      ? bom.lines.map((line) => ({
-          material_id: Number(line.material_id),
-          quantity: Number(line.quantity || 0),
-          uom: String(line.uom || line.material_uom || "unit"),
-          line_type: String(line.line_type || defaultLineType(materialById(line.material_id))).toLowerCase()
-        }))
-      : [];
-    if (els.bomProduct) els.bomProduct.value = String(bom.product_sku || "");
-    if (els.bomVersion) els.bomVersion.value = String(bom.version || "");
-    if (els.bomEffectiveFrom) els.bomEffectiveFrom.value = String(bom.effective_from || todayIso());
-    if (els.bomYield) els.bomYield.value = String(bom.yield_pct ?? 100);
-    if (els.bomWaste) els.bomWaste.value = String(bom.waste_pct ?? 0);
-    if (els.bomActive) els.bomActive.checked = Boolean(Number(bom.is_active));
+    state.bomLines = Array.isArray(bom.lines) ? bom.lines.map((line) => ({
+      material_id: Number(line.material_id),
+      quantity: round2(line.quantity),
+      uom: String(line.uom || line.material_uom || "unit"),
+      line_type: String(line.line_type || "ingredient")
+    })) : [];
+    els.bomProduct.value = bom.product_sku || "";
+    els.bomVersion.value = bom.version || "";
+    els.bomEffectiveFrom.value = bom.effective_from || todayIso();
+    els.bomYield.value = String(bom.yield_pct ?? 100);
+    els.bomWaste.value = String(bom.waste_pct ?? 0);
+    els.bomActive.checked = Number(bom.is_active) === 1;
     renderBomLines();
-    renderBomLibrary();
-    setBomStatus(`Editing ${bom.product_sku} ${bom.version || ""}.`);
-    scrollBomEditor();
+    setActiveTab("recipes");
+    els.bomStatus.textContent = `Editing ${bom.product_sku} ${bom.version || ""}.`;
+  }
+
+  async function refreshRequirements() {
+    clearTimeout(requirementsTimer);
+    requirementsTimer = setTimeout(async () => {
+      const lines = draftLines();
+      if (!lines.length) {
+        state.requirements = [];
+        state.missingBom = [];
+        renderDraft();
+        renderRequirements();
+        return;
+      }
+      const response = await fetch(`${API_BASE}/make/manufacturing-orders/requirements`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lines })
+      });
+      const body = await response.json().catch(() => ({}));
+      state.requirements = Array.isArray(body.requirements) ? body.requirements : [];
+      state.missingBom = Array.isArray(body.missing_bom) ? body.missing_bom : [];
+      renderDraft();
+      renderRequirements();
+    }, 120);
   }
 
   async function loadMasterData() {
-    const [productsResp, materialsResp, suppliersResp, bomsResp] = await Promise.all([
+    const [productsResp, materialsResp, bomsResp] = await Promise.all([
       fetch(`${API_BASE}/catalog/products`),
       fetch(`${API_BASE}/catalog/materials`),
-      fetch(`${API_BASE}/catalog/suppliers`),
       fetch(`${API_BASE}/catalog/boms`)
     ]);
-    const [productsBody, materialsBody, suppliersBody, bomsBody] = await Promise.all([
+    const [productsBody, materialsBody, bomsBody] = await Promise.all([
       productsResp.json().catch(() => ({})),
       materialsResp.json().catch(() => ({})),
-      suppliersResp.json().catch(() => ({})),
       bomsResp.json().catch(() => ({}))
     ]);
     state.products = Array.isArray(productsBody.products) ? productsBody.products : [];
     state.materials = Array.isArray(materialsBody.materials) ? materialsBody.materials : [];
-    state.suppliers = Array.isArray(suppliersBody.suppliers) ? suppliersBody.suppliers : [];
     state.boms = Array.isArray(bomsBody.boms) ? bomsBody.boms : [];
-    renderBomProductOptions();
-    renderBomMaterialOptions();
-    renderSupplierOptions();
     renderProducts();
+    renderDraft();
+    renderRequirements();
+    renderBomOptions();
     renderBomLibrary();
     renderBomLines();
   }
 
-  async function loadHistory() {
-    const resp = await fetch(`${API_BASE}/make/manufacturing-orders`);
-    const body = await resp.json().catch(() => ({}));
+  async function loadOrders() {
+    const response = await fetch(`${API_BASE}/make/manufacturing-orders`);
+    const body = await response.json().catch(() => ({}));
     state.manufacturingOrders = Array.isArray(body.manufacturingOrders) ? body.manufacturingOrders : [];
-    renderHistory();
-  }
-
-  async function refreshRequirements() {
-    const lines = makeLines();
-    renderDraft();
-    if (!lines.length) {
-      state.latestRequirements = [];
-      state.missingBom = [];
-      renderRequirements();
-      return;
-    }
-    const resp = await fetch(`${API_BASE}/make/manufacturing-orders/requirements`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lines })
-    });
-    const body = await resp.json().catch(() => ({}));
-    state.latestRequirements = Array.isArray(body.requirements) ? body.requirements : [];
-    state.missingBom = Array.isArray(body.missing_bom) ? body.missing_bom : [];
-    renderRequirements();
-    if (state.missingBom.length) {
-      setMakeStatus(`Missing active BOM for: ${state.missingBom.join(", ")}.`);
-    } else {
-      const shopifyBackedCount = state.latestRequirements.filter((requirement) => requirement.inventory_source === "shopify").length;
-      setMakeStatus(
-        `Loaded ${state.latestRequirements.length} material requirement${state.latestRequirements.length === 1 ? "" : "s"}${shopifyBackedCount ? ` using Shopify availability for ${shopifyBackedCount}` : ""}.`
-      );
-    }
-  }
-
-  function addBomLine() {
-    const materialId = Number(els.bomLineMaterial?.value || 0);
-    const quantity = round2(els.bomLineQty?.value);
-    const material = materialById(materialId);
-    if (!material) {
-      setBomStatus("Select a material before adding a recipe line.");
-      return;
-    }
-    if (!(quantity > 0)) {
-      setBomStatus("Recipe line quantity must be greater than zero.");
-      return;
-    }
-    const uom = String(els.bomLineUom?.value || material.uom || "unit").trim() || "unit";
-    const lineType = String(els.bomLineType?.value || defaultLineType(material)).trim().toLowerCase() || "ingredient";
-    const existing = state.bomEditorLines.find((line) => Number(line.material_id) === materialId && line.uom === uom && line.line_type === lineType);
-    if (existing) {
-      existing.quantity = round2(Number(existing.quantity || 0) + quantity);
-    } else {
-      state.bomEditorLines.push({
-        material_id: materialId,
-        quantity,
-        uom,
-        line_type: lineType
-      });
-    }
-    renderBomLines();
-    if (els.bomLineQty) els.bomLineQty.value = "0";
-    setBomStatus(`Added ${material.sku} to the recipe.`);
-  }
-
-  async function createMaterial() {
-    const sku = String(els.materialSku?.value || "").trim().toUpperCase();
-    const title = String(els.materialTitle?.value || "").trim();
-    if (!sku || !title) {
-      setMaterialStatus("Material SKU and title are required.");
-      return;
-    }
-    if (els.materialCreate) els.materialCreate.disabled = true;
-    setMaterialStatus("Creating material...");
-    try {
-      const resp = await fetch(`${API_BASE}/catalog/materials`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sku,
-          title,
-          category: String(els.materialCategory?.value || "ingredient"),
-          uom: String(els.materialUom?.value || "unit"),
-          icon: String(els.materialIcon?.value || "").trim(),
-          preferred_supplier_id: els.materialSupplier?.value ? Number(els.materialSupplier.value) : undefined,
-          actor_type: "ui",
-          actor_id: "make"
-        })
-      });
-      const body = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(body?.error || body?.message || "Could not create material");
-      await loadMasterData();
-      if (body?.material?.id) {
-        renderBomMaterialOptions(String(body.material.id));
-        if (els.bomLineMaterial) els.bomLineMaterial.value = String(body.material.id);
-        if (els.bomLineUom) els.bomLineUom.value = body.material.uom || "unit";
-        if (els.bomLineType) els.bomLineType.value = defaultLineType(body.material);
-      }
-      if (els.materialSku) els.materialSku.value = "";
-      if (els.materialTitle) els.materialTitle.value = "";
-      if (els.materialIcon) els.materialIcon.value = "";
-      setMaterialStatus(`Created material ${body?.material?.sku || sku}.`);
-      setBomStatus(`Material ${body?.material?.sku || sku} is ready for recipe lines.`);
-    } catch (error) {
-      setMaterialStatus(String(error?.message || error));
-    } finally {
-      if (els.materialCreate) els.materialCreate.disabled = false;
-    }
-  }
-
-  async function saveBom() {
-    const productSku = String(els.bomProduct?.value || "").trim();
-    if (!productSku) {
-      setBomStatus("Select a product for this BOM.");
-      return;
-    }
-    if (!state.bomEditorLines.length) {
-      setBomStatus("Add at least one recipe line before saving.");
-      return;
-    }
-    const wasEditing = Boolean(state.editingBomId);
-    if (els.bomSave) els.bomSave.disabled = true;
-    setBomStatus(state.editingBomId ? "Updating BOM..." : "Creating BOM...");
-    try {
-      const payload = {
-        product_sku: productSku,
-        version: String(els.bomVersion?.value || "").trim(),
-        effective_from: String(els.bomEffectiveFrom?.value || todayIso()),
-        yield_pct: round2(els.bomYield?.value || 100),
-        waste_pct: round2(els.bomWaste?.value || 0),
-        is_active: Boolean(els.bomActive?.checked),
-        lines: state.bomEditorLines.map((line) => ({
-          material_id: Number(line.material_id),
-          quantity: round2(line.quantity),
-          uom: String(line.uom || "unit"),
-          line_type: String(line.line_type || "ingredient")
-        })),
-        actor_type: "ui",
-        actor_id: "make"
-      };
-      const url = state.editingBomId
-        ? `${API_BASE}/catalog/boms/${state.editingBomId}`
-        : `${API_BASE}/catalog/boms`;
-      const method = state.editingBomId ? "PUT" : "POST";
-      const resp = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const body = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(body?.error || body?.message || "Could not save BOM");
-      await loadMasterData();
-      if (body?.bom) {
-        loadBomIntoEditor(body.bom);
-      } else {
-        resetBomEditor(productSku);
-      }
-      await refreshRequirements();
-      setBomStatus(`${wasEditing ? "Updated" : "Created"} BOM for ${productSku}.`);
-    } catch (error) {
-      setBomStatus(String(error?.message || error));
-    } finally {
-      if (els.bomSave) els.bomSave.disabled = false;
-    }
+    renderOrders();
   }
 
   async function createOrder() {
-    const lines = makeLines();
-    if (!lines.length) {
-      setMakeStatus("Queue at least one product before creating an order.");
-      return;
-    }
-    if (els.createOrder) els.createOrder.disabled = true;
-    setMakeStatus("Creating manufacturing order draft...");
-    try {
-      const resp = await fetch(`${API_BASE}/make/manufacturing-orders`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lines,
-          target_date: String(els.targetDate?.value || ""),
-          notes: String(els.notes?.value || ""),
-          actor_type: "ui",
-          actor_id: "make"
-        })
-      });
-      const body = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(body?.error || body?.message || "Could not create manufacturing order");
-      state.qtyBySku.clear();
-      state.latestRequirements = Array.isArray(body.requirements) ? body.requirements : [];
-      state.missingBom = Array.isArray(body.missing_bom) ? body.missing_bom : [];
-      renderProducts();
-      renderDraft();
-      renderRequirements();
-      await loadHistory();
-      setMakeStatus(
-        state.missingBom.length
-          ? `Manufacturing order #${body.manufacturing_order?.id || "?"} created with missing BOM alerts for ${state.missingBom.join(", ")}.`
-          : `Manufacturing order #${body.manufacturing_order?.id || "?"} created from BOM requirements using current inventory availability.`
-      );
-    } catch (error) {
-      setMakeStatus(String(error?.message || error));
-    } finally {
-      if (els.createOrder) els.createOrder.disabled = false;
-    }
+    const lines = draftLines();
+    if (!lines.length) throw new Error("Add at least one draft product line");
+    const response = await fetch(`${API_BASE}/make/manufacturing-orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lines, target_date: els.targetDate.value || null, notes: els.notes.value || "", actor_type: "ui", actor_id: "make" })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body?.error || body?.message || "Could not create manufacturing order");
+    state.qtyBySku.clear();
+    els.notes.value = "";
+    setStatus(`Created manufacturing draft #${body.manufacturing_order?.id || ""}.`);
+    await Promise.all([loadMasterData(), loadOrders()]);
+    setActiveTab("orders");
   }
 
-  async function createShortagePurchaseOrders() {
-    const lines = makeLines();
-    if (!lines.length) {
-      setMakeStatus("Queue draft lines before creating linked shortage POs.");
-      return;
-    }
-    if (els.createShortagePos) els.createShortagePos.disabled = true;
-    try {
-      const resp = await fetch(`${API_BASE}/make/manufacturing-orders/shortages/buy`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lines,
-          actor_type: "ui",
-          actor_id: "make"
-        })
-      });
-      const body = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(body?.error || body?.message || "Could not create linked purchase orders");
-      setMakeStatus(`Created ${body.results?.length || 0} linked purchase order group${body.results?.length === 1 ? "" : "s"}.`);
-    } catch (error) {
-      setMakeStatus(String(error?.message || error));
-    } finally {
-      if (els.createShortagePos) els.createShortagePos.disabled = false;
-    }
+  async function createShortagePos(payload) {
+    const response = await fetch(`${API_BASE}/make/manufacturing-orders/shortages/buy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, actor_type: "ui", actor_id: "make" })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body?.error || body?.message || "Could not create linked purchase orders");
+    setStatus(`Created ${body.results?.length || 0} linked purchase order group${body.results?.length === 1 ? "" : "s"}.`);
   }
 
-  els.search?.addEventListener("input", renderProducts);
-  els.productBody?.addEventListener("input", (event) => {
+  async function saveBom() {
+    if (!state.bomLines.length) throw new Error("Add at least one BOM line");
+    const payload = {
+      product_sku: els.bomProduct.value,
+      version: els.bomVersion.value || "v1",
+      effective_from: els.bomEffectiveFrom.value || todayIso(),
+      yield_pct: round2(els.bomYield.value),
+      waste_pct: round2(els.bomWaste.value),
+      is_active: els.bomActive.checked,
+      lines: state.bomLines,
+      actor_type: "ui",
+      actor_id: "make"
+    };
+    if (!payload.product_sku) throw new Error("Select a product");
+    const url = state.editingBomId ? `${API_BASE}/catalog/boms/${state.editingBomId}` : `${API_BASE}/catalog/boms`;
+    const method = state.editingBomId ? "PUT" : "POST";
+    const response = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body?.error || body?.message || "Could not save BOM");
+    await loadMasterData();
+    if (body?.bom?.id) loadBomIntoEditor(body.bom.id);
+    els.bomStatus.textContent = "BOM saved.";
+  }
+
+  els.tabs.forEach((button) => button.addEventListener("click", () => setActiveTab(button.dataset.makeTab || "planner")));
+  els.search.addEventListener("input", renderProducts);
+  els.productsBody.addEventListener("input", (event) => {
     const input = event.target.closest("[data-make-sku]");
     if (!input) return;
-    state.qtyBySku.set(String(input.dataset.makeSku), Number(input.value || 0));
+    state.qtyBySku.set(String(input.dataset.makeSku || ""), round2(input.value));
+    renderDraft();
     void refreshRequirements();
   });
-  els.productBody?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-make-edit-bom-sku]");
-    if (!button) return;
-    const sku = String(button.dataset.makeEditBomSku || "");
-    const bom = activeBomBySkuMap().get(sku) || state.boms.find((entry) => String(entry.product_sku) === sku) || null;
-    if (bom) {
-      loadBomIntoEditor(bom);
-    } else {
-      resetBomEditor(sku);
-      scrollBomEditor();
+  els.createOrder.addEventListener("click", async () => { try { await createOrder(); } catch (error) { setStatus(String(error?.message || error)); } });
+  els.createShortagePos.addEventListener("click", async () => {
+    try {
+      await createShortagePos({ lines: draftLines(), note: "Linked from planner shortages" });
+    } catch (error) {
+      setStatus(String(error?.message || error));
     }
   });
-  els.bomLibraryBody?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-make-edit-bom-id]");
+  els.ordersBody.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-make-action]");
     if (!button) return;
-    const bom = state.boms.find((entry) => Number(entry.id) === Number(button.dataset.makeEditBomId));
-    if (bom) loadBomIntoEditor(bom);
-  });
-  els.bomProduct?.addEventListener("change", () => {
-    if (!state.editingBomId) {
-      syncBomVersionSuggestion(true);
+    const order = state.manufacturingOrders.find((entry) => Number(entry.id) === Number(button.dataset.makeOrder));
+    if (!order) return;
+    try {
+      if (button.dataset.makeAction === "buy") {
+        await createShortagePos({
+          manufacturing_order_id: Number(order.id),
+          lines: order.lines || [],
+          note: `Linked from manufacturing order #${order.id}`
+        });
+      } else {
+        const actionLabel = {
+          release: "released",
+          print: "printed",
+          complete: "completed"
+        }[button.dataset.makeAction] || "updated";
+        const response = await fetch(`${API_BASE}/make/manufacturing-orders/${order.id}/${button.dataset.makeAction}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actor_type: "ui", actor_id: "make" })
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body?.error || body?.message || `Could not ${button.dataset.makeAction} manufacturing order`);
+        setStatus(`Manufacturing order #${order.id} ${actionLabel}.`);
+        await Promise.all([loadMasterData(), loadOrders()]);
+      }
+    } catch (error) {
+      setStatus(String(error?.message || error));
     }
   });
-  els.bomLineMaterial?.addEventListener("change", () => {
-    if (els.bomLineUom) els.bomLineUom.value = "";
-    if (els.bomLineType) els.bomLineType.value = "";
-    syncBomLineDefaults();
-  });
-  els.bomAddLine?.addEventListener("click", addBomLine);
-  els.bomLinesBody?.addEventListener("input", (event) => {
-    const field = String(event.target?.dataset?.bomLineField || "");
-    const index = Number(event.target?.dataset?.bomLineIndex);
-    if (!field || !Number.isFinite(index) || !state.bomEditorLines[index]) return;
-    if (field === "quantity") {
-      state.bomEditorLines[index].quantity = round2(event.target.value);
-    } else if (field === "uom") {
-      state.bomEditorLines[index].uom = String(event.target.value || "").trim() || "unit";
-    } else if (field === "line_type") {
-      state.bomEditorLines[index].line_type = String(event.target.value || "ingredient").trim().toLowerCase();
+  els.bomAddLine.addEventListener("click", () => {
+    const materialId = Number(els.bomLineMaterial.value || 0);
+    if (!(materialId > 0)) {
+      els.bomStatus.textContent = "Select a material first.";
+      return;
     }
-  });
-  els.bomLinesBody?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-bom-line-remove]");
-    if (!button) return;
-    const index = Number(button.dataset.bomLineRemove);
-    if (!Number.isFinite(index)) return;
-    state.bomEditorLines.splice(index, 1);
+    state.bomLines.push({
+      material_id: materialId,
+      quantity: round2(els.bomLineQty.value),
+      uom: String(els.bomLineUom.value || state.materials.find((entry) => Number(entry.id) === materialId)?.uom || "unit"),
+      line_type: String(els.bomLineType.value || "ingredient")
+    });
     renderBomLines();
   });
-  els.bomSave?.addEventListener("click", saveBom);
-  els.bomReset?.addEventListener("click", () => resetBomEditor(String(els.bomProduct?.value || "")));
-  els.materialCreate?.addEventListener("click", createMaterial);
-  els.createOrder?.addEventListener("click", createOrder);
-  els.createShortagePos?.addEventListener("click", createShortagePurchaseOrders);
-  els.historyBody?.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-make-complete]");
+  els.bomLinesBody.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-bom-remove]");
     if (!button) return;
-    button.disabled = true;
-    try {
-      const resp = await fetch(`${API_BASE}/make/manufacturing-orders/${button.dataset.makeComplete}/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actor_type: "ui", actor_id: "make" })
-      });
-      const body = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(body?.error || body?.message || "Could not complete manufacturing order");
-      const syncSummary = formatShopifySyncSummary(body.shopify_sync);
-      setMakeStatus(`Manufacturing order #${body.manufacturing_order?.id || "?"} completed.${syncSummary ? ` ${syncSummary}` : ""}`);
-      await Promise.all([loadHistory(), loadMasterData()]);
-      await refreshRequirements();
-    } catch (error) {
-      setMakeStatus(String(error?.message || error));
-    } finally {
-      button.disabled = false;
-    }
+    state.bomLines.splice(Number(button.dataset.bomRemove), 1);
+    renderBomLines();
   });
+  els.bomLibraryBody.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-bom-edit]");
+    if (!button) return;
+    loadBomIntoEditor(button.dataset.bomEdit);
+  });
+  els.bomSave.addEventListener("click", async () => { try { await saveBom(); } catch (error) { els.bomStatus.textContent = String(error?.message || error); } });
+  els.bomReset.addEventListener("click", resetBomEditor);
 
-  Promise.resolve()
-    .then(() => Promise.all([loadMasterData(), loadHistory()]))
-    .then(() => {
-      if (els.targetDate && !els.targetDate.value) {
-        els.targetDate.value = todayIso();
-      }
-      resetBomEditor();
-      renderDraft();
-      renderRequirements();
-      setMakeStatus("Build a manufacturing draft and manage BOMs directly from this view.");
-      setMaterialStatus("Use this only for quick material creation. Full raw-material editing lives in Stock > Raw Materials.");
-    });
+  els.targetDate.value = todayIso();
+  setActiveTab("planner");
+  resetBomEditor();
+  Promise.all([loadMasterData(), loadOrders()]).then(() => {
+    setStatus("Queue products to create a draft manufacturing order.");
+  }).catch((error) => {
+    setStatus(String(error?.message || error));
+  });
 }

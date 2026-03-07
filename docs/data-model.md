@@ -29,7 +29,7 @@ FLSS uses both external systems and local persistence. The local SQLite database
 - ParcelPerfect: quotes, bookings, place lookups, and shipping metadata
 - PrintNode: printer inventory and print job execution
 - SMTP provider: notification send acceptance and delivery attempts
-- OAuth provider: authenticated session identity
+- Shopify customer account provider: portal session identity
 
 ## 2. Primary local entities
 

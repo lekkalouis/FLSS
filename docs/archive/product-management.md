@@ -51,7 +51,7 @@ All endpoints are under `/api/v1/product-management/*`:
 - `src/config.js`: Reused env/config pattern and extended with `LOCAL_DB_PATH`, `ASSETS_PATH`, `BACKUPS_PATH`, `SYNC_ENABLED`.
 - `src/app.js` + static hosting model: Reused static page/module style for `public/product-management.html`.
 - `public/app.js` module launcher: Reused module-card integration point to expose Product Management in existing UI shell.
-- Existing local-first patterns in services (`src/services/customerAccounts.js`, `src/services/dispatchController.js`) informed durable local writes + lightweight in-process queue semantics.
+- Existing local-first patterns in services such as `src/services/dispatchController.js` informed durable local writes + lightweight in-process queue semantics.
 
 ## Architecture notes
 

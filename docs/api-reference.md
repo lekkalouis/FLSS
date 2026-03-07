@@ -6,12 +6,12 @@ This file inventories the current route surface and the root-level runtime inter
 
 ## Access legend
 
-- Public: available without an OAuth session
-- OAuth session protected: requires a valid OAuth page or API session when OAuth is enabled
-- Bearer or local controller access: accepts an OAuth session, a configured bearer token, or local-network fallback depending on route configuration
+- Public: available without a customer portal session
+- Customer portal protected: requires a valid Shopify customer portal session
+- Bearer or local controller access: accepts a configured bearer token or local-network fallback depending on route configuration
 - Compatibility only: retained for older flows, not the preferred surface
 
-## 1. Public bootstrap, docs, and auth
+## 1. Public bootstrap, docs, and portal auth
 
 Access: Public
 
@@ -33,11 +33,12 @@ POST /shopify/delivery/complete-from-code
 
 Special note:
 
-- `POST /environment/ingest` is public only when OAuth is disabled; when OAuth is enabled it accepts either an OAuth session or the `ROTARY_TOKEN` bearer token.
+- `/auth/*` drives Shopify Customer Account login for the dedicated `/portal` route.
+- `POST /environment/ingest` remains public for telemetry ingestion.
 
 ## 2. Controller status stream
 
-Access: OAuth session protected
+Access: Public
 
 ```text
 GET /controller/status
@@ -48,7 +49,7 @@ GET /controller/events
 
 ### View access routes
 
-Access: OAuth session protected
+Access: Public
 
 ```text
 GET /dispatch/state
@@ -72,8 +73,7 @@ POST /dispatch/fulfill
 
 Notes:
 
-- These routes accept an OAuth session.
-- If `ROTARY_TOKEN` is configured, they require that bearer token when no OAuth session is present.
+- If `ROTARY_TOKEN` is configured, these routes require that bearer token.
 - If `ROTARY_TOKEN` is not configured, private-network callers are accepted.
 
 ### Remote and environment write routes
@@ -88,8 +88,7 @@ POST /dispatch/remote/action
 
 Notes:
 
-- These routes accept an OAuth session.
-- If `REMOTE_TOKEN` is configured, they require that bearer token when no OAuth session is present.
+- If `REMOTE_TOKEN` is configured, these routes require that bearer token.
 - If `REMOTE_TOKEN` is not configured, they fall back to the rotary authorization rules.
 
 ### Remote status route
@@ -102,7 +101,7 @@ GET /dispatch/remote/status
 
 ### Telemetry ingest route
 
-Access: OAuth session protected or `ROTARY_TOKEN` bearer when OAuth is enabled
+Access: Public
 
 ```text
 POST /environment/ingest
@@ -110,7 +109,7 @@ POST /environment/ingest
 
 ## 4. System settings, templates, printers, and print history
 
-Access: OAuth session protected
+Access: Public
 
 ```text
 GET /system/settings
@@ -135,7 +134,7 @@ POST /printnode/print-url
 
 ## 5. ParcelPerfect
 
-Access: OAuth session protected
+Access: Public
 
 ```text
 POST /pp
@@ -143,24 +142,9 @@ GET /pp/place
 POST /pp/matrix
 ```
 
-## 6. Customer accounts
+## 6. Shopify proxy and dispatch flows
 
-Access: Public
-
-```text
-POST /customer-accounts/register
-POST /customer-accounts/login
-POST /customer-accounts/logout
-GET /customer-accounts/me
-PUT /customer-accounts/me
-GET /customer-accounts/catalog
-GET /customer-accounts/orders
-POST /customer-accounts/orders
-```
-
-## 7. Shopify proxy and dispatch flows
-
-Access: OAuth session protected unless otherwise noted above
+Access: Public unless otherwise noted above
 
 ### Customers and account metadata
 
@@ -226,9 +210,9 @@ POST /shopify/inventory-levels/set
 POST /shopify/inventory-levels/transfer
 ```
 
-## 8. Unified operations: catalog, inventory, buy, make, and audit
+## 7. Unified operations: catalog, inventory, buy, make, and audit
 
-Access: OAuth session protected
+Access: Public
 
 ### Catalog
 
@@ -277,13 +261,13 @@ POST /make/manufacturing-orders/shortages/buy
 GET /audit/log
 ```
 
-## 9. Compatibility-only module routes
+## 8. Compatibility-only module routes
 
 > Compatibility only: the routes below are retained for older flows or older frontends. The preferred operator surfaces are `/stock`, `/buy`, `/make`, and `/admin`.
 
 ### Manufacturing compatibility routes
 
-Access: OAuth session protected
+Access: Public
 
 ```text
 GET /manufacturing/data
@@ -297,7 +281,7 @@ GET /manufacturing/dashboard
 
 ### Product-management compatibility routes
 
-Access: OAuth session protected
+Access: Public
 
 ```text
 GET /product-management/products
@@ -323,11 +307,11 @@ POST /product-management/backups/restore
 GET /product-management/audit-log
 ```
 
-## 10. Other operational modules
+## 9. Other operational modules
 
 ### Agent commissions
 
-Access: OAuth session protected
+Access: Public
 
 ```text
 GET /agent-commissions/rules
@@ -340,7 +324,7 @@ GET /agent-commissions/dashboard
 
 ### Order payments
 
-Access: OAuth session protected
+Access: Public
 
 ```text
 GET /order-payments/dashboard
@@ -350,7 +334,7 @@ POST /order-payments/allocate
 
 ### Alerts
 
-Access: OAuth session protected
+Access: Public
 
 ```text
 POST /alerts/book-truck
@@ -358,16 +342,24 @@ POST /alerts/book-truck
 
 ### Traceability
 
-Access: OAuth session protected
+Access: Public
 
 ```text
 GET /traceability/template.xlsx
 POST /traceability/report
 ```
 
-## 11. Root-level runtime interfaces
+## 10. Root-level runtime interfaces
 
 These routes are served outside `/api/v1`.
+
+### Customer portal
+
+Access: Customer portal protected
+
+```text
+GET /portal
+```
 
 ### WebSocket controller feed
 

@@ -5,9 +5,12 @@ import {
   createBuyPurchaseOrders,
   createCatalogBom,
   createCatalogMaterial,
+  createCatalogProduct,
+  createCatalogSupplier,
   createLinkedPurchaseOrdersFromShortages,
   createManufacturingOrder,
   createStocktake,
+  getInventoryBatchDetail,
   getInventoryOverview,
   getMakeRequirements,
   getMasterAuditLog,
@@ -20,12 +23,26 @@ import {
   listInventoryMovements,
   listInventoryStocktakes,
   listManufacturingOrders,
+  printManufacturingOrder,
+  previewBuyPurchaseOrders,
+  receiveBuyPurchaseOrder,
+  releaseManufacturingOrder,
   retryBuyPurchaseOrderDispatch,
   updateCatalogBom,
-  updateCatalogMaterial
+  updateCatalogMaterial,
+  updateCatalogProduct,
+  updateCatalogSupplier
 } from "../services/unifiedOperations.js";
 
 const router = express.Router();
+
+function truthyQueryFlag(value, defaultValue = true) {
+  if (value == null || String(value).trim() === "") return defaultValue;
+  const normalized = String(value).trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  return defaultValue;
+}
 
 function handleError(res, error, fallbackMessage) {
   return res.status(500).json({
@@ -36,15 +53,37 @@ function handleError(res, error, fallbackMessage) {
 
 router.get("/catalog/products", async (_req, res) => {
   try {
-    return res.json({ products: await listCatalogProducts() });
+    const live = truthyQueryFlag(_req.query?.live, true);
+    return res.json({ products: await listCatalogProducts({ live }) });
   } catch (error) {
     return handleError(res, error, "Could not load products");
   }
 });
 
+router.post("/catalog/products", async (req, res) => {
+  try {
+    const result = await createCatalogProduct(req.body || {});
+    if (result?.error) return res.status(400).json({ error: result.error });
+    return res.status(201).json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not create product");
+  }
+});
+
+router.put("/catalog/products/:id", async (req, res) => {
+  try {
+    const result = await updateCatalogProduct(req.params.id, req.body || {});
+    if (result?.error) return res.status(result.error === "Product not found" ? 404 : 400).json({ error: result.error });
+    return res.json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not update product");
+  }
+});
+
 router.get("/catalog/materials", async (_req, res) => {
   try {
-    return res.json({ materials: await listCatalogMaterials() });
+    const live = truthyQueryFlag(_req.query?.live, true);
+    return res.json({ materials: await listCatalogMaterials({ live }) });
   } catch (error) {
     return handleError(res, error, "Could not load materials");
   }
@@ -75,6 +114,26 @@ router.get("/catalog/suppliers", (_req, res) => {
     return res.json({ suppliers: listCatalogSuppliers() });
   } catch (error) {
     return handleError(res, error, "Could not load suppliers");
+  }
+});
+
+router.post("/catalog/suppliers", (req, res) => {
+  try {
+    const result = createCatalogSupplier(req.body || {});
+    if (result?.error) return res.status(400).json({ error: result.error });
+    return res.status(201).json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not create supplier");
+  }
+});
+
+router.put("/catalog/suppliers/:id", (req, res) => {
+  try {
+    const result = updateCatalogSupplier(req.params.id, req.body || {});
+    if (result?.error) return res.status(result.error === "Supplier not found" ? 404 : 400).json({ error: result.error });
+    return res.json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not update supplier");
   }
 });
 
@@ -124,6 +183,16 @@ router.get("/inventory/batches", (req, res) => {
   }
 });
 
+router.get("/inventory/batches/:id", (req, res) => {
+  try {
+    const batch = getInventoryBatchDetail(req.params.id);
+    if (!batch) return res.status(404).json({ error: "Batch not found" });
+    return res.json({ batch });
+  } catch (error) {
+    return handleError(res, error, "Could not load batch detail");
+  }
+});
+
 router.get("/inventory/movements", (req, res) => {
   try {
     return res.json({
@@ -164,6 +233,16 @@ router.get("/buy/purchase-orders", (_req, res) => {
   }
 });
 
+router.post("/buy/purchase-orders/preview", async (req, res) => {
+  try {
+    const result = await previewBuyPurchaseOrders(req.body || {});
+    if (!result?.ok && result?.errors?.length) return res.status(400).json(result);
+    return res.json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not preview purchase orders");
+  }
+});
+
 router.post("/buy/purchase-orders", async (req, res) => {
   try {
     const result = await createBuyPurchaseOrders(req.body || {});
@@ -171,6 +250,16 @@ router.post("/buy/purchase-orders", async (req, res) => {
     return res.status(201).json(result);
   } catch (error) {
     return handleError(res, error, "Could not create purchase orders");
+  }
+});
+
+router.post("/buy/purchase-orders/:id/receive", async (req, res) => {
+  try {
+    const result = await receiveBuyPurchaseOrder(req.params.id, req.body || {});
+    if (result?.error) return res.status(result.error === "Purchase order not found" ? 404 : 400).json(result);
+    return res.json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not receive purchase order");
   }
 });
 
@@ -211,6 +300,26 @@ router.post("/make/manufacturing-orders/:id/complete", async (req, res) => {
     return res.json(result);
   } catch (error) {
     return handleError(res, error, "Could not complete manufacturing order");
+  }
+});
+
+router.post("/make/manufacturing-orders/:id/release", async (req, res) => {
+  try {
+    const result = await releaseManufacturingOrder(req.params.id, req.body || {});
+    if (result?.error) return res.status(result.error === "Manufacturing order not found" ? 404 : 400).json(result);
+    return res.json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not release manufacturing order");
+  }
+});
+
+router.post("/make/manufacturing-orders/:id/print", async (req, res) => {
+  try {
+    const result = await printManufacturingOrder(req.params.id, req.body || {});
+    if (result?.error) return res.status(result.error === "Manufacturing order not found" ? 404 : 400).json(result);
+    return res.json(result);
+  } catch (error) {
+    return handleError(res, error, "Could not print manufacturing order");
   }
 });
 

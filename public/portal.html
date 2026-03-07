@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FLSS Portal</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --portal-bg-top: #f7efe0;
+      --portal-bg-bottom: #f2fbf5;
+      --portal-ink: #17212b;
+      --portal-muted: #526171;
+      --portal-accent: #b3541e;
+      --portal-accent-strong: #8f4215;
+      --portal-card: rgba(255, 255, 255, 0.84);
+      --portal-border: rgba(23, 33, 43, 0.08);
+      --portal-shadow: 0 30px 70px rgba(23, 33, 43, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--portal-ink);
+      background:
+        radial-gradient(circle at top left, rgba(179, 84, 30, 0.18), transparent 38%),
+        radial-gradient(circle at bottom right, rgba(41, 122, 76, 0.16), transparent 34%),
+        linear-gradient(180deg, var(--portal-bg-top) 0%, var(--portal-bg-bottom) 100%);
+    }
+
+    main {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+    }
+
+    .portal-shell {
+      width: min(720px, 100%);
+      background: var(--portal-card);
+      border: 1px solid var(--portal-border);
+      border-radius: 28px;
+      box-shadow: var(--portal-shadow);
+      backdrop-filter: blur(14px);
+      overflow: hidden;
+    }
+
+    .portal-header {
+      padding: 2rem 2rem 1rem;
+      border-bottom: 1px solid var(--portal-border);
+    }
+
+    .portal-kicker {
+      margin: 0 0 0.5rem;
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--portal-accent);
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      line-height: 0.98;
+      font-weight: 600;
+    }
+
+    .portal-body {
+      padding: 1.5rem 2rem 2rem;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .portal-copy {
+      margin: 0;
+      color: var(--portal-muted);
+      font-family: "Segoe UI", Arial, sans-serif;
+      line-height: 1.6;
+      font-size: 1rem;
+    }
+
+    .portal-card {
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(23, 33, 43, 0.09);
+      border-radius: 20px;
+      padding: 1.15rem 1.2rem;
+    }
+
+    .portal-card h2 {
+      margin: 0 0 0.85rem;
+      font-size: 1rem;
+      font-family: "Segoe UI", Arial, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .portal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.9rem;
+    }
+
+    .portal-fieldLabel {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: var(--portal-muted);
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .portal-fieldValue {
+      font-size: 1.08rem;
+      word-break: break-word;
+    }
+
+    .portal-actions {
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .portal-button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      background: var(--portal-accent);
+      color: #fff8ef;
+      padding: 0.82rem 1.2rem;
+      font: 700 0.95rem/1 "Segoe UI", Arial, sans-serif;
+      cursor: pointer;
+      transition: background 120ms ease, transform 120ms ease;
+    }
+
+    .portal-button:hover {
+      background: var(--portal-accent-strong);
+      transform: translateY(-1px);
+    }
+
+    .portal-status {
+      min-height: 1.25rem;
+      margin: 0;
+      color: var(--portal-muted);
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 640px) {
+      main {
+        padding: 1rem;
+      }
+
+      .portal-header,
+      .portal-body {
+        padding-inline: 1.2rem;
+      }
+
+      .portal-header {
+        padding-top: 1.4rem;
+      }
+
+      .portal-body {
+        padding-bottom: 1.4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="portal-shell" aria-labelledby="portalTitle">
+      <header class="portal-header">
+        <p class="portal-kicker">FLSS Customer Portal</p>
+        <h1 id="portalTitle">Customer account is connected.</h1>
+      </header>
+      <div class="portal-body">
+        <p class="portal-copy">
+          This portal is the first Shopify Customer Account integration surface for FLSS. It currently exposes verified identity only.
+        </p>
+        <section class="portal-card" aria-labelledby="identityTitle">
+          <h2 id="identityTitle">Customer Identity</h2>
+          <div class="portal-grid">
+            <div>
+              <span class="portal-fieldLabel">Display name</span>
+              <span id="portalDisplayName" class="portal-fieldValue">Loading...</span>
+            </div>
+            <div>
+              <span class="portal-fieldLabel">Email</span>
+              <span id="portalEmail" class="portal-fieldValue">Loading...</span>
+            </div>
+            <div>
+              <span class="portal-fieldLabel">Username</span>
+              <span id="portalUsername" class="portal-fieldValue">Loading...</span>
+            </div>
+            <div>
+              <span class="portal-fieldLabel">Provider</span>
+              <span id="portalProvider" class="portal-fieldValue">Loading...</span>
+            </div>
+          </div>
+        </section>
+        <div class="portal-actions">
+          <button id="portalSignOut" class="portal-button" type="button">Sign out</button>
+          <p id="portalStatus" class="portal-status" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="/portal.js" defer></script>
+</body>
+</html>
