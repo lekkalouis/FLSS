@@ -10,8 +10,7 @@
     "test:watch": "node --test --watch",
     "po:catalog:generate": "node scripts/generate-po-catalog.mjs",
     "traceability:template:generate": "node scripts/generate-traceability-template.mjs",
-    "changelog:build": "node scripts/update-changelog.mjs",
-    "build": "npm run changelog:build"
+    "build": "npm run po:catalog:generate && npm run traceability:template:generate"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",

@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 import { createApp } from '../src/app.js';
 import { getDb, runMigrations } from '../src/db/sqlite.js';
+import { sendNotificationEmail, buildNotificationEmail } from '../src/services/notificationRuntime.js';
+import { NOTIFICATION_EVENT_KEYS } from '../src/services/notificationTemplateRegistry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,6 +71,7 @@ test('GET /api/v1/config returns expected config keys', async () => {
 
 test('system settings API loads defaults and persists updates', async () => {
   runMigrations();
+  getDb().prepare('DELETE FROM system_settings').run();
   const { server, baseUrl } = await startServer();
   try {
     const initialResponse = await fetch(`${baseUrl}/api/v1/system/settings`);
@@ -77,6 +80,11 @@ test('system settings API loads defaults and persists updates', async () => {
     assert.equal(initialBody.ok, true);
     assert.equal(typeof initialBody.settings.sticker.shelfLifeMonths, 'number');
     assert.equal(typeof initialBody.settings.printHistory.retentionDays, 'number');
+    assert.equal(initialBody.settings.controller.showOnScreenButtons, true);
+    assert.equal(initialBody.settings.controller.requireConnectedRemote, true);
+    assert.equal(initialBody.settings.controller.highVisibilityMode, true);
+    assert.equal(initialBody.settings.notifications.events.pickupReady.enabled, true);
+    assert.equal(initialBody.settings.notifications.events.truckCollection.useCustomerEmail, false);
 
     const updateResponse = await fetch(`${baseUrl}/api/v1/system/settings`, {
       method: 'PUT',
@@ -90,6 +98,24 @@ test('system settings API loads defaults and persists updates', async () => {
         },
         printHistory: {
           retentionDays: 180
+        },
+        controller: {
+          showOnScreenButtons: false,
+          requireConnectedRemote: false
+        },
+        notifications: {
+          senderOverride: 'dispatch@example.com',
+          fallbackRecipient: 'backup@example.com',
+          events: {
+            pickupReady: {
+              recipients: 'pack@example.com, floor@example.com',
+              fallbackRecipient: 'pickup-fallback@example.com'
+            },
+            truckCollection: {
+              enabled: false,
+              recipients: ['fleet@example.com']
+            }
+          }
         }
       })
     });
@@ -100,6 +126,20 @@ test('system settings API loads defaults and persists updates', async () => {
     assert.equal(updateBody.settings.sticker.defaultButtonQty, 64);
     assert.equal(updateBody.settings.sticker.stickerPrinterId, 4567);
     assert.equal(updateBody.settings.printHistory.retentionDays, 180);
+    assert.equal(updateBody.settings.controller.showOnScreenButtons, false);
+    assert.equal(updateBody.settings.controller.requireConnectedRemote, false);
+    assert.equal(updateBody.settings.controller.highVisibilityMode, true);
+    assert.equal(updateBody.settings.notifications.senderOverride, 'dispatch@example.com');
+    assert.equal(updateBody.settings.notifications.fallbackRecipient, 'backup@example.com');
+    assert.deepEqual(updateBody.settings.notifications.events.pickupReady.recipients, [
+      'pack@example.com',
+      'floor@example.com'
+    ]);
+    assert.equal(updateBody.settings.notifications.events.pickupReady.fallbackRecipient, 'pickup-fallback@example.com');
+    assert.equal(updateBody.settings.notifications.events.pickupReady.useCustomerEmail, true);
+    assert.equal(updateBody.settings.notifications.events.truckCollection.enabled, false);
+    assert.deepEqual(updateBody.settings.notifications.events.truckCollection.recipients, ['fleet@example.com']);
+    assert.equal(updateBody.settings.notifications.events.truckCollection.useCustomerEmail, false);
 
     const verifyResponse = await fetch(`${baseUrl}/api/v1/system/settings`);
     assert.equal(verifyResponse.status, 200);
@@ -107,6 +147,13 @@ test('system settings API loads defaults and persists updates', async () => {
     assert.equal(verifyBody.ok, true);
     assert.equal(verifyBody.settings.sticker.stickerPrinterId, 4567);
     assert.equal(verifyBody.settings.printHistory.retentionDays, 180);
+    assert.equal(verifyBody.settings.controller.showOnScreenButtons, false);
+    assert.equal(verifyBody.settings.controller.highVisibilityMode, true);
+    assert.equal(verifyBody.settings.notifications.senderOverride, 'dispatch@example.com');
+    assert.deepEqual(verifyBody.settings.notifications.events.pickupReady.recipients, [
+      'pack@example.com',
+      'floor@example.com'
+    ]);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -364,6 +411,102 @@ test('notification template endpoints provide defaults and CRUD updates', async 
   }
 });
 
+test('notification runtime resolves pickup email sender, recipients, and template tokens from settings', async () => {
+  const email = await buildNotificationEmail({
+    eventKey: NOTIFICATION_EVENT_KEYS.PICKUP_READY,
+    fallbackFrom: 'default@example.com',
+    settings: {
+      notifications: {
+        senderOverride: 'dispatch@example.com',
+        fallbackRecipient: 'fallback@example.com',
+        events: {
+          pickupReady: {
+            enabled: true,
+            templateId: 'flss-pickup-ready-email',
+            useCustomerEmail: true,
+            recipients: ['packing@example.com']
+          }
+        }
+      }
+    },
+    context: {
+      shop: { name: 'Flippen Lekka Spices' },
+      customer: { name: 'Ada Lovelace', email: 'customer@example.com' },
+      order: { name: '#1001', email: 'customer@example.com' },
+      pickup: {
+        barcode_value: 'FLSS-1001',
+        barcode_image_url: 'https://example.com/barcode.png',
+        pin: '123'
+      },
+      metrics: {
+        parcel_count: 3,
+        weight_kg: '9.50'
+      }
+    }
+  });
+
+  assert.equal(email.skipped, false);
+  assert.equal(email.from, 'dispatch@example.com');
+  assert.deepEqual(email.to, ['customer@example.com', 'packing@example.com']);
+  assert.equal(email.template.id, 'flss-pickup-ready-email');
+  assert.match(email.subject, /#1001/);
+  assert.match(email.text, /Ada Lovelace/);
+  assert.match(email.text, /FLSS-1001/);
+});
+
+test('notification runtime uses fallback recipients and sends truck collection emails through the provided transport', async () => {
+  let sentPayload = null;
+  const transport = {
+    sendMail: async (payload) => {
+      sentPayload = payload;
+      return { messageId: 'message-001' };
+    }
+  };
+
+  const result = await sendNotificationEmail({
+    transport,
+    eventKey: NOTIFICATION_EVENT_KEYS.TRUCK_COLLECTION,
+    fallbackFrom: 'alerts@example.com',
+    settings: {
+      notifications: {
+        fallbackRecipient: 'ops@example.com',
+        events: {
+          truckCollection: {
+            enabled: true,
+            templateId: 'flss-truck-collection-email',
+            useCustomerEmail: false,
+            recipients: [],
+            fallbackRecipient: 'fleet@example.com'
+          }
+        }
+      }
+    },
+    context: {
+      shop: { name: 'Flippen Lekka Scan Station' },
+      logistics: {
+        provider_name: 'SWE Couriers',
+        collection_date: '06 Mar 2026',
+        reason: 'overflow'
+      },
+      metrics: {
+        parcel_count: 48,
+        booked_parcel_count: 12
+      }
+    }
+  });
+
+  assert.equal(result.skipped, false);
+  assert.equal(result.info.messageId, 'message-001');
+  assert.equal(result.from, 'alerts@example.com');
+  assert.deepEqual(result.to, ['fleet@example.com', 'ops@example.com']);
+  assert.equal(result.template.id, 'flss-truck-collection-email');
+  assert.ok(sentPayload);
+  assert.equal(sentPayload.from, 'alerts@example.com');
+  assert.equal(sentPayload.to, 'fleet@example.com, ops@example.com');
+  assert.match(sentPayload.subject, /48 parcels/);
+  assert.match(sentPayload.text, /SWE Couriers/);
+});
+
 test('dispatch controller endpoints support line-item traversal and action requests', async () => {
   const { server, baseUrl } = await startServer();
   try {
@@ -383,7 +526,8 @@ test('dispatch controller endpoints support line-item traversal and action reque
     const syncBody = await syncResponse.json();
     assert.equal(syncBody.ok, true);
     assert.equal(syncBody.selectedOrderId, '1001');
-    assert.equal(syncBody.selectedLineItemKey, 'line-1a');
+    assert.equal(syncBody.selectedLineItemKey, null);
+    assert.equal(syncBody.selectionMode, 'order');
 
     const nextOneResponse = await fetch(`${baseUrl}/api/v1/dispatch/next`, {
       method: 'POST',
@@ -393,21 +537,9 @@ test('dispatch controller endpoints support line-item traversal and action reque
     assert.equal(nextOneResponse.status, 200);
     const nextOneBody = await nextOneResponse.json();
     assert.equal(nextOneBody.ok, true);
-    assert.equal(nextOneBody.selectedOrderId, '1001');
-    assert.equal(nextOneBody.selectedLineItemKey, 'line-1b');
-
-    await new Promise((resolve) => setTimeout(resolve, 45));
-
-    const nextTwoResponse = await fetch(`${baseUrl}/api/v1/dispatch/next`, {
-      method: 'POST',
-      headers: withRotaryAuth({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ source: 'rotary_pi' })
-    });
-    assert.equal(nextTwoResponse.status, 200);
-    const nextTwoBody = await nextTwoResponse.json();
-    assert.equal(nextTwoBody.ok, true);
-    assert.equal(nextTwoBody.selectedOrderId, '1002');
-    assert.equal(nextTwoBody.selectedLineItemKey, 'line-2a');
+    assert.equal(nextOneBody.selectedOrderId, '1002');
+    assert.equal(nextOneBody.selectedLineItemKey, null);
+    assert.equal(nextOneBody.selectionMode, 'order');
 
     await new Promise((resolve) => setTimeout(resolve, 45));
 
@@ -420,20 +552,78 @@ test('dispatch controller endpoints support line-item traversal and action reque
     const prevBody = await prevResponse.json();
     assert.equal(prevBody.ok, true);
     assert.equal(prevBody.selectedOrderId, '1001');
-    assert.equal(prevBody.selectedLineItemKey, 'line-1b');
+    assert.equal(prevBody.selectedLineItemKey, null);
+    assert.equal(prevBody.selectionMode, 'order');
 
     await new Promise((resolve) => setTimeout(resolve, 45));
 
-    const confirmResponse = await fetch(`${baseUrl}/api/v1/dispatch/confirm`, {
+    const confirmEnterLineModeResponse = await fetch(`${baseUrl}/api/v1/dispatch/confirm`, {
       method: 'POST',
       headers: withRotaryAuth({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ source: 'rotary_pi' })
     });
-    assert.equal(confirmResponse.status, 200);
-    const confirmBody = await confirmResponse.json();
-    assert.equal(confirmBody.ok, true);
-    assert.equal(confirmBody.selectedOrderId, '1001');
-    assert.equal(confirmBody.selectedLineItemKey, 'line-1b');
+    assert.equal(confirmEnterLineModeResponse.status, 200);
+    const confirmEnterLineModeBody = await confirmEnterLineModeResponse.json();
+    assert.equal(confirmEnterLineModeBody.ok, true);
+    assert.equal(confirmEnterLineModeBody.selectedOrderId, '1001');
+    assert.equal(confirmEnterLineModeBody.selectedLineItemKey, 'line-1a');
+    assert.equal(confirmEnterLineModeBody.selectionMode, 'line');
+
+    await new Promise((resolve) => setTimeout(resolve, 45));
+
+    const nextInLineModeResponse = await fetch(`${baseUrl}/api/v1/dispatch/next`, {
+      method: 'POST',
+      headers: withRotaryAuth({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(nextInLineModeResponse.status, 200);
+    const nextInLineModeBody = await nextInLineModeResponse.json();
+    assert.equal(nextInLineModeBody.ok, true);
+    assert.equal(nextInLineModeBody.selectedOrderId, '1001');
+    assert.equal(nextInLineModeBody.selectedLineItemKey, 'line-1b');
+    assert.equal(nextInLineModeBody.selectionMode, 'line');
+
+    await new Promise((resolve) => setTimeout(resolve, 45));
+
+    const boundedNextResponse = await fetch(`${baseUrl}/api/v1/dispatch/next`, {
+      method: 'POST',
+      headers: withRotaryAuth({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(boundedNextResponse.status, 200);
+    const boundedNextBody = await boundedNextResponse.json();
+    assert.equal(boundedNextBody.ok, true);
+    assert.equal(boundedNextBody.selectedOrderId, '1001');
+    assert.equal(boundedNextBody.selectedLineItemKey, 'line-1b');
+    assert.equal(boundedNextBody.selectionMode, 'line');
+
+    await new Promise((resolve) => setTimeout(resolve, 45));
+
+    const confirmPackedResponse = await fetch(`${baseUrl}/api/v1/dispatch/confirm`, {
+      method: 'POST',
+      headers: withRotaryAuth({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(confirmPackedResponse.status, 200);
+    const confirmPackedBody = await confirmPackedResponse.json();
+    assert.equal(confirmPackedBody.ok, true);
+    assert.equal(confirmPackedBody.selectedOrderId, '1001');
+    assert.equal(confirmPackedBody.selectedLineItemKey, 'line-1b');
+    assert.equal(confirmPackedBody.selectionMode, 'line');
+
+    await new Promise((resolve) => setTimeout(resolve, 45));
+
+    const backToOrderModeResponse = await fetch(`${baseUrl}/api/v1/dispatch/back`, {
+      method: 'POST',
+      headers: withRotaryAuth({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(backToOrderModeResponse.status, 200);
+    const backToOrderModeBody = await backToOrderModeResponse.json();
+    assert.equal(backToOrderModeBody.ok, true);
+    assert.equal(backToOrderModeBody.selectedOrderId, '1001');
+    assert.equal(backToOrderModeBody.selectedLineItemKey, null);
+    assert.equal(backToOrderModeBody.selectionMode, 'order');
 
     await new Promise((resolve) => setTimeout(resolve, 45));
 
@@ -465,7 +655,8 @@ test('dispatch controller endpoints support line-item traversal and action reque
     assert.equal(stateResponse.status, 200);
     const stateBody = await stateResponse.json();
     assert.equal(stateBody.selectedOrderId, '1001');
-    assert.equal(stateBody.selectedLineItemKey, 'line-1b');
+    assert.equal(stateBody.selectedLineItemKey, null);
+    assert.equal(stateBody.selectionMode, 'order');
     assert.equal(stateBody.lastConfirmedOrderId, '1001');
     assert.equal(stateBody.lastConfirmedLineItemKey, 'line-1b');
     assert.equal(stateBody.lastPrintRequestedOrderId, '1001');
@@ -567,6 +758,7 @@ let dispatchSelectedOrders = new Set();
 let dispatchRotarySelectedKey = '';
 let dispatchRotaryFocusIndex = -1;
 let dispatchRotaryFocusKey = '';
+let dispatchRotaryInputEnabled = true;
 let dispatchLastHandledConfirmAt = '';
 let dispatchLastHandledPrintRequestAt = '';
 let dispatchLastHandledFulfillRequestAt = '';
@@ -577,6 +769,7 @@ let dispatchOrdersLatest = [];
 let refreshDispatchViews = () => {};
 let renderEnvironmentHeaderWidget = () => {};
 let renderRemoteStatusBadge = () => {};
+let renderDispatchControllerOverlay = () => {};
 let syncDispatchSelectionUI = () => {};
 let updateDashboardKpis = () => {};
 let markDispatchLineItemPacked = () => {};
@@ -595,6 +788,7 @@ ${extractFunctionSource(appJs, 'getDispatchRotaryRows')}
 ${extractFunctionSource(appJs, 'syncDispatchRotarySelectionUI')}
 ${extractFunctionSource(appJs, 'syncDispatchRotaryFocus')}
 ${extractFunctionSource(appJs, 'isDispatchControllerConnected')}
+${extractFunctionSource(appJs, 'getResolvedDispatchControllerSelection')}
 ${extractFunctionSource(appJs, 'applyDispatchControllerState')}
 ${extractFunctionSource(appJs, 'applyIncomingDispatchControllerState')}
 
@@ -624,6 +818,7 @@ return ({ rows, state, selectedOrders, rotarySelection, focusIndex = -1, focusKe
   refreshDispatchViews = (orderId) => refreshDispatchViewsSpy.push(orderId);
   renderEnvironmentHeaderWidget = () => {};
   renderRemoteStatusBadge = () => {};
+  renderDispatchControllerOverlay = () => {};
   syncDispatchSelectionUI = () => {};
   updateDashboardKpis = () => {};
   markDispatchLineItemPacked = () => {};
@@ -666,14 +861,22 @@ return ({ rows, state, selectedOrders, rotarySelection, focusIndex = -1, focusKe
     refreshDispatchViewsSpy
   });
 
-  runtime.applyIncomingDispatchControllerState({ selectedOrderId: orderId, selectedLineItemKey: lineItemA });
+  runtime.applyIncomingDispatchControllerState({
+    selectedOrderId: orderId,
+    selectedLineItemKey: lineItemA,
+    selectionMode: 'line'
+  });
   const initialSnapshot = runtime.getSnapshot();
   assert.equal(initialSnapshot.dispatchRotarySelectedKey, `${orderId}:${lineItemA}`);
   assert.equal(initialSnapshot.selectedRows.length, 1);
   assert.equal(initialSnapshot.selectedRows[0].dataset.itemKey, lineItemA);
 
   runtime.setButtonDisabled(1, true);
-  runtime.applyIncomingDispatchControllerState({ selectedOrderId: orderId, selectedLineItemKey: lineItemB });
+  runtime.applyIncomingDispatchControllerState({
+    selectedOrderId: orderId,
+    selectedLineItemKey: lineItemB,
+    selectionMode: 'line'
+  });
   const movedSnapshot = runtime.getSnapshot();
 
   assert.equal(movedSnapshot.dispatchRotarySelectedKey, `${orderId}:${lineItemB}`);
@@ -818,6 +1021,25 @@ return {
   assert.equal(unresolved.selectedOrderChanged, false);
   assert.deepEqual(runtime.snapshot().selected, ['1001']);
   assert.equal(runtime.snapshot().rotaryKey, '');
+});
+
+test('dispatch line item clicks require order selection before packed state toggles', async () => {
+  const appJs = await fs.readFile(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  assert.match(
+    appJs,
+    /const orderAlreadySelected = dispatchSelectedOrders\.size === 1 && dispatchSelectedOrders\.has\(orderNo\);[\s\S]+if \(!orderAlreadySelected\) {[\s\S]+dispatchSelectedOrders\.clear\(\);[\s\S]+syncDispatchSelectionUI\(\);[\s\S]+return;[\s\S]+}\s+toggleDispatchLineItemPacked\(orderNo, itemKey\);/
+  );
+});
+
+test('dispatch controller overlay only renders in the active orders view and respects connection gating', async () => {
+  const appJs = await fs.readFile(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  assert.match(
+    appJs,
+    /const shouldShow = Boolean\(controllerSettings\.showOnScreenButtons !== false\) &&[\s\S]+activeViewId === "viewScan" &&[\s\S]+controllerSettings\.requireConnectedRemote === false \|\| controllerConnected/
+  );
+  assert.match(appJs, /dispatch-controller-high-visibility/);
 });
 
 test('environment header widget preserves last numeric reading across null updates', async () => {

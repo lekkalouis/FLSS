@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -292,55 +292,124 @@
     flex-wrap:wrap;
     margin-left:auto;
   }
-  .flAdminShell,
-  .flChangelogShell{
-    background:var(--panel);
+  .flAdminShell{
+    background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,247,250,.98));
     border:1px solid var(--panel-strong);
     border-radius:1rem;
     box-shadow:var(--shadow-soft);
     padding:1rem;
   }
-  .flAdminGrid{
+  .flAdminIntro{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:1rem;
+    margin-bottom:1rem;
+  }
+  .flAdminIntro h2{
+    margin:.18rem 0 .3rem;
+    font-size:1.3rem;
+  }
+  .flAdminIntro p,
+  .flAdminHint{
+    margin:0;
+    color:var(--text-muted);
+  }
+  .flAdminEyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:.3rem;
+    border-radius:999px;
+    border:1px solid rgba(15,118,110,.18);
+    background:rgba(15,118,110,.08);
+    color:#0f766e;
+    font-size:.72rem;
+    font-weight:800;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:.24rem .55rem;
+  }
+  .flAdminLayout{
     display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:.75rem;
-    margin-top:1rem;
+    grid-template-columns:minmax(240px, 290px) minmax(0, 1fr);
+    gap:1rem;
+    min-height:68vh;
   }
-  .flAdminCard{
+  .flAdminLauncher{
+    display:flex;
+    flex-direction:column;
+    gap:.55rem;
+    padding:.4rem;
     border:1px solid var(--panel-strong);
-    border-radius:.75rem;
-    padding:.8rem;
-    background:var(--panel-muted);
+    border-radius:.9rem;
+    background:rgba(248,250,252,.88);
   }
-  .flAdminCard h3{
-    margin:0 0 .35rem;
-    font-size:1rem;
-  }
-  .flAdminCard p{
-    margin:.25rem 0 .7rem;
-    color:var(--text-muted);
-    font-size:.86rem;
-  }
-  .flAdminCard a,
-  .flAdminCard button{
-    border:1px solid rgba(202,138,4,.2);
+  .flAdminLauncherBtn{
+    border:1px solid rgba(148,163,184,.28);
+    border-radius:.85rem;
     background:#fff;
-    border-radius:.6rem;
-    color:#1f2a44;
-    font-size:.82rem;
-    font-weight:700;
-    padding:.42rem .62rem;
-    text-decoration:none;
+    color:var(--text);
+    padding:.75rem .82rem;
+    text-align:left;
     cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    gap:.24rem;
+    transition:border-color .12s ease, transform .12s ease, box-shadow .12s ease;
   }
-  .flAdminCard button[disabled]{
-    opacity:.6;
-    cursor:not-allowed;
+  .flAdminLauncherBtn strong{
+    font-size:.9rem;
   }
-  .flChangelogList{
-    margin:.85rem 0 0;
-    padding-left:1rem;
+  .flAdminLauncherBtn span{
+    font-size:.74rem;
     color:var(--text-muted);
+    line-height:1.4;
+  }
+  .flAdminLauncherBtn.is-active,
+  .flAdminLauncherBtn:hover{
+    border-color:rgba(15,118,110,.4);
+    box-shadow:0 12px 28px rgba(15,118,110,.14);
+    transform:translateY(-1px);
+  }
+  .flAdminWorkspace{
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    border:1px solid var(--panel-strong);
+    border-radius:1rem;
+    background:#fff;
+    overflow:hidden;
+  }
+  .flAdminWorkspaceHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:1rem;
+    padding:.82rem .95rem;
+    border-bottom:1px solid rgba(148,163,184,.18);
+    background:linear-gradient(180deg, rgba(248,250,252,.96), rgba(255,255,255,.96));
+  }
+  .flAdminWorkspaceHeader strong{
+    display:block;
+    font-size:.94rem;
+    color:var(--text);
+  }
+  .flAdminWorkspaceHeader span{
+    font-size:.74rem;
+    color:var(--text-muted);
+  }
+  .flAdminWorkspaceHeader a{
+    color:#0f766e;
+    text-decoration:none;
+    font-size:.78rem;
+    font-weight:700;
+  }
+  .flAdminWorkspaceFrame{
+    width:100%;
+    flex:1 1 auto;
+    min-height:0;
+    border:0;
+    background:#fff;
   }
   @media (max-width:800px){
     .flMain{ padding:1rem; }
@@ -349,6 +418,13 @@
       margin-top:.5rem;
     }
     .dispatchSelectionPanel{ width:100%; }
+    .flAdminIntro{
+      flex-direction:column;
+    }
+    .flAdminLayout{
+      grid-template-columns:1fr;
+      min-height:auto;
+    }
   }
   @media (max-width:1200px){
     .flSideHeader{
@@ -1051,7 +1127,7 @@
   .summaryCard{ background:var(--panel); border:1px solid var(--panel-strong); border-radius:var(--radius-md); padding:.75rem; margin-bottom:.8rem; font-family:var(--mono); font-size:.7rem; line-height:1.4; color:var(--text); white-space:pre-wrap; word-break:break-word; max-height:240px; overflow:auto; }
   .waybillSheetPreview{ background:#fff; color:#000; border-radius:var(--radius-md); padding:.75rem; font-family:var(--mono); font-size:.72rem; line-height:1.4; min-height:180px; overflow:auto; }
 
-  /* ===== PRINT LOCK (100×150mm exact) ===== */
+  /* ===== PRINT LOCK (100x150mm exact) ===== */
   @media print{
     @page{ size:100mm 150mm; margin:0; }
     html,body{ margin:0!important; padding:0!important; }
@@ -1667,6 +1743,20 @@ body.dispatch-sidebar-open{
   border-color: rgba(202,138,4,.6);
   box-shadow: 0 0 0 1px rgba(202,138,4,.25), 0 6px 14px rgba(202,138,4,.18);
 }
+.dispatchCard.is-controller-selected-order-mode{
+  border-color:rgba(15,118,110,.52);
+  box-shadow:0 0 0 3px rgba(15,118,110,.2), 0 16px 34px rgba(15,118,110,.18);
+}
+.dispatchCard.is-controller-selected-line-mode{
+  border-color:rgba(180,83,9,.62);
+  box-shadow:0 0 0 3px rgba(217,119,6,.24), 0 16px 34px rgba(217,119,6,.18);
+}
+body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-order-mode{
+  box-shadow:0 0 0 4px rgba(15,118,110,.28), 0 20px 44px rgba(15,118,110,.24);
+}
+body.dispatch-controller-high-visibility .dispatchCard.is-controller-selected-line-mode{
+  box-shadow:0 0 0 4px rgba(217,119,6,.3), 0 20px 44px rgba(217,119,6,.24);
+}
 
 .dispatchCard:hover {
   transform: translateY(-1px);
@@ -1822,8 +1912,14 @@ body.dispatch-sidebar-open{
     background:rgba(226,232,240,.45);
   }
   .dispatchLineItem.is-rotary-selected{
-    background:linear-gradient(180deg, rgba(219,234,254,.75), rgba(239,246,255,.92));
-    box-shadow:inset 0 0 0 1px rgba(202,138,4,.35);
+    background:linear-gradient(180deg, rgba(254,243,199,.9), rgba(255,251,235,.96));
+    box-shadow:inset 0 0 0 2px rgba(180,83,9,.45), 0 0 0 1px rgba(255,255,255,.7);
+    font-size:.82rem;
+    font-weight:700;
+  }
+  body.dispatch-controller-high-visibility .dispatchLineItem.is-rotary-selected{
+    box-shadow:inset 0 0 0 3px rgba(180,83,9,.55), 0 0 0 2px rgba(255,255,255,.86);
+    font-size:.86rem;
   }
   .dispatchLineText{
     display:inline-flex;
@@ -4562,25 +4658,37 @@ body.dispatch-sidebar-open{
   :root{
     --dispatch-bottom-dock-height:clamp(180px, 28vh, 420px);
   }
+  .dispatchBoardLayout{
+    grid-template-rows:minmax(0, 1fr) auto;
+    align-items:stretch;
+  }
+  .dispatchBoardMain{
+    min-height:0;
+  }
   .dispatchSelectionSidebar{
-    left:0;
-    right:0;
+    position:relative;
+    left:auto;
+    right:auto;
     top:auto;
-    bottom:0;
+    bottom:auto;
     width:100%;
     height:var(--dispatch-bottom-dock-height);
     max-height:calc(100dvh - 92px);
     min-height:140px;
+    z-index:auto;
     border-left:none;
     border-top:1px solid rgba(148,163,184,.34);
     box-shadow:0 -10px 26px rgba(15,23,42,.14);
-    transform:translateY(100%);
+    transform:none;
     padding:.5rem .65rem .58rem;
     backdrop-filter:blur(4px);
-    transition:transform .24s ease;
+    transition:none;
   }
   .dispatchSelectionSidebar.is-open{
-    transform:translateY(0);
+    transform:none;
+  }
+  .dispatchSelectionSidebar.is-closed{
+    display:none;
   }
   .dispatchSelectionSidebarToggle{
     display:none;
@@ -4660,10 +4768,16 @@ body.dispatch-sidebar-open{
     gap:.34rem;
     margin-top:.12rem;
   }
+  body.dispatch-sidebar-open{
+    --dispatch-lane-shipping-min:620px;
+    --dispatch-lane-delivery-min:360px;
+    --dispatch-lane-pickup-min:220px;
+    --dispatch-lane-pickup-max:300px;
+  }
   body.dispatch-sidebar-open #dispatchBoardContainer{
     margin-right:0 !important;
-    margin-bottom:calc(var(--dispatch-bottom-dock-height) + .65rem);
-    transition:margin-bottom .24s ease;
+    margin-bottom:0 !important;
+    transition:none;
   }
   @media (max-width:980px){
     .dispatchSelectionSidebar{
@@ -4676,7 +4790,7 @@ body.dispatch-sidebar-open{
       grid-template-rows:minmax(0,1fr) minmax(0,1fr);
     }
     body.dispatch-sidebar-open #dispatchBoardContainer{
-      margin-bottom:calc(var(--dispatch-bottom-dock-height) + .6rem);
+      margin-bottom:0 !important;
     }
   }
 
@@ -4773,32 +4887,70 @@ body.dispatch-sidebar-open{
     background:#f8fafc;
     flex-wrap:wrap;
   }
-  .settingsTabBtn{
-    border:1px solid rgba(148,163,184,.4);
-    background:#fff;
-    color:#334155;
-    border-radius:.48rem;
-    padding:.24rem .52rem;
-    font-size:.72rem;
-    font-weight:700;
-    cursor:pointer;
-  }
-  .settingsTabBtn.is-active{
-    border-color:rgba(16,185,129,.5);
-    background:rgba(16,185,129,.1);
-    color:#065f46;
-  }
   .settingsModalBody{
     flex:1 1 auto;
     min-height:0;
+    overflow:hidden;
+    padding:0;
+    display:grid;
+    grid-template-columns:minmax(220px, 250px) minmax(0, 1fr);
+  }
+  .settingsSidebar{
+    display:flex;
+    flex-direction:column;
+    gap:.32rem;
+    padding:.8rem;
+    border-right:1px solid rgba(148,163,184,.2);
+    background:linear-gradient(180deg, rgba(247,250,252,.96), rgba(255,255,255,.96));
+  }
+  .settingsTabBtn{
+    border:1px solid rgba(148,163,184,.28);
+    background:#fff;
+    color:#334155;
+    border-radius:.75rem;
+    padding:.64rem .78rem;
+    font-size:.78rem;
+    font-weight:800;
+    cursor:pointer;
+    text-align:left;
+    transition:border-color .12s ease, transform .12s ease, box-shadow .12s ease;
+  }
+  .settingsTabBtn.is-active{
+    border-color:rgba(15,118,110,.42);
+    background:rgba(15,118,110,.08);
+    color:#0f766e;
+    box-shadow:0 10px 24px rgba(15,118,110,.12);
+  }
+  .settingsContent{
+    min-height:0;
     overflow:auto;
-    padding:.68rem;
+    padding:.88rem .95rem;
   }
   .settingsTabPane{
     display:none;
   }
   .settingsTabPane.is-active{
     display:block;
+  }
+  .settingsPaneHeader{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:1rem;
+    margin-bottom:.85rem;
+  }
+  .settingsPaneHeader h4,
+  .settingsNotificationSectionHeader h5{
+    margin:0 0 .18rem;
+    font-size:1rem;
+    color:#0f172a;
+  }
+  .settingsPaneHeader p,
+  .settingsNotificationSectionHeader p{
+    margin:0;
+    color:#64748b;
+    font-size:.78rem;
+    line-height:1.45;
   }
   .settingsGrid{
     display:grid;
@@ -4814,25 +4966,89 @@ body.dispatch-sidebar-open{
     color:#475569;
   }
   .settingsGrid input,
-  .settingsGrid select{
+  .settingsGrid select,
+  .settingsTextarea{
     border:1px solid rgba(148,163,184,.45);
-    border-radius:.45rem;
-    padding:.32rem .44rem;
-    font-size:.74rem;
+    border-radius:.7rem;
+    padding:.56rem .68rem;
+    font-size:.8rem;
     color:#0f172a;
     background:#fff;
   }
+  .settingsFieldSpan{
+    grid-column:1 / -1;
+  }
+  .settingsTextarea{
+    resize:vertical;
+    min-height:7.4rem;
+    font-family:var(--mono);
+  }
   .settingsActions{
-    margin-top:.62rem;
     display:flex;
     align-items:center;
     gap:.4rem;
     flex-wrap:wrap;
   }
+  .settingsToggleGrid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:.7rem;
+  }
+  .settingsToggleGrid--compact{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    margin-bottom:.7rem;
+  }
+  .settingsToggleCard{
+    display:flex;
+    align-items:flex-start;
+    gap:.72rem;
+    border:1px solid rgba(148,163,184,.24);
+    border-radius:.9rem;
+    padding:.85rem .9rem;
+    background:linear-gradient(180deg, rgba(248,250,252,.92), rgba(255,255,255,.96));
+  }
+  .settingsToggleCard input{
+    width:1rem;
+    height:1rem;
+    margin-top:.16rem;
+    accent-color:#0f766e;
+  }
+  .settingsToggleCard strong{
+    display:block;
+    font-size:.84rem;
+    color:#0f172a;
+    margin-bottom:.12rem;
+  }
+  .settingsToggleCard span{
+    display:block;
+    font-size:.74rem;
+    line-height:1.45;
+    color:#64748b;
+  }
+  .settingsNotificationSection{
+    border:1px solid rgba(148,163,184,.24);
+    border-radius:1rem;
+    padding:.88rem .92rem;
+    background:rgba(248,250,252,.72);
+    margin-top:.85rem;
+  }
+  .settingsNotificationSectionHeader{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:.8rem;
+    margin-bottom:.7rem;
+  }
+  .settingsInlineLink{
+    color:#0f766e;
+    text-decoration:none;
+    font-size:.78rem;
+    font-weight:700;
+  }
   .settingsTableWrap{
     margin-top:.5rem;
     border:1px solid rgba(148,163,184,.3);
-    border-radius:.58rem;
+    border-radius:.86rem;
     background:#fff;
     overflow:auto;
     max-height:50vh;
@@ -4878,16 +5094,123 @@ body.dispatch-sidebar-open{
     font-size:.66rem;
     color:#64748b;
   }
-  .settingsNotificationsFrame{
-    width:100%;
-    min-height:64vh;
-    border:1px solid rgba(148,163,184,.3);
-    border-radius:.64rem;
+  .settingsModalFooter{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:1rem;
+    padding:.72rem .95rem;
+    border-top:1px solid rgba(148,163,184,.2);
     background:#fff;
   }
+  .dispatchControllerOverlay{
+    position:fixed;
+    left:50%;
+    bottom:1.1rem;
+    transform:translateX(-50%);
+    z-index:1660;
+    display:grid;
+    grid-template-columns:minmax(180px, 1fr) minmax(220px, auto) minmax(180px, 1fr);
+    gap:1rem;
+    align-items:center;
+    width:min(1180px, calc(100vw - 2rem));
+    pointer-events:none;
+  }
+  .dispatchControllerOverlayStatus{
+    pointer-events:auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:.12rem;
+    padding:.7rem .9rem;
+    border-radius:1rem;
+    border:1px solid rgba(15,23,42,.2);
+    background:rgba(255,255,255,.96);
+    box-shadow:0 18px 38px rgba(15,23,42,.18);
+    text-align:center;
+  }
+  .dispatchControllerOverlayMode{
+    font-size:.76rem;
+    font-weight:800;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:#0f766e;
+  }
+  .dispatchControllerOverlayStatus strong{
+    font-size:1rem;
+    color:#0f172a;
+  }
+  .dispatchControllerOverlayBtn{
+    pointer-events:auto;
+    border:1px solid rgba(15,23,42,.2);
+    border-radius:1rem;
+    padding:1rem 1.2rem;
+    background:rgba(255,255,255,.96);
+    color:#0f172a;
+    font-size:1rem;
+    font-weight:900;
+    letter-spacing:.02em;
+    box-shadow:0 18px 38px rgba(15,23,42,.18);
+    cursor:pointer;
+  }
+  .dispatchControllerOverlayBtn--back{
+    justify-self:start;
+  }
+  .dispatchControllerOverlayBtn--confirm{
+    justify-self:end;
+    background:linear-gradient(180deg, rgba(15,118,110,.95), rgba(13,148,136,.95));
+    border-color:rgba(15,118,110,.72);
+    color:#f8fafc;
+  }
+  body.dispatch-controller-high-visibility .dispatchControllerOverlay{
+    bottom:1.45rem;
+  }
+  body.dispatch-controller-high-visibility .dispatchControllerOverlayStatus{
+    min-height:5rem;
+    padding:1rem 1.4rem;
+  }
+  body.dispatch-controller-high-visibility .dispatchControllerOverlayMode{
+    font-size:.84rem;
+  }
+  body.dispatch-controller-high-visibility .dispatchControllerOverlayStatus strong{
+    font-size:1.1rem;
+  }
+  body.dispatch-controller-high-visibility .dispatchControllerOverlayBtn{
+    min-height:4.2rem;
+    font-size:1rem;
+  }
   @media (max-width:980px){
-    .settingsGrid{ grid-template-columns:1fr; }
-    .settingsMonitoringGrid{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .settingsModalBody{
+      grid-template-columns:1fr;
+    }
+    .settingsSidebar{
+      flex-direction:row;
+      overflow:auto;
+      border-right:none;
+      border-bottom:1px solid rgba(148,163,184,.2);
+    }
+    .settingsGrid,
+    .settingsToggleGrid,
+    .settingsToggleGrid--compact{
+      grid-template-columns:1fr;
+    }
+    .settingsMonitoringGrid{
+      grid-template-columns:repeat(2, minmax(0,1fr));
+    }
+    .settingsModalFooter{
+      flex-direction:column;
+      align-items:stretch;
+    }
+    .dispatchControllerOverlay{
+      grid-template-columns:1fr;
+      gap:.55rem;
+      bottom:.7rem;
+    }
+    .dispatchControllerOverlayBtn,
+    .dispatchControllerOverlayBtn--back,
+    .dispatchControllerOverlayBtn--confirm{
+      justify-self:stretch;
+    }
   }
 
   .flocs-customerCreateModal{
@@ -4923,6 +5246,7 @@ body.dispatch-sidebar-open{
   <link rel="stylesheet" href="/views/flocs.css">
   <link rel="stylesheet" href="/views/stock.css">
   <link rel="stylesheet" href="/views/price-manager.css">
+  <link rel='stylesheet' href='/theme.css' />
 </head>
 <body class="bg-body-extra-light side-scroll page-header-fixed page-header-dark main-content-boxed">
   <div class="flApp">
@@ -4936,11 +5260,11 @@ body.dispatch-sidebar-open{
           <div id="dispatchEnvironmentSummary" class="flHeaderEnvMetrics flHeaderEnvMetrics--compact" aria-label="Temperature and humidity">
             <span class="flHeaderMetric" aria-label="Temperature">
               <span class="flHeaderMetricLabel">Temp</span>
-              <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">°C</span></span>
+              <span class="flHeaderMetricValue">&mdash;<span class="flHeaderMetricUnit">&deg;C</span></span>
             </span>
             <span class="flHeaderMetric" aria-label="Humidity">
               <span class="flHeaderMetricLabel">Humidity</span>
-              <span class="flHeaderMetricValue">—<span class="flHeaderMetricUnit">%</span></span>
+              <span class="flHeaderMetricValue">&mdash;<span class="flHeaderMetricUnit">%</span></span>
             </span>
           </div>
           <div class="flHeaderEnvConnections" aria-label="Connections">
@@ -5000,7 +5324,7 @@ body.dispatch-sidebar-open{
           <div class="dispatchBoardMain">
             <div class="dispatchBoardPanel">
               <div class="dispatchBoard" id="dispatchBoardGrid">
-                <div class="dispatchBoardEmpty">Loading open orders…</div>
+                <div class="dispatchBoardEmpty">Loading open orders&hellip;</div>
               </div>
             </div>
           </div>
@@ -5052,7 +5376,7 @@ body.dispatch-sidebar-open{
               <div class="dispatchOrderModal__title" id="dispatchOrderModalTitle">Order</div>
               <div class="dispatchOrderModal__meta" id="dispatchOrderModalMeta"></div>
             </div>
-            <button class="dispatchOrderModal__close" type="button" data-action="close-modal" aria-label="Close order details">✕</button>
+            <button class="dispatchOrderModal__close" type="button" data-action="close-modal" aria-label="Close order details">&times;</button>
           </div>
           <div class="dispatchOrderModal__body" id="dispatchOrderModalBody"></div>
         </div>
@@ -5065,7 +5389,7 @@ body.dispatch-sidebar-open{
               <div class="dispatchShipmentModal__title" id="dispatchShipmentModalTitle">Shipment</div>
               <div class="dispatchShipmentModal__meta" id="dispatchShipmentModalMeta"></div>
             </div>
-            <button class="dispatchShipmentModal__close" type="button" data-action="close-modal" aria-label="Close shipment details">✕</button>
+            <button class="dispatchShipmentModal__close" type="button" data-action="close-modal" aria-label="Close shipment details">&times;</button>
           </div>
           <div class="dispatchShipmentModal__body" id="dispatchShipmentModalBody"></div>
         </div>
@@ -5297,7 +5621,7 @@ body.dispatch-sidebar-open{
                   <div class="flocs-hint">Press Enter or Tab to auto-select the suggested customer.</div>
                 </div>
                 <div class="flocs-row" style="margin-top:.4rem" hidden>
-                  <input id="flocs-customerQuickSearch" class="flocs-input" type="text" placeholder="Quick filter customers in results…" autocomplete="off"  hidden />
+                  <input id="flocs-customerQuickSearch" class="flocs-input" type="text" placeholder="Quick filter customers in results&hellip;" autocomplete="off"  hidden />
                   <select id="flocs-customerProvinceFilter" class="flocs-select">
                     <option value="">All provinces</option>
                   </select>
@@ -5347,11 +5671,11 @@ body.dispatch-sidebar-open{
                   <div id="flocs-previewTag" class="flocs-previewTag">Select customer to begin</div>
                   <div class="flocs-actionsRow flocs-previewCreateActions">
                     <button id="flocs-createDraftBtn" class="flocs-actionBtn" type="button">
-                      <span>📝</span>
+                      <span>ðŸ“</span>
                       <span>Create draft order</span>
                     </button>
                     <button id="flocs-createOrderBtn" class="flocs-actionBtn" type="button">
-                      <span>✅</span>
+                      <span>&#10003;</span>
                       <span>Create live order</span>
                     </button>
                   </div>
@@ -5375,7 +5699,7 @@ body.dispatch-sidebar-open{
                   <div class="flocs-labelRow"><span>Shipping quote summary</span></div>
                   <div class="flocs-actionsRow">
                     <div id="flocs-shippingSummary" class="flocs-badgeShipping">No shipping quote yet.</div>
-                    <button id="flocs-calcShip" class="flocs-actionBtn" type="button" hidden><span>⛟</span><span>Calculate shipping</span></button>
+                    <button id="flocs-calcShip" class="flocs-actionBtn" type="button" hidden><span>&#10148;</span><span>Calculate shipping</span></button>
                   </div>
                 </div>
                 <div class="flocs-formSection" hidden>
@@ -5398,7 +5722,7 @@ body.dispatch-sidebar-open{
                 <div class="flocs-labelRow">
                   <span id="flocsCustomerCreateTitle">Create new customer</span>
                   <button id="flocs-customerCreateToggle" class="flocs-miniBtn flocs-iconBtn" type="button" aria-label="Close new customer form" data-action="close-customer-modal">
-                    <span aria-hidden="true">×</span>
+                    <span aria-hidden="true">&times;</span>
                   </button>
                 </div>
                 <div class="flocs-hint" id="flocs-customerCreateStatus">Create customer, then order form will auto-focus on first quantity input.</div>
@@ -5562,7 +5886,7 @@ body.dispatch-sidebar-open{
 
           <section class="pm-panel">
             <div class="pm-row">
-              <span id="pmStatus" class="pm-muted">Loading product list…</span>
+              <span id="pmStatus" class="pm-muted">Loading product list&hellip;</span>
             </div>
 
             <div style="overflow:auto;">
@@ -5582,7 +5906,7 @@ body.dispatch-sidebar-open{
                 </thead>
                 <tbody id="pmTableBody">
                   <tr>
-                    <td colspan="9" class="pm-muted">Loading products…</td>
+                    <td colspan="9" class="pm-muted">Loading products&hellip;</td>
                   </tr>
                 </tbody>
               </table>
@@ -5594,61 +5918,27 @@ body.dispatch-sidebar-open{
 
     <div class="flView" id="viewAdmin" hidden>
       <div class="flAdminShell">
-        <h2>Admin</h2>
-        <p>Central management area for operations, pricing, templates, logs, and system controls.</p>
-        <div class="flAdminGrid">
-          <article class="flAdminCard">
-            <h3>Price Manager</h3>
-            <p>Maintain pricing tiers and sync product prices.</p>
-            <button type="button" data-route="/price-manager">Open price manager</button>
-          </article>
-          <article class="flAdminCard">
-            <h3>Notification templates</h3>
-            <p>Manage the customer notification templates and message variants.</p>
-            <a href="/notification-templates.html">Open notification templates</a>
-          </article>
-          <article class="flAdminCard">
-            <h3>Liquid C templates</h3>
-            <p>Edit and publish Liquid C templates used in your workflows.</p>
-            <a href="/liquid-templates.html">Open Liquid C editor</a>
-          </article>
-          <article class="flAdminCard">
-            <h3>System logs</h3>
-            <p>Review runtime and integration log streams for troubleshooting.</p>
-            <button type="button" disabled>Coming soon</button>
-          </article>
-          <article class="flAdminCard">
-            <h3>Printer settings</h3>
-            <p>Configure print defaults, formats, and station-specific printer options.</p>
-            <button type="button" disabled>Coming soon</button>
-          </article>
-          <article class="flAdminCard">
-            <h3>Traceability</h3>
-            <p>Open the traceability console for lot and order tracking.</p>
-            <a href="/traceability.html">Open traceability</a>
-          </article>
-          <article class="flAdminCard">
-            <h3>Agent Commissions</h3>
-            <p>Manage customer commission percentages, payment allocations, and outstanding balances.</p>
-            <a href="/agent-commissions.html">Open agent commissions</a>
-          </article>
-          <article class="flAdminCard">
-            <h3>Order Payments</h3>
-            <p>Allocate customer payments to Shopify orders, track terms, and monitor outstanding balances.</p>
-            <a href="/order-payments.html">Open order payments</a>
-          </article>
+        <div class="flAdminIntro">
+          <div>
+            <span class="flAdminEyebrow">Repo 2.2</span>
+            <h2>Admin Workspace</h2>
+            <p>Primary access for standalone tools, templates, pricing, and diagnostics. Direct URLs remain available for compatibility.</p>
+          </div>
+          <div class="flAdminHint">Embedded panels inherit the shared FLSS theme.</div>
         </div>
-      </div>
-    </div>
-
-    <div class="flView" id="viewChangelog" hidden>
-      <div class="flChangelogShell">
-        <h2>Changelog</h2>
-        <p>Build-time generated PR updates with day/time stamps and engineering KPI snapshots.</p>
-        <div id="changelogKpi" class="flChangelogKpi">Loading KPI metrics…</div>
-        <ul id="changelogList" class="flChangelogList">
-          <li>Loading latest changelog entries…</li>
-        </ul>
+        <div class="flAdminLayout">
+          <aside id="adminLauncher" class="flAdminLauncher" aria-label="Admin tools"></aside>
+          <section class="flAdminWorkspace">
+            <div class="flAdminWorkspaceHeader">
+              <div>
+                <strong id="adminWorkspaceTitle">Select a tool</strong>
+                <span id="adminWorkspaceMeta">Embedded workspace</span>
+              </div>
+              <a id="adminWorkspaceOpenLink" href="/" target="_blank" rel="noopener noreferrer">Open direct URL</a>
+            </div>
+            <iframe id="adminWorkspaceFrame" class="flAdminWorkspaceFrame" title="Admin workspace"></iframe>
+          </section>
+        </div>
       </div>
     </div>
 
@@ -5657,8 +5947,7 @@ body.dispatch-sidebar-open{
         <div class="flFooterLinks" role="tablist" aria-label="System views">
           <button id="navDocs" class="flNavBtn" type="button" role="tab" aria-controls="viewDocs" aria-selected="false" data-route="/docs"><span class="flNavBtnText">Docs</span></button>
           <button id="navFooterAdmin" class="flNavBtn" type="button" role="tab" aria-controls="viewAdmin" aria-selected="false" data-route="/admin"><span class="flNavBtnText">Admin</span></button>
-          <button id="navFooterChangelog" class="flNavBtn" type="button" role="tab" aria-controls="viewChangelog" aria-selected="false" data-route="/changelog"><span class="flNavBtnText">Changelog</span></button>
-          <button id="navFooterSettings" class="flNavBtn flNavBtn--icon" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="settingsModal"><span class="flNavBtnText">⚙</span></button>
+          <button id="navFooterSettings" class="flNavBtn flNavBtn--icon" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="settingsModal"><span class="flNavBtnText">&#9881;</span></button>
         </div>
       </footer>
     </div>
@@ -5669,7 +5958,7 @@ body.dispatch-sidebar-open{
     <div class="dispatchLegendModalPanel" role="dialog" aria-modal="true" aria-labelledby="dispatchLegendModalTitle">
       <div class="dispatchLegendModalHeader">
         <h3 id="dispatchLegendModalTitle">Legend</h3>
-        <button class="dispatchLegendToggle" id="dispatchLegendToggle" type="button" aria-label="Close legend" data-action="close-legend-modal">×</button>
+        <button class="dispatchLegendToggle" id="dispatchLegendToggle" type="button" aria-label="Close legend" data-action="close-legend-modal">&times;</button>
       </div>
       <div class="dispatchLegendBody" id="dispatchLegendContent">
         <div class="dispatchLegendRow">
@@ -5688,64 +5977,217 @@ body.dispatch-sidebar-open{
     <div class="settingsModalBackdrop" data-action="close-settings-modal" aria-hidden="true"></div>
     <div class="settingsModalPanel" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
       <div class="settingsModalHeader">
-        <h3 id="settingsModalTitle">System Settings</h3>
-        <button id="settingsModalClose" class="dispatchLegendToggle" type="button" aria-label="Close settings" data-action="close-settings-modal">×</button>
-      </div>
-      <div class="settingsTabs" role="tablist" aria-label="Settings sections">
-        <button type="button" class="settingsTabBtn is-active" data-settings-tab="system">System</button>
-        <button type="button" class="settingsTabBtn" data-settings-tab="printers">Printers</button>
-        <button type="button" class="settingsTabBtn" data-settings-tab="monitoring">Monitoring</button>
-        <button type="button" class="settingsTabBtn" data-settings-tab="notifications">Notifications</button>
+        <h3 id="settingsModalTitle">Settings</h3>
+        <button id="settingsModalClose" class="dispatchLegendToggle" type="button" aria-label="Close settings" data-action="close-settings-modal">&times;</button>
       </div>
       <div class="settingsModalBody">
-        <section class="settingsTabPane is-active" id="settingsTab-system">
-          <div class="settingsGrid">
-            <label>
-              <span>Shelf life (months)</span>
-              <input id="settingsStickerShelfLifeMonths" type="number" min="1" max="120" />
-            </label>
-            <label>
-              <span>Default sticker qty</span>
-              <input id="settingsStickerDefaultQty" type="number" min="1" max="10000" />
-            </label>
-            <label>
-              <span>Command language</span>
-              <select id="settingsStickerCommandLanguage">
-                <option value="PPLB">PPLB</option>
-                <option value="PPLA">PPLA</option>
-                <option value="ZPL">ZPL</option>
-              </select>
-            </label>
-            <label>
-              <span>Print history retention (days)</span>
-              <input id="settingsPrintRetentionDays" type="number" min="1" max="3650" />
-            </label>
-          </div>
-          <div class="settingsActions">
-            <button id="settingsSaveBtn" type="button" class="dispatchSelectionBtn dispatchSelectionBtn--primary">Save settings</button>
-            <span id="settingsSaveStatus" class="flHeaderConnectionLabel"></span>
-          </div>
-        </section>
-        <section class="settingsTabPane" id="settingsTab-printers" hidden>
-          <div class="settingsActions">
-            <button id="settingsRefreshPrintersBtn" type="button" class="dispatchSelectionBtn">Refresh printers</button>
-            <button id="settingsTestStickerBtn" type="button" class="dispatchSelectionBtn">Test sticker print</button>
-          </div>
-          <div id="settingsPrintersStatus" class="flHeaderConnectionLabel"></div>
-          <div id="settingsPrintersList" class="settingsTableWrap"></div>
-        </section>
-        <section class="settingsTabPane" id="settingsTab-monitoring" hidden>
-          <div class="settingsActions">
-            <button id="settingsRefreshMonitoringBtn" type="button" class="dispatchSelectionBtn">Refresh monitoring</button>
-          </div>
-          <div id="settingsMonitoringSummary" class="settingsMonitoringGrid"></div>
-          <div id="settingsPrintHistory" class="settingsTableWrap"></div>
-        </section>
-        <section class="settingsTabPane" id="settingsTab-notifications" hidden>
-          <iframe id="settingsNotificationsFrame" src="/notification-templates.html" title="Notification templates" class="settingsNotificationsFrame"></iframe>
-        </section>
+        <aside class="settingsSidebar" role="tablist" aria-label="Settings sections">
+          <button type="button" class="settingsTabBtn is-active" data-settings-tab="general">General</button>
+          <button type="button" class="settingsTabBtn" data-settings-tab="printers">Printers</button>
+          <button type="button" class="settingsTabBtn" data-settings-tab="controller">Controller</button>
+          <button type="button" class="settingsTabBtn" data-settings-tab="notifications">Notifications</button>
+          <button type="button" class="settingsTabBtn" data-settings-tab="monitoring">Monitoring</button>
+        </aside>
+        <div class="settingsContent">
+          <section class="settingsTabPane is-active" id="settingsTab-general">
+            <div class="settingsPaneHeader">
+              <div>
+                <h4>General</h4>
+                <p>Core print defaults and retention policies used across the scan station.</p>
+              </div>
+            </div>
+            <div class="settingsGrid">
+              <label>
+                <span>Shelf life (months)</span>
+                <input id="settingsStickerShelfLifeMonths" type="number" min="1" max="120" />
+              </label>
+              <label>
+                <span>Default sticker qty</span>
+                <input id="settingsStickerDefaultQty" type="number" min="1" max="10000" />
+              </label>
+              <label>
+                <span>Command language</span>
+                <select id="settingsStickerCommandLanguage">
+                  <option value="PPLB">PPLB</option>
+                  <option value="PPLA">PPLA</option>
+                  <option value="ZPL">ZPL</option>
+                </select>
+              </label>
+              <label>
+                <span>Print history retention (days)</span>
+                <input id="settingsPrintRetentionDays" type="number" min="1" max="3650" />
+              </label>
+            </div>
+          </section>
+          <section class="settingsTabPane" id="settingsTab-printers" hidden>
+            <div class="settingsPaneHeader">
+              <div>
+                <h4>Printers</h4>
+                <p>Assign sticker printers and send a quick validation job.</p>
+              </div>
+              <div class="settingsActions">
+                <button id="settingsRefreshPrintersBtn" type="button" class="dispatchSelectionBtn">Refresh printers</button>
+                <button id="settingsTestStickerBtn" type="button" class="dispatchSelectionBtn">Test sticker print</button>
+              </div>
+            </div>
+            <div id="settingsPrintersStatus" class="flHeaderConnectionLabel"></div>
+            <div id="settingsPrintersList" class="settingsTableWrap"></div>
+          </section>
+          <section class="settingsTabPane" id="settingsTab-controller" hidden>
+            <div class="settingsPaneHeader">
+              <div>
+                <h4>Controller</h4>
+                <p>Control the on-screen buttons, remote visibility rules, and large-screen emphasis.</p>
+              </div>
+            </div>
+            <div class="settingsToggleGrid">
+              <label class="settingsToggleCard">
+                <input id="settingsControllerShowOnScreenButtons" type="checkbox" />
+                <div>
+                  <strong>Show on-screen buttons</strong>
+                  <span>Display fixed Back and Confirm controls when the dispatch controller is active.</span>
+                </div>
+              </label>
+              <label class="settingsToggleCard">
+                <input id="settingsControllerRequireConnectedRemote" type="checkbox" />
+                <div>
+                  <strong>Require connected remote</strong>
+                  <span>Only show the controller overlay when a live remote heartbeat is present.</span>
+                </div>
+              </label>
+              <label class="settingsToggleCard">
+                <input id="settingsControllerHighVisibilityMode" type="checkbox" />
+                <div>
+                  <strong>High visibility mode</strong>
+                  <span>Use stronger outlines and larger status treatment for 65-inch dispatch displays.</span>
+                </div>
+              </label>
+            </div>
+          </section>
+          <section class="settingsTabPane" id="settingsTab-notifications" hidden>
+            <div class="settingsPaneHeader">
+              <div>
+                <h4>Notifications</h4>
+                <p>Bind runtime events to templates, recipients, fallback rules, and sender overrides.</p>
+              </div>
+              <a class="settingsInlineLink" href="/notification-templates.html" target="_blank" rel="noopener noreferrer">Open template registry</a>
+            </div>
+            <div class="settingsGrid">
+              <label>
+                <span>Sender override</span>
+                <input id="settingsNotificationSenderOverride" type="email" placeholder="notifications@yourdomain.com" />
+              </label>
+              <label>
+                <span>Global fallback recipient</span>
+                <input id="settingsNotificationFallbackRecipient" type="email" placeholder="ops@yourdomain.com" />
+              </label>
+            </div>
+            <div class="settingsNotificationSection">
+              <div class="settingsNotificationSectionHeader">
+                <div>
+                  <h5>Pickup Ready</h5>
+                  <p>Customer-facing order collection notification.</p>
+                </div>
+                <div class="settingsActions">
+                  <button id="settingsTestPickupEmailBtn" type="button" class="dispatchSelectionBtn">Send pickup test</button>
+                </div>
+              </div>
+              <div class="settingsToggleGrid settingsToggleGrid--compact">
+                <label class="settingsToggleCard">
+                  <input id="settingsNotificationPickupEnabled" type="checkbox" />
+                  <div>
+                    <strong>Enabled</strong>
+                    <span>Allow runtime pickup-ready emails to send.</span>
+                  </div>
+                </label>
+                <label class="settingsToggleCard">
+                  <input id="settingsNotificationPickupUseCustomerEmail" type="checkbox" />
+                  <div>
+                    <strong>Use customer email</strong>
+                    <span>Send to the Shopify order/customer email before any fallback recipient.</span>
+                  </div>
+                </label>
+              </div>
+              <div class="settingsGrid">
+                <label>
+                  <span>Template</span>
+                  <select id="settingsNotificationPickupTemplate"></select>
+                </label>
+                <label>
+                  <span>Event fallback recipient</span>
+                  <input id="settingsNotificationPickupFallbackRecipient" type="email" placeholder="ops@yourdomain.com" />
+                </label>
+                <label class="settingsFieldSpan">
+                  <span>Additional recipients</span>
+                  <textarea id="settingsNotificationPickupRecipients" class="settingsTextarea" rows="4" placeholder="ops@yourdomain.com, dispatch@yourdomain.com"></textarea>
+                </label>
+              </div>
+            </div>
+            <div class="settingsNotificationSection">
+              <div class="settingsNotificationSectionHeader">
+                <div>
+                  <h5>Truck Collection</h5>
+                  <p>Logistics notification when parcel thresholds or manual requests book a truck.</p>
+                </div>
+                <div class="settingsActions">
+                  <button id="settingsTestTruckEmailBtn" type="button" class="dispatchSelectionBtn">Send truck test</button>
+                </div>
+              </div>
+              <div class="settingsToggleGrid settingsToggleGrid--compact">
+                <label class="settingsToggleCard">
+                  <input id="settingsNotificationTruckEnabled" type="checkbox" />
+                  <div>
+                    <strong>Enabled</strong>
+                    <span>Allow runtime truck-collection emails to send.</span>
+                  </div>
+                </label>
+              </div>
+              <div class="settingsGrid">
+                <label>
+                  <span>Template</span>
+                  <select id="settingsNotificationTruckTemplate"></select>
+                </label>
+                <label>
+                  <span>Event fallback recipient</span>
+                  <input id="settingsNotificationTruckFallbackRecipient" type="email" placeholder="logistics@yourdomain.com" />
+                </label>
+                <label class="settingsFieldSpan">
+                  <span>Recipients</span>
+                  <textarea id="settingsNotificationTruckRecipients" class="settingsTextarea" rows="4" placeholder="courier@provider.com, ops@yourdomain.com"></textarea>
+                </label>
+              </div>
+            </div>
+            <div id="settingsNotificationsStatus" class="flHeaderConnectionLabel"></div>
+          </section>
+          <section class="settingsTabPane" id="settingsTab-monitoring" hidden>
+            <div class="settingsPaneHeader">
+              <div>
+                <h4>Monitoring</h4>
+                <p>Service health, controller availability, and recent print outcomes.</p>
+              </div>
+              <div class="settingsActions">
+                <button id="settingsRefreshMonitoringBtn" type="button" class="dispatchSelectionBtn">Refresh monitoring</button>
+              </div>
+            </div>
+            <div id="settingsMonitoringSummary" class="settingsMonitoringGrid"></div>
+            <div id="settingsPrintHistory" class="settingsTableWrap"></div>
+          </section>
+        </div>
+      </div>
+      <div class="settingsModalFooter">
+        <span id="settingsSaveStatus" class="flHeaderConnectionLabel"></span>
+        <button id="settingsSaveBtn" type="button" class="dispatchSelectionBtn dispatchSelectionBtn--primary">Save settings</button>
       </div>
     </div>
+  </div>
+
+  <div class="dispatchControllerOverlay" id="dispatchControllerOverlay" hidden>
+    <button id="dispatchControllerBackBtn" class="dispatchControllerOverlayBtn dispatchControllerOverlayBtn--back" type="button">Back / Cancel</button>
+    <div class="dispatchControllerOverlayStatus">
+      <span id="dispatchControllerMode" class="dispatchControllerOverlayMode">Order mode</span>
+      <strong id="dispatchControllerStatus">Remote controller ready</strong>
+    </div>
+    <button id="dispatchControllerConfirmBtn" class="dispatchControllerOverlayBtn dispatchControllerOverlayBtn--confirm" type="button">Confirm / Select</button>
   </div>
 
   <div class="slotEgg" id="slotEgg" hidden aria-hidden="true">
@@ -5753,17 +6195,17 @@ body.dispatch-sidebar-open{
     <div class="slotEgg__panel" role="dialog" aria-modal="true" aria-labelledby="slotEggTitle">
       <div class="slotEgg__header">
         <h2 class="slotEgg__title" id="slotEggTitle">Secret Spice Slots</h2>
-        <button class="slotEgg__close" type="button" data-slot-close aria-label="Close spice slots">✕</button>
+        <button class="slotEgg__close" type="button" data-slot-close aria-label="Close spice slots">&times;</button>
       </div>
       <p class="slotEgg__hint">Pull the lever and see which blend lines up.</p>
       <div class="slotEgg__reels">
-        <div class="slotEgg__reel" data-slot-reel>🌶️ Chilli</div>
-        <div class="slotEgg__reel" data-slot-reel>🧄 Garlic</div>
-        <div class="slotEgg__reel" data-slot-reel>🧂 Sea Salt</div>
+        <div class="slotEgg__reel" data-slot-reel>ðŸŒ¶ï¸ Chilli</div>
+        <div class="slotEgg__reel" data-slot-reel>ðŸ§„ Garlic</div>
+        <div class="slotEgg__reel" data-slot-reel>ðŸ§‚ Sea Salt</div>
       </div>
       <div class="slotEgg__actions">
         <button class="slotEgg__spin" id="slotSpinBtn" type="button">Spin</button>
-        <div class="slotEgg__result" id="slotResult">Match all three for a “house blend” win.</div>
+        <div class="slotEgg__result" id="slotResult">Match all three for a "house blend" win.</div>
       </div>
     </div>
   </div>

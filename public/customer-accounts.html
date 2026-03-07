@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -52,13 +52,14 @@
       .wrap { width: calc(100vw - .7rem); }
     }
   </style>
+  <link rel='stylesheet' href='/theme.css' />
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>Customer Accounts</h1>
       <p>Log in, edit your profile, and place orders at your tier price.</p>
-      <p><a href="/">← Back to dashboard</a></p>
+      <p><a href="/">â† Back to dashboard</a></p>
     </div>
 
     <div id="authCard" class="card">
@@ -207,7 +208,7 @@
         el.innerHTML = `
           <div>
             <h4>${item.title}</h4>
-            <div class="sku">${item.sku} · ${item.tierUsed.toUpperCase()} price</div>
+            <div class="sku">${item.sku} Â· ${item.tierUsed.toUpperCase()} price</div>
           </div>
           <div class="price">${money(item.unitPrice)}</div>
           <div><input class="qty" type="number" min="0" step="1" value="0" data-product-id="${item.id}" /></div>

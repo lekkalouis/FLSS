@@ -243,7 +243,6 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const navDispatchSettings = $("navDispatchSettings");
   const navLogs = $("navLogs");
   const navFooterAdmin = $("navFooterAdmin");
-  const navFooterChangelog = $("navFooterChangelog");
   const navFooterSettings = $("navFooterSettings");
   const navToggle = $("navToggle");
   const viewScan = $("viewScan");
@@ -260,9 +259,11 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const viewDispatchSettings = $("viewDispatchSettings");
   const viewLogs = $("viewLogs");
   const viewAdmin = $("viewAdmin");
-  const viewChangelog = $("viewChangelog");
-  const changelogList = $("changelogList");
-  const changelogKpi = $("changelogKpi");
+  const adminLauncher = $("adminLauncher");
+  const adminWorkspaceFrame = $("adminWorkspaceFrame");
+  const adminWorkspaceTitle = $("adminWorkspaceTitle");
+  const adminWorkspaceMeta = $("adminWorkspaceMeta");
+  const adminWorkspaceOpenLink = $("adminWorkspaceOpenLink");
   const dispatchNotesBar = $("dispatchNotesBar");
   const dispatchNotesInput = $("dispatchNotesInput");
   const dispatchNotesClose = $("dispatchNotesClose");
@@ -286,14 +287,37 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const settingsRefreshMonitoringBtn = $("settingsRefreshMonitoringBtn");
   const settingsMonitoringSummary = $("settingsMonitoringSummary");
   const settingsPrintHistory = $("settingsPrintHistory");
-  const settingsNotificationsFrame = $("settingsNotificationsFrame");
+  const settingsControllerShowOnScreenButtons = $("settingsControllerShowOnScreenButtons");
+  const settingsControllerRequireConnectedRemote = $("settingsControllerRequireConnectedRemote");
+  const settingsControllerHighVisibilityMode = $("settingsControllerHighVisibilityMode");
+  const settingsNotificationSenderOverride = $("settingsNotificationSenderOverride");
+  const settingsNotificationFallbackRecipient = $("settingsNotificationFallbackRecipient");
+  const settingsNotificationPickupEnabled = $("settingsNotificationPickupEnabled");
+  const settingsNotificationPickupTemplate = $("settingsNotificationPickupTemplate");
+  const settingsNotificationPickupUseCustomerEmail = $("settingsNotificationPickupUseCustomerEmail");
+  const settingsNotificationPickupRecipients = $("settingsNotificationPickupRecipients");
+  const settingsNotificationPickupFallbackRecipient = $("settingsNotificationPickupFallbackRecipient");
+  const settingsNotificationTruckEnabled = $("settingsNotificationTruckEnabled");
+  const settingsNotificationTruckTemplate = $("settingsNotificationTruckTemplate");
+  const settingsNotificationTruckRecipients = $("settingsNotificationTruckRecipients");
+  const settingsNotificationTruckFallbackRecipient = $("settingsNotificationTruckFallbackRecipient");
+  const settingsNotificationsStatus = $("settingsNotificationsStatus");
+  const settingsTestPickupEmailBtn = $("settingsTestPickupEmailBtn");
+  const settingsTestTruckEmailBtn = $("settingsTestTruckEmailBtn");
+  const dispatchControllerOverlay = $("dispatchControllerOverlay");
+  const dispatchControllerBackBtn = $("dispatchControllerBackBtn");
+  const dispatchControllerConfirmBtn = $("dispatchControllerConfirmBtn");
+  const dispatchControllerMode = $("dispatchControllerMode");
+  const dispatchControllerStatus = $("dispatchControllerStatus");
 
   let globalLoaderCount = 0;
   let isNewOrderMenuOpen = false;
   let settingsModalOpen = false;
   let settingsState = null;
-  let settingsActiveTab = "system";
+  let settingsActiveTab = "general";
   let settingsPrinterRows = [];
+  let settingsTemplateRows = [];
+  let adminActiveToolId = "";
   const FLOCS_NEW_CUSTOMER_INTENT_KEY = "flocs-open-new-customer";
 
   function setNewOrderMenuOpen(open) {
@@ -440,6 +464,87 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       target: "/purchase-orders.html",
       meta: "Materials ordering",
       tag: "Module"
+    }
+  ];
+
+  const ADMIN_TOOLS = [
+    {
+      id: "station-controller",
+      title: "Station Controller",
+      description: "Remote heartbeat, controller diagnostics, and live event feed.",
+      target: "/station-controller.html"
+    },
+    {
+      id: "manufacturing",
+      title: "Manufacturing",
+      description: "Standalone manufacturing order and production workflows.",
+      target: "/manufacturing.html"
+    },
+    {
+      id: "product-management",
+      title: "Product Management",
+      description: "Offline-first products, BOM, packaging, pricing, and sync tooling.",
+      target: "/product-management.html"
+    },
+    {
+      id: "pos",
+      title: "POS",
+      description: "Point-of-sale order capture and payment handling.",
+      target: "/pos.html"
+    },
+    {
+      id: "shipping-matrix",
+      title: "Shipping Matrix",
+      description: "Matrix pricing and delivery scenario estimation.",
+      target: "/shipping-matrix.html"
+    },
+    {
+      id: "order-capture-custom",
+      title: "Order Capture Custom",
+      description: "Custom order capture workflow for special intake cases.",
+      target: "/order-capture-custom.html"
+    },
+    {
+      id: "customer-accounts",
+      title: "Customer Accounts",
+      description: "Account-level customer access and profile maintenance.",
+      target: "/customer-accounts.html"
+    },
+    {
+      id: "purchase-orders",
+      title: "Purchase Orders",
+      description: "Quick purchasing flow that creates Shopify draft orders.",
+      target: "/purchase-orders.html"
+    },
+    {
+      id: "liquid-templates",
+      title: "Liquid Templates",
+      description: "Manage Liquid template assets used across FLSS workflows.",
+      target: "/liquid-templates.html"
+    },
+    {
+      id: "notification-templates",
+      title: "Notification Templates",
+      description: "Edit the runtime template registry for pickup and truck emails.",
+      target: "/notification-templates.html"
+    },
+    {
+      id: "traceability",
+      title: "Traceability",
+      description: "Lot, batch, and order traceability console.",
+      target: "/traceability.html"
+    },
+    {
+      id: "agent-commissions",
+      title: "Agent Commissions",
+      description: "Commission percentages, allocations, and payout tracking.",
+      target: "/agent-commissions.html"
+    },
+    {
+      id: "order-payments",
+      title: "Order Payments",
+      description: "Payment allocation and outstanding balance tracking.",
+      target: "/order-payments.html"
     }
   ];
 
@@ -1807,6 +1912,56 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
       return remoteStatus === "connected" || remoteStatus === "ok";
     }
     return Boolean(remoteIndicatorState?.ok);
+  }
+
+  function getResolvedDispatchControllerSelection(state = dispatchControllerState) {
+    const selectedOrderKey = String(state?.selectedOrderId || "").trim();
+    const resolvedOrderId =
+      resolveDispatchOrderFromSelectionKey(selectedOrderKey)?.canonicalOrderNo ||
+      selectedOrderKey;
+    return {
+      selectedOrderId: String(resolvedOrderId || "").trim(),
+      selectedLineItemKey: String(state?.selectedLineItemKey || "").trim(),
+      selectionMode: String(state?.selectionMode || "order").trim().toLowerCase() === "line" ? "line" : "order",
+      quantityPromptOpen: Boolean(state?.quantityPromptOpen)
+    };
+  }
+
+  function renderDispatchControllerOverlay(state = dispatchControllerState) {
+    if (!dispatchControllerOverlay) return;
+    const activeViewId = document.querySelector(".flView.flView--active")?.id || "";
+    const controllerSettings = settingsState?.controller || {};
+    const controllerConnected = isDispatchControllerConnected(dispatchControllerState);
+    const shouldShow = Boolean(controllerSettings.showOnScreenButtons !== false) &&
+      activeViewId === "viewScan" &&
+      (controllerSettings.requireConnectedRemote === false || controllerConnected);
+    document.body?.classList.toggle(
+      "dispatch-controller-high-visibility",
+      Boolean(shouldShow && controllerSettings.highVisibilityMode !== false)
+    );
+
+    dispatchControllerOverlay.hidden = !shouldShow;
+    if (!shouldShow) return;
+
+    const selection = getResolvedDispatchControllerSelection(state);
+    const modeLabel = selection.quantityPromptOpen
+      ? "Quantity Prompt"
+      : selection.selectionMode === "line"
+      ? "Line Mode"
+      : "Order Mode";
+    const statusParts = [];
+    statusParts.push(controllerConnected ? "Remote connected" : "Manual overlay");
+    if (selection.selectedOrderId) statusParts.push(`#${selection.selectedOrderId}`);
+    else statusParts.push("No order selected");
+
+    if (dispatchControllerMode) dispatchControllerMode.textContent = modeLabel;
+    if (dispatchControllerStatus) dispatchControllerStatus.textContent = statusParts.join(" · ");
+    if (dispatchControllerBackBtn) {
+      dispatchControllerBackBtn.disabled = !selection.selectedOrderId && !selection.quantityPromptOpen;
+    }
+    if (dispatchControllerConfirmBtn) {
+      dispatchControllerConfirmBtn.disabled = !selection.selectedOrderId;
+    }
   }
 
 
@@ -5848,17 +6003,25 @@ async function startOrder(orderNo) {
         const notifyPayload = await notifyRes.json().catch(() => ({}));
         const cached = dispatchOrderCache.get(orderNo);
         if (cached) cached.tags = `${cached.tags || ""}, stat:notified, pickup_notified`;
-        if (notifyPayload?.fallbackNotifiedAdmin) {
+        if (notifyPayload?.usedFallbackRecipient || notifyPayload?.fallbackNotifiedAdmin) {
+          const fallbackTargets = Array.isArray(notifyPayload?.sentTo)
+            ? notifyPayload.sentTo.join(", ")
+            : String(notifyPayload?.sentTo || "").trim();
           showSiteAlert({
             title: `Order ${orderNo} ready for pickup`,
             tone: "warn",
-            message: "No customer email was found. Admin was notified at admin@flippenlekkaspices.co.za."
+            message: fallbackTargets
+              ? `No customer email was available. Fallback notification sent to ${fallbackTargets}.`
+              : "No customer email was available. A fallback notification was sent."
           });
         } else {
+          const sentTo = Array.isArray(notifyPayload?.sentTo)
+            ? notifyPayload.sentTo.join(", ")
+            : String(notifyPayload?.sentTo || "").trim();
           showSiteAlert({
             title: `Customer notified for ${orderNo}`,
             tone: "ok",
-            message: `Pickup notice sent to ${notifyPayload?.sentTo || "the customer email on record"}.`
+            message: `Pickup notice sent to ${sentTo || "the customer email on record"}.`
           });
         }
       }
@@ -6473,14 +6636,22 @@ async function startOrder(orderNo) {
 
     if (!Number.isFinite(index) || index < 0 || index >= rows.length) index = 0;
 
+    const controllerSelection = getResolvedDispatchControllerSelection();
+    const suppressVisibleFocus =
+      dispatchRotaryInputEnabled &&
+      isDispatchControllerConnected(dispatchControllerState) &&
+      controllerSelection.selectionMode === "order";
+
     rows.forEach((row) => row.classList.remove("is-rotary-focus"));
     const activeRow = rows[index];
-    activeRow.classList.add("is-rotary-focus");
+    if (!suppressVisibleFocus) {
+      activeRow.classList.add("is-rotary-focus");
+    }
     dispatchRotaryFocusIndex = index;
     dispatchRotaryFocusKey = dispatchRotaryKeyForRow(activeRow);
     syncDispatchRotarySelectionUI(dispatchRotarySelectedKey);
 
-    if (scroll) {
+    if (scroll && !suppressVisibleFocus) {
       activeRow.scrollIntoView({ block: "nearest", behavior: "auto" });
     }
   }
@@ -6840,6 +7011,26 @@ async function startOrder(orderNo) {
     return map;
   }
 
+  async function sendDispatchControllerAction(action, { source = "spa" } = {}) {
+    const normalizedAction = String(action || "").trim().toLowerCase();
+    if (!normalizedAction) return null;
+    const { response, data } = await fetchJsonWithDetails(`${API_BASE}/dispatch/${encodeURIComponent(normalizedAction)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source })
+    });
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || data?.message || `Controller action failed (${response.status})`);
+    }
+
+    const nextState = {
+      ...(dispatchControllerState || {}),
+      ...data
+    };
+    applyIncomingDispatchControllerState(nextState);
+    return nextState;
+  }
+
   async function syncDispatchControllerState(mode = "dispatch") {
     try {
       const response = await fetch(`${API_BASE}/dispatch/state`, {
@@ -6872,9 +7063,13 @@ async function startOrder(orderNo) {
 
   function applyIncomingDispatchControllerState(state) {
     if (!state || typeof state !== "object") return;
-    dispatchControllerState = state;
+    dispatchControllerState = {
+      ...(dispatchControllerState || {}),
+      ...state
+    };
     renderEnvironmentHeaderWidget(state.environment || null);
     renderRemoteStatusBadge(state.remote || null);
+    renderDispatchControllerOverlay(dispatchControllerState);
     const controllerConnected = isDispatchControllerConnected(state);
     if ((typeof dispatchRotaryInputEnabled !== "undefined" && !dispatchRotaryInputEnabled) || !controllerConnected) {
       syncDispatchSelectionUI();
@@ -7006,13 +7201,21 @@ async function startOrder(orderNo) {
     if (!dispatchBoard) return;
     const resolvedSelection = resolveSelectedDispatchOrders();
     const selectedOrderNos = new Set(resolvedSelection.orderNos || []);
+    const controllerSelection = getResolvedDispatchControllerSelection();
+    const controllerConnected =
+      dispatchRotaryInputEnabled &&
+      isDispatchControllerConnected(dispatchControllerState);
 
     dispatchBoard.querySelectorAll(".dispatchCard[data-order-no]").forEach((card) => {
       const orderNo = String(card.dataset.orderNo || "").trim();
       const checked = Boolean(orderNo && selectedOrderNos.has(orderNo));
       card.classList.toggle("is-selected", checked);
+      const isControllerSelected = Boolean(controllerConnected && orderNo && controllerSelection.selectedOrderId === orderNo);
+      card.classList.toggle("is-controller-selected-order-mode", isControllerSelected && controllerSelection.selectionMode === "order");
+      card.classList.toggle("is-controller-selected-line-mode", isControllerSelected && controllerSelection.selectionMode === "line");
     });
 
+    renderDispatchControllerOverlay(dispatchControllerState);
     updateDispatchSelectionSummary();
   }
 
@@ -7221,63 +7424,6 @@ async function startOrder(orderNo) {
     openModuleById(moduleId);
   });
 
-  function formatHoursLabel(value) {
-    const num = Number(value);
-    if (!Number.isFinite(num)) return "0.00h";
-    return `${num.toFixed(2)}h`;
-  }
-
-  function renderBuildChangelog(payload) {
-    const entries = Array.isArray(payload?.entries) ? payload.entries : [];
-    const latest = entries[0] || null;
-
-    if (changelogKpi) {
-      if (latest?.kpi) {
-        changelogKpi.innerHTML = `
-          <strong>Repo LOC:</strong> ${Number(latest.kpi.repoLinesOfCode || 0).toLocaleString()} ·
-          <strong>Manual effort:</strong> ${formatHoursLabel(latest.kpi.manualHours)} ·
-          <strong>AI effort:</strong> ${formatHoursLabel(latest.kpi.aiHours)} ·
-          <strong>Time saved:</strong> ${formatHoursLabel(latest.kpi.savedHours)} (${escapeHtml(latest.kpi.speedBoost || "99% faster")})
-        `;
-      } else {
-        changelogKpi.textContent = "KPI metrics unavailable for this build.";
-      }
-    }
-
-    if (!changelogList) return;
-    if (!entries.length) {
-      changelogList.innerHTML = "<li>No generated changelog entries yet. Run npm run build.</li>";
-      return;
-    }
-
-    changelogList.innerHTML = entries
-      .map((entry) => {
-        const title = escapeHtml(entry.title || "Build update");
-        const stamp = escapeHtml(entry.builtAtLabel || entry.builtAtIso || "Unknown timestamp");
-        const summary = escapeHtml(entry.summary || "");
-        const prLink = entry.prUrl
-          ? `<a href="${escapeHtml(entry.prUrl)}" target="_blank" rel="noopener noreferrer">Open PR</a>`
-          : "No PR link";
-        return `<li><strong>${title}</strong><br><small>${stamp}</small><br>${summary}<br>${prLink}</li>`;
-      })
-      .join("");
-  }
-
-  async function loadBuildChangelog() {
-    if (!changelogList) return;
-    try {
-      const response = await fetch(`/data/changelog.generated.json?ts=${Date.now()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload = await response.json();
-      renderBuildChangelog(payload);
-    } catch (error) {
-      changelogList.innerHTML = `<li>Unable to load generated changelog data (${escapeHtml(String(error))}). Run npm run build first.</li>`;
-      if (changelogKpi) {
-        changelogKpi.textContent = "KPI metrics unavailable.";
-      }
-    }
-  }
-
   function switchMainView(view) {
     const showScan = view === "scan";
     const showOps = view === "ops";
@@ -7290,7 +7436,6 @@ async function startOrder(orderNo) {
     const showDispatchSettings = view === "dispatch-settings";
     const showLogs = view === "logs";
     const showAdmin = view === "admin";
-    const showChangelog = view === "changelog";
 
     if (viewScan) {
       viewScan.hidden = !showScan;
@@ -7336,13 +7481,6 @@ async function startOrder(orderNo) {
       viewAdmin.hidden = !showAdmin;
       viewAdmin.classList.toggle("flView--active", showAdmin);
     }
-    if (viewChangelog) {
-      viewChangelog.hidden = !showChangelog;
-      viewChangelog.classList.toggle("flView--active", showChangelog);
-    }
-    if (showChangelog) {
-      void loadBuildChangelog();
-    }
 
     navScan?.classList.toggle("flNavBtn--active", showScan);
     navOps?.classList.toggle("flNavBtn--active", showOps);
@@ -7356,7 +7494,6 @@ async function startOrder(orderNo) {
     navDispatchSettings?.classList.toggle("flNavBtn--active", showDispatchSettings);
     navLogs?.classList.toggle("flNavBtn--active", showLogs);
     navFooterAdmin?.classList.toggle("flNavBtn--active", showAdmin);
-    navFooterChangelog?.classList.toggle("flNavBtn--active", showChangelog);
     navScan?.setAttribute("aria-selected", showScan ? "true" : "false");
     navOps?.setAttribute("aria-selected", showOps ? "true" : "false");
     navDocs?.setAttribute("aria-selected", showDocs ? "true" : "false");
@@ -7375,7 +7512,6 @@ async function startOrder(orderNo) {
     navDispatchSettings?.setAttribute("aria-selected", showDispatchSettings ? "true" : "false");
     navLogs?.setAttribute("aria-selected", showLogs ? "true" : "false");
     navFooterAdmin?.setAttribute("aria-selected", showAdmin ? "true" : "false");
-    navFooterChangelog?.setAttribute("aria-selected", showChangelog ? "true" : "false");
 
     if (showScan) {
       statusExplain("Orders view ready.", "info");
@@ -7398,13 +7534,12 @@ async function startOrder(orderNo) {
       statusExplain("Logs view loaded.", "info");
     } else if (showAdmin) {
       statusExplain("Admin workspace loaded.", "info");
-    } else if (showChangelog) {
-      statusExplain("Changelog opened.", "info");
     } else {
       statusExplain("Viewing orders / ops dashboard", "info");
     }
 
     updateDispatchSelectionSidebarVisibility(showScan, resolveSelectedDispatchOrders().rows.length > 0);
+    renderDispatchControllerOverlay(dispatchControllerState);
   }
 
   const ROUTE_VIEW_MAP = new Map([
@@ -7420,8 +7555,7 @@ async function startOrder(orderNo) {
     ["/price-manager", "price-manager"],
     ["/dispatch-settings", "dispatch-settings"],
     ["/logs", "logs"],
-    ["/admin", "admin"],
-    ["/changelog", "changelog"]
+    ["/admin", "admin"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -7435,8 +7569,7 @@ async function startOrder(orderNo) {
     "price-manager": "/price-manager",
     "dispatch-settings": "/dispatch-settings",
     logs: "/logs",
-    admin: "/admin",
-    changelog: "/changelog"
+    admin: "/admin"
   };
 
   const docsState = {
@@ -7497,11 +7630,41 @@ async function startOrder(orderNo) {
     return { response, data };
   }
 
+  function normalizeEmailList(value) {
+    if (Array.isArray(value)) {
+      return Array.from(
+        new Set(
+          value
+            .map((entry) => String(entry || "").trim().toLowerCase())
+            .filter((entry) => entry && entry.includes("@"))
+        )
+      );
+    }
+    if (typeof value === "string") {
+      return normalizeEmailList(
+        value
+          .split(/[,\n;]/)
+          .map((entry) => entry.trim())
+          .filter(Boolean)
+      );
+    }
+    return [];
+  }
+
   function normalizeSettingsState(rawSettings) {
     const source = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
     const sticker = source.sticker && typeof source.sticker === "object" ? source.sticker : {};
     const printHistory = source.printHistory && typeof source.printHistory === "object" ? source.printHistory : {};
     const relay = source.relay && typeof source.relay === "object" ? source.relay : {};
+    const controller = source.controller && typeof source.controller === "object" ? source.controller : {};
+    const notifications = source.notifications && typeof source.notifications === "object" ? source.notifications : {};
+    const notificationEvents = notifications.events && typeof notifications.events === "object" ? notifications.events : {};
+    const pickupReady = notificationEvents.pickupReady && typeof notificationEvents.pickupReady === "object"
+      ? notificationEvents.pickupReady
+      : {};
+    const truckCollection = notificationEvents.truckCollection && typeof notificationEvents.truckCollection === "object"
+      ? notificationEvents.truckCollection
+      : {};
 
     const shelfLifeMonths = Math.max(1, Math.trunc(Number(sticker.shelfLifeMonths) || 12));
     const defaultButtonQty = Math.max(1, Math.trunc(Number(sticker.defaultButtonQty) || 50));
@@ -7524,6 +7687,31 @@ async function startOrder(orderNo) {
       relay: {
         enabled: Boolean(relay.enabled),
         targets: Array.isArray(relay.targets) ? relay.targets : []
+      },
+      controller: {
+        showOnScreenButtons: controller.showOnScreenButtons !== false,
+        requireConnectedRemote: controller.requireConnectedRemote !== false,
+        highVisibilityMode: controller.highVisibilityMode !== false
+      },
+      notifications: {
+        senderOverride: String(notifications.senderOverride || "").trim(),
+        fallbackRecipient: String(notifications.fallbackRecipient || "").trim(),
+        events: {
+          pickupReady: {
+            enabled: pickupReady.enabled !== false,
+            templateId: String(pickupReady.templateId || "flss-pickup-ready-email").trim() || "flss-pickup-ready-email",
+            useCustomerEmail: pickupReady.useCustomerEmail !== false,
+            recipients: normalizeEmailList(pickupReady.recipients),
+            fallbackRecipient: String(pickupReady.fallbackRecipient || "").trim()
+          },
+          truckCollection: {
+            enabled: truckCollection.enabled !== false,
+            templateId: String(truckCollection.templateId || "flss-truck-collection-email").trim() || "flss-truck-collection-email",
+            useCustomerEmail: false,
+            recipients: normalizeEmailList(truckCollection.recipients),
+            fallbackRecipient: String(truckCollection.fallbackRecipient || "").trim()
+          }
+        }
       }
     };
   }
@@ -7551,6 +7739,52 @@ async function startOrder(orderNo) {
     if (settingsPrintRetentionDays) {
       settingsPrintRetentionDays.value = String(settingsState.printHistory?.retentionDays ?? 365);
     }
+    if (settingsControllerShowOnScreenButtons) {
+      settingsControllerShowOnScreenButtons.checked = settingsState.controller?.showOnScreenButtons !== false;
+    }
+    if (settingsControllerRequireConnectedRemote) {
+      settingsControllerRequireConnectedRemote.checked = settingsState.controller?.requireConnectedRemote !== false;
+    }
+    if (settingsControllerHighVisibilityMode) {
+      settingsControllerHighVisibilityMode.checked = settingsState.controller?.highVisibilityMode !== false;
+    }
+    if (settingsNotificationSenderOverride) {
+      settingsNotificationSenderOverride.value = settingsState.notifications?.senderOverride || "";
+    }
+    if (settingsNotificationFallbackRecipient) {
+      settingsNotificationFallbackRecipient.value = settingsState.notifications?.fallbackRecipient || "";
+    }
+    if (settingsNotificationPickupEnabled) {
+      settingsNotificationPickupEnabled.checked = settingsState.notifications?.events?.pickupReady?.enabled !== false;
+    }
+    if (settingsNotificationPickupUseCustomerEmail) {
+      settingsNotificationPickupUseCustomerEmail.checked = settingsState.notifications?.events?.pickupReady?.useCustomerEmail !== false;
+    }
+    if (settingsNotificationPickupRecipients) {
+      settingsNotificationPickupRecipients.value = (settingsState.notifications?.events?.pickupReady?.recipients || []).join(", ");
+    }
+    if (settingsNotificationPickupFallbackRecipient) {
+      settingsNotificationPickupFallbackRecipient.value = settingsState.notifications?.events?.pickupReady?.fallbackRecipient || "";
+    }
+    if (settingsNotificationTruckEnabled) {
+      settingsNotificationTruckEnabled.checked = settingsState.notifications?.events?.truckCollection?.enabled !== false;
+    }
+    if (settingsNotificationTruckRecipients) {
+      settingsNotificationTruckRecipients.value = (settingsState.notifications?.events?.truckCollection?.recipients || []).join(", ");
+    }
+    if (settingsNotificationTruckFallbackRecipient) {
+      settingsNotificationTruckFallbackRecipient.value = settingsState.notifications?.events?.truckCollection?.fallbackRecipient || "";
+    }
+    renderNotificationTemplateSelect(
+      settingsNotificationPickupTemplate,
+      "pickup-ready",
+      settingsState.notifications?.events?.pickupReady?.templateId || ""
+    );
+    renderNotificationTemplateSelect(
+      settingsNotificationTruckTemplate,
+      "truck-collection",
+      settingsState.notifications?.events?.truckCollection?.templateId || ""
+    );
   }
 
   function collectSettingsFormPayload() {
@@ -7568,8 +7802,127 @@ async function startOrder(orderNo) {
       },
       printHistory: {
         retentionDays
+      },
+      controller: {
+        showOnScreenButtons: settingsControllerShowOnScreenButtons?.checked !== false,
+        requireConnectedRemote: settingsControllerRequireConnectedRemote?.checked !== false,
+        highVisibilityMode: settingsControllerHighVisibilityMode?.checked !== false
+      },
+      notifications: {
+        senderOverride: String(settingsNotificationSenderOverride?.value || "").trim(),
+        fallbackRecipient: String(settingsNotificationFallbackRecipient?.value || "").trim(),
+        events: {
+          pickupReady: {
+            enabled: settingsNotificationPickupEnabled?.checked !== false,
+            templateId: String(settingsNotificationPickupTemplate?.value || "flss-pickup-ready-email").trim(),
+            useCustomerEmail: settingsNotificationPickupUseCustomerEmail?.checked !== false,
+            recipients: normalizeEmailList(settingsNotificationPickupRecipients?.value || ""),
+            fallbackRecipient: String(settingsNotificationPickupFallbackRecipient?.value || "").trim()
+          },
+          truckCollection: {
+            enabled: settingsNotificationTruckEnabled?.checked !== false,
+            templateId: String(settingsNotificationTruckTemplate?.value || "flss-truck-collection-email").trim(),
+            useCustomerEmail: false,
+            recipients: normalizeEmailList(settingsNotificationTruckRecipients?.value || ""),
+            fallbackRecipient: String(settingsNotificationTruckFallbackRecipient?.value || "").trim()
+          }
+        }
       }
     };
+  }
+
+  function setSettingsNotificationsStatus(message = "", tone = "info") {
+    if (!settingsNotificationsStatus) return;
+    settingsNotificationsStatus.textContent = String(message || "");
+    settingsNotificationsStatus.classList.remove("status-ok", "status-error", "status-warn");
+    if (tone === "ok") settingsNotificationsStatus.classList.add("status-ok");
+    if (tone === "err") settingsNotificationsStatus.classList.add("status-error");
+    if (tone === "warn") settingsNotificationsStatus.classList.add("status-warn");
+  }
+
+  function getNotificationTemplateOptions(eventKey, currentValue = "") {
+    const emailTemplates = settingsTemplateRows.filter(
+      (template) => String(template?.channel || "").trim().toLowerCase() === "email"
+    );
+    const prioritized = [...emailTemplates].sort((left, right) => {
+      const leftMatchesEvent = String(left?.eventKey || "").trim() === eventKey ? -1 : 0;
+      const rightMatchesEvent = String(right?.eventKey || "").trim() === eventKey ? -1 : 0;
+      return leftMatchesEvent - rightMatchesEvent || String(left?.name || "").localeCompare(String(right?.name || ""));
+    });
+
+    if (currentValue && !prioritized.some((template) => template.id === currentValue)) {
+      prioritized.unshift({
+        id: currentValue,
+        name: `${currentValue} (missing from registry)`,
+        eventKey
+      });
+    }
+
+    return prioritized;
+  }
+
+  function renderNotificationTemplateSelect(selectEl, eventKey, selectedTemplateId = "") {
+    if (!selectEl) return;
+    const options = getNotificationTemplateOptions(eventKey, selectedTemplateId);
+    const defaultLabel = eventKey === "truck-collection" ? "flss-truck-collection-email" : "flss-pickup-ready-email";
+    selectEl.innerHTML = [
+      `<option value="">Use default (${escapeHtml(defaultLabel)})</option>`,
+      ...options.map((template) => {
+        const label = [template.name, template.eventKey ? `(${template.eventKey})` : ""].filter(Boolean).join(" ");
+        return `<option value="${escapeHtml(template.id)}">${escapeHtml(label)}</option>`;
+      })
+    ].join("");
+    selectEl.value = options.some((template) => template.id === selectedTemplateId) ? selectedTemplateId : "";
+  }
+
+  async function loadNotificationTemplateOptions() {
+    const { response, data } = await fetchJsonWithDetails(`${API_BASE}/notification-templates`);
+    if (!response.ok || !Array.isArray(data?.templates)) {
+      settingsTemplateRows = [];
+      renderNotificationTemplateSelect(
+        settingsNotificationPickupTemplate,
+        "pickup-ready",
+        settingsState?.notifications?.events?.pickupReady?.templateId || ""
+      );
+      renderNotificationTemplateSelect(
+        settingsNotificationTruckTemplate,
+        "truck-collection",
+        settingsState?.notifications?.events?.truckCollection?.templateId || ""
+      );
+      throw new Error(data?.error || `Template registry load failed (${response.status})`);
+    }
+
+    settingsTemplateRows = data.templates;
+    renderNotificationTemplateSelect(
+      settingsNotificationPickupTemplate,
+      "pickup-ready",
+      settingsState?.notifications?.events?.pickupReady?.templateId || ""
+    );
+    renderNotificationTemplateSelect(
+      settingsNotificationTruckTemplate,
+      "truck-collection",
+      settingsState?.notifications?.events?.truckCollection?.templateId || ""
+    );
+    return settingsTemplateRows;
+  }
+
+  async function sendSettingsNotificationTest(eventKey) {
+    setSettingsNotificationsStatus("Saving notification settings and sending test...");
+    await persistSystemSettings(collectSettingsFormPayload());
+    const { response, data } = await fetchJsonWithDetails(`${API_BASE}/system/settings/notifications/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventKey })
+    });
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || `Notification test failed (${response.status})`);
+    }
+    const recipients = Array.isArray(data.to) ? data.to.join(", ") : "";
+    setSettingsNotificationsStatus(
+      `Test sent via ${data.templateId || "default template"} to ${recipients || "configured recipients"}.`,
+      "ok"
+    );
+    return data;
   }
 
   function renderSettingsPrintersTable(printers = []) {
@@ -7741,8 +8094,14 @@ async function startOrder(orderNo) {
       throw new Error(data?.message || `Settings load failed (${response.status})`);
     }
     settingsState = normalizeSettingsState(data.settings);
+    try {
+      await loadNotificationTemplateOptions();
+    } catch (error) {
+      setSettingsNotificationsStatus(String(error?.message || error), "warn");
+    }
     renderSettingsStateToForm();
     renderSettingsPrintersTable(settingsPrinterRows);
+    renderDispatchControllerOverlay();
     setSettingsSaveStatus("Settings loaded.", "ok");
     return settingsState;
   }
@@ -7760,6 +8119,7 @@ async function startOrder(orderNo) {
     settingsState = normalizeSettingsState(data.settings);
     renderSettingsStateToForm();
     renderSettingsPrintersTable(settingsPrinterRows);
+    renderDispatchControllerOverlay();
     return settingsState;
   }
 
@@ -7824,8 +8184,8 @@ async function startOrder(orderNo) {
 
   function setSettingsTab(nextTab, options = {}) {
     const { focusButton = false } = options;
-    const allowedTabs = new Set(["system", "printers", "monitoring", "notifications"]);
-    const tab = allowedTabs.has(nextTab) ? nextTab : "system";
+    const allowedTabs = new Set(["general", "printers", "controller", "notifications", "monitoring"]);
+    const tab = allowedTabs.has(nextTab) ? nextTab : "general";
     settingsActiveTab = tab;
     settingsTabs.forEach((button) => {
       const isActive = button.dataset.settingsTab === tab;
@@ -7842,9 +8202,10 @@ async function startOrder(orderNo) {
       void loadPrintNodePrinters();
     } else if (tab === "monitoring") {
       void loadMonitoringData();
-    } else if (tab === "notifications" && settingsNotificationsFrame) {
-      const currentSrc = settingsNotificationsFrame.getAttribute("src");
-      if (!currentSrc) settingsNotificationsFrame.setAttribute("src", "/notification-templates.html");
+    } else if (tab === "notifications") {
+      void loadNotificationTemplateOptions().catch((error) => {
+        setSettingsNotificationsStatus(String(error?.message || error), "warn");
+      });
     }
   }
 
@@ -7873,6 +8234,7 @@ async function startOrder(orderNo) {
     } else {
       renderSettingsStateToForm();
       renderSettingsPrintersTable(settingsPrinterRows);
+      renderDispatchControllerOverlay();
     }
   }
 
@@ -8045,11 +8407,51 @@ async function startOrder(orderNo) {
     }
   }
 
+  function renderAdminLauncher() {
+    if (!adminLauncher) return;
+    adminLauncher.innerHTML = ADMIN_TOOLS
+      .map(
+        (tool) => `
+          <button
+            type="button"
+            class="flAdminLauncherBtn ${tool.id === adminActiveToolId ? "is-active" : ""}"
+            data-admin-tool="${escapeHtml(tool.id)}">
+            <strong>${escapeHtml(tool.title)}</strong>
+            <span>${escapeHtml(tool.description)}</span>
+          </button>
+        `
+      )
+      .join("");
+  }
+
+  function openAdminTool(toolId) {
+    const tool = ADMIN_TOOLS.find((entry) => entry.id === toolId) || ADMIN_TOOLS[0] || null;
+    if (!tool) return;
+    adminActiveToolId = tool.id;
+    if (adminWorkspaceTitle) adminWorkspaceTitle.textContent = tool.title;
+    if (adminWorkspaceMeta) adminWorkspaceMeta.textContent = tool.description;
+    if (adminWorkspaceOpenLink) adminWorkspaceOpenLink.href = tool.target;
+    if (adminWorkspaceFrame && adminWorkspaceFrame.getAttribute("src") !== tool.target) {
+      adminWorkspaceFrame.setAttribute("src", tool.target);
+    }
+    renderAdminLauncher();
+  }
+
+  function initAdminView() {
+    renderAdminLauncher();
+    if (!adminActiveToolId) {
+      openAdminTool(ADMIN_TOOLS[0]?.id || "");
+    } else {
+      openAdminTool(adminActiveToolId);
+    }
+  }
+
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
     docs: initDocsView,
-    "price-manager": initPriceManagerView
+    "price-manager": initPriceManagerView,
+    admin: initAdminView
   };
 
   function normalizePath(path) {
@@ -8123,6 +8525,7 @@ async function startOrder(orderNo) {
 
   const setDispatchRotaryInputEnabled = (enabled, { notify = true } = {}) => {
     dispatchRotaryInputEnabled = Boolean(enabled);
+    renderDispatchControllerOverlay(dispatchControllerState);
     if (notify) {
       statusExplain(
         dispatchRotaryInputEnabled
@@ -8164,6 +8567,36 @@ async function startOrder(orderNo) {
       Boolean(target?.isContentEditable);
 
     if (activeView === "viewScan" && !inEditable && dispatchRotaryInputEnabled) {
+      const controllerConnected = isDispatchControllerConnected(dispatchControllerState);
+      if (controllerConnected) {
+        if (key === "ArrowDown") {
+          e.preventDefault();
+          try {
+            await sendDispatchControllerAction("next", { source: "keyboard" });
+          } catch (error) {
+            statusExplain(String(error?.message || error), "warn");
+          }
+          return;
+        }
+        if (key === "ArrowUp") {
+          e.preventDefault();
+          try {
+            await sendDispatchControllerAction("prev", { source: "keyboard" });
+          } catch (error) {
+            statusExplain(String(error?.message || error), "warn");
+          }
+          return;
+        }
+        if (key === "Enter") {
+          e.preventDefault();
+          try {
+            await sendDispatchControllerAction("confirm", { source: "keyboard" });
+          } catch (error) {
+            statusExplain(String(error?.message || error), "warn");
+          }
+          return;
+        }
+      }
       if (key === "ArrowDown") {
         e.preventDefault();
         moveDispatchRotaryFocus(1);
@@ -8329,7 +8762,7 @@ async function startOrder(orderNo) {
 
   navFooterSettings?.addEventListener("click", (event) => {
     event.preventDefault();
-    setSettingsModalOpen(true, { tab: settingsActiveTab || "system" });
+    setSettingsModalOpen(true, { tab: settingsActiveTab || "general" });
   });
 
   settingsModalClose?.addEventListener("click", () => {
@@ -8346,7 +8779,7 @@ async function startOrder(orderNo) {
 
   settingsTabs.forEach((button) => {
     button.addEventListener("click", () => {
-      const tab = String(button.dataset.settingsTab || "system").trim();
+      const tab = String(button.dataset.settingsTab || "general").trim();
       setSettingsTab(tab);
     });
   });
@@ -8423,6 +8856,54 @@ async function startOrder(orderNo) {
     } finally {
       settingsRefreshMonitoringBtn.disabled = false;
     }
+  });
+
+  settingsTestPickupEmailBtn?.addEventListener("click", async () => {
+    settingsTestPickupEmailBtn.disabled = true;
+    try {
+      await sendSettingsNotificationTest("pickup-ready");
+    } catch (error) {
+      setSettingsNotificationsStatus(String(error?.message || error), "err");
+    } finally {
+      settingsTestPickupEmailBtn.disabled = false;
+    }
+  });
+
+  settingsTestTruckEmailBtn?.addEventListener("click", async () => {
+    settingsTestTruckEmailBtn.disabled = true;
+    try {
+      await sendSettingsNotificationTest("truck-collection");
+    } catch (error) {
+      setSettingsNotificationsStatus(String(error?.message || error), "err");
+    } finally {
+      settingsTestTruckEmailBtn.disabled = false;
+    }
+  });
+
+  dispatchControllerBackBtn?.addEventListener("click", async () => {
+    try {
+      await sendDispatchControllerAction("back", { source: "overlay" });
+    } catch (error) {
+      statusExplain(String(error?.message || error), "warn");
+    }
+  });
+
+  dispatchControllerConfirmBtn?.addEventListener("click", async () => {
+    try {
+      await sendDispatchControllerAction("confirm", { source: "overlay" });
+    } catch (error) {
+      statusExplain(String(error?.message || error), "warn");
+    }
+  });
+
+  adminLauncher?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-admin-tool]");
+    if (!button) return;
+    const toolId = String(button.getAttribute("data-admin-tool") || "").trim();
+    if (!toolId) return;
+    openAdminTool(toolId);
   });
 
   document.addEventListener("click", async (event) => {
@@ -9098,6 +9579,13 @@ async function startOrder(orderNo) {
       if (e.target.closest("button") || e.target.closest("input") || e.target.closest("label")) return;
       const orderNo = lineItem.dataset.orderNo;
       const itemKey = lineItem.dataset.itemKey ? decodeURIComponent(lineItem.dataset.itemKey) : "";
+      const orderAlreadySelected = dispatchSelectedOrders.size === 1 && dispatchSelectedOrders.has(orderNo);
+      if (!orderAlreadySelected) {
+        dispatchSelectedOrders.clear();
+        if (orderNo) dispatchSelectedOrders.add(orderNo);
+        syncDispatchSelectionUI();
+        return;
+      }
       toggleDispatchLineItemPacked(orderNo, itemKey);
       return;
     }
@@ -9445,7 +9933,6 @@ async function startOrder(orderNo) {
       renderDateTimeHeaderWidget();
       setInterval(renderDateTimeHeaderWidget, 60000);
       renderModuleDashboard();
-      await loadBuildChangelog();
 
       const currentPath = normalizePath(window.location.pathname);
       if (currentPath === "/deliver") {

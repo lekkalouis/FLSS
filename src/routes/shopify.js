@@ -4,6 +4,10 @@ import { Router } from "express";
 import { config } from "../config.js";
 import { getSmtpTransport } from "../services/email.js";
 import {
+  NOTIFICATION_EVENT_KEYS
+} from "../services/notificationTemplateRegistry.js";
+import { sendNotificationEmail } from "../services/notificationRuntime.js";
+import {
   adjustInventoryLevel,
   fetchInventoryItemIdsForVariants,
   fetchInventoryLevelsForItems,
@@ -114,10 +118,10 @@ function requireShopifyConfigured(res) {
 }
 
 function requireCustomerEmailConfigured(res) {
-  if (!config.SMTP_HOST || !config.SMTP_FROM) {
+  if (!config.SMTP_HOST) {
     res.status(501).json({
       error: "EMAIL_NOT_CONFIGURED",
-      message: "Set SMTP_HOST and SMTP_FROM in .env to send customer emails."
+      message: "Set SMTP_HOST in .env to send customer emails."
     });
     return false;
   }
@@ -3932,59 +3936,46 @@ router.post("/shopify/notify-collection", async (req, res) => {
 
     const orderRecord = orderData.order;
     const customerEmail = String(email || orderRecord.email || orderRecord.customer?.email || "").trim();
-    const fallbackNotifiedAdmin = !customerEmail;
-    const sendTo = fallbackNotifiedAdmin ? "admin@flippenlekkaspices.co.za" : customerEmail;
-
     const safeOrderNo = orderNo ? `#${String(orderNo).replace("#", "")}` : "your order";
     const safeName = customerName || "there";
     const weightLabel = Number(weightKg || 0).toFixed(2);
     const parcelsLabel = Number(parcelCount || 0);
-    const subject = `Order ${safeOrderNo} ready for collection`;
     const barcodeImageUrl = `https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(
       barcodeValue
     )}&code=Code128&dpi=120`;
-    const text = `Hi ${safeName},
-
-Your order ${safeOrderNo} is ready for pickup by your courier.
-
-Order weight: ${weightLabel} kg
-Parcels packed: ${parcelsLabel}
-Collection barcode: ${barcodeValue}
-Collection PIN (fallback): ${pin}
-
-Thank you.`;
-
-    const html = `
-      <p>Hi ${safeName},</p>
-      <p>Your order <strong>${safeOrderNo}</strong> is ready for pickup by your courier.</p>
-      <p>
-        <strong>Order weight:</strong> ${weightLabel} kg<br/>
-        <strong>Parcels packed:</strong> ${parcelsLabel}
-      </p>
-      <p><strong>Present this barcode at collection:</strong></p>
-      <p><img src="${barcodeImageUrl}" alt="Collection barcode for order ${safeOrderNo}" /></p>
-      <p style="font-family:monospace;font-size:16px"><strong>${barcodeValue}</strong></p>
-      <p><strong>Fallback PIN:</strong> ${pin}</p>
-      <p>Thank you.</p>
-    `;
 
     const transport = getSmtpTransport();
-    const adminNotice = fallbackNotifiedAdmin
-      ? `\n\nNo customer email is on record for ${safeOrderNo}. This admin message confirms the order is ready for pickup, but no customer notification could be sent.`
-      : "";
-
-    await transport.sendMail({
-      from: config.SMTP_FROM,
-      to: sendTo,
-      bcc: config.SMTP_FROM,
-      subject,
-      text: `${text}${adminNotice}`,
-      html: `${html}${
-        fallbackNotifiedAdmin
-          ? `<p><strong>No customer email is on record for ${safeOrderNo}.</strong> This admin email confirms the order is ready for pickup, but no customer notification could be sent.</p>`
-          : ""
-      }`
+    const result = await sendNotificationEmail({
+      transport,
+      eventKey: NOTIFICATION_EVENT_KEYS.PICKUP_READY,
+      fallbackFrom: config.SMTP_FROM,
+      context: {
+        shop: {
+          name: "Flippen Lekka Spices"
+        },
+        customer: {
+          name: safeName,
+          email: customerEmail
+        },
+        order: {
+          id: orderRecord.id,
+          name: safeOrderNo,
+          email: customerEmail,
+          customer: orderRecord.customer || null
+        },
+        pickup: {
+          barcode_value: barcodeValue,
+          barcode_image_url: barcodeImageUrl,
+          pin
+        },
+        metrics: {
+          parcel_count: parcelsLabel,
+          weight_kg: weightLabel
+        }
+      }
     });
+
+    const usedFallbackRecipient = !customerEmail || !result.to.some((entry) => entry.toLowerCase() === customerEmail.toLowerCase());
 
     await appendOrderTag(base, orderId, "pickup_notified");
     await appendOrderTag(base, orderId, "stat:notified");
@@ -3994,10 +3985,25 @@ Thank you.`;
       barcodeValue,
       pin,
       orderNo: normalizedOrderNo,
-      sentTo: sendTo,
-      fallbackNotifiedAdmin
+      sentTo: result.to,
+      subject: result.subject,
+      templateId: result.template?.id || null,
+      usedFallbackRecipient,
+      fallbackNotifiedAdmin: usedFallbackRecipient
     });
   } catch (err) {
+    if (err?.code === "EMAIL_NOT_CONFIGURED") {
+      return res.status(501).json({
+        error: "EMAIL_NOT_CONFIGURED",
+        message: "Configure a sender in settings or set SMTP_FROM in .env before notifying collection."
+      });
+    }
+    if (err?.code === "NO_NOTIFICATION_RECIPIENTS") {
+      return res.status(400).json({
+        error: "NOTIFICATION_RECIPIENTS_MISSING",
+        message: err.message
+      });
+    }
     console.error("Notify collection error:", err);
     return res.status(502).json({
       error: "UPSTREAM_ERROR",

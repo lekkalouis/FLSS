@@ -5,6 +5,7 @@ const dispatchState = {
   lineItemKeysByOrderId: {},
   selectedOrderId: null,
   selectedLineItemKey: null,
+  selectionMode: "order",
   mode: "dispatch",
   lastConfirmedAt: null,
   lastConfirmedOrderId: null,
@@ -62,6 +63,7 @@ function cloneRemote() {
 function hasStateChanged(previousState, nextState) {
   if (!previousState || !nextState) return true;
   if (previousState.selectedOrderId !== nextState.selectedOrderId) return true;
+  if (previousState.selectionMode !== nextState.selectionMode) return true;
   if (previousState.mode !== nextState.mode) return true;
   if (previousState.lastConfirmedAt !== nextState.lastConfirmedAt) return true;
   if (previousState.lastConfirmedOrderId !== nextState.lastConfirmedOrderId) return true;
@@ -134,6 +136,19 @@ function normalizeLineItemKeysByOrderId(lineItemKeysByOrderId = {}) {
   return normalized;
 }
 
+function normalizeSelectionMode(selectionMode) {
+  return String(selectionMode || "").trim().toLowerCase() === "line" ? "line" : "order";
+}
+
+function cloneLineItemKeysByOrderId(lineItemKeysByOrderId = {}) {
+  return Object.fromEntries(
+    Object.entries(lineItemKeysByOrderId).map(([orderId, keys]) => [
+      orderId,
+      Array.isArray(keys) ? [...keys] : []
+    ])
+  );
+}
+
 function getLineItemKeysForOrder(orderId) {
   const cleanOrderId = String(orderId || "").trim();
   if (!cleanOrderId) return [];
@@ -145,41 +160,78 @@ function getSelectedIndex() {
   return dispatchState.queueOrderIds.indexOf(dispatchState.selectedOrderId);
 }
 
-function selectIndex(index) {
+function ensureLineSelection({ selectionMode = dispatchState.selectionMode } = {}) {
+  const normalizedSelectionMode = normalizeSelectionMode(selectionMode);
+  const lineItemKeys = getLineItemKeysForOrder(dispatchState.selectedOrderId);
+  if (normalizedSelectionMode !== "line") {
+    dispatchState.selectionMode = "order";
+    dispatchState.selectedLineItemKey = null;
+    return null;
+  }
+  if (!lineItemKeys.length) {
+    dispatchState.selectionMode = "order";
+    dispatchState.selectedLineItemKey = null;
+    return null;
+  }
+  dispatchState.selectionMode = "line";
+  if (!lineItemKeys.includes(dispatchState.selectedLineItemKey)) {
+    dispatchState.selectedLineItemKey = lineItemKeys[0] || null;
+  }
+  return dispatchState.selectedLineItemKey;
+}
+
+function selectIndex(index, { selectionMode = dispatchState.selectionMode, lineItemKey = null } = {}) {
   if (!dispatchState.queueOrderIds.length) {
     dispatchState.selectedOrderId = null;
+    dispatchState.selectedLineItemKey = null;
+    dispatchState.selectionMode = "order";
     return null;
   }
   const normalizedIndex = ((index % dispatchState.queueOrderIds.length) + dispatchState.queueOrderIds.length) % dispatchState.queueOrderIds.length;
   dispatchState.selectedOrderId = dispatchState.queueOrderIds[normalizedIndex];
-  const lineItemKeys = getLineItemKeysForOrder(dispatchState.selectedOrderId);
-  dispatchState.selectedLineItemKey = lineItemKeys[0] || null;
+  const normalizedSelectionMode = normalizeSelectionMode(selectionMode);
+  if (normalizedSelectionMode === "line") {
+    const lineItemKeys = getLineItemKeysForOrder(dispatchState.selectedOrderId);
+    const desiredLineItemKey = String(lineItemKey || "").trim();
+    dispatchState.selectedLineItemKey =
+      desiredLineItemKey && lineItemKeys.includes(desiredLineItemKey)
+        ? desiredLineItemKey
+        : lineItemKeys[0] || null;
+    dispatchState.selectionMode = dispatchState.selectedLineItemKey ? "line" : "order";
+  } else {
+    dispatchState.selectionMode = "order";
+    dispatchState.selectedLineItemKey = null;
+  }
   return dispatchState.selectedOrderId;
 }
 
 function ensureSelection() {
   if (!dispatchState.queueOrderIds.length) {
     dispatchState.selectedOrderId = null;
+    dispatchState.selectedLineItemKey = null;
+    dispatchState.selectionMode = "order";
     return;
   }
   const currentIndex = getSelectedIndex();
   if (currentIndex === -1) {
     dispatchState.selectedOrderId = dispatchState.queueOrderIds[0];
   }
-  const lineItemKeys = getLineItemKeysForOrder(dispatchState.selectedOrderId);
-  if (!lineItemKeys.length) {
-    dispatchState.selectedLineItemKey = null;
-  } else if (!lineItemKeys.includes(dispatchState.selectedLineItemKey)) {
-    dispatchState.selectedLineItemKey = lineItemKeys[0];
-  }
+  ensureLineSelection({ selectionMode: dispatchState.selectionMode });
+}
+
+function closeQuantityPrompt() {
+  dispatchState.quantityPromptOpen = false;
+  dispatchState.quantityPromptTargetLineItemKey = null;
+  dispatchState.quantityPromptQty = null;
 }
 
 export function getState() {
   return {
     selectedOrderId: dispatchState.selectedOrderId,
     selectedLineItemKey: dispatchState.selectedLineItemKey,
+    selectionMode: dispatchState.selectionMode,
     queueOrderIds: [...dispatchState.queueOrderIds],
-    lineItemKeysByOrderId: { ...dispatchState.lineItemKeysByOrderId },
+    lineItemKeysByOrderId: cloneLineItemKeysByOrderId(dispatchState.lineItemKeysByOrderId),
     mode: dispatchState.mode,
     lastConfirmedAt: dispatchState.lastConfirmedAt,
     lastConfirmedOrderId: dispatchState.lastConfirmedOrderId,
@@ -199,7 +251,7 @@ export function getState() {
   };
 }
 
-export function syncState({ queueOrderIds, lineItemKeysByOrderId, mode } = {}) {
+export function syncState({ queueOrderIds, lineItemKeysByOrderId, mode, selectionMode } = {}) {
   const previousState = getState();
   if (queueOrderIds !== undefined) {
     dispatchState.queueOrderIds = normalizeOrderIds(queueOrderIds);
@@ -207,7 +259,10 @@ export function syncState({ queueOrderIds, lineItemKeysByOrderId, mode } = {}) {
   if (lineItemKeysByOrderId !== undefined) {
     dispatchState.lineItemKeysByOrderId = normalizeLineItemKeysByOrderId(lineItemKeysByOrderId);
   }
-  if (queueOrderIds !== undefined || lineItemKeysByOrderId !== undefined) {
+  if (selectionMode !== undefined) {
+    dispatchState.selectionMode = normalizeSelectionMode(selectionMode);
+  }
+  if (queueOrderIds !== undefined || lineItemKeysByOrderId !== undefined || selectionMode !== undefined) {
     ensureSelection();
   }
   if (typeof mode === "string" && mode.trim()) {
@@ -222,18 +277,15 @@ export function next() {
   const previousState = getState();
   if (!dispatchState.queueOrderIds.length) return getState();
   ensureSelection();
-  const lineItemKeys = getLineItemKeysForOrder(dispatchState.selectedOrderId);
-  if (lineItemKeys.length) {
+  if (dispatchState.selectionMode === "line") {
+    const lineItemKeys = getLineItemKeysForOrder(dispatchState.selectedOrderId);
     const currentLineIndex = lineItemKeys.indexOf(dispatchState.selectedLineItemKey);
     if (currentLineIndex >= 0 && currentLineIndex < lineItemKeys.length - 1) {
       dispatchState.selectedLineItemKey = lineItemKeys[currentLineIndex + 1];
-    } else {
-      const index = getSelectedIndex();
-      selectIndex(index === -1 ? 0 : index + 1);
     }
   } else {
     const index = getSelectedIndex();
-    selectIndex(index === -1 ? 0 : index + 1);
+    selectIndex(index === -1 ? 0 : index + 1, { selectionMode: "order" });
   }
   const nextState = getState();
   emitStateChange("next", previousState, nextState);
@@ -244,22 +296,15 @@ export function prev() {
   const previousState = getState();
   if (!dispatchState.queueOrderIds.length) return getState();
   ensureSelection();
-  const lineItemKeys = getLineItemKeysForOrder(dispatchState.selectedOrderId);
-  if (lineItemKeys.length) {
+  if (dispatchState.selectionMode === "line") {
+    const lineItemKeys = getLineItemKeysForOrder(dispatchState.selectedOrderId);
     const currentLineIndex = lineItemKeys.indexOf(dispatchState.selectedLineItemKey);
     if (currentLineIndex > 0) {
       dispatchState.selectedLineItemKey = lineItemKeys[currentLineIndex - 1];
-    } else {
-      const index = getSelectedIndex();
-      const selectedOrderId = selectIndex(index === -1 ? 0 : index - 1);
-      const previousOrderLineItems = getLineItemKeysForOrder(selectedOrderId);
-      dispatchState.selectedLineItemKey = previousOrderLineItems[previousOrderLineItems.length - 1] || null;
     }
   } else {
     const index = getSelectedIndex();
-    const selectedOrderId = selectIndex(index === -1 ? 0 : index - 1);
-    const previousOrderLineItems = getLineItemKeysForOrder(selectedOrderId);
-    dispatchState.selectedLineItemKey = previousOrderLineItems[previousOrderLineItems.length - 1] || null;
+    selectIndex(index === -1 ? 0 : index - 1, { selectionMode: "order" });
   }
   const nextState = getState();
   emitStateChange("prev", previousState, nextState);
@@ -275,11 +320,53 @@ export function confirm() {
     throw err;
   }
 
+  if (dispatchState.selectionMode !== "line") {
+    ensureLineSelection({ selectionMode: "line" });
+    const nextState = getState();
+    emitStateChange("confirm", previousState, nextState, { phase: "enter-line-mode" });
+    return nextState;
+  }
+
+  if (!dispatchState.selectedLineItemKey) {
+    ensureLineSelection({ selectionMode: "line" });
+  }
   dispatchState.lastConfirmedOrderId = dispatchState.selectedOrderId;
   dispatchState.lastConfirmedLineItemKey = dispatchState.selectedLineItemKey;
   dispatchState.lastConfirmedAt = new Date().toISOString();
   const nextState = getState();
-  emitStateChange("confirm", previousState, nextState);
+  emitStateChange("confirm", previousState, nextState, { phase: "pack-line-item" });
+  return nextState;
+}
+
+export function back() {
+  const previousState = getState();
+  if (dispatchState.quantityPromptOpen) {
+    closeQuantityPrompt();
+    const nextState = getState();
+    emitStateChange("back", previousState, nextState, { phase: "close-quantity-prompt" });
+    emitCustomEvent("dispatch-quantity-prompt", {
+      open: false,
+      orderId: dispatchState.selectedOrderId,
+      lineItemKey: dispatchState.selectedLineItemKey
+    });
+    return nextState;
+  }
+
+  if (!dispatchState.queueOrderIds.length) return getState();
+  ensureSelection();
+
+  if (dispatchState.selectionMode === "line") {
+    dispatchState.selectionMode = "order";
+    dispatchState.selectedLineItemKey = null;
+    const nextState = getState();
+    emitStateChange("back", previousState, nextState, { phase: "leave-line-mode" });
+    return nextState;
+  }
+
+  const index = getSelectedIndex();
+  selectIndex(index === -1 ? 0 : index - 1, { selectionMode: "order" });
+  const nextState = getState();
+  emitStateChange("back", previousState, nextState, { phase: "previous-order" });
   return nextState;
 }
 
@@ -329,8 +416,9 @@ export function confirmHold() {
     throw err;
   }
 
+  const targetLineItemKey = ensureLineSelection({ selectionMode: "line" });
   dispatchState.quantityPromptOpen = true;
-  dispatchState.quantityPromptTargetLineItemKey = dispatchState.selectedLineItemKey;
+  dispatchState.quantityPromptTargetLineItemKey = targetLineItemKey;
   dispatchState.quantityPromptQty = null;
   const nextState = getState();
   emitStateChange("confirmHold", previousState, nextState);

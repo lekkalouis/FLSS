@@ -7,7 +7,7 @@ Endpoints used:
   POST /api/v1/dispatch/remote/heartbeat
   POST /api/v1/dispatch/environment
   POST /api/v1/environment/ingest
-  (optional fallback) POST /api/v1/dispatch/{next|prev|confirm|print|fulfill}
+  (optional fallback) POST /api/v1/dispatch/{next|prev|confirm|back|print|fulfill}
 
 Auth:
   Authorization: Bearer <ROTARY_TOKEN>
@@ -15,7 +15,11 @@ Auth:
 Wiring (default BCM pins):
   CLK -> GPIO17
   DT  -> GPIO27
-  SW  -> GPIO22
+  SW  -> GPIO22 (knob click / confirm)
+  CONFIRM BTN -> GPIO5
+  BACK BTN    -> GPIO6
+  PRINT BTN   -> GPIO19
+  FULFILL BTN -> GPIO26
   +   -> 3V3
   GND -> GND
 """
@@ -67,10 +71,11 @@ class Settings:
     cw_pin: int
     ccw_pin: int
     sw_pin: int
+    confirm_btn_pin: int
+    back_btn_pin: int
     print_btn_pin: int
     fulfill_btn_pin: int
     sw_hold_time_s: float
-    sw_multi_click_window_s: float
     rgb_red_pin: int
     rgb_green_pin: int
     rgb_blue_pin: int
@@ -114,14 +119,15 @@ def load_settings() -> Settings:
     cw_pin = int(os.getenv("ROTARY_CLK_PIN", "17"))
     ccw_pin = int(os.getenv("ROTARY_DT_PIN", "27"))
     sw_pin = int(os.getenv("ROTARY_SW_PIN", "22"))
-    print_btn_pin = int(
-        os.getenv("ROTARY_PRINT_BTN_PIN", os.getenv("ROTARY_ACTION_BTN_PIN", "5"))
+    confirm_btn_pin = int(
+        os.getenv("ROTARY_CONFIRM_BTN_PIN", os.getenv("ROTARY_ACTION_BTN_PIN", "5"))
     )
-    fulfill_btn_pin = int(
-        os.getenv("ROTARY_FULFILL_BTN_PIN", os.getenv("ROTARY_BACK_BTN_PIN", "6"))
+    back_btn_pin = int(os.getenv("ROTARY_BACK_BTN_PIN", "6"))
+    print_btn_pin = int(os.getenv("ROTARY_PRINT_BTN_PIN", "19"))
+    fulfill_btn_pin = int(os.getenv("ROTARY_FULFILL_BTN_PIN", "26"))
+    sw_hold_time_s = float(
+        os.getenv("ROTARY_CONFIRM_HOLD_TIME_S", os.getenv("ROTARY_SW_HOLD_TIME_S", "0.6"))
     )
-    sw_hold_time_s = float(os.getenv("ROTARY_SW_HOLD_TIME_S", "0.6"))
-    sw_multi_click_window_s = float(os.getenv("ROTARY_SW_MULTI_CLICK_WINDOW_S", "0.45"))
 
     # Common BCM defaults for a discrete RGB LED module.
     rgb_red_pin = int(os.getenv("ROTARY_RGB_RED_PIN", "18"))
@@ -153,10 +159,11 @@ def load_settings() -> Settings:
         cw_pin=cw_pin,
         ccw_pin=ccw_pin,
         sw_pin=sw_pin,
+        confirm_btn_pin=confirm_btn_pin,
+        back_btn_pin=back_btn_pin,
         print_btn_pin=print_btn_pin,
         fulfill_btn_pin=fulfill_btn_pin,
         sw_hold_time_s=sw_hold_time_s,
-        sw_multi_click_window_s=sw_multi_click_window_s,
         rgb_red_pin=rgb_red_pin,
         rgb_green_pin=rgb_green_pin,
         rgb_blue_pin=rgb_blue_pin,
@@ -581,14 +588,17 @@ def main() -> int:
     print(f"  DHT_PIN={settings.dht_pin}")
     print(f"  DHT_POLL_INTERVAL_S={settings.dht_interval_s}")
     print(f"  Pins CLK/DT/SW={settings.cw_pin}/{settings.ccw_pin}/{settings.sw_pin}")
-    print(f"  Push buttons Print/Fulfill={settings.print_btn_pin}/{settings.fulfill_btn_pin}")
+    print(
+        "  Push buttons Confirm/Back/Print/Fulfill="
+        f"{settings.confirm_btn_pin}/{settings.back_btn_pin}/{settings.print_btn_pin}/{settings.fulfill_btn_pin}"
+    )
     print(
         "  RGB LED pins R/G/B="
         f"{settings.rgb_red_pin}/{settings.rgb_green_pin}/{settings.rgb_blue_pin}"
     )
     print(f"  ROTARY_TOKEN configured={'yes' if bool(settings.rotary_token) else 'no'}")
     print(f"  REMOTE_TOKEN configured={'yes' if bool(settings.remote_token) else 'no'}")
-    print(f"  ROTARY_SW_HOLD_TIME_S={settings.sw_hold_time_s}")
+    print(f"  ROTARY_CONFIRM_HOLD_TIME_S={settings.sw_hold_time_s}")
 
     led = RGBLED(settings.rgb_red_pin, settings.rgb_green_pin, settings.rgb_blue_pin)
     led.off()
@@ -603,14 +613,20 @@ def main() -> int:
     # pull_up=True assumes switch/encoder outputs pull to GND when active.
     clk = Button(settings.cw_pin, pull_up=True, bounce_time=0.002)
     dt = Button(settings.ccw_pin, pull_up=True, bounce_time=0.002)
-    sw = Button(settings.sw_pin, pull_up=True, bounce_time=0.05)
+    sw = Button(settings.sw_pin, pull_up=True, bounce_time=0.05, hold_time=settings.sw_hold_time_s)
+    confirm_btn = Button(
+        settings.confirm_btn_pin,
+        pull_up=True,
+        bounce_time=0.05,
+        hold_time=settings.sw_hold_time_s,
+    )
+    back_btn = Button(settings.back_btn_pin, pull_up=True, bounce_time=0.05)
     print_btn = Button(settings.print_btn_pin, pull_up=True, bounce_time=0.05)
     fulfill_btn = Button(settings.fulfill_btn_pin, pull_up=True, bounce_time=0.05)
 
     mode_lock = threading.Lock()
     quantity_mode = False
-    sw_press_nonce = 0
-    sw_click_count = 0
+    confirm_hold_latch = {"knob": False, "button": False}
 
     def _send_rotary_turn(cw: bool) -> None:
         with mode_lock:
@@ -620,49 +636,43 @@ def main() -> int:
             return
         client.send_action("next" if cw else "prev")
 
-    def _on_sw_pressed() -> None:
-        nonlocal quantity_mode, sw_press_nonce, sw_click_count
-
+    def _on_confirm_hold(source: str) -> None:
+        nonlocal quantity_mode
         with mode_lock:
+            quantity_mode = True
+            confirm_hold_latch[source] = True
+        client.send_action("confirm_hold", force=True)
+
+    def _on_confirm_release(source: str) -> None:
+        nonlocal quantity_mode
+        with mode_lock:
+            if confirm_hold_latch.get(source):
+                confirm_hold_latch[source] = False
+                return
+            should_submit_qty = quantity_mode
             if quantity_mode:
                 quantity_mode = False
-                sw_press_nonce += 1
-                sw_click_count = 0
-                should_submit_qty = True
-                click_nonce = sw_press_nonce
-            else:
-                sw_press_nonce += 1
-                sw_click_count += 1
-                should_submit_qty = False
-                click_nonce = sw_press_nonce
-                click_count = sw_click_count
 
         if should_submit_qty:
             client.send_action("set_packed_qty", force=True)
             return
+        client.send_action("confirm")
 
-        def _handle_multi_click_after_window(nonce: int, count: int) -> None:
-            nonlocal quantity_mode, sw_click_count
-            time.sleep(max(0.0, settings.sw_multi_click_window_s))
-            with mode_lock:
-                if nonce != sw_press_nonce or quantity_mode:
-                    return
-                sw_click_count = 0
-                enter_quantity_mode = count >= 3
-                if enter_quantity_mode:
-                    quantity_mode = True
-            if enter_quantity_mode:
-                client.send_action("confirm_hold", force=True)
-                return
-            client.send_action("confirm")
-
-        threading.Thread(target=_handle_multi_click_after_window, args=(click_nonce, click_count), daemon=True).start()
+    def _on_back_pressed() -> None:
+        nonlocal quantity_mode
+        with mode_lock:
+            quantity_mode = False
+        client.send_action("back", force=True)
 
     # Simple edge mapping suitable for many detented encoders.
     # If direction is reversed, swap next/prev here or swap CLK/DT wiring.
     clk.when_pressed = lambda: _send_rotary_turn(cw=True)
     dt.when_pressed = lambda: _send_rotary_turn(cw=False)
-    sw.when_pressed = _on_sw_pressed
+    sw.when_held = lambda: _on_confirm_hold("knob")
+    sw.when_released = lambda: _on_confirm_release("knob")
+    confirm_btn.when_held = lambda: _on_confirm_hold("button")
+    confirm_btn.when_released = lambda: _on_confirm_release("button")
+    back_btn.when_pressed = _on_back_pressed
     print_btn.when_pressed = lambda: client.send_action("print")
     fulfill_btn.when_pressed = lambda: client.send_action("fulfill")
 

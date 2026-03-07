@@ -4,6 +4,23 @@ const SETTINGS_KEY = "global";
 
 const ALLOWED_STICKER_LANGUAGES = new Set(["PPLB", "PPLA", "ZPL"]);
 
+const DEFAULT_NOTIFICATION_EVENTS = Object.freeze({
+  pickupReady: {
+    enabled: true,
+    templateId: "flss-pickup-ready-email",
+    useCustomerEmail: true,
+    recipients: [],
+    fallbackRecipient: null
+  },
+  truckCollection: {
+    enabled: true,
+    templateId: "flss-truck-collection-email",
+    useCustomerEmail: false,
+    recipients: [],
+    fallbackRecipient: null
+  }
+});
+
 export const DEFAULT_SYSTEM_SETTINGS = Object.freeze({
   sticker: {
     shelfLifeMonths: 12,
@@ -17,6 +34,19 @@ export const DEFAULT_SYSTEM_SETTINGS = Object.freeze({
   relay: {
     enabled: false,
     targets: []
+  },
+  controller: {
+    showOnScreenButtons: true,
+    requireConnectedRemote: true,
+    highVisibilityMode: true
+  },
+  notifications: {
+    senderOverride: null,
+    fallbackRecipient: null,
+    events: {
+      pickupReady: { ...DEFAULT_NOTIFICATION_EVENTS.pickupReady },
+      truckCollection: { ...DEFAULT_NOTIFICATION_EVENTS.truckCollection }
+    }
   }
 });
 
@@ -65,6 +95,47 @@ function normalizeRelayTargets(targets) {
     .filter((target) => target.relayTarget || target.printerId != null);
 }
 
+function normalizeNullableEmail(value) {
+  const email = String(value || "").trim();
+  if (!email || !email.includes("@")) return null;
+  return email;
+}
+
+function normalizeEmailList(value) {
+  if (Array.isArray(value)) {
+    return Array.from(
+      new Set(
+        value
+          .map((entry) => normalizeNullableEmail(entry))
+          .filter(Boolean)
+          .map((entry) => entry.toLowerCase())
+      )
+    );
+  }
+
+  if (typeof value === "string") {
+    return normalizeEmailList(
+      value
+        .split(/[,\n;]/)
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+    );
+  }
+
+  return [];
+}
+
+function normalizeNotificationEventSettings(eventSource = {}, defaults = {}) {
+  const source = eventSource && typeof eventSource === "object" ? eventSource : {};
+  return {
+    enabled: normalizeBool(source.enabled, defaults.enabled ?? true),
+    templateId: String(source.templateId || defaults.templateId || "").trim() || null,
+    useCustomerEmail: normalizeBool(source.useCustomerEmail, defaults.useCustomerEmail ?? false),
+    recipients: normalizeEmailList(source.recipients),
+    fallbackRecipient: normalizeNullableEmail(source.fallbackRecipient) || defaults.fallbackRecipient || null
+  };
+}
+
 export function normalizeSystemSettings(rawSettings = {}) {
   const source = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
   const stickerSource = source.sticker && typeof source.sticker === "object" ? source.sticker : {};
@@ -72,6 +143,12 @@ export function normalizeSystemSettings(rawSettings = {}) {
     ? source.printHistory
     : {};
   const relaySource = source.relay && typeof source.relay === "object" ? source.relay : {};
+  const controllerSource = source.controller && typeof source.controller === "object" ? source.controller : {};
+  const notificationsSource = source.notifications && typeof source.notifications === "object" ? source.notifications : {};
+  const notificationEventsSource =
+    notificationsSource.events && typeof notificationsSource.events === "object"
+      ? notificationsSource.events
+      : {};
 
   const commandLanguage = String(stickerSource.commandLanguage || DEFAULT_SYSTEM_SETTINGS.sticker.commandLanguage)
     .trim()
@@ -108,6 +185,34 @@ export function normalizeSystemSettings(rawSettings = {}) {
     relay: {
       enabled: normalizeBool(relaySource.enabled, DEFAULT_SYSTEM_SETTINGS.relay.enabled),
       targets: normalizeRelayTargets(relaySource.targets)
+    },
+    controller: {
+      showOnScreenButtons: normalizeBool(
+        controllerSource.showOnScreenButtons,
+        DEFAULT_SYSTEM_SETTINGS.controller.showOnScreenButtons
+      ),
+      requireConnectedRemote: normalizeBool(
+        controllerSource.requireConnectedRemote,
+        DEFAULT_SYSTEM_SETTINGS.controller.requireConnectedRemote
+      ),
+      highVisibilityMode: normalizeBool(
+        controllerSource.highVisibilityMode,
+        DEFAULT_SYSTEM_SETTINGS.controller.highVisibilityMode
+      )
+    },
+    notifications: {
+      senderOverride: normalizeNullableEmail(notificationsSource.senderOverride),
+      fallbackRecipient: normalizeNullableEmail(notificationsSource.fallbackRecipient),
+      events: {
+        pickupReady: normalizeNotificationEventSettings(
+          notificationEventsSource.pickupReady,
+          DEFAULT_NOTIFICATION_EVENTS.pickupReady
+        ),
+        truckCollection: normalizeNotificationEventSettings(
+          notificationEventsSource.truckCollection,
+          DEFAULT_NOTIFICATION_EVENTS.truckCollection
+        )
+      }
     }
   };
 }
@@ -141,23 +246,49 @@ export function saveSystemSettings(nextSettings) {
 
 export function patchSystemSettings(partialSettings = {}) {
   const current = getSystemSettings();
+  const incoming = partialSettings && typeof partialSettings === "object" ? partialSettings : {};
+  const incomingNotifications = incoming.notifications && typeof incoming.notifications === "object"
+    ? incoming.notifications
+    : {};
+  const incomingNotificationEvents = incomingNotifications.events && typeof incomingNotifications.events === "object"
+    ? incomingNotifications.events
+    : {};
   const merged = {
     ...current,
-    ...(partialSettings && typeof partialSettings === "object" ? partialSettings : {}),
+    ...incoming,
     sticker: {
       ...(current.sticker || {}),
-      ...((partialSettings && partialSettings.sticker) || {})
+      ...(incoming.sticker || {})
     },
     printHistory: {
       ...(current.printHistory || {}),
-      ...((partialSettings && partialSettings.printHistory) || {})
+      ...(incoming.printHistory || {})
     },
     relay: {
       ...(current.relay || {}),
-      ...((partialSettings && partialSettings.relay) || {}),
-      targets: ((partialSettings && partialSettings.relay && partialSettings.relay.targets) || current.relay?.targets || [])
+      ...(incoming.relay || {}),
+      targets: ((incoming.relay && incoming.relay.targets) || current.relay?.targets || [])
+    },
+    controller: {
+      ...(current.controller || {}),
+      ...(incoming.controller || {}),
+    },
+    notifications: {
+      ...(current.notifications || {}),
+      ...incomingNotifications,
+      events: {
+        ...(current.notifications?.events || {}),
+        ...incomingNotificationEvents,
+        pickupReady: {
+          ...(current.notifications?.events?.pickupReady || {}),
+          ...(incomingNotificationEvents.pickupReady || {})
+        },
+        truckCollection: {
+          ...(current.notifications?.events?.truckCollection || {}),
+          ...(incomingNotificationEvents.truckCollection || {})
+        }
+      }
     }
   };
   return saveSystemSettings(merged);
 }
-

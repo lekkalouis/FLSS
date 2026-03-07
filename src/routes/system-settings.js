@@ -1,5 +1,11 @@
 import { Router } from "express";
 
+import { config } from "../config.js";
+import { getSmtpTransport } from "../services/email.js";
+import {
+  buildNotificationTestContext,
+  sendNotificationEmail
+} from "../services/notificationRuntime.js";
 import {
   DEFAULT_SYSTEM_SETTINGS,
   getSystemSettings,
@@ -37,6 +43,56 @@ router.put("/system/settings", (req, res) => {
   }
 });
 
+router.post("/system/settings/notifications/test", async (req, res) => {
+  try {
+    const settings = getSystemSettings();
+    const eventKey = String(req.body?.eventKey || "").trim() || "pickup-ready";
+    const overrideRecipients = req.body?.to ?? req.body?.recipients ?? null;
+    const transport = getSmtpTransport();
+    const result = await sendNotificationEmail({
+      transport,
+      eventKey,
+      settings,
+      fallbackFrom: config.SMTP_FROM,
+      overrideRecipients,
+      ignoreEventEnabled: true,
+      context: buildNotificationTestContext(eventKey)
+    });
+
+    return res.json({
+      ok: true,
+      eventKey,
+      templateId: result.template?.id || null,
+      to: result.to || [],
+      subject: result.subject,
+      messageId: result.info?.messageId || null
+    });
+  } catch (error) {
+    if (error?.code === "EMAIL_NOT_CONFIGURED") {
+      return res.status(501).json({
+        error: "EMAIL_NOT_CONFIGURED",
+        message: "Configure SMTP_HOST and SMTP_FROM before sending notification tests."
+      });
+    }
+    if (error?.code === "NO_NOTIFICATION_RECIPIENTS") {
+      return res.status(400).json({
+        error: "NO_NOTIFICATION_RECIPIENTS",
+        message: error.message
+      });
+    }
+    if (error?.code === "TEMPLATE_NOT_FOUND" || error?.code === "INVALID_NOTIFICATION_EVENT") {
+      return res.status(400).json({
+        error: error.code,
+        message: error.message
+      });
+    }
+    return res.status(500).json({
+      error: "NOTIFICATION_TEST_FAILED",
+      message: String(error?.message || error)
+    });
+  }
+});
+
 router.post("/system/printers/:printerId/reboot", (req, res) => {
   const printerId = Number(req.params.printerId);
   if (!Number.isInteger(printerId) || printerId <= 0) {
@@ -49,4 +105,3 @@ router.post("/system/printers/:printerId/reboot", (req, res) => {
 });
 
 export default router;
-

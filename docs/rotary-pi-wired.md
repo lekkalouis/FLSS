@@ -1,8 +1,8 @@
-# Raspberry Pi wired rotary setup (FLSS)
+﻿# Raspberry Pi wired rotary setup (FLSS Repo 2.2)
 
 Use `scripts/rotary-pi-wired.py` to control FLSS dispatch selection over HTTP.
 
-## 1) Install dependencies on Pi
+## 1. Install dependencies on the Pi
 
 ```bash
 sudo apt update
@@ -11,42 +11,47 @@ pip3 install gpiozero requests adafruit-circuitpython-dht
 sudo apt-get install -y libgpiod2
 ```
 
-## 2) Wire the controls + RGB LED (default BCM pins)
+## 2. Wire the controls and RGB LED (default BCM pins)
 
 - `CLK` -> `GPIO17`
 - `DT` -> `GPIO27`
-- `SW` -> `GPIO22`
-- `Action push button` -> `GPIO5`
-- `Back/Close push button` -> `GPIO6`
+- `SW` -> `GPIO22` (knob click / confirm)
+- `CONFIRM BTN` -> `GPIO5`
+- `BACK BTN` -> `GPIO6`
+- `PRINT BTN` -> `GPIO19`
+- `FULFILL BTN` -> `GPIO26`
 - `RGB LED R` -> `GPIO18`
 - `RGB LED G` -> `GPIO23`
 - `RGB LED B` -> `GPIO24`
 - `+` -> `3V3`
 - `GND` -> `GND`
 
-## 3) Configure environment
+## 3. Configure environment
 
 ```bash
 export FLSS_BASE_URL="http://<flss-host>:3000/api/v1"
-export ROTARY_TOKEN="<same-token-as-FLSS-ROTARY_TOKEN>"   # legacy /dispatch/{next|prev|confirm}
-export REMOTE_TOKEN="<same-token-as-FLSS-REMOTE_TOKEN>"   # /dispatch/remote/* and /dispatch/environment
+export ROTARY_TOKEN="<same-token-as-FLSS-ROTARY_TOKEN>"
+export REMOTE_TOKEN="<same-token-as-FLSS-REMOTE_TOKEN>"
 export ROTARY_SOURCE="rotary_pi"
 export REMOTE_ID="rotary_pi"
-export REMOTE_FIRMWARE="rotary-pi-wired-1.0.0"
+export REMOTE_FIRMWARE="rotary-pi-wired-2.2"
 export STATION_ID="scan-station-01"
 export DHT11_ENABLED=1
 export DHT_PIN=4
 export DHT_POLL_INTERVAL_S=5
 ```
 
-Optional tuning:
+Optional pin overrides:
 
 ```bash
 export ROTARY_CLK_PIN=17
 export ROTARY_DT_PIN=27
 export ROTARY_SW_PIN=22
-export ROTARY_ACTION_BTN_PIN=5
+export ROTARY_CONFIRM_BTN_PIN=5
 export ROTARY_BACK_BTN_PIN=6
+export ROTARY_PRINT_BTN_PIN=19
+export ROTARY_FULFILL_BTN_PIN=26
+export ROTARY_CONFIRM_HOLD_TIME_S=0.6
 export ROTARY_RGB_RED_PIN=18
 export ROTARY_RGB_GREEN_PIN=23
 export ROTARY_RGB_BLUE_PIN=24
@@ -56,96 +61,56 @@ export ROTARY_HTTP_TIMEOUT_S=2.5
 export REMOTE_HEARTBEAT_INTERVAL_S=10
 export ENV_TELEMETRY_INTERVAL_S=10
 export REMOTE_LEGACY_FALLBACK=1
+```
 
-# Optional environment telemetry fallbacks (used when sensor command is not set/fails)
+Legacy compatibility:
+
+- `ROTARY_ACTION_BTN_PIN` is still accepted as the confirm button alias.
+- `ROTARY_SW_HOLD_TIME_S` is still accepted as the confirm-hold alias.
+
+Optional environment telemetry fallbacks:
+
+```bash
 export ENV_TEMPERATURE_C=22.4
 export ENV_HUMIDITY_PCT=43.1
-
-# Optional dynamic sensor command (legacy fallback)
 export ENV_SENSOR_CMD="python3 /usr/local/bin/dht11-read-json.py --pin 4"
 ```
 
-## 4) Run script
+## 4. Run the script
 
 ```bash
 python3 scripts/rotary-pi-wired.py
 ```
 
-## DHT11 wiring (signal pin)
+## 5. Button behavior
 
-- `VCC` -> `3V3`
-- `GND` -> `GND`
-- `DATA`/`SIG` -> `GPIO4` (physical pin 7)
+- Rotate knob: `next` / `prev`
+- Knob click: confirm flow
+- Hold knob: `confirm_hold`
+- Confirm side button: confirm flow
+- Hold confirm side button: `confirm_hold`
+- Back side button: context-aware `back`
+- Print button: `print`
+- Fulfill button: `fulfill`
 
-`GPIO4` is a common default for DHT11 examples and helper scripts. If your helper uses a different pin, pass that pin in your `ENV_SENSOR_CMD` arguments.
+When quantity mode is active, rotation changes packed quantity and the next confirm click commits `set_packed_qty`.
 
-## DHT11 dynamic telemetry command
+## 6. API contract used
 
-The controller now has built-in DHT11 monitoring in a background thread. It polls every `DHT_POLL_INTERVAL_S` (default `5s`) and posts to:
-
+- `POST /api/v1/dispatch/remote/heartbeat`
+- `POST /api/v1/dispatch/remote/action`
+- `POST /api/v1/dispatch/environment`
 - `POST /api/v1/environment/ingest`
+- Optional fallback: `POST /api/v1/dispatch/{next,prev,confirm,back,print,fulfill}`
 
-Payload fields sent by the controller:
+## 7. DHT11 notes
 
-- `stationId`
-- `timestamp` (ISO8601)
-- `temperatureC`
-- `humidityPct`
-- `lastUpdated`
-- `status` (`ok` / `degraded` / `offline`)
-- `readErrorsSinceBoot`
+The script can run a background DHT11 monitor and post to `POST /api/v1/environment/ingest`.
 
-The legacy `ENV_SENSOR_CMD` flow is still available for custom sensors and still posts to `/api/v1/dispatch/environment`.
+If `ENV_SENSOR_CMD` is set, the script also supports command-based temperature and humidity sampling for non-DHT sensors.
 
-If your sensor can be read by a command-line program, set `ENV_SENSOR_CMD` so the rotary script can execute it on each telemetry interval.
-The command must exit with code `0` and print a single JSON object to stdout. Any numeric fields provided by the command override static `ENV_*` values for that sample; missing fields fall back to static values.
+## 8. Troubleshooting
 
-Expected JSON keys:
-
-- `temperatureC`
-- `humidityPct`
-
-For DHT11 scripts, `temperature`/`humidity` aliases are also accepted.
-If your helper prints plain text (for example `Temp=23.0C Humidity=55.0%`) the script also extracts values from that output as a fallback.
-
-Example output from a DHT11 helper script:
-
-```json
-{
-  "temperatureC": 21.8,
-  "humidityPct": 45.2
-}
-```
-
-## API contract used
-
-- Remote heartbeat: `POST /api/v1/dispatch/remote/heartbeat` every `REMOTE_HEARTBEAT_INTERVAL_S` seconds.
-  - Body includes `remoteId`, `firmware` (plus compatibility field `firmwareVersion`).
-- Remote actions: `POST /api/v1/dispatch/remote/action` with `{ "action", "remoteId", "idempotencyKey" }`.
-- Optional sensor telemetry: `POST /api/v1/dispatch/environment` with `{ "deviceId", "temperatureC", "humidityPct", "recordedAt" }` (temp + humidity only).
-- Legacy fallback (optional): `POST /api/v1/dispatch/{next|prev|confirm}` if remote API returns unavailable errors or is unreachable.
-- Headers:
-  - `Authorization: Bearer <REMOTE_TOKEN>` for `/dispatch/remote/*` and `/dispatch/environment`
-  - `Authorization: Bearer <ROTARY_TOKEN>` for legacy fallback endpoints
-
-## Real-time browser sync
-
-- Dispatch controller state now streams to browser clients over `GET /api/v1/dispatch/events` (Server-Sent Events).
-- Rotary `next`, `prev`, `confirm`, and state sync updates are pushed immediately so dispatch card selection updates without high-frequency polling.
-- The web UI still keeps a low-frequency fallback poll (`/api/v1/dispatch/state`) every few seconds. This fallback is only for legacy browsers or temporary SSE disconnects/reconnect windows.
-
-## Notes
-
-- If direction feels inverted, either swap `CLK` and `DT` wires or swap action mapping in script.
-- Server already debounces burst input (`ROTARY_DEBOUNCE_MS`); script also has a small client-side action gap.
-- Button mapping: `Action` sends `confirm`, `Back/Close` sends `prev`.
-- RGB feedback: green on HTTP 200, blue on HTTP 409 state conflict, red on network/auth/other errors.
-
-
-## Troubleshooting
-
-- If you see `{ "ok": false, "error": "Unauthorized" }`, your Pi token does not match the server token.
-- Set `ROTARY_TOKEN` on the Pi to exactly the same value configured on the FLSS server and restart the script.
-- The script now runs an auth probe at startup and prints a clear `[AUTH]` message if token validation fails.
-
-- If the script prints `[WARN] environment telemetry skipped: temperature/humidity missing from sensor payload`, your `ENV_SENSOR_CMD` ran but did not return parseable temperature/humidity values.
+- `401 Unauthorized` means Pi-side tokens do not match the server.
+- If rotation feels reversed, swap `CLK` and `DT` or swap the action mapping.
+- If telemetry is skipped, check the sensor payload and the configured pin numbers.

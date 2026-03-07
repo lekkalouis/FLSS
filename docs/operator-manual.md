@@ -1,116 +1,109 @@
-# FLSS Operator Manual (Current App Workflows)
+﻿# FLSS Operator Manual (Repo 2.2)
 
-This manual documents the end-to-end operating flows in the current app: what each module is for, when to use it, and what happens after each major action.
+This manual reflects the current 2.2 workflows.
 
-## 1) App navigation map
+## 1. Navigation
 
-### Main SPA routes (inside `public/index.html` shell)
+### SPA routes
 
-- `/` — **Orders / Scan Station**
-- `/ops` — **Dispatch board**
-- `/flocs` — **Order capture (FLOCS)**
-- `/stock` — **Stock tools**
-- `/price-manager` — **Price manager**
-- `/docs` — **In-app documentation viewer**
-- `/flowcharts` — **Flow diagrams view**
-- `/dispatch-settings` — **Dispatch settings** (admin unlock)
-- `/logs` — **Operational logs** (admin unlock)
-- `/admin` and `/changelog` — utility/admin screens
+- `/` - Orders and dispatch workspace
+- `/flocs` - FLOCS order capture
+- `/stock` - Stock tools
+- `/price-manager` - Price manager
+- `/docs` - Documentation browser
+- `/flowcharts` - Flow guidance
+- `/admin` - Admin launcher and embedded tool workspace
 
-### Standalone tools (separate pages)
+Admin-only routes still exist for dispatch settings and logs, but the primary access pattern is the Admin workspace.
 
-- `/shipping-matrix.html`
-- `/order-capture-custom.html`
-- `/customer-accounts.html`
-- `/purchase-orders.html`
-- `/liquid-templates.html`
-- `/notification-templates.html`
-- `/traceability.html`
-- `/pos.html`
+### Standalone tools
 
-## 2) Shift startup checklist
+The standalone pages remain available directly, but Admin is the preferred entry point for day-to-day use.
 
-1. Open the app and confirm the Orders view loads.
-2. Confirm `GET /api/v1/healthz` and `GET /api/v1/statusz` are healthy.
-3. Verify scanner input focus and a test code path in Orders/POS.
-4. Verify label printer readiness (PrintNode) and ParcelPerfect credentials.
-5. If dispatch hardware is used, confirm remote heartbeat data is updating.
+## 2. Shift startup checklist
 
-## 3) Core operating flows
+1. Open the Orders view and confirm the dispatch board loads.
+2. Check `GET /api/v1/healthz` and `GET /api/v1/statusz`.
+3. Verify scanner focus and a test scan path.
+4. Verify PrintNode connectivity if printing is required.
+5. If a Pi controller is attached, verify remote heartbeat status and the on-screen overlay.
+6. If notifications are required, send a test email from Settings -> Notifications.
 
-## 3.1 Orders / Scan Station flow
+## 3. Dispatch and packing flow
 
-1. Scan or enter order barcode/code.
-2. App resolves order and parcel context via Shopify endpoints.
-3. Operator confirms shipping context (service/place/parcel counts).
-4. Booking runs automatically after countdown, or manually with **Book now**.
-5. On successful booking:
-   - booking reference/tracking is attached,
-   - print action is triggered/available,
-   - fulfillment flow can proceed.
-6. If delivery QR flow is enabled, delivery completion can be confirmed from QR code route.
+Repo 2.2 dispatch control is two-phase.
 
-Failure handling:
+### Order mode
 
-- Booking/API failure shows status message and preserves actionable context.
-- Printing failure can be retried independently.
-- Fulfillment failure leaves order visible in open/dispatch lists.
+- `next` and `prev` move between orders.
+- Confirm selects the active order and enters line mode.
+- No line is packed on the first confirm.
 
-## 3.2 Dispatch board flow
+### Line mode
 
-1. Dispatch board loads open orders + recent shipment context.
-2. Operator sets priorities and selects orders.
-3. Use **Prepare deliveries** to apply batch preparation logic.
-4. Optionally create multi/combined shipment groups.
-5. Use shipment modal/order modal actions for print, fulfill, ready-for-pickup, tag updates.
-6. If parcel threshold is exceeded, book truck alert can be sent.
+- `next` and `prev` move only between line items on the active order.
+- Movement stops at the first and last line item.
+- Confirm marks the selected line as packed.
 
-## 3.3 FLOCS order capture flow
+### Back behavior
 
-1. Search customer (quick search, filters, recents) or create new customer.
-2. Choose delivery method and addresses.
-3. Add line quantities by SKU/flavour matrix.
-4. Optionally calculate shipping quote.
-5. Create draft order or direct order.
-6. Optional conversion path: complete draft to order.
+`back` is context-aware:
 
-## 3.4 Stock flow
+1. Close a quantity prompt if one is open.
+2. Leave line mode and return to order mode.
+3. If already in order mode, move to the previous order.
 
-1. Pick location.
-2. Choose mode:
-   - Read only
-   - Stock take (set absolute qty)
-   - Stock received (transfer/add flow)
-3. Search/filter SKU rows.
-4. Adjust row qty with quick controls, then **Set**/**Apply**.
-5. Review local activity log and open PO receiving table when receiving mode is used.
+### Mouse safety
 
-## 3.5 Price manager flow
+A click on a line item inside an unselected order only selects that order. A second click is required before the line can toggle packed state.
 
-1. Search products/variants.
-2. Edit tier prices per row.
-3. Save tier set to variant metafield `custom.price_tiers`.
-4. Optional sync/update base price where required.
+## 4. Settings workflow
 
-## 3.6 Traceability flow
+Open Settings from the footer and work inside these sections:
 
-1. Open traceability page.
-2. Enter batch + flavour.
-3. Optional: upload PO workbook and COA/COC workbook.
-4. Run report.
-5. Review sales and purchase/inspection projections.
-6. Export/use generated output for QA and audit workflows.
+- `General`
+- `Printers`
+- `Controller`
+- `Notifications`
+- `Monitoring`
 
-## 4) Admin and support operations
+Controller settings affect overlay visibility, remote connection requirements, and high-visibility styling.
 
-- **Admin unlock:** `Shift + Alt + A` toggles admin-only nav sections.
-- **Dispatch notes:** saved locally and surfaced in admin logs panel.
-- **Environment telemetry:** available through `/api/v1/environment` endpoints and dispatch environment views.
-- **Docs browser:** `/docs` loads markdown topics served by `/api/v1/docs`.
+Notification settings control sender override, fallback recipients, pickup-ready bindings, truck-collection bindings, and test sends.
 
-## 5) End-of-shift routine
+## 5. Admin workspace
 
-1. Confirm no stuck bookings, print jobs, or pending dispatch actions.
-2. Validate truck booking state if threshold workflow was triggered.
-3. Export or note traceability/stock actions completed during shift.
-4. Lock workstation and clear any local-only sensitive notes if required by policy.
+Admin is now the primary operational launcher. Use it to open embedded panels for:
+
+- Station Controller
+- Manufacturing
+- Product Management
+- POS
+- Shipping Matrix
+- Custom Order Capture
+- Customer Accounts
+- Purchase Orders
+- Liquid Templates
+- Notification Templates
+- Traceability
+- Agent Commissions
+- Order Payments
+
+Direct URLs still work if a workflow depends on them, but the Admin workspace should be the default operator path.
+
+## 6. Notifications
+
+Notification templates are resolved at send time.
+
+- Pickup-ready emails use the active pickup-ready binding in Settings -> Notifications.
+- Truck-collection emails use the active truck-collection binding in Settings -> Notifications.
+- If customer email is unavailable, event and global fallback recipients are used.
+
+## 7. End-of-shift routine
+
+1. Confirm no orders are left in an ambiguous packing state.
+2. Confirm pending print or fulfill actions are resolved.
+3. Confirm truck bookings and pickup notifications were sent where required.
+4. Close Admin tools and lock the workstation.
+
+The changelog is no longer part of the operating workflow in Repo 2.2.

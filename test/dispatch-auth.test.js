@@ -47,6 +47,8 @@ test('dispatch state endpoints remain available while action endpoints require t
 
     const stateResponse = await fetch(`${baseUrl}/api/v1/dispatch/state`);
     assert.equal(stateResponse.status, 200);
+    const stateBody = await stateResponse.json();
+    assert.equal(stateBody.selectionMode, 'order');
 
     const unauthorizedNextResponse = await fetch(`${baseUrl}/api/v1/dispatch/next`, {
       method: 'POST',
@@ -54,6 +56,13 @@ test('dispatch state endpoints remain available while action endpoints require t
       body: JSON.stringify({ source: 'rotary_pi' })
     });
     assert.equal(unauthorizedNextResponse.status, 401);
+
+    const unauthorizedBackResponse = await fetch(`${baseUrl}/api/v1/dispatch/back`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(unauthorizedBackResponse.status, 401);
 
     const authorizedNextResponse = await fetch(`${baseUrl}/api/v1/dispatch/next`, {
       method: 'POST',
@@ -66,6 +75,8 @@ test('dispatch state endpoints remain available while action endpoints require t
     assert.equal(authorizedNextResponse.status, 200);
     const body = await authorizedNextResponse.json();
     assert.equal(body.selectedOrderId, '1002');
+    assert.equal(body.selectedLineItemKey, null);
+    assert.equal(body.selectionMode, 'order');
   } finally {
     restoreEnv();
     await new Promise((resolve) => server.close(resolve));
@@ -199,6 +210,9 @@ test('dispatch environment and remote endpoints support telemetry and remote act
       })
     });
     assert.equal(syncResponse.status, 200);
+    const syncBody = await syncResponse.json();
+    assert.equal(syncBody.selectionMode, 'order');
+    assert.equal(syncBody.selectedLineItemKey, null);
 
     const remoteActionResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
       method: 'POST',
@@ -215,6 +229,72 @@ test('dispatch environment and remote endpoints support telemetry and remote act
     assert.equal(remoteActionResponse.status, 200);
     const remoteActionBody = await remoteActionResponse.json();
     assert.equal(remoteActionBody.selectedOrderId, '3002');
+    assert.equal(remoteActionBody.selectedLineItemKey, null);
+    assert.equal(remoteActionBody.selectionMode, 'order');
+
+    const confirmResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'confirm',
+        idempotencyKey: 'abc-confirm'
+      })
+    });
+    assert.equal(confirmResponse.status, 200);
+    const confirmBody = await confirmResponse.json();
+    assert.equal(confirmBody.selectedOrderId, '3002');
+    assert.equal(confirmBody.selectedLineItemKey, 'line-3002-a');
+    assert.equal(confirmBody.selectionMode, 'line');
+
+    const backToOrderModeResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'back',
+        idempotencyKey: 'abc-back-order'
+      })
+    });
+    assert.equal(backToOrderModeResponse.status, 200);
+    const backToOrderModeBody = await backToOrderModeResponse.json();
+    assert.equal(backToOrderModeBody.selectedOrderId, '3002');
+    assert.equal(backToOrderModeBody.selectedLineItemKey, null);
+    assert.equal(backToOrderModeBody.selectionMode, 'order');
+
+    const legacyBackResponse = await fetch(`${baseUrl}/api/v1/dispatch/back`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ source: 'rotary_pi' })
+    });
+    assert.equal(legacyBackResponse.status, 200);
+    const legacyBackBody = await legacyBackResponse.json();
+    assert.equal(legacyBackBody.selectedOrderId, '3001');
+    assert.equal(legacyBackBody.selectedLineItemKey, null);
+    assert.equal(legacyBackBody.selectionMode, 'order');
+
+    const returnToSecondOrderResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'next',
+        idempotencyKey: 'abc-1b'
+      })
+    });
+    assert.equal(returnToSecondOrderResponse.status, 200);
 
     const confirmHoldResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
       method: 'POST',
@@ -229,6 +309,48 @@ test('dispatch environment and remote endpoints support telemetry and remote act
       })
     });
     assert.equal(confirmHoldResponse.status, 200);
+    const confirmHoldBody = await confirmHoldResponse.json();
+    assert.equal(confirmHoldBody.selectionMode, 'line');
+    const confirmHoldStateResponse = await fetch(`${baseUrl}/api/v1/dispatch/state`);
+    assert.equal(confirmHoldStateResponse.status, 200);
+    const confirmHoldStateBody = await confirmHoldStateResponse.json();
+    assert.equal(confirmHoldStateBody.quantityPromptOpen, true);
+    assert.equal(confirmHoldStateBody.selectionMode, 'line');
+
+    const closePromptResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'back',
+        idempotencyKey: 'abc-back-prompt'
+      })
+    });
+    assert.equal(closePromptResponse.status, 200);
+    const closePromptBody = await closePromptResponse.json();
+    assert.equal(closePromptBody.selectionMode, 'line');
+    const closePromptStateResponse = await fetch(`${baseUrl}/api/v1/dispatch/state`);
+    assert.equal(closePromptStateResponse.status, 200);
+    const closePromptStateBody = await closePromptStateResponse.json();
+    assert.equal(closePromptStateBody.quantityPromptOpen, false);
+    assert.equal(closePromptStateBody.selectionMode, 'line');
+
+    const reopenPromptResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        remoteId: 'remote-main',
+        action: 'confirm_hold',
+        idempotencyKey: 'abc-2b'
+      })
+    });
+    assert.equal(reopenPromptResponse.status, 200);
 
     const setPackedQtyResponse = await fetch(`${baseUrl}/api/v1/dispatch/remote/action`, {
       method: 'POST',
@@ -312,6 +434,9 @@ test('dispatch environment and remote endpoints support telemetry and remote act
     assert.equal(stateResponse.status, 200);
     const stateBody = await stateResponse.json();
     assert.equal(stateBody.quantityPromptOpen, false);
+    assert.equal(stateBody.selectionMode, 'line');
+    assert.equal(stateBody.selectedOrderId, '3002');
+    assert.equal(stateBody.selectedLineItemKey, 'line-3002-a');
     assert.equal(stateBody.lastPackedQtyCommittedLineItemKey, 'line-3002-a');
     assert.equal(stateBody.lastPackedQtyCommittedQty, 4);
 

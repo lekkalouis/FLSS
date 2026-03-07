@@ -1,88 +1,78 @@
-# FLSS API Reference (Current)
+﻿# FLSS API Reference (Repo 2.2)
 
-Base URL: `/api/v1`.
+Base URL: `/api/v1`
 
-This reference mirrors the mounted routers in `src/routes/` and includes every active endpoint currently exposed by the app.
+This reference covers the active endpoints that matter for Repo 2.2 operations.
 
-## Health and configuration
+## Health and docs
 
-- `GET /healthz` — process liveness.
-- `GET /statusz` — integration readiness summary (Shopify, ParcelPerfect, PrintNode, SMTP, runtime).
-- `GET /config` — frontend/runtime config projection.
-
-## Environment and remote station data
-
-- `POST /environment/ingest` — ingest environment sample payloads.
-- `GET /environment` — latest aggregated environment data.
-
-## Dispatch controller API
-
-- `GET /dispatch/state`
-- `POST /dispatch/state`
-- `GET /dispatch/environment`
-- `POST /dispatch/environment`
-- `POST /dispatch/remote/heartbeat`
-- `GET /dispatch/remote/status`
-- `POST /dispatch/remote/action`
-- `GET /dispatch/events`
-- `POST /dispatch/next`
-- `POST /dispatch/prev`
-- `POST /dispatch/confirm`
-- `POST /dispatch/print`
-- `POST /dispatch/fulfill`
-
-## Documentation topics
-
+- `GET /healthz`
+- `GET /statusz`
+- `GET /config`
 - `GET /docs`
 - `GET /docs/:slug`
 
-## ParcelPerfect
+## Dispatch controller
 
-- `POST /pp` — quote/book proxy.
-- `GET /pp/place?q=<search>` — place lookup.
-- `POST /pp/matrix` — shipping matrix simulation endpoint.
+### State and events
 
-## PrintNode
+- `GET /dispatch/state`
+- `POST /dispatch/state`
+  - `selectionMode` is included in request and response payloads.
+- `GET /dispatch/events`
 
-- `POST /printnode/print`
-- `POST /printnode/print-delivery-note`
-- `POST /printnode/print-url`
+### Rotary and legacy action endpoints
 
-## Alerts
+- `POST /dispatch/next`
+- `POST /dispatch/prev`
+- `POST /dispatch/confirm`
+- `POST /dispatch/back`
+- `POST /dispatch/print`
+- `POST /dispatch/fulfill`
 
-- `POST /alerts/book-truck`
+### Remote controller endpoints
 
-## Customer accounts demo
+- `POST /dispatch/remote/heartbeat`
+- `GET /dispatch/remote/status`
+- `POST /dispatch/remote/action`
+  - Supported actions: `next`, `prev`, `confirm`, `back`, `print`, `fulfill`, `confirm_hold`, `set_packed_qty`, `qty_increase`, `qty_decrease`
 
-- `POST /customer-accounts/register`
-- `POST /customer-accounts/login`
-- `POST /customer-accounts/logout`
-- `GET /customer-accounts/me`
-- `PUT /customer-accounts/me`
-- `GET /customer-accounts/catalog`
-- `GET /customer-accounts/orders`
-- `POST /customer-accounts/orders`
+### Environment telemetry
 
-## Template management
+- `GET /dispatch/environment`
+- `POST /dispatch/environment`
+- `POST /environment/ingest`
+- `GET /environment`
 
-### Liquid templates
+## System settings and notifications
 
+- `GET /system/settings`
+- `PUT /system/settings`
+- `POST /system/settings/notifications/test`
+- `GET /notification-templates`
+- `POST /notification-templates`
+- `DELETE /notification-templates/:id`
 - `GET /liquid-templates`
 - `POST /liquid-templates`
 - `DELETE /liquid-templates/:id`
 
-### Notification templates
+Notification runtime endpoints:
 
-- `GET /notification-templates`
-- `POST /notification-templates`
-- `DELETE /notification-templates/:id`
+- `POST /shopify/notify-collection`
+  - Resolves the enabled pickup-ready template at send time.
+- `POST /alerts/book-truck`
+  - Resolves the enabled truck-collection template at send time.
 
-## Traceability
+## Print and shipping services
 
-- `GET /traceability/template.xlsx`
-- `POST /traceability/report`
+- `POST /printnode/print`
+- `POST /printnode/print-delivery-note`
+- `POST /printnode/print-url`
+- `POST /pp`
+- `GET /pp/place?q=<search>`
+- `POST /pp/matrix`
 
-## Shopify proxy domain
+## Shopify proxy groups
 
 ### Customers and account metadata
 
@@ -100,7 +90,7 @@ This reference mirrors the mounted routers in `src/routes/` and includes every a
 - `POST /shopify/variants/price-tiers`
 - `POST /shopify/variants/price-tiers/fetch`
 
-### Draft orders, PO helpers, and pricing resolution
+### Draft orders, pricing, and purchase-order helpers
 
 - `POST /shopify/draft-orders`
 - `POST /shopify/draft-orders/complete`
@@ -124,23 +114,25 @@ This reference mirrors the mounted routers in `src/routes/` and includes every a
 - `POST /shopify/orders/run-flow`
 - `POST /shopify/orders/tag`
 - `POST /shopify/orders/delivery-qr-payload`
-
-### Shipments and fulfillments
-
-- `GET /shopify/shipments/recent`
-- `GET /shopify/fulfillment-events`
-- `POST /shopify/fulfill`
 - `POST /shopify/ready-for-pickup`
 - `POST /shopify/collection/fulfill-from-code`
 - `POST /shopify/delivery/complete-from-code`
 
-### Inventory
+### Shipments and inventory
 
+- `GET /shopify/shipments/recent`
+- `GET /shopify/fulfillment-events`
+- `POST /shopify/fulfill`
 - `GET /shopify/inventory-levels`
 - `GET /shopify/locations`
 - `POST /shopify/inventory-levels/set`
 - `POST /shopify/inventory-levels/transfer`
 
-### Notifications
+## Other operational modules
 
-- `POST /shopify/notify-collection`
+- Customer accounts: `/customer-accounts/*`
+- Manufacturing: `/manufacturing/*`
+- Product management: `/product-management/*`
+- Agent commissions: `/agent-commissions/*`
+- Order payments: `/order-payments/*`
+- Traceability: `/traceability/*`

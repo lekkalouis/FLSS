@@ -1,225 +1,78 @@
-# Flippen Lekka Scan Station (FLSS)
+﻿# FLSS Repo 2.2
 
-FLSS is a Node + Express operations platform for order capture, dispatch workflows, shipping bookings, label printing, inventory actions, pricing tiers, template management, and batch traceability.
+FLSS is a Node + Express operations platform for order capture, dispatch, printing, notification delivery, inventory support, pricing tools, traceability, and admin utilities.
 
-- **Backend API base:** `/api/v1`
-- **Primary SPA shell:** `http://localhost:3000`
-- **Static utility pages:** served from `public/*.html`
+## 2.2 highlights
 
-## What is in the app today
+- Dispatch selection now uses a two-phase rotary model: order mode first, then line mode for packing.
+- The controller overlay exposes large on-screen `Back / Cancel` and `Confirm / Select` actions for 65-inch dispatch screens.
+- Settings are grouped into `General`, `Printers`, `Controller`, `Notifications`, and `Monitoring` inside one modal.
+- Notification templates are the runtime source of truth for pickup-ready and truck-collection emails.
+- Admin is now the primary launcher for operational tools, while direct standalone URLs still work.
+- The changelog feature has been retired from the UI, build flow, and generated assets.
 
-### Internal SPA routes (single shell)
+## App surfaces
 
-- `/` — **Orders / Scan Station**
-- `/ops` — **Dispatch Board**
-- `/docs` — **Docs browser** (renders `README.md` + `docs/*.md`)
-- `/flowcharts` — **Dispatch and packing flow guidance**
-- `/flocs` — **Order Capture (FLOCS)**
-- `/stock` — **Stock tools**
-- `/price-manager` — **Price Manager**
-- `/dispatch-settings` — **Dispatch settings panel** (admin-unlocked)
-- `/logs` — **Ops logs panel** (admin-unlocked)
-- `/admin` and `/changelog` — internal utility views
+### SPA routes
 
-### Static pages and tools
+- `/` - Orders and dispatch workspace
+- `/flocs` - FLOCS order capture
+- `/stock` - Stock tools
+- `/price-manager` - Price manager
+- `/docs` - In-app documentation for Repo 2.2
+- `/flowcharts` - Dispatch and packing guidance
+- `/dispatch-settings` - Admin-only dispatch settings view
+- `/logs` - Admin-only operational logs
+- `/admin` - Admin launcher and embedded tool workspace
 
-- `/shipping-matrix.html` — ParcelPerfect quote matrix simulator
-- `/order-capture-custom.html` — password-gated custom order capture page
-- `/customer-accounts.html` — customer self-service demo flows
-- `/purchase-orders.html` — create tagged purchase-order draft orders
-- `/liquid-templates.html` — template CRUD + preview
-- `/notification-templates.html` — notification template CRUD + preview
-- `/traceability.html` — batch traceability report generator
+### Direct standalone tools
 
-## Docs access in the app
+Direct URLs remain available for compatibility:
 
-The **Documentation** route is available from the **footer navigation** alongside **Admin** and **Changelog**. It loads all markdown files from `docs/` plus `README.md` via `/api/v1/docs`.
+- `/station-controller.html`
+- `/manufacturing.html`
+- `/product-management.html`
+- `/pos.html`
+- `/shipping-matrix.html`
+- `/order-capture-custom.html`
+- `/customer-accounts.html`
+- `/purchase-orders.html`
+- `/liquid-templates.html`
+- `/notification-templates.html`
+- `/traceability.html`
+- `/agent-commissions.html`
+- `/order-payments.html`
 
-Core living references to keep current are:
-- `docs/operator-manual.md` (end-to-end operational flows)
-- `docs/button-action-map.md` (button/control → action mapping)
-- `docs/data-model.md` (entity and ownership model)
-- `docs/api-reference.md` (full API route surface)
+## Settings model
 
----
+System settings are stored server-side and normalized additively so existing records keep their current values.
 
-## Architecture
+Persisted sections:
 
-```mermaid
-flowchart LR
-  subgraph Browser
-    SPA[Main SPA routes]
-    Static[Standalone HTML tools]
-  end
+- `sticker`
+- `printHistory`
+- `relay`
+- `controller`
+- `notifications`
 
-  subgraph Server[Express API + static server]
-    API[/api/v1 routers/]
-    Public[public/ static files]
-    Docs[docs loader]
-  end
+Notification settings control sender override, fallback recipients, event bindings, event-specific recipients, and test sends.
 
-  subgraph Services
-    Shopify[(Shopify Admin API)]
-    ParcelPerfect[(ParcelPerfect)]
-    PrintNode[(PrintNode)]
-    SMTP[(SMTP)]
-  end
+## API groups
 
-  SPA --> API
-  Static --> API
-  Server --> Public
-  Server --> Docs
-  API --> Shopify
-  API --> ParcelPerfect
-  API --> PrintNode
-  API --> SMTP
-```
+All routes are mounted at `/api/v1`.
 
----
+- Health and config: `/healthz`, `/statusz`, `/config`
+- Docs: `/docs`, `/docs/:slug`
+- Dispatch controller: `/dispatch/state`, `/dispatch/events`, `/dispatch/remote/*`, `/dispatch/{next,prev,confirm,back,print,fulfill}`
+- System settings: `/system/settings`, `/system/settings/notifications/test`
+- Templates: `/liquid-templates`, `/notification-templates`
+- Alerts: `/alerts/book-truck`
+- Shopify proxy and dispatch flows: `/shopify/*`
+- PrintNode: `/printnode/*`
+- ParcelPerfect: `/pp*`
+- Traceability: `/traceability/*`
 
-## API modules
-
-All routes below are mounted at `/api/v1`.
-
-### Core
-
-- `GET /healthz` — liveness
-- `GET /statusz` — integration health/status summary
-- `GET /config` — UI/runtime config projection
-
-### Documentation
-
-- `GET /docs` — docs topic index
-- `GET /docs/:slug` — markdown by slug
-
-### ParcelPerfect
-
-- `POST /pp` — booking/quote proxy
-- `GET /pp/place?q=...` — place lookup
-- `POST /pp/matrix` — shipping matrix simulation
-
-### PrintNode
-
-- `POST /printnode/print`
-- `POST /printnode/print-delivery-note`
-- `POST /printnode/print-url`
-
-### Alerts
-
-- `POST /alerts/book-truck` — truck booking email
-
-### Customer accounts
-
-- `POST /customer-accounts/register`
-- `POST /customer-accounts/login`
-- `POST /customer-accounts/logout`
-- `GET /customer-accounts/me`
-- `PUT /customer-accounts/me`
-- `GET /customer-accounts/catalog`
-- `GET /customer-accounts/orders`
-- `POST /customer-accounts/orders`
-
-### Template management
-
-- Liquid templates:
-  - `GET /liquid-templates`
-  - `POST /liquid-templates`
-  - `DELETE /liquid-templates/:id`
-- Notification templates:
-  - `GET /notification-templates`
-  - `POST /notification-templates`
-  - `DELETE /notification-templates/:id`
-
-### Traceability
-
-- `GET /traceability/template.xlsx` — sample workbook template
-- `POST /traceability/report` — batch traceability report generation
-
-### Shopify proxy groups (high-level)
-
-- Customers, products, collections, payment term options
-- Tiered pricing + price tier metafield fetch/upsert
-- Draft order creation/completion + purchase-order helpers
-- Orders (create/list/open/by-name/cash/tag updates)
-- Fulfillment + recent shipments + fulfill-from-code collection flow
-- Inventory levels/locations/set/transfer
-- Pricing resolve and draft reconciliation endpoints
-- Customer notification endpoint for collection readiness
-
----
-
-## Environment configuration
-
-Create `.env` in project root.
-
-```bash
-PORT=3000
-HOST=0.0.0.0
-NODE_ENV=development
-FRONTEND_ORIGIN=http://localhost:3000
-
-# ParcelPerfect
-PP_BASE_URL=
-PP_TOKEN=
-PP_REQUIRE_TOKEN=true
-PP_ACCNUM=
-PP_PLACE_ID=
-PP_TIMEOUT_MS=10000
-
-# Shopify
-SHOPIFY_STORE=
-SHOPIFY_CLIENT_ID=
-SHOPIFY_CLIENT_SECRET=
-SHOPIFY_API_VERSION=2025-10
-SHOPIFY_FLOW_TAG=dispatch_flow
-SHOPIFY_TIMEOUT_MS=10000
-SHOPIFY_THROTTLE_MAX_CONCURRENCY=4
-SHOPIFY_THROTTLE_BASE_DELAY_MS=250
-SHOPIFY_THROTTLE_MAX_DELAY_MS=5000
-SHOPIFY_THROTTLE_CALL_LIMIT_RATIO=0.85
-
-# PrintNode
-PRINTNODE_API_KEY=
-PRINTNODE_PRINTER_ID=
-PRINTNODE_DELIVERY_NOTE_PRINTER_ID=
-PRINTNODE_DELIVERY_NOTE_PRINTER_IDS=
-PRINTNODE_TIMEOUT_MS=10000
-
-# SMTP
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_USER=
-SMTP_PASS=
-SMTP_SECURE=false
-SMTP_FROM=
-TRUCK_EMAIL_TO=
-
-# UI tuning
-UI_BOOKING_IDLE_MS=6000
-UI_COST_ALERT_THRESHOLD=250
-UI_TRUCK_ALERT_THRESHOLD=25
-UI_BOX_DIM_1=40x30x20
-UI_BOX_DIM_2=45x35x25
-UI_BOX_DIM_3=50x40x30
-UI_BOX_MASS_KG=1
-UI_ORIGIN_PERSON=
-UI_ORIGIN_ADDR1=
-UI_ORIGIN_ADDR2=
-UI_ORIGIN_ADDR3=
-UI_ORIGIN_ADDR4=
-UI_ORIGIN_POSTCODE=
-UI_ORIGIN_TOWN=
-UI_ORIGIN_PLACE_ID=
-UI_ORIGIN_CONTACT=
-UI_ORIGIN_PHONE=
-UI_ORIGIN_CELL=
-UI_ORIGIN_NOTIFY=
-UI_ORIGIN_EMAIL=
-UI_ORIGIN_NOTES=
-UI_FEATURE_MULTI_SHIP=true
-```
-
----
+See [docs/api-reference.md](docs/api-reference.md) for the current route map.
 
 ## Local development
 
@@ -230,40 +83,53 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-### Test suite
+## Build and test
 
 ```bash
+npm run build
 npm test
 ```
 
-### Utility scripts
+`npm run build` now generates the remaining runtime artifacts without any changelog step.
 
-```bash
-npm run po:catalog:generate
-npm run traceability:template:generate
-```
+## Configuration
 
----
+Create `.env` from `.env.example` and set the integrations you use.
 
-## Admin unlock shortcut (SPA)
+Common groups:
 
-Some nav entries are hidden by default and can be toggled in-browser:
+- Core server: `PORT`, `HOST`, `NODE_ENV`, `FRONTEND_ORIGIN`
+- Shopify: `SHOPIFY_*`
+- ParcelPerfect: `PP_*`
+- PrintNode: `PRINTNODE_*`
+- SMTP: `SMTP_*`
+- Dispatch auth and telemetry: `ROTARY_TOKEN`, `REMOTE_TOKEN`, `ROTARY_DEBOUNCE_MS`, `ENV_*`, `REMOTE_HEARTBEAT_*`
 
-- **Shortcut:** `Shift + Alt + A`
-- Toggles visibility for flowcharts/price-manager/dispatch-settings/logs menus.
-- Uses `localStorage` key `fl_admin_unlocked`.
+See [docs/config-reference.md](docs/config-reference.md) for the current reference.
 
----
+## Raspberry Pi controller
+
+The wired Pi client lives at `scripts/rotary-pi-wired.py`.
+
+Repo 2.2 defaults:
+
+- Knob rotate: `next` / `prev`
+- Knob click: confirm flow
+- Confirm side button: confirm flow
+- Back side button: context-aware `back`
+- Print button: `GPIO19`
+- Fulfill button: `GPIO26`
+
+Setup guides:
+
+- [docs/rotary-pi-wired.md](docs/rotary-pi-wired.md)
+- [docs/raspberry-pi-all-in-one-setup.md](docs/raspberry-pi-all-in-one-setup.md)
 
 ## Documentation map
 
-- Build/run and deployment: `docs/build-guide.md`
-- Operator manual: `docs/operator-manual.md`
-- Configuration deep reference: `docs/config-reference.md`
-- Endpoints and payload guide: `docs/api-reference.md`
-- Feature + data model: `docs/data-model.md`
-- Traceability workflow details: `docs/traceability-workflow.md`
-- Cloudflare tunnel publishing: `docs/cloudflare-tunnel.md`
-- Shopify theme tier rendering approach: `docs/price-tiers-theme.md`
-- Raspberry Pi station controller concept: `docs/raspberry-pi-station-controller-schematic.md`
-- Raspberry Pi all-in-one kiosk deployment: `docs/raspberry-pi-all-in-one-setup.md`
+- [docs/operator-manual.md](docs/operator-manual.md)
+- [docs/api-reference.md](docs/api-reference.md)
+- [docs/config-reference.md](docs/config-reference.md)
+- [docs/button-action-map.md](docs/button-action-map.md)
+- [docs/build-guide.md](docs/build-guide.md)
+- [docs/data-model.md](docs/data-model.md)

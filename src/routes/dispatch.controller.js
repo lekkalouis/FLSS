@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import { config } from "../config.js";
 import {
+  back,
   confirm,
   requestFulfill,
   requestPrint,
@@ -109,7 +110,8 @@ router.post("/dispatch/state", (req, res) => {
   const state = syncState({
     queueOrderIds: req.body?.queueOrderIds,
     lineItemKeysByOrderId: req.body?.lineItemKeysByOrderId,
-    mode: req.body?.mode
+    mode: req.body?.mode,
+    selectionMode: req.body?.selectionMode
   });
   res.json({ ok: true, ...state });
 });
@@ -172,7 +174,7 @@ router.post("/dispatch/remote/action", (req, res) => {
     return res.status(400).json({ ok: false, error: "action is required" });
   }
 
-  const allowed = new Set(["next", "prev", "confirm", "print", "fulfill", "confirm_hold", "set_packed_qty", "qty_increase", "qty_decrease"]);
+  const allowed = new Set(["next", "prev", "confirm", "back", "print", "fulfill", "confirm_hold", "set_packed_qty", "qty_increase", "qty_decrease"]);
   if (!allowed.has(action)) {
     return res.status(400).json({ ok: false, error: "Unsupported remote action" });
   }
@@ -181,7 +183,14 @@ router.post("/dispatch/remote/action", (req, res) => {
     const lastKey = remoteIdempotencyByRemote.get(remoteId);
     if (lastKey && lastKey === idempotencyKey) {
       const state = getState();
-      return res.json({ ok: true, action, selectedOrderId: state.selectedOrderId, selectedLineItemKey: state.selectedLineItemKey, deduped: true });
+      return res.json({
+        ok: true,
+        action,
+        selectedOrderId: state.selectedOrderId,
+        selectedLineItemKey: state.selectedLineItemKey,
+        selectionMode: state.selectionMode,
+        deduped: true
+      });
     }
     remoteIdempotencyByRemote.set(remoteId, idempotencyKey);
   }
@@ -191,6 +200,7 @@ router.post("/dispatch/remote/action", (req, res) => {
     if (action === "next") state = next();
     if (action === "prev") state = prev();
     if (action === "confirm") state = confirm();
+    if (action === "back") state = back();
     if (action === "print") state = requestPrint();
     if (action === "fulfill") state = requestFulfill();
     if (action === "confirm_hold") state = confirmHold();
@@ -212,7 +222,13 @@ router.post("/dispatch/remote/action", (req, res) => {
         delta: -1
       });
     }
-    return res.json({ ok: true, action, selectedOrderId: state?.selectedOrderId || null, selectedLineItemKey: state?.selectedLineItemKey || null });
+    return res.json({
+      ok: true,
+      action,
+      selectedOrderId: state?.selectedOrderId || null,
+      selectedLineItemKey: state?.selectedLineItemKey || null,
+      selectionMode: state?.selectionMode || "order"
+    });
   } catch (error) {
     if (error?.code === "NO_SELECTED_ORDER") {
       return res.status(409).json({ ok: false, action, error: error.message });
@@ -269,14 +285,27 @@ function handleAction(actionName, fn) {
 
     if (shouldDebounce(req, actionName)) {
       const state = getState();
-      return res.json({ ok: true, action: actionName, selectedOrderId: state.selectedOrderId, selectedLineItemKey: state.selectedLineItemKey, debounced: true });
+      return res.json({
+        ok: true,
+        action: actionName,
+        selectedOrderId: state.selectedOrderId,
+        selectedLineItemKey: state.selectedLineItemKey,
+        selectionMode: state.selectionMode,
+        debounced: true
+      });
     }
 
     const beforeState = getState();
     try {
       const state = fn();
       logAction(actionName, req, beforeState, state);
-      return res.json({ ok: true, action: actionName, selectedOrderId: state.selectedOrderId, selectedLineItemKey: state.selectedLineItemKey });
+      return res.json({
+        ok: true,
+        action: actionName,
+        selectedOrderId: state.selectedOrderId,
+        selectedLineItemKey: state.selectedLineItemKey,
+        selectionMode: state.selectionMode
+      });
     } catch (error) {
       if (error?.code === "NO_SELECTED_ORDER") {
         return res.status(409).json({ ok: false, action: actionName, error: error.message });
@@ -289,6 +318,7 @@ function handleAction(actionName, fn) {
 router.post("/dispatch/next", handleAction("next", () => next()));
 router.post("/dispatch/prev", handleAction("prev", () => prev()));
 router.post("/dispatch/confirm", handleAction("confirm", () => confirm()));
+router.post("/dispatch/back", handleAction("back", () => back()));
 router.post("/dispatch/print", handleAction("print", () => requestPrint()));
 router.post("/dispatch/fulfill", handleAction("fulfill", () => requestFulfill()));
 
