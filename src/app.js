@@ -103,6 +103,7 @@ export function createApp() {
     rateLimit({
       windowMs: 60 * 1000,
       max: 120,
+      skip: (req) => req.method === "GET" && /^\/api\/v1\/docs(?:\/|$)/.test(req.path || ""),
       standardHeaders: true,
       legacyHeaders: false
     })
@@ -111,6 +112,28 @@ export function createApp() {
   app.use(morgan(config.NODE_ENV === "production" ? "combined" : "dev", { stream: process.stderr }));
 
   mountApiRouters(app);
+
+  const legacyRedirects = new Map([
+    ["/admin", "/stock"],
+    ["/purchase-orders.html", "/buy"],
+    ["/manufacturing.html", "/make"],
+    ["/product-management.html", "/stock?section=inventory&tab=raw-materials"],
+    ["/price-manager.html", "/price-manager"],
+    ["/agent-commissions.html", "/agent-commissions"],
+    ["/dispatch-settings", "/stock?notice=tool-retired"],
+    ["/logs", "/stock?notice=tool-retired"],
+    ["/station-controller.html", "/stock?notice=tool-retired"],
+    ["/pos.html", "/stock?notice=tool-retired"],
+    ["/shipping-matrix.html", "/stock?notice=tool-retired"],
+    ["/order-capture-custom.html", "/stock?notice=tool-retired"],
+    ["/customer-accounts.html", "/stock?notice=tool-retired"],
+    ["/liquid-templates.html", "/stock?notice=tool-retired"],
+    ["/notification-templates.html", "/stock?notice=tool-retired"],
+    ["/traceability.html", "/stock?section=batches"]
+  ]);
+  legacyRedirects.forEach((target, source) => {
+    app.get(source, (_req, res) => res.redirect(302, target));
+  });
 
   const publicDir = path.join(__dirname, "..", "public");
   const oneUiAssetsDir = path.join(__dirname, "..", "ONEUI", "OneUI by pixelcave", "OneUI 5.12", "01 OneUI Source (HTML)", "src", "assets");

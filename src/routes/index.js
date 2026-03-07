@@ -18,6 +18,7 @@ import shopifyRouter from "./shopify.js";
 import statusRouter from "./status.js";
 import systemSettingsRouter from "./system-settings.js";
 import traceabilityRouter from "./traceability.js";
+import unifiedOperationsRouter from "./unified-operations.js";
 
 export const apiRouters = [
   { name: "status", router: statusRouter },
@@ -39,5 +40,6 @@ export const apiRouters = [
   { name: "systemSettings", router: systemSettingsRouter },
   { name: "productManagement", router: productManagementRouter },
   { name: "alerts", router: alertsRouter },
-  { name: "traceability", router: traceabilityRouter }
+  { name: "traceability", router: traceabilityRouter },
+  { name: "unifiedOperations", router: unifiedOperationsRouter }
 ];

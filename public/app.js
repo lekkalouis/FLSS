@@ -1,6 +1,9 @@
 import { initFlocsView } from "./views/flocs.js";
 import { initStockView } from "./views/stock.js";
+import { initBuyView } from "./views/buy.js";
+import { initMakeView } from "./views/make.js";
 import { initPriceManagerView } from "./views/price-manager.js";
+import { initAgentCommissionsView } from "./views/agent-commissions.js";
 import { initScanStationNext } from "./views/scan-station-next.js";
 import { isHenniesOrderContext } from "./views/customer-specialization.js";
 
@@ -177,6 +180,7 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchSelectionCount = $("dispatchSelectionCount");
   const dispatchSelectionUnits = $("dispatchSelectionUnits");
   const dispatchSelectionBoxes = $("dispatchSelectionBoxes");
+  const dispatchSelectionInnerCartons = $("dispatchSelectionInnerCartons");
   const dispatchSelectionWeight = $("dispatchSelectionWeight");
   const dispatchSelectionTime = $("dispatchSelectionTime");
   const dispatchSelectionMixes = $("dispatchSelectionMixes");
@@ -184,6 +188,14 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const dispatchFulfillmentSearch = $("dispatchFulfillmentSearch");
   const dispatchFulfillmentType = $("dispatchFulfillmentType");
   const dispatchFulfillmentBoard = $("dispatchFulfillmentBoard");
+  const dispatchFulfillmentKpiTotal = $("dispatchFulfillmentKpiTotal");
+  const dispatchFulfillmentKpiTotalMeta = $("dispatchFulfillmentKpiTotalMeta");
+  const dispatchFulfillmentKpiShipping = $("dispatchFulfillmentKpiShipping");
+  const dispatchFulfillmentKpiShippingMeta = $("dispatchFulfillmentKpiShippingMeta");
+  const dispatchFulfillmentKpiDelivery = $("dispatchFulfillmentKpiDelivery");
+  const dispatchFulfillmentKpiDeliveryMeta = $("dispatchFulfillmentKpiDeliveryMeta");
+  const dispatchFulfillmentKpiPickup = $("dispatchFulfillmentKpiPickup");
+  const dispatchFulfillmentKpiPickupMeta = $("dispatchFulfillmentKpiPickupMeta");
   const dispatchSelectionClear = $("dispatchSelectionClear");
   const dispatchPrepareDeliveriesContainer = $("dispatchPrepareDeliveriesContainer");
   const dispatchSelectionPrintBtn = $("dispatchSelectionPrintBtn");
@@ -239,7 +251,10 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const navNewOrderMenu = navNewOrderFab?.querySelector(".flNewOrderMenu") || null;
   const navFulfillment = $("navFulfillment");
   const navStock = $("navStock");
+  const navBuy = $("navBuy");
+  const navMake = $("navMake");
   const navPriceManager = $("navPriceManager");
+  const navAgentCommissions = $("navAgentCommissions");
   const navDispatchSettings = $("navDispatchSettings");
   const navLogs = $("navLogs");
   const navFooterAdmin = $("navFooterAdmin");
@@ -255,7 +270,10 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const viewFlocs = $("viewFlocs");
   const viewFulfillment = $("viewFulfillment");
   const viewStock = $("viewStock");
+  const viewBuy = $("viewBuy");
+  const viewMake = $("viewMake");
   const viewPriceManager = $("viewPriceManager");
+  const viewAgentCommissions = $("viewAgentCommissions");
   const viewDispatchSettings = $("viewDispatchSettings");
   const viewLogs = $("viewLogs");
   const viewAdmin = $("viewAdmin");
@@ -277,12 +295,23 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const settingsStickerShelfLifeMonths = $("settingsStickerShelfLifeMonths");
   const settingsStickerDefaultQty = $("settingsStickerDefaultQty");
   const settingsStickerCommandLanguage = $("settingsStickerCommandLanguage");
+  const settingsStickerLayoutProfile = $("settingsStickerLayoutProfile");
+  const settingsStickerXOffsetMm = $("settingsStickerXOffsetMm");
+  const settingsStickerYOffsetMm = $("settingsStickerYOffsetMm");
+  const settingsStickerLabelWidthMm = $("settingsStickerLabelWidthMm");
+  const settingsStickerLabelHeightMm = $("settingsStickerLabelHeightMm");
+  const settingsStickerColumnGapMm = $("settingsStickerColumnGapMm");
+  const settingsStickerLine1YMm = $("settingsStickerLine1YMm");
+  const settingsStickerLine2YMm = $("settingsStickerLine2YMm");
+  const settingsStickerLine3YMm = $("settingsStickerLine3YMm");
+  const settingsStickerTextRotation = $("settingsStickerTextRotation");
   const settingsPrintRetentionDays = $("settingsPrintRetentionDays");
   const settingsSaveBtn = $("settingsSaveBtn");
   const settingsSaveStatus = $("settingsSaveStatus");
   const settingsRefreshPrintersBtn = $("settingsRefreshPrintersBtn");
   const settingsTestStickerBtn = $("settingsTestStickerBtn");
   const settingsPrintersStatus = $("settingsPrintersStatus");
+  const settingsPrinterAssignments = $("settingsPrinterAssignments");
   const settingsPrintersList = $("settingsPrintersList");
   const settingsRefreshMonitoringBtn = $("settingsRefreshMonitoringBtn");
   const settingsMonitoringSummary = $("settingsMonitoringSummary");
@@ -404,8 +433,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     },
     {
       id: "stock",
-      title: "Stock Take",
-      description: "Run inventory counts and stock adjustments.",
+      title: "Stock",
+      description: "Monitor live stock, run stocktakes, and manage replenishment.",
       type: "route",
       target: "/stock",
       meta: "Inventory module",
@@ -566,8 +595,10 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const combinedShipmentDisabled = new Set();
   const printedDeliveryNotes = new Set();
   const dispatchOrderCache = new Map();
+  const dispatchFulfilledOrderCache = new Map();
   const dispatchOrderLookup = new Map();
   const dispatchShipmentCache = new Map();
+  const dispatchFulfillmentEventsCache = new Map();
   const dispatchPackingState = new Map();
   const dispatchSelectedOrders = new Set();
   const DISPATCH_DELIVERY_DAY_TUESDAY = 2;
@@ -582,6 +613,8 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   let dispatchFulfilledLatest = [];
   let dispatchShipmentsLatest = [];
   let dispatchModalOrderNo = null;
+  let dispatchModalOrderMode = "";
+  let dispatchModalFulfilledOrderKey = null;
   let dispatchModalShipmentId = null;
   let dispatchKnownOrderNos = new Set();
   let dispatchVoicePrimed = false;
@@ -656,36 +689,31 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
   const SHOPIFY_PRINT_TEMPLATE_CONFIG = {
     // Paste template settings for all printable docs here.
     // To add more templates, create another key like:
-    // customDoc: { templateId: "order-printer-template-id", multiplier: 1234, slugPrefix: "custom-doc", printerId: 12345678 }
+    // customDoc: { templateId: "order-printer-template-id", multiplier: 1234, slugPrefix: "custom-doc" }
     deliveryNote: {
       templateId: "492a0907560253c5e190",
       multiplier: 2191,
-      slugPrefix: "delivery-note",
-      printerId: 74467271
+      slugPrefix: "delivery-note"
     },
     printDocs: {
       templateId: "a731ae235f8ce951ce08",
       multiplier: 2254,
-      slugPrefix: "print-docs",
-      printerId: 74901099
+      slugPrefix: "print-docs"
     },
     taxInvoice: {
       templateId: "a731ae235f8ce951ce08",
       multiplier: 2254,
-      slugPrefix: "tax-invoice",
-      printerId: 74467271
+      slugPrefix: "tax-invoice"
     },
     parcelStickers: {
       templateId: "a731ae235f8ce951ce08",
       multiplier: 2254,
-      slugPrefix: "parcel-stickers",
-      printerId: 74901099
+      slugPrefix: "parcel-stickers"
     },
     lineItemStickers: {
       templateId: "a731ae235f8ce951ce08",
       multiplier: 2254,
-      slugPrefix: "line-item-stickers",
-      printerId: 74901099
+      slugPrefix: "line-item-stickers"
     }
   };
 
@@ -693,6 +721,14 @@ import { isHenniesOrderContext } from "./views/customer-specialization.js";
     { key: "taxInvoice", label: "Tax invoice" },
     { key: "parcelStickers", label: "Parcel stickers" },
     { key: "lineItemStickers", label: "Line item stickers" }
+  ];
+  const PRINTER_ROLE_DEFINITIONS = [
+    { key: "sticker", label: "Best-before stickers", description: "Raw shelf-life and batch sticker jobs." },
+    { key: "deliveryNote", label: "Delivery note", description: "Shopify delivery note PDFs." },
+    { key: "printDocs", label: "Print docs", description: "General Shopify print-doc jobs." },
+    { key: "taxInvoice", label: "Tax invoice", description: "Customer tax invoice PDFs." },
+    { key: "parcelStickers", label: "Parcel stickers", description: "Parcel sticker sheets." },
+    { key: "lineItemStickers", label: "Line item stickers", description: "Item sticker sheets." }
   ];
 
   const dbgOn = new URLSearchParams(location.search).has("debug");
@@ -4101,6 +4137,7 @@ async function startOrder(orderNo) {
       ? String(smallCartons)
       : smallCartons.toFixed(2).replace(/\.00$/, "");
     return {
+      smallCartons,
       displayCartons,
       outerCartons: Math.ceil(smallCartons / OUTER_CARTON_CAPACITY)
     };
@@ -4304,6 +4341,37 @@ async function startOrder(orderNo) {
       fulfilledQtyByLineItemId,
       fulfillmentRows
     };
+  }
+
+  function getDispatchTrackingNumbers(order) {
+    const seen = new Set();
+    const trackingNumbers = [];
+    const pushTracking = (value) => {
+      const normalized = String(value || "").trim();
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      trackingNumbers.push(normalized);
+    };
+
+    const primaryFulfillment = order?.fulfillment;
+    if (Array.isArray(primaryFulfillment?.tracking_numbers)) {
+      primaryFulfillment.tracking_numbers.forEach(pushTracking);
+    }
+    pushTracking(primaryFulfillment?.tracking_number);
+
+    const fulfillments = Array.isArray(order?.fulfillments) ? order.fulfillments : [];
+    fulfillments.forEach((fulfillment) => {
+      if (Array.isArray(fulfillment?.tracking_numbers)) {
+        fulfillment.tracking_numbers.forEach(pushTracking);
+      }
+      pushTracking(fulfillment?.tracking_number);
+    });
+
+    return trackingNumbers;
+  }
+
+  function getDispatchPrimaryTrackingNumber(order) {
+    return getDispatchTrackingNumbers(order)[0] || "";
   }
 
   function getPackedFulfillmentSelection(order, packingState) {
@@ -4604,6 +4672,13 @@ async function startOrder(orderNo) {
     return effectiveBoxes * perBoxMin;
   }
 
+  function estimateDispatchPrepTime({ outerCartonCount, innerCartonCount }) {
+    const outerCartons = Math.max(0, Number(outerCartonCount) || 0);
+    const innerCartons = Math.max(0, Number(innerCartonCount) || 0);
+    if (outerCartons <= 0 && innerCartons <= 0) return null;
+    return outerCartons * 8 + innerCartons;
+  }
+
   function extractSizeLabel(text) {
     if (!text) return "";
     const match = String(text).match(/(\d+(?:\.\d+)?)\s*(kg|g|ml)\b/i);
@@ -4639,6 +4714,29 @@ async function startOrder(orderNo) {
       if (size) return size;
     }
     return "";
+  }
+
+  function isGrouped200mlSize(sizeLabel) {
+    return normalizeSizeToken(sizeLabel) === "200ml";
+  }
+
+  function isOneKgSize(sizeLabel) {
+    return normalizeSizeToken(sizeLabel) === "1kg";
+  }
+
+  function buildDispatchPackingItemLabel(item) {
+    const baseTitle = String(item?.title || item?.label || "Item").trim() || "Item";
+    const variantTitle = String(item?.variantTitle || "").trim();
+    const fallbackSize = String(item?.size || "").trim();
+    const detail =
+      variantTitle && variantTitle.toLowerCase() !== "default title"
+        ? variantTitle
+        : fallbackSize;
+    if (!detail) return baseTitle;
+    const normalizedBase = normalizeLineLabel(baseTitle).toLowerCase();
+    const normalizedDetail = normalizeLineLabel(detail).toLowerCase();
+    if (!normalizedDetail || normalizedBase.includes(normalizedDetail)) return baseTitle;
+    return `${baseTitle} - ${detail}`;
   }
 
   function normalizeLineLabel(label) {
@@ -4697,6 +4795,7 @@ async function startOrder(orderNo) {
   const BOX_MAX_SPACES = 96;
   const BOX_MAX_WEIGHT_KG = 21;
   const CURRY_BOX_MAX = 50;
+  const BOX_MAX_1KG_UNITS = 20;
   const SIZE_METRICS = {
     "200ml": { spaces: 1, weight: 0.2 },
     "250ml": { spaces: 1.6, weight: 0.2 },
@@ -4758,7 +4857,7 @@ async function startOrder(orderNo) {
     return isSingleBoxSmallOrder(lineItems) ? 1 : null;
   }
 
-  function buildDispatchPackingPlan(order) {
+  function buildDispatchPackingPlanLegacyOld(order) {
     const lineItems = normalizeDispatchLineItems(order);
     const items = lineItems
       .map((item) => {
@@ -4915,7 +5014,7 @@ async function startOrder(orderNo) {
     };
   }
 
-  function renderDispatchPackingPlan(plan) {
+  function renderDispatchPackingPlanLegacyOld(plan) {
     if (!plan || !plan.boxes.length) {
       return `<div class="dispatchPackingPlanEmpty">No packing plan available.</div>`;
     }
@@ -4944,6 +5043,346 @@ async function startOrder(orderNo) {
         return `
           <div class="dispatchPackingPlanBox">
             <div class="dispatchPackingPlanBoxTitle"><span class="dispatchPackingPlanBoxIcon" aria-hidden="true">📦</span> ${box.label} <span>${tag}</span></div>
+            <div class="dispatchPackingPlanBoxItems">${itemsHtml || '<div class="dispatchPackingPlanItem">No items assigned.</div>'}</div>
+            ${meta}
+            ${breakdown}
+          </div>
+        `;
+      })
+      .join("");
+    return `<div class="dispatchPackingPlanGrid">${boxes}</div>`;
+  }
+
+  // Balanced first-fit packing allocator with tail-box compaction.
+  function buildDispatchPackingPlan(order) {
+    const lineItems = normalizeDispatchLineItems(order);
+    const items = lineItems
+      .map((item, index) => {
+        const size = getLineItemSize(item);
+        const curryMix = isCurryMixItem(item);
+        const metrics = getSizeMetrics(size);
+        const spaces = Number(metrics.spaces) || 0;
+        const weight = Number(metrics.weight) || 0;
+        return {
+          id: `${String(item?.id ?? `idx-${index}`)}::${index}`,
+          title: item.title || "",
+          variantTitle: item.variant_title || "",
+          size,
+          curryMix,
+          quantity: getRemainingLineItemQty(item),
+          spaces,
+          weight,
+          fillPressure: Math.max(
+            spaces > 0 ? spaces / BOX_MAX_SPACES : 0,
+            weight > 0 ? weight / BOX_MAX_WEIGHT_KG : 0
+          )
+        };
+      })
+      .filter((item) => item.quantity > 0);
+
+    const sizeCounts = new Map();
+    let totalWeightKg = 0;
+    let totalUnits = 0;
+    items.forEach((item) => {
+      const key = item.size || "Unspecified";
+      sizeCounts.set(key, (sizeCounts.get(key) || 0) + item.quantity);
+      totalWeightKg += sizeLabelToWeightKg(item.size) * item.quantity;
+      totalUnits += item.quantity;
+    });
+
+    const boxes = [];
+    let boxIndex = 1;
+
+    const createInternalBox = () => ({ items: new Map(), spacesUsed: 0, weightUsed: 0 });
+    const cloneInternalBox = (box) => {
+      const cloned = createInternalBox();
+      cloned.spacesUsed = Number(box?.spacesUsed) || 0;
+      cloned.weightUsed = Number(box?.weightUsed) || 0;
+      (box?.items || new Map()).forEach((value, key) => {
+        cloned.items.set(key, { item: value.item, quantity: Number(value.quantity) || 0 });
+      });
+      return cloned;
+    };
+    const countBoxItemsBySize = (box, matcher) => {
+      let total = 0;
+      (box?.items || new Map()).forEach((entry) => {
+        if (!entry || !matcher(entry.item?.size)) return;
+        total += Number(entry.quantity) || 0;
+      });
+      return total;
+    };
+    const boxHasGrouped200mlItems = (box) => countBoxItemsBySize(box, isGrouped200mlSize) > 0;
+    const boxHasNonGrouped200mlItems = (box) => {
+      let found = false;
+      (box?.items || new Map()).forEach((entry) => {
+        if (!entry) return;
+        const qty = Number(entry.quantity) || 0;
+        if (qty <= 0) return;
+        if (!isGrouped200mlSize(entry.item?.size)) found = true;
+      });
+      return found;
+    };
+    const canPackItemIntoBox = (box, item) => {
+      const itemIs200ml = isGrouped200mlSize(item?.size);
+      const boxHas200ml = boxHasGrouped200mlItems(box);
+      const boxHasNon200ml = boxHasNonGrouped200mlItems(box);
+      if (itemIs200ml) return !boxHasNon200ml;
+      if (boxHas200ml && !boxHasNon200ml) return false;
+      return true;
+    };
+    const calculateFitQty = (box, item, requestedQty) => {
+      const qty = Math.max(0, Number(requestedQty) || 0);
+      if (!qty) return 0;
+      if (!canPackItemIntoBox(box, item)) return 0;
+      const spaceLeft = Math.max(0, BOX_MAX_SPACES - (Number(box?.spacesUsed) || 0));
+      const weightLeft = Math.max(0, BOX_MAX_WEIGHT_KG - (Number(box?.weightUsed) || 0));
+      const fitBySpace = item.spaces > 0 ? Math.floor(spaceLeft / item.spaces) : qty;
+      const fitByWeight = item.weight > 0 ? Math.floor(weightLeft / item.weight) : qty;
+      let fitQty = Math.max(0, Math.min(qty, fitBySpace, fitByWeight));
+      if (fitQty && isOneKgSize(item.size)) {
+        const oneKgUnitsInBox = countBoxItemsBySize(box, isOneKgSize);
+        fitQty = Math.min(fitQty, Math.max(0, BOX_MAX_1KG_UNITS - oneKgUnitsInBox));
+      }
+      return Math.max(0, fitQty);
+    };
+    const addToInternalBox = (box, item, qtyToAdd) => {
+      const qty = Math.max(0, Number(qtyToAdd) || 0);
+      if (!qty) return 0;
+      const fitQty = calculateFitQty(box, item, qty);
+      if (!fitQty) return 0;
+      const existing = box.items.get(item.id);
+      if (existing) existing.quantity += fitQty;
+      else box.items.set(item.id, { item, quantity: fitQty });
+      box.spacesUsed += fitQty * item.spaces;
+      box.weightUsed += fitQty * item.weight;
+      return fitQty;
+    };
+    const createPackedBox = (entries, curryMixOnly) => {
+      const sizeBreakdownMap = new Map();
+      let spacesUsed = 0;
+      let weightUsed = 0;
+      entries.forEach((entry) => {
+        const label = entry.item?.size || "Unspecified";
+        sizeBreakdownMap.set(label, (sizeBreakdownMap.get(label) || 0) + entry.quantity);
+        spacesUsed += entry.quantity * (entry.item?.spaces || 0);
+        weightUsed += entry.quantity * (entry.item?.weight || 0);
+      });
+      const sizeLabels = Array.from(sizeBreakdownMap.keys());
+      const sizeLabel = sizeLabels.length === 1 ? sizeLabels[0] : "Mixed";
+      const spaceUtilPct = BOX_MAX_SPACES > 0 ? Math.min(100, (spacesUsed / BOX_MAX_SPACES) * 100) : 0;
+      const weightUtilPct = BOX_MAX_WEIGHT_KG > 0 ? Math.min(100, (weightUsed / BOX_MAX_WEIGHT_KG) * 100) : 0;
+      return {
+        label: `Box ${boxIndex}`,
+        size: sizeLabel,
+        curryMix: curryMixOnly,
+        spacesUsed,
+        weightUsed,
+        spaceUtilPct,
+        weightUtilPct,
+        utilizationPct: Math.max(spaceUtilPct, weightUtilPct),
+        sizeBreakdown: Array.from(sizeBreakdownMap.entries()).map(([size, quantity]) => ({ size, quantity })),
+        items: entries.map((entry) => ({
+          label: buildDispatchPackingItemLabel(entry.item),
+          quantity: entry.quantity,
+          size: entry.item?.size || "",
+          curryMix: Boolean(entry.item?.curryMix)
+        }))
+      };
+    };
+    const sortedByPressure = (inputItems) =>
+      inputItems.slice().sort((a, b) => {
+        const aIs200ml = isGrouped200mlSize(a.size);
+        const bIs200ml = isGrouped200mlSize(b.size);
+        if (aIs200ml !== bIs200ml) return aIs200ml ? -1 : 1;
+        if ((b.fillPressure || 0) !== (a.fillPressure || 0)) return (b.fillPressure || 0) - (a.fillPressure || 0);
+        if ((b.weight || 0) !== (a.weight || 0)) return (b.weight || 0) - (a.weight || 0);
+        return String(a.size || "").localeCompare(String(b.size || ""));
+      });
+    const tryCompactTailBox = (internalBoxes, tailIndex) => {
+      if (!Array.isArray(internalBoxes) || tailIndex <= 0 || tailIndex >= internalBoxes.length) return false;
+      const trial = internalBoxes.map(cloneInternalBox);
+      const tailBox = trial[tailIndex];
+      const entries = Array.from(tailBox.items.values())
+        .filter((entry) => entry && Number(entry.quantity) > 0)
+        .sort((a, b) => (b.item?.fillPressure || 0) - (a.item?.fillPressure || 0));
+      for (const entry of entries) {
+        let remaining = Number(entry.quantity) || 0;
+        for (let i = 0; i < tailIndex && remaining > 0; i += 1) {
+          const moved = addToInternalBox(trial[i], entry.item, remaining);
+          remaining -= moved;
+        }
+        if (remaining > 0) return false;
+      }
+      for (let i = 0; i < tailIndex; i += 1) internalBoxes[i] = trial[i];
+      internalBoxes.splice(tailIndex, 1);
+      return true;
+    };
+
+    if (isSingleBoxSmallOrder(lineItems)) {
+      const curryMixOnly = items.length > 0 && items.every((entry) => entry.curryMix);
+      boxes.push(createPackedBox(items.map((entry) => ({ item: entry, quantity: entry.quantity })), curryMixOnly));
+      return { boxes, sizeCounts, totalWeightKg, estimatedBoxes: boxes.length, totalUnits };
+    }
+
+    const curryMixItems = [];
+    const otherItems = [];
+    items.forEach((item) => {
+      if (item.curryMix && item.size === "250ml") curryMixItems.push({ ...item });
+      else otherItems.push({ ...item });
+    });
+
+    let curryTotal = curryMixItems.reduce((sum, item) => sum + item.quantity, 0);
+    let curryRemaining = curryMixItems.map((item) => ({ ...item }));
+    while (curryTotal >= CURRY_BOX_MAX) {
+      let boxQtyRemaining = CURRY_BOX_MAX;
+      const boxItems = [];
+      const nextRemaining = [];
+      curryRemaining.forEach((item) => {
+        if (boxQtyRemaining <= 0) {
+          nextRemaining.push(item);
+          return;
+        }
+        const packQty = Math.min(item.quantity, boxQtyRemaining);
+        if (packQty > 0) {
+          boxItems.push({ ...item, quantity: packQty });
+          boxQtyRemaining -= packQty;
+          curryTotal -= packQty;
+        }
+        const leftoverQty = item.quantity - packQty;
+        if (leftoverQty > 0) nextRemaining.push({ ...item, quantity: leftoverQty });
+      });
+      boxes.push(createPackedBox(boxItems.map((entry) => ({ item: entry, quantity: entry.quantity })), true));
+      boxIndex += 1;
+      curryRemaining = nextRemaining;
+    }
+
+    const internalBoxes = [];
+    sortedByPressure([...otherItems, ...curryRemaining]).forEach((item) => {
+      let remainingQty = Number(item.quantity) || 0;
+      while (remainingQty > 0) {
+        let bestIndex = -1;
+        let bestScore = -1;
+        let bestFit = 0;
+        for (let i = 0; i < internalBoxes.length; i += 1) {
+          const fitQty = calculateFitQty(internalBoxes[i], item, remainingQty);
+          if (!fitQty) continue;
+          const projectedSpaces = internalBoxes[i].spacesUsed + fitQty * item.spaces;
+          const projectedWeight = internalBoxes[i].weightUsed + fitQty * item.weight;
+          const projectedUtil = Math.max(
+            BOX_MAX_SPACES > 0 ? projectedSpaces / BOX_MAX_SPACES : 0,
+            BOX_MAX_WEIGHT_KG > 0 ? projectedWeight / BOX_MAX_WEIGHT_KG : 0
+          );
+          let score = projectedUtil;
+          const itemIs200ml = isGrouped200mlSize(item.size);
+          const boxHas200ml = boxHasGrouped200mlItems(internalBoxes[i]);
+          const boxHasNon200ml = boxHasNonGrouped200mlItems(internalBoxes[i]);
+          if (itemIs200ml) {
+            if (boxHas200ml && !boxHasNon200ml) score += 1;
+            else if (boxHasNon200ml) score -= 1;
+            else score += 0.25;
+          } else if (boxHas200ml && !boxHasNon200ml) {
+            score -= 1;
+          }
+          if (score > bestScore || (score === bestScore && fitQty > bestFit)) {
+            bestIndex = i;
+            bestScore = score;
+            bestFit = fitQty;
+          }
+        }
+        if (bestIndex === -1) {
+          internalBoxes.push(createInternalBox());
+          bestIndex = internalBoxes.length - 1;
+        }
+        const packed = addToInternalBox(internalBoxes[bestIndex], item, remainingQty);
+        if (!packed) break;
+        remainingQty -= packed;
+      }
+    });
+
+    for (let tail = internalBoxes.length - 1; tail > 0; tail -= 1) {
+      if (tryCompactTailBox(internalBoxes, tail)) {
+        tail = Math.min(tail, internalBoxes.length);
+      }
+    }
+
+    internalBoxes.forEach((internalBox) => {
+      const entries = Array.from(internalBox.items.values())
+        .filter((entry) => entry && Number(entry.quantity) > 0)
+        .sort((a, b) => {
+          if ((b.item?.fillPressure || 0) !== (a.item?.fillPressure || 0)) {
+            return (b.item?.fillPressure || 0) - (a.item?.fillPressure || 0);
+          }
+          return String(a.item?.title || "").localeCompare(String(b.item?.title || ""));
+        });
+      if (!entries.length) return;
+      const curryMixOnly = entries.every((entry) => entry.item?.curryMix);
+      boxes.push(createPackedBox(entries, curryMixOnly));
+      boxIndex += 1;
+    });
+
+    if (!boxes.length && items.length) {
+      boxes.push(
+        createPackedBox(
+          items.map((entry) => ({ item: entry, quantity: entry.quantity })),
+          items.every((entry) => entry.curryMix)
+        )
+      );
+    }
+
+    return { boxes, sizeCounts, totalWeightKg, estimatedBoxes: boxes.length, totalUnits };
+  }
+
+  function renderDispatchPackingPlan(plan) {
+    if (!plan || !plan.boxes.length) {
+      return `<div class="dispatchPackingPlanEmpty">No packing plan available.</div>`;
+    }
+    const boxes = plan.boxes
+      .map((box) => {
+        const itemsHtml = box.items
+          .map(
+            (item) =>
+              `<div class="dispatchPackingPlanItem"><strong>${item.quantity}x</strong><span>${escapeHtml(
+                item.label
+              )}</span></div>`
+          )
+          .join("");
+        const tag = `${box.curryMix ? "Curry Mix" : "Standard"} · ${box.size}`;
+        const meta =
+          box.spacesUsed || box.weightUsed
+            ? `<div class="dispatchPackingPlanBoxMeta">Spaces: ${box.spacesUsed.toFixed(
+                1
+              )} · Weight: ${box.weightUsed.toFixed(2)} kg</div>`
+            : "";
+        const sizeBreakdown = Array.isArray(box.sizeBreakdown)
+          ? box.sizeBreakdown.map((entry) => `<div>${entry.quantity} x ${escapeHtml(entry.size)}</div>`).join("")
+          : "";
+        const breakdown = sizeBreakdown
+          ? `<div class="dispatchPackingPlanBoxBreakdown"><div><strong>Sizes</strong></div>${sizeBreakdown}</div>`
+          : "";
+        const spaceUtil = Math.max(0, Math.min(100, Number(box.spaceUtilPct) || 0));
+        const weightUtil = Math.max(0, Math.min(100, Number(box.weightUtilPct) || 0));
+        const toneForUtil = (value) => {
+          if (value >= 90) return "is-critical";
+          if (value >= 75) return "is-warn";
+          return "is-ok";
+        };
+        const spaceTone = toneForUtil(spaceUtil);
+        const weightTone = toneForUtil(weightUtil);
+        return `
+          <div class="dispatchPackingPlanBox">
+            <div class="dispatchPackingPlanBoxTitle"><span class="dispatchPackingPlanBoxIcon" aria-hidden="true">BOX</span> ${escapeHtml(
+              box.label
+            )} <span>${escapeHtml(tag)}</span></div>
+            <div class="dispatchPackingPlanUtil">
+              <div class="dispatchPackingPlanUtilRow">
+                <span>Space ${spaceUtil.toFixed(0)}%</span>
+                <div class="dispatchPackingPlanUtilBar ${spaceTone}"><i style="width:${spaceUtil.toFixed(2)}%"></i></div>
+              </div>
+              <div class="dispatchPackingPlanUtilRow">
+                <span>Weight ${weightUtil.toFixed(0)}%</span>
+                <div class="dispatchPackingPlanUtilBar ${weightTone}"><i style="width:${weightUtil.toFixed(2)}%"></i></div>
+              </div>
+            </div>
             <div class="dispatchPackingPlanBoxItems">${itemsHtml || '<div class="dispatchPackingPlanItem">No items assigned.</div>'}</div>
             ${meta}
             ${breakdown}
@@ -5181,6 +5620,13 @@ async function startOrder(orderNo) {
     return `${mins}m`;
   }
 
+  function formatDispatchCount(value, { fallback = "0" } = {}) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    if (Math.abs(numeric - Math.round(numeric)) < 0.001) return String(Math.round(numeric));
+    return numeric.toFixed(2).replace(/\.?0+$/, "");
+  }
+
   function renderDispatchPackingPlanStats(plan) {
     if (!plan) return "";
     const weightLabel = plan.totalWeightKg ? `${plan.totalWeightKg.toFixed(2)} kg` : "—";
@@ -5202,20 +5648,30 @@ async function startOrder(orderNo) {
       : resolveSelectedDispatchOrders().rows;
     let totalWeightKg = 0;
     let totalBoxes = 0;
+    let totalInnerCartons = 0;
     let totalUnits = 0;
     let orderCount = 0;
     const sizeTotals = new Map();
     const flavourTotals = new Map();
     const flavourSizeTotals = new Map();
+    const selectedOrders = [];
 
-    selectedRows.forEach(({ order }) => {
+    selectedRows.forEach(({ order, orderNo }) => {
       if (!order) return;
       orderCount += 1;
       const packingPlan = buildDispatchPackingPlan(order);
+      const exportCartonSummary = getExportCartonSummary(order);
+      const innerCartons = Number(exportCartonSummary?.smallCartons || 0);
+      const outerCartons = Number(packingPlan?.estimatedBoxes || 0);
+      const prepTimeMin = estimateDispatchPrepTime({
+        outerCartonCount: outerCartons,
+        innerCartonCount: innerCartons
+      });
       totalBoxes += packingPlan?.estimatedBoxes || 0;
       totalWeightKg += packingPlan?.totalWeightKg || 0;
+      totalInnerCartons += innerCartons;
       (order.line_items || []).forEach((item) => {
-        const qty = Number(item.quantity) || 0;
+        const qty = getRemainingLineItemQty(item);
         totalUnits += qty;
         const size = getLineItemSize(item);
         if (size) sizeTotals.set(size, (sizeTotals.get(size) || 0) + qty);
@@ -5232,32 +5688,27 @@ async function startOrder(orderNo) {
           flavourSizeTotals.set(mixKey, current);
         }
       });
+      selectedOrders.push({
+        orderNo,
+        customer: order.customer_name || order.name || "—",
+        destination: [order.shipping_city, order.shipping_province].filter(Boolean).join(", ") || "—",
+        weightKg: Number(packingPlan?.totalWeightKg || 0),
+        outerCartons,
+        innerCartons,
+        prepTimeMin,
+        units: Number(packingPlan?.totalUnits || 0)
+      });
     });
 
-    const totalTimeMin = estimatePackingTime({
-      totalUnits,
-      boxCount: totalBoxes
+    const totalTimeMin = estimateDispatchPrepTime({
+      outerCartonCount: totalBoxes,
+      innerCartonCount: totalInnerCartons
     });
-
-    const selectedOrders = selectedRows
-      .map(({ orderNo, order }) => {
-        if (!order) return null;
-        const plan = buildDispatchPackingPlan(order);
-        const destination = [order.shipping_city, order.shipping_province].filter(Boolean).join(", ") || "—";
-        return {
-          orderNo,
-          customer: order.customer_name || order.name || "—",
-          destination,
-          weightKg: Number(plan?.totalWeightKg || 0),
-          parcels: Number(plan?.estimatedBoxes || 0),
-          units: Number(plan?.totalUnits || 0)
-        };
-      })
-      .filter(Boolean);
 
     return {
       totalWeightKg,
       totalBoxes,
+      totalInnerCartons,
       totalUnits,
       orderCount,
       totalTimeMin,
@@ -5275,12 +5726,295 @@ async function startOrder(orderNo) {
     return date.toLocaleString();
   }
 
+  function fulfilledOrderKey(order) {
+    const id = String(order?.id || "").trim();
+    if (id) return id;
+    const name = String(order?.name || "").trim();
+    const fulfilledAt = String(order?.fulfilled_at || order?.updated_at || "").trim();
+    return [name, fulfilledAt].filter(Boolean).join(":");
+  }
+
+  function getDispatchOrderParcelCount(order) {
+    const parcelCountFromMeta = Number(order?.parcel_count_from_meta);
+    if (Number.isFinite(parcelCountFromMeta) && parcelCountFromMeta >= 0) return parcelCountFromMeta;
+    const parcelCount = Number(order?.parcel_count);
+    if (Number.isFinite(parcelCount) && parcelCount >= 0) return parcelCount;
+    const parcelCountFromTag = Number(order?.parcel_count_from_tag);
+    if (Number.isFinite(parcelCountFromTag) && parcelCountFromTag >= 0) return parcelCountFromTag;
+    const fallback = getAutoParcelCountForOrder(order?.line_items);
+    return Number.isFinite(fallback) && fallback >= 0 ? fallback : null;
+  }
+
+  function getDispatchAddress(order) {
+    const shippingAddress = order?.shipping_address || {};
+    return {
+      name: String(shippingAddress.name || order?.shipping_name || order?.customer_name || "").trim(),
+      company: String(shippingAddress.company || "").trim(),
+      address1: String(shippingAddress.address1 || order?.shipping_address1 || "").trim(),
+      address2: String(shippingAddress.address2 || order?.shipping_address2 || "").trim(),
+      city: String(shippingAddress.city || order?.shipping_city || "").trim(),
+      province: String(shippingAddress.province || order?.shipping_province || "").trim(),
+      zip: String(shippingAddress.zip || order?.shipping_postal || "").trim(),
+      country: String(shippingAddress.country || order?.shipping_country || "").trim(),
+      phone: String(shippingAddress.phone || order?.shipping_phone || "").trim()
+    };
+  }
+
+  function renderDispatchAddressHtml(order) {
+    const address = getDispatchAddress(order);
+    const locality = [address.city, address.province, address.zip].filter(Boolean).join(", ");
+    return [
+      address.company || address.name,
+      address.address1,
+      address.address2,
+      locality,
+      address.country,
+      address.phone ? `Phone: ${address.phone}` : ""
+    ]
+      .filter(Boolean)
+      .map((line) => escapeHtml(line))
+      .join("<br>");
+  }
+
+  function getDispatchBillingAddress(order) {
+    const billingAddress = order?.billing_address || {};
+    return {
+      name: String(billingAddress.name || order?.billing_name || order?.customer_name || "").trim(),
+      company: String(billingAddress.company || "").trim(),
+      address1: String(billingAddress.address1 || order?.billing_address1 || "").trim(),
+      address2: String(billingAddress.address2 || order?.billing_address2 || "").trim(),
+      city: String(billingAddress.city || order?.billing_city || "").trim(),
+      province: String(billingAddress.province || order?.billing_province || "").trim(),
+      zip: String(billingAddress.zip || order?.billing_postal || "").trim(),
+      country: String(billingAddress.country || order?.billing_country || "").trim(),
+      phone: String(billingAddress.phone || order?.billing_phone || order?.phone || "").trim()
+    };
+  }
+
+  function renderDispatchAddressBlock(address, emptyLabel = "Address not available.") {
+    if (!address || typeof address !== "object") return escapeHtml(emptyLabel);
+    const locality = [address.city, address.province, address.zip].filter(Boolean).join(", ");
+    const lines = [
+      address.company || address.name,
+      address.address1,
+      address.address2,
+      locality,
+      address.country,
+      address.phone ? `Phone: ${address.phone}` : ""
+    ]
+      .filter(Boolean)
+      .map((line) => escapeHtml(line));
+    return lines.length ? lines.join("<br>") : escapeHtml(emptyLabel);
+  }
+
+  function formatDispatchStatusLabel(value, fallback = "—") {
+    const raw = String(value || "").trim();
+    if (!raw) return fallback;
+    return raw
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  function formatDispatchCurrency(value) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return "—";
+    return new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  }
+
+  function getDispatchOrderTags(order) {
+    return String(order?.tags || "")
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+
+  function renderDispatchTagChips(tags = [], className = "dispatchTagChip") {
+    const list = Array.isArray(tags) ? tags.filter(Boolean) : [];
+    if (!list.length) return "";
+    return list.map((tag) => `<span class="${className}">${escapeHtml(tag)}</span>`).join("");
+  }
+
+  function getDispatchShippingMethodLabel(order) {
+    const titles = Array.isArray(order?.shipping_lines)
+      ? order.shipping_lines
+          .map((line) => String(line?.title || "").trim())
+          .filter(Boolean)
+      : [];
+    return titles.length ? titles.join(", ") : "No shipping method";
+  }
+
+  function getDispatchOrderMetrics(order) {
+    const lineItems = normalizeDispatchLineItems(order);
+    return lineItems.reduce(
+      (totals, item) => {
+        const orderedQty = Math.max(0, Number(item?.quantity) || 0);
+        const openQty = getRemainingLineItemQty(item);
+        const sizeLabel = getLineItemSize(item);
+        totals.lineCount += 1;
+        totals.orderedUnits += orderedQty;
+        totals.openUnits += openQty;
+        totals.fulfilledUnits += Math.max(0, orderedQty - openQty);
+        totals.weightKg += sizeLabelToWeightKg(sizeLabel) * openQty;
+        return totals;
+      },
+      { orderedUnits: 0, openUnits: 0, fulfilledUnits: 0, lineCount: 0, weightKg: 0 }
+    );
+  }
+
+  function getDispatchOrderNote(order) {
+    return String(order?.note || order?.customer_note || "").trim();
+  }
+
+  function formatDispatchLaneLabel(laneId) {
+    const normalizedLane = normalizeDispatchLaneId(laneId);
+    if (normalizedLane === "delivery") return "Delivery";
+    if (normalizedLane === "pickup") return "Pickup / Collection";
+    return "Shipping";
+  }
+
+  function renderShipmentEventsMarkup(events) {
+    if (!Array.isArray(events) || !events.length) {
+      return `<div class="dispatchShipmentEventEmpty">No tracking events available.</div>`;
+    }
+    return events
+      .map((event) => {
+        const status = escapeHtml(formatShipmentStatus(event.status || ""));
+        const when = event.happened_at || event.created_at;
+        const time = when ? escapeHtml(new Date(when).toLocaleString()) : "";
+        const location = [event.city, event.province, event.country]
+          .filter(Boolean)
+          .map((value) => escapeHtml(value))
+          .join(", ");
+        return `
+          <div class="dispatchShipmentEvent">
+            <div class="dispatchShipmentEventTitle">${status}</div>
+            <div class="dispatchShipmentEventMeta">${[time, location].filter(Boolean).join(" · ")}</div>
+            <div class="dispatchShipmentEventMessage">${escapeHtml(event.message || "Update received.")}</div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function renderFulfilledOrderLineItems(order) {
+    const lineItems = Array.isArray(order?.line_items) ? order.line_items : [];
+    if (!lineItems.length) {
+      return `<div class="dispatchShipmentEventEmpty">No line items listed.</div>`;
+    }
+    return lineItems
+      .map((item) => {
+        const label = [item?.title, item?.variant_title]
+          .filter((value) => value && String(value).toLowerCase() !== "default title")
+          .join(" · ");
+        const quantity = Math.max(0, Number(item?.quantity) || 0);
+        const fulfilledQuantity = Math.max(0, Number(item?.fulfilled_quantity) || quantity);
+        return `
+          <div class="dispatchFulfilledLineItem">
+            <div class="dispatchFulfilledLineItem__title">${escapeHtml(label || "Item")}</div>
+            <div class="dispatchFulfilledLineItem__qty">${fulfilledQuantity} / ${quantity}</div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  function renderFulfilledOrderFulfillments(order) {
+    const fulfillments = Array.isArray(order?.fulfillments) ? order.fulfillments : [];
+    if (!fulfillments.length) {
+      return `
+        <div class="dispatchFulfillmentHistoryGroup">
+          <div class="dispatchShipmentEventEmpty">No fulfillment records were returned for this order.</div>
+        </div>
+      `;
+    }
+    return fulfillments
+      .map((fulfillment, index) => {
+        const label = escapeHtml(String(fulfillment?.name || `F${index + 1}`).trim() || `F${index + 1}`);
+        const trackingNumbers = Array.isArray(fulfillment?.tracking_numbers)
+          ? fulfillment.tracking_numbers.filter(Boolean)
+          : [];
+        const trackingText = trackingNumbers.length ? trackingNumbers.join(", ") : "—";
+        const trackingCompany = escapeHtml(String(fulfillment?.tracking_company || "Carrier").trim() || "Carrier");
+        const shipmentStatus = escapeHtml(formatShipmentStatus(fulfillment?.shipment_status || fulfillment?.status || ""));
+        const createdAt = escapeHtml(formatDispatchDateTime(fulfillment?.created_at || fulfillment?.updated_at));
+        const eventsKey =
+          order?.id && fulfillment?.id ? `${String(order.id).trim()}:${String(fulfillment.id).trim()}` : "";
+        const eventsMarkup = eventsKey
+          ? `<div class="dispatchShipmentEventsBody" data-fulfillment-events="${escapeHtml(eventsKey)}">Loading tracking events...</div>`
+          : `<div class="dispatchShipmentEventsBody"><div class="dispatchShipmentEventEmpty">No tracking events available.</div></div>`;
+        return `
+          <section class="dispatchFulfillmentHistoryGroup">
+            <div class="dispatchFulfillmentHistoryGroup__header">
+              <div class="dispatchFulfillmentHistoryGroup__title">${label}</div>
+              <div class="dispatchFulfillmentHistoryGroup__meta">${createdAt}</div>
+            </div>
+            <div class="dispatchDetailGrid dispatchDetailGrid--compact">
+              <div class="dispatchDetailCard">
+                <div class="dispatchDetailCard__label">Tracking</div>
+                <div class="dispatchDetailCard__value">${escapeHtml(trackingText)}</div>
+              </div>
+              <div class="dispatchDetailCard">
+                <div class="dispatchDetailCard__label">Carrier</div>
+                <div class="dispatchDetailCard__value">${trackingCompany}</div>
+              </div>
+              <div class="dispatchDetailCard">
+                <div class="dispatchDetailCard__label">Status</div>
+                <div class="dispatchDetailCard__value">${shipmentStatus || "Shipped"}</div>
+              </div>
+            </div>
+            <div class="dispatchShipmentEvents">
+              <div class="dispatchShipmentEventsTitle">Tracking events</div>
+              ${eventsMarkup}
+            </div>
+          </section>
+        `;
+      })
+      .join("");
+  }
+
+  function updateDispatchFulfillmentHistoryKpis(filteredOrders = [], allOrders = []) {
+    const emptyCounts = { shipping: 0, delivery: 0, pickup: 0 };
+    const buildLaneCounts = (orders) =>
+      (Array.isArray(orders) ? orders : []).reduce((counts, order) => {
+        const laneId = normalizeDispatchLaneId(laneFromOrder(order));
+        if (!Object.prototype.hasOwnProperty.call(counts, laneId)) counts[laneId] = 0;
+        counts[laneId] += 1;
+        return counts;
+      }, { ...emptyCounts });
+
+    const filteredList = Array.isArray(filteredOrders) ? filteredOrders : [];
+    const allList = Array.isArray(allOrders) ? allOrders : [];
+    const filteredCounts = buildLaneCounts(filteredList);
+    const totalCounts = buildLaneCounts(allList);
+
+    if (dispatchFulfillmentKpiTotal) dispatchFulfillmentKpiTotal.textContent = String(filteredList.length);
+    if (dispatchFulfillmentKpiTotalMeta) dispatchFulfillmentKpiTotalMeta.textContent = `of ${allList.length}`;
+    if (dispatchFulfillmentKpiShipping) dispatchFulfillmentKpiShipping.textContent = String(filteredCounts.shipping || 0);
+    if (dispatchFulfillmentKpiShippingMeta) {
+      dispatchFulfillmentKpiShippingMeta.textContent = `of ${totalCounts.shipping || 0}`;
+    }
+    if (dispatchFulfillmentKpiDelivery) dispatchFulfillmentKpiDelivery.textContent = String(filteredCounts.delivery || 0);
+    if (dispatchFulfillmentKpiDeliveryMeta) {
+      dispatchFulfillmentKpiDeliveryMeta.textContent = `of ${totalCounts.delivery || 0}`;
+    }
+    if (dispatchFulfillmentKpiPickup) dispatchFulfillmentKpiPickup.textContent = String(filteredCounts.pickup || 0);
+    if (dispatchFulfillmentKpiPickupMeta) {
+      dispatchFulfillmentKpiPickupMeta.textContent = `of ${totalCounts.pickup || 0}`;
+    }
+  }
+
   function renderDispatchRecentlyShipped(orders, options = {}) {
     if (!dispatchFulfillmentBoard) return;
     const { resetPagination = false } = options;
     if (resetPagination) {
       dispatchFulfillmentLaneVisibleCounts.clear();
     }
+    dispatchFulfilledOrderCache.clear();
     const allOrders = Array.isArray(orders) ? orders : [];
     const searchTerm = String(dispatchFulfillmentSearch?.value || "").trim().toLowerCase();
     const laneFilterValue = String(dispatchFulfillmentType?.value || "").trim();
@@ -5322,6 +6056,13 @@ async function startOrder(orderNo) {
         return bTime - aTime;
       });
 
+    updateDispatchFulfillmentHistoryKpis(filtered, allOrders);
+
+    filtered.forEach((order) => {
+      const key = fulfilledOrderKey(order);
+      if (key) dispatchFulfilledOrderCache.set(key, order);
+    });
+
     if (!filtered.length) {
       dispatchFulfillmentBoard.innerHTML = '<div class="dispatchRecentEmpty">No fulfilled orders match your filters.</div>';
       return;
@@ -5349,12 +6090,18 @@ async function startOrder(orderNo) {
         const rows = laneOrders
           .slice(0, visibleCount)
           .map((order) => {
+            const orderKey = fulfilledOrderKey(order);
             const orderLabel = escapeHtml(order?.name || "Order");
             const customer = escapeHtml(order?.customer_name || "Unknown customer");
             const fulfilledAt = escapeHtml(formatDispatchDateTime(order?.fulfilled_at || order?.updated_at));
             const trackingNumbers = Array.isArray(order?.fulfillment?.tracking_numbers)
               ? order.fulfillment.tracking_numbers.filter(Boolean)
               : [];
+            const primaryTrackingNo = trackingNumbers[0] || getDispatchPrimaryTrackingNumber(order);
+            const showTrackButton = lane.id === "shipping";
+            const rowClass = showTrackButton
+              ? "dispatchRecentCompactRow dispatchRecentCompactRow--interactive"
+              : "dispatchRecentCompactRow dispatchRecentCompactRow--interactive dispatchRecentCompactRow--no-track";
             const city = order?.shipping_address?.city || "";
             const province = order?.shipping_address?.province || "";
             const destination = [city, province].filter(Boolean).join(", ") || "Destination not set";
@@ -5362,12 +6109,23 @@ async function startOrder(orderNo) {
               `${destination} · TRK: ${trackingNumbers.length ? trackingNumbers.join(", ") : "-"}`
             );
             return `
-              <article class="dispatchRecentCompactRow">
+              <article
+                class="${rowClass}"
+                data-order-key="${escapeHtml(orderKey)}"
+                tabindex="0"
+                role="button"
+                aria-label="View fulfillment details for order ${orderLabel}"
+              >
                 <div class="dispatchRecentCompactOrder">${orderLabel}</div>
                 <div class="dispatchRecentCompactCenter">
                   <div class="dispatchRecentCompactCustomer" title="${customer}">${customer}</div>
                   <div class="dispatchRecentCompactDetail" title="${details}">${details}</div>
                 </div>
+                ${
+                  showTrackButton
+                    ? `<button class="dispatchRecentTrackBtn" type="button" data-action="track-waybill" data-waybill-no="${escapeHtml(primaryTrackingNo)}" ${primaryTrackingNo ? "" : "disabled"} aria-label="${primaryTrackingNo ? `Open SWE and copy waybill ${escapeHtml(primaryTrackingNo)}` : "No waybill available yet"}">Track</button>`
+                    : ""
+                }
                 <div class="dispatchRecentCompactTime">${fulfilledAt}</div>
               </article>
             `;
@@ -5481,7 +6239,15 @@ async function startOrder(orderNo) {
   }
 
   function normalizeDispatchBottomDockHeight(value) {
-    const numeric = Number(value);
+    let numeric = null;
+    if (typeof value === "number") {
+      numeric = value;
+    } else if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (/^-?\d+(?:\.\d+)?(?:px)?$/i.test(trimmed)) {
+        numeric = Number.parseFloat(trimmed);
+      }
+    }
     if (!Number.isFinite(numeric) || numeric <= 0) return null;
     const { minHeight, maxHeight } = getDispatchBottomDockBounds();
     return Math.round(Math.max(minHeight, Math.min(maxHeight, numeric)));
@@ -5534,6 +6300,7 @@ async function startOrder(orderNo) {
     const panel = dispatchSelectionPanel;
     if (!panel) return null;
     const headerHeight = panel.querySelector(".dispatchSelectionHeader")?.scrollHeight || 0;
+    const statsHeight = panel.querySelector(".dispatchSelectionStats")?.scrollHeight || 0;
     const orderHeight = dispatchSelectionOrderCards?.scrollHeight || 0;
     const mixHeight = dispatchSelectionMixes?.scrollHeight || 0;
     const bulkVisible = Boolean(
@@ -5543,7 +6310,7 @@ async function startOrder(orderNo) {
     const mobile = window.matchMedia("(max-width:980px)").matches;
     const bodyHeight = mobile ? orderHeight + mixHeight + 14 : Math.max(orderHeight, mixHeight) + 10;
     const panelChrome = 30;
-    return headerHeight + bodyHeight + bulkHeight + panelChrome;
+    return headerHeight + statsHeight + bodyHeight + bulkHeight + panelChrome;
   }
 
   function updateDispatchBottomDockHeight(options = {}) {
@@ -5713,7 +6480,10 @@ async function startOrder(orderNo) {
       dispatchSelectionUnits.textContent = String(totals.totalUnits || 0);
     }
     if (dispatchSelectionBoxes) {
-      dispatchSelectionBoxes.textContent = String(totals.totalBoxes || 0);
+      dispatchSelectionBoxes.textContent = formatDispatchCount(totals.totalBoxes || 0);
+    }
+    if (dispatchSelectionInnerCartons) {
+      dispatchSelectionInnerCartons.textContent = formatDispatchCount(totals.totalInnerCartons || 0);
     }
     if (dispatchSelectionWeight) {
       dispatchSelectionWeight.textContent =
@@ -5731,7 +6501,9 @@ async function startOrder(orderNo) {
             <td>#${escapeHtml(entry.orderNo)}</td>
             <td>${escapeHtml(entry.customer)}</td>
             <td>${entry.weightKg > 0 ? `${entry.weightKg.toFixed(2)} kg` : "-"}</td>
-            <td>${entry.parcels}</td>
+            <td>${formatDispatchCount(entry.outerCartons)}</td>
+            <td>${formatDispatchCount(entry.innerCartons)}</td>
+            <td>${escapeHtml(formatDispatchDuration(entry.prepTimeMin))}</td>
             <td>${entry.units}</td>
           </tr>`)
         .join("");
@@ -5746,7 +6518,9 @@ async function startOrder(orderNo) {
                 <th scope="col">Order</th>
                 <th scope="col">Customer</th>
                 <th scope="col">Weight</th>
-                <th scope="col" aria-label="Boxes">📦</th>
+                <th scope="col">Outer</th>
+                <th scope="col">Inner 12x200ml</th>
+                <th scope="col">Time</th>
                 <th scope="col">Units</th>
               </tr>
             </thead>
@@ -5755,7 +6529,9 @@ async function startOrder(orderNo) {
               <tr>
                 <td colspan="2">Totals</td>
                 <td>${totalWeightLabel}</td>
-                <td>${totals.totalBoxes || 0}</td>
+                <td>${formatDispatchCount(totals.totalBoxes || 0)}</td>
+                <td>${formatDispatchCount(totals.totalInnerCartons || 0)}</td>
+                <td>${escapeHtml(formatDispatchDuration(totals.totalTimeMin))}</td>
                 <td>${totals.totalUnits || 0}</td>
               </tr>
             </tfoot>
@@ -5828,12 +6604,25 @@ async function startOrder(orderNo) {
     updateDispatchSelectionSummary();
   }
 
+  function selectAllDispatchOrders() {
+    if (!dispatchBoard) return false;
+    const orderNos = Array.from(dispatchBoard.querySelectorAll(".dispatchCard[data-order-no]"))
+      .map((card) => String(card.dataset.orderNo || "").trim())
+      .filter(Boolean);
+    if (!orderNos.length) return false;
+    dispatchSelectedOrders.clear();
+    orderNos.forEach((orderNo) => dispatchSelectedOrders.add(orderNo));
+    syncDispatchSelectionUI();
+    return true;
+  }
+
   function openDispatchOrderModal(orderNo) {
     if (!dispatchOrderModal || !dispatchOrderModalBody || !dispatchOrderModalTitle) return;
     const order = dispatchOrderCache.get(orderNo);
     if (!order) return;
     const packingState = getPackingState(order);
     const laneId = laneFromOrder(order);
+    const laneLabel = formatDispatchLaneLabel(laneId);
     const title = order.customer_name || order.name || `Order ${order.id}`;
     const city = order.shipping_city || "";
     const displayDate = getDispatchDisplayDate(order);
@@ -5845,23 +6634,218 @@ async function startOrder(orderNo) {
     const packingPlan = buildDispatchPackingPlan(order);
     const packingPlanMarkup = renderDispatchPackingPlan(packingPlan);
     const packingSummaryMarkup = renderDispatchPackingSummary(packingPlan);
+    const orderMetrics = getDispatchOrderMetrics(order);
+    const paymentState = getPaymentState(order);
+    const paymentLabel =
+      paymentState.startsWith("green")
+        ? "Paid / ready"
+        : paymentState.startsWith("yellow")
+        ? "Check payment rule"
+        : "Payment required";
+    const parcelCount = getParcelCountForDispatchOrder(order, packingState) || 0;
+    const shippingAddressMarkup = renderDispatchAddressBlock(getDispatchAddress(order), "Delivery address not available.");
+    const billingAddressMarkup = renderDispatchAddressBlock(getDispatchBillingAddress(order), "Billing address not available.");
+    const tagMarkup = renderDispatchTagChips(getDispatchOrderTags(order));
+    const orderNote = getDispatchOrderNote(order);
+    const shippingMethod = getDispatchShippingMethodLabel(order);
+    const financialStatus = formatDispatchStatusLabel(order?.financial_status, paymentLabel);
+    const fulfillmentStatus = formatDispatchStatusLabel(order?.fulfillment_status, "Unfulfilled");
+    const totalPrice = formatDispatchCurrency(order?.current_total_price ?? order?.total_price);
+    const subtotalPrice = formatDispatchCurrency(order?.subtotal_price);
+    const totalWeightKg =
+      Number(packingPlan?.totalWeightKg) > 0
+        ? Number(packingPlan.totalWeightKg)
+        : Number(orderMetrics.weightKg || 0);
+    const actionMarkup = renderDispatchActions(order, laneId, orderNo, packingState);
     dispatchOrderModalBody.innerHTML = `
-      <div class="dispatchCardLines">${lines || "No line items listed."}</div>
-      <div class="dispatchCardActions">
-        ${renderDispatchActions(order, laneId, orderNo, packingState)}
-      </div>
-      <div class="dispatchPackingPlanCard">
-        <div class="dispatchPackingPlanHeader">
-          <div class="dispatchPackingPlanTitle">Packing plan</div>
-          <button class="dispatchPackingPlanPrint" type="button" data-action="print-packing-plan" data-order-no="${orderNo}" title="Print packing plan">🧾</button>
+      <section class="dispatchDetailGrid dispatchDetailGrid--hero">
+        <div class="dispatchDetailCard dispatchDetailCard--lane">
+          <div class="dispatchDetailCard__label">Lane</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(laneLabel)}</div>
         </div>
-        <div class="dispatchPackingPlanBody">${packingPlanMarkup}</div>
-      </div>
-      ${packingSummaryMarkup}
+        <div class="dispatchDetailCard dispatchDetailCard--payment">
+          <div class="dispatchDetailCard__label">Payment</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(financialStatus)}</div>
+        </div>
+        <div class="dispatchDetailCard dispatchDetailCard--shipping">
+          <div class="dispatchDetailCard__label">Fulfillment</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(fulfillmentStatus)}</div>
+        </div>
+        <div class="dispatchDetailCard">
+          <div class="dispatchDetailCard__label">Shipping method</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(shippingMethod)}</div>
+        </div>
+        <div class="dispatchDetailCard">
+          <div class="dispatchDetailCard__label">Parcels</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(String(parcelCount || 0))}</div>
+        </div>
+        <div class="dispatchDetailCard">
+          <div class="dispatchDetailCard__label">Plan boxes</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(String(packingPlan?.estimatedBoxes || 0))}</div>
+        </div>
+        <div class="dispatchDetailCard">
+          <div class="dispatchDetailCard__label">Open units</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(String(orderMetrics.openUnits || 0))}</div>
+        </div>
+        <div class="dispatchDetailCard">
+          <div class="dispatchDetailCard__label">Weight</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(totalWeightKg > 0 ? `${totalWeightKg.toFixed(2)} kg` : "—")}</div>
+        </div>
+      </section>
+      <section class="dispatchFulfilledSection">
+        <div class="dispatchShipmentEventsTitle">Order summary</div>
+        <div class="dispatchOrderInfoGrid">
+          <article class="dispatchOrderInfoCard">
+            <div class="dispatchOrderInfoCard__label">Commercial</div>
+            <div class="dispatchOrderInfoList">
+              <div><span>Subtotal</span><strong>${escapeHtml(subtotalPrice)}</strong></div>
+              <div><span>Total</span><strong>${escapeHtml(totalPrice)}</strong></div>
+              <div><span>Created</span><strong>${escapeHtml(formatDispatchDateTime(order?.created_at || order?.processed_at))}</strong></div>
+              <div><span>Updated</span><strong>${escapeHtml(formatDispatchDateTime(order?.updated_at))}</strong></div>
+            </div>
+          </article>
+          <article class="dispatchOrderInfoCard">
+            <div class="dispatchOrderInfoCard__label">Operational</div>
+            <div class="dispatchOrderInfoList">
+              <div><span>Lines</span><strong>${escapeHtml(String(orderMetrics.lineCount || 0))}</strong></div>
+              <div><span>Ordered units</span><strong>${escapeHtml(String(orderMetrics.orderedUnits || 0))}</strong></div>
+              <div><span>Fulfilled units</span><strong>${escapeHtml(String(orderMetrics.fulfilledUnits || 0))}</strong></div>
+              <div><span>Outstanding units</span><strong>${escapeHtml(String(orderMetrics.openUnits || 0))}</strong></div>
+            </div>
+          </article>
+          <article class="dispatchOrderInfoCard dispatchOrderInfoCard--span">
+            <div class="dispatchOrderInfoCard__label">Tags</div>
+            <div class="dispatchTagRow">${tagMarkup || '<span class="dispatchShipmentEventEmpty">No tags on this order.</span>'}</div>
+          </article>
+          <article class="dispatchOrderInfoCard dispatchOrderInfoCard--span">
+            <div class="dispatchOrderInfoCard__label">Notes</div>
+            <div class="dispatchOrderNote">${escapeHtml(orderNote || "No order note.")}</div>
+          </article>
+        </div>
+      </section>
+      <section class="dispatchFulfilledSection">
+        <div class="dispatchShipmentEventsTitle">Addresses</div>
+        <div class="dispatchAddressGrid">
+          <div class="dispatchFulfilledAddress">
+            <div class="dispatchOrderAddressLabel">Delivery</div>
+            ${shippingAddressMarkup}
+          </div>
+          <div class="dispatchFulfilledAddress">
+            <div class="dispatchOrderAddressLabel">Billing</div>
+            ${billingAddressMarkup}
+          </div>
+        </div>
+      </section>
+      <section class="dispatchFulfilledSection">
+        <div class="dispatchShipmentEventsTitle">Open and packed items</div>
+        <div class="dispatchOrderLinesPanel">${lines || "No line items listed."}</div>
+      </section>
+      <section class="dispatchFulfilledSection">
+        <div class="dispatchPackingPlanCard">
+          <div class="dispatchPackingPlanHeader">
+            <div class="dispatchPackingPlanTitle">Packing plan</div>
+            <div class="dispatchPackingPlanActions">
+              <button class="dispatchPackingPlanPrint" type="button" data-action="print-order-label" data-order-no="${orderNo}" title="Print 150x100 order label">Print order label (150x100)</button>
+              <button class="dispatchPackingPlanPrint" type="button" data-action="print-packing-plan" data-order-no="${orderNo}" title="Print packing plan">Print packing plan</button>
+            </div>
+          </div>
+          <div class="dispatchPackingPlanBody">${packingPlanMarkup}</div>
+        </div>
+        ${packingSummaryMarkup}
+      </section>
+      <section class="dispatchFulfilledSection">
+        <div class="dispatchCardActions dispatchCardActions--modal">
+          ${actionMarkup}
+        </div>
+      </section>
     `;
     dispatchOrderModal.classList.add("is-open");
     dispatchOrderModal.setAttribute("aria-hidden", "false");
+    dispatchModalOrderMode = "open";
     dispatchModalOrderNo = orderNo;
+    dispatchModalFulfilledOrderKey = null;
+  }
+
+  async function openDispatchFulfilledOrderModal(orderKey) {
+    if (!dispatchOrderModal || !dispatchOrderModalBody || !dispatchOrderModalTitle) return;
+    const order = dispatchFulfilledOrderCache.get(orderKey);
+    if (!order) return;
+    const laneLabel = formatDispatchLaneLabel(laneFromOrder(order));
+    const addressMarkup = renderDispatchAddressHtml(order) || "Address not available.";
+    const parcelCount = getDispatchOrderParcelCount(order);
+    const trackingNumbers = Array.isArray(order?.fulfillment?.tracking_numbers)
+      ? order.fulfillment.tracking_numbers.filter(Boolean)
+      : [];
+    const title = order.customer_name || order.name || `Order ${order.id}`;
+    const city = getDispatchAddress(order).city;
+    const fulfilledAt = formatDispatchDateTime(order?.fulfilled_at || order?.updated_at);
+    dispatchOrderModalTitle.textContent = title;
+    if (dispatchOrderModalMeta) {
+      dispatchOrderModalMeta.textContent = `#${(order.name || "").replace("#", "")} · ${city || "No city"} · ${fulfilledAt}`;
+    }
+    dispatchOrderModalBody.innerHTML = `
+      <section class="dispatchDetailGrid">
+        <div class="dispatchDetailCard">
+          <div class="dispatchDetailCard__label">Packed / fulfilled</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(fulfilledAt)}</div>
+        </div>
+        <div class="dispatchDetailCard">
+          <div class="dispatchDetailCard__label">Parcels</div>
+          <div class="dispatchDetailCard__value">${parcelCount != null ? parcelCount : "—"}</div>
+        </div>
+        <div class="dispatchDetailCard">
+          <div class="dispatchDetailCard__label">Lane</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(laneLabel)}</div>
+        </div>
+        <div class="dispatchDetailCard">
+          <div class="dispatchDetailCard__label">Latest tracking</div>
+          <div class="dispatchDetailCard__value">${escapeHtml(trackingNumbers.length ? trackingNumbers.join(", ") : "—")}</div>
+        </div>
+      </section>
+      <section class="dispatchFulfilledSection">
+        <div class="dispatchShipmentEventsTitle">Delivery address</div>
+        <div class="dispatchFulfilledAddress">${addressMarkup}</div>
+      </section>
+      <section class="dispatchFulfilledSection">
+        <div class="dispatchShipmentEventsTitle">Order items</div>
+        <div class="dispatchFulfilledLineItems">${renderFulfilledOrderLineItems(order)}</div>
+      </section>
+      <section class="dispatchFulfilledSection">
+        <div class="dispatchShipmentEventsTitle">Fulfillments</div>
+        <div class="dispatchFulfillmentHistoryList">${renderFulfilledOrderFulfillments(order)}</div>
+      </section>
+    `;
+    dispatchOrderModal.classList.add("is-open");
+    dispatchOrderModal.setAttribute("aria-hidden", "false");
+    dispatchModalOrderMode = "fulfilled";
+    dispatchModalOrderNo = null;
+    dispatchModalFulfilledOrderKey = orderKey;
+
+    const fulfillments = Array.isArray(order?.fulfillments) ? order.fulfillments : [];
+    await Promise.all(
+      fulfillments.map(async (fulfillment) => {
+        const fulfillmentId = String(fulfillment?.id || "").trim();
+        const orderId = String(order?.id || "").trim();
+        if (!orderId || !fulfillmentId) return;
+        const eventsKey = `${orderId}:${fulfillmentId}`;
+        const eventsBody = Array.from(
+          dispatchOrderModalBody.querySelectorAll("[data-fulfillment-events]")
+        ).find((element) => element.dataset.fulfillmentEvents === eventsKey);
+        if (!eventsBody) return;
+        const events = await fetchShipmentEvents({
+          order_id: orderId,
+          fulfillment_id: fulfillmentId
+        });
+        if (
+          dispatchModalOrderMode !== "fulfilled" ||
+          dispatchModalFulfilledOrderKey !== orderKey ||
+          !dispatchOrderModal.classList.contains("is-open")
+        ) {
+          return;
+        }
+        eventsBody.innerHTML = renderShipmentEventsMarkup(events);
+      })
+    );
   }
 
   function closeDispatchOrderModal() {
@@ -5869,17 +6853,25 @@ async function startOrder(orderNo) {
     dispatchOrderModal.classList.remove("is-open");
     dispatchOrderModal.setAttribute("aria-hidden", "true");
     dispatchOrderModalBody.innerHTML = "";
+    dispatchModalOrderMode = "";
     dispatchModalOrderNo = null;
+    dispatchModalFulfilledOrderKey = null;
   }
 
   async function fetchShipmentEvents(shipment) {
     if (!shipment?.order_id || !shipment?.fulfillment_id) return [];
+    const cacheKey = `${String(shipment.order_id).trim()}:${String(shipment.fulfillment_id).trim()}`;
+    if (dispatchFulfillmentEventsCache.has(cacheKey)) {
+      return dispatchFulfillmentEventsCache.get(cacheKey);
+    }
     try {
       const url = `${CONFIG.SHOPIFY.PROXY_BASE}/fulfillment-events?orderId=${shipment.order_id}&fulfillmentId=${shipment.fulfillment_id}`;
       const res = await fetch(url);
       if (!res.ok) return [];
       const data = await res.json();
-      return Array.isArray(data.events) ? data.events : [];
+      const events = Array.isArray(data.events) ? data.events : [];
+      dispatchFulfillmentEventsCache.set(cacheKey, events);
+      return events;
     } catch (err) {
       appendDebug("Shipment events fetch failed: " + String(err));
       return [];
@@ -6128,13 +7120,21 @@ async function startOrder(orderNo) {
 
   function refreshDispatchViews(orderNo) {
     renderDispatchBoard(dispatchOrdersLatest);
-    const modalOrder = orderNo || dispatchModalOrderNo;
     if (dispatchOrderModal?.classList.contains("is-open")) {
-      if (!modalOrder || !dispatchOrderCache.get(modalOrder)) {
-        closeDispatchOrderModal();
-        return;
+      if (dispatchModalOrderMode === "fulfilled") {
+        if (!dispatchModalFulfilledOrderKey || !dispatchFulfilledOrderCache.get(dispatchModalFulfilledOrderKey)) {
+          closeDispatchOrderModal();
+          return;
+        }
+        openDispatchFulfilledOrderModal(dispatchModalFulfilledOrderKey);
+      } else {
+        const modalOrder = orderNo || dispatchModalOrderNo;
+        if (!modalOrder || !dispatchOrderCache.get(modalOrder)) {
+          closeDispatchOrderModal();
+          return;
+        }
+        openDispatchOrderModal(modalOrder);
       }
-      openDispatchOrderModal(modalOrder);
     }
     const modalShipment = dispatchModalShipmentId;
     if (dispatchShipmentModal?.classList.contains("is-open")) {
@@ -6328,22 +7328,24 @@ async function startOrder(orderNo) {
     }
     const cardHTML = (o, laneId) => {
       const title = o.customer_name || o.name || `Order ${o.id}`;
+      const safeTitle = escapeHtml(title);
       const chainLogo = resolveDispatchChainLogo(o);
-      const chainLogoMarkup = chainLogo
-        ? `<img class="dispatchCardChainLogo" src="${chainLogo.src}" alt="${chainLogo.alt} logo" loading="lazy" />`
-        : "";
-      const city = o.shipping_city || "";
-      const postal = o.shipping_postal || "";
-      const displayDate = getDispatchDisplayDate(o);
       const orderNo = String(o.name || "").replace("#", "").trim();
+      const displayOrderNo = orderNo || String(o.id || "--");
+      const profileInitials =
+        String(title || "O")
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part.charAt(0).toUpperCase())
+          .join("") || "O";
+      const chainLogoMarkup = chainLogo
+        ? `<img class="dispatchCardChainLogo" src="${chainLogo.src}" alt="${escapeHtml(chainLogo.alt)} logo" loading="lazy" />`
+        : `<span class="dispatchCardProfileFallback" aria-hidden="true">${escapeHtml(profileInitials)}</span>`;
       const packingState = getPackingState(o);
       if (orderNo) activeOrders.add(orderNo);
-      const { fulfillmentRows, fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(o);
+      const { fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(o);
       const lines = renderDispatchLineItems(o, packingState);
-      const exportCartonSummary = getExportCartonSummary(o);
-      const addr1 = o.shipping_address1 || "";
-      const addr2 = o.shipping_address2 || "";
-      const addrHtml = `${addr1}${addr2 ? "<br>" + addr2 : ""}<br>${city} ${postal}`;
       const fallbackParcelCount = getAutoParcelCountForOrder(o.line_items);
       const tagParcelCount =
         typeof o.parcel_count_from_tag === "number" && o.parcel_count_from_tag >= 0
@@ -6363,7 +7365,12 @@ async function startOrder(orderNo) {
       const combinedGroup = orderNo ? getCombinedGroupForOrder(orderNo) : null;
       const combinedStyle = combinedGroup ? `style="--combined-color:${combinedGroup.color}"` : "";
       const paymentState = getPaymentState(o);
-      const shippedItemCount = getShippedItemCount(o);
+      const paymentLabel =
+        paymentState.startsWith("green")
+          ? "Paid / ready"
+          : paymentState.startsWith("yellow")
+          ? "Check payment"
+          : "Payment required";
       const hasUnfulfilledItems = (o.line_items || []).some((item) => {
         const orderedQty = Math.max(0, Number(item?.quantity) || 0);
         const itemId = item?.id != null ? String(item.id) : "";
@@ -6377,35 +7384,23 @@ async function startOrder(orderNo) {
 
       return `
         <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} dispatchCard--${paymentState}" data-order-no="${orderNo}" ${combinedStyle}>
-          <div class="dispatchCardTitle">
-            <span class="dispatchCardTitleMain">${chainLogoMarkup}<span class="dispatchCardTitleText">${title}</span></span>
-            <span class="dispatchCardMissingDot dispatchCardMissingDot--${paymentState}" aria-label="${paymentState} payment status"></span>
+          <div class="dispatchCardHeader">
+            <div class="dispatchCardTitle">
+              <span class="dispatchCardTitleMain">
+                ${chainLogoMarkup}
+                <span class="dispatchCardTitleCopy">
+                  <span class="dispatchCardTitleText">${safeTitle}</span>
+                  <span class="dispatchCardOrderNo">#${escapeHtml(displayOrderNo)}</span>
+                </span>
+              </span>
+            </div>
+            <div class="dispatchCardHeaderTools">
+              <span class="dispatchCardMissingDot dispatchCardMissingDot--${paymentState}" aria-label="${escapeHtml(paymentLabel)}"></span>
+            </div>
           </div>
-          <div class="dispatchCardMeta">#${(o.name || "").replace("#", "")} · ${city} · ${displayDate}</div>
-          ${
-            combinedGroup
-              ? `<div class="dispatchCardMeta dispatchCardMeta--combined"><span class="dispatchCombinedDot" aria-hidden="true"></span> Combined Shipment${isCombinedShipmentEnabled(combinedGroup) ? "" : " (Unlocked)"} · ${combinedGroup.orderNos.length} orders</div>`
-              : ""
-          }
-          ${
-            shippedItemCount > 0
-              ? `<div class="dispatchCardMeta dispatchCardMeta--shipment">📦 ${shippedItemCount} item${
-                  shippedItemCount === 1 ? "" : "s"
-                } already fulfilled/shipped</div>`
-              : ""
-          }
-          ${
-            fulfillmentRows.length
-              ? `<div class="dispatchCardFulfillments">${fulfillmentRows
-                  .map(
-                    (entry) => `<div class="dispatchCardFulfillmentMeta">${entry.label} · Tracking: ${entry.trackingText}</div>`
-                  )
-                  .join("")}</div>`
-              : ""
-          }
           <div class="dispatchCardParcel">
-            <label class="dispatchParcelLabel" for="dispatchParcel-${orderNo}" aria-label="Boxes">📦</label>
-            <button class="dispatchParcelAdjustBtn" type="button" data-action="decrease-box" data-order-no="${orderNo}" aria-label="Decrease box count for order ${orderNo}">−</button>
+            <label class="dispatchParcelLabel" for="dispatchParcel-${orderNo}" aria-label="Boxes">&#128230;</label>
+            <button class="dispatchParcelAdjustBtn" type="button" data-action="decrease-box" data-order-no="${orderNo}" aria-label="Decrease box count for order ${orderNo}">&minus;</button>
             <input
               id="dispatchParcel-${orderNo}"
               class="dispatchParcelCountInput"
@@ -6421,11 +7416,6 @@ async function startOrder(orderNo) {
             />
             <button class="dispatchParcelAdjustBtn" type="button" data-action="increase-box" data-order-no="${orderNo}" aria-label="Increase box count for order ${orderNo}">+</button>
           </div>
-          ${
-            exportCartonSummary
-              ? `<div class="dispatchCardMeta">Export cartons: ${exportCartonSummary.displayCartons} · Outer cartons required: ${exportCartonSummary.outerCartons}</div>`
-              : ""
-          }
           <div class="dispatchCardLines">${lines}</div>
           <div class="dispatchCardActions">
             ${renderDispatchActions(o, laneId, orderNo, packingState, {
@@ -6822,8 +7812,14 @@ async function startOrder(orderNo) {
           body{ font-family:Arial, sans-serif; padding:24px; color:#0f172a; }
           h1{ font-size:18px; margin-bottom:6px; }
           .meta{ font-size:12px; color:#475569; margin-bottom:16px; }
-          .dispatchPackingPlanBox{ border:1px solid #e2e8f0; padding:10px 12px; margin-bottom:12px; }
+          .dispatchPackingPlanBox{ border:1px solid #e2e8f0; padding:10px 12px; margin-bottom:12px; border-radius:8px; }
           .dispatchPackingPlanBoxTitle{ font-size:12px; font-weight:700; margin-bottom:6px; display:flex; justify-content:space-between; }
+          .dispatchPackingPlanUtil{ margin-bottom:8px; }
+          .dispatchPackingPlanUtilRow{ display:grid; grid-template-columns:80px 1fr; gap:8px; align-items:center; font-size:11px; color:#475569; margin-bottom:4px; }
+          .dispatchPackingPlanUtilBar{ height:7px; border-radius:999px; background:#e2e8f0; overflow:hidden; }
+          .dispatchPackingPlanUtilBar i{ display:block; height:100%; border-radius:999px; background:#16a34a; }
+          .dispatchPackingPlanUtilBar.is-warn i{ background:#f59e0b; }
+          .dispatchPackingPlanUtilBar.is-critical i{ background:#dc2626; }
           .dispatchPackingPlanItem{ display:flex; justify-content:space-between; font-size:12px; padding:2px 0; }
           .dispatchPackingPlanBoxMeta{ font-size:11px; color:#475569; margin-top:6px; }
           .dispatchPackingPlanBoxBreakdown{ font-size:11px; margin-top:6px; }
@@ -6850,6 +7846,119 @@ async function startOrder(orderNo) {
     return true;
   }
 
+  function printOrderLabel(orderNo) {
+    if (!orderNo) return false;
+    const order = dispatchOrderCache.get(orderNo);
+    if (!order) return false;
+    const packingState = getPackingState(order);
+    const packingPlan = buildDispatchPackingPlan(order);
+    const laneLabel = formatDispatchLaneLabel(laneFromOrder(order));
+    const paymentState = getPaymentState(order);
+    const paymentLabel = paymentState.startsWith("green")
+      ? "Paid/Ready"
+      : paymentState.startsWith("red")
+      ? "Payment required"
+      : "Payment check";
+    const address = getDispatchAddress(order);
+    const addressLines = [
+      address.name || order.customer_name || "",
+      address.company || "",
+      address.address1 || "",
+      address.address2 || "",
+      [address.city, address.province].filter(Boolean).join(", "),
+      [address.zip, address.country].filter(Boolean).join(" ")
+    ]
+      .filter(Boolean)
+      .map((line) => escapeHtml(line));
+    const parcelCount = getParcelCountForDispatchOrder(order, packingState) || 0;
+    const totalUnits =
+      Number(packingPlan?.totalUnits) ||
+      (Array.isArray(order?.line_items)
+        ? order.line_items.reduce((sum, item) => sum + Math.max(0, Number(item?.quantity) || 0), 0)
+        : 0);
+    const weightKg =
+      Number(packingPlan?.totalWeightKg) > 0
+        ? Number(packingPlan.totalWeightKg)
+        : Number(order?.total_weight_kg || 0) > 0
+        ? Number(order.total_weight_kg)
+        : 0;
+    const barcodeValue = String(orderNo || "").replace(/[^0-9A-Za-z_-]/g, "") || "ORDER";
+    const barcodeSvg = code128Svg(barcodeValue, 86);
+    const createdLabel = order?.created_at ? new Date(order.created_at).toLocaleString() : "";
+    const documentTitle = `Order Label ${orderNo}`;
+    const html = `
+      <!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(documentTitle)}</title>
+        <style>
+          @page { size: 150mm 100mm; margin: 0; }
+          html,body{ margin:0; padding:0; background:#fff; color:#0f172a; font-family:Arial,sans-serif; }
+          .orderLabel150x100{
+            width:150mm; height:100mm; box-sizing:border-box; padding:7mm 8mm;
+            display:grid; grid-template-rows:auto auto 1fr auto; row-gap:3.5mm;
+          }
+          .olHead{ display:flex; justify-content:space-between; gap:8mm; align-items:flex-start; }
+          .olOrderNo{ font-size:9.5mm; line-height:1; font-weight:800; letter-spacing:.2mm; }
+          .olCustomer{ margin-top:1.6mm; font-size:5.2mm; font-weight:700; }
+          .olCreated{ margin-top:1.2mm; font-size:3.2mm; color:#475569; }
+          .olState{ text-align:right; font-size:3.2mm; display:grid; gap:1.2mm; }
+          .olPill{ border:1px solid #94a3b8; border-radius:999px; padding:1mm 2.2mm; display:inline-block; font-weight:700; }
+          .olMeta{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:2.2mm; }
+          .olMetaCard{ border:1px solid #cbd5e1; border-radius:1.5mm; padding:1.6mm 2mm; }
+          .olMetaLabel{ font-size:2.7mm; color:#64748b; text-transform:uppercase; letter-spacing:.05em; }
+          .olMetaValue{ margin-top:.8mm; font-size:4.2mm; font-weight:700; }
+          .olAddress{ border:1px solid #cbd5e1; border-radius:1.8mm; padding:2mm 2.2mm; min-height:26mm; }
+          .olAddressLabel{ font-size:2.8mm; color:#64748b; text-transform:uppercase; letter-spacing:.05em; margin-bottom:1.2mm; }
+          .olAddressLine{ font-size:3.6mm; line-height:1.28; }
+          .olCode{ border-top:1px solid #cbd5e1; padding-top:2.5mm; display:grid; grid-template-columns:1fr auto; gap:3mm; align-items:end; }
+          .olCodeText{ font-size:3.6mm; font-weight:700; letter-spacing:.04em; }
+          .olCodeSvg svg{ display:block; width:72mm; height:auto; }
+        </style>
+      </head>
+      <body>
+        <section class="orderLabel150x100" aria-label="Order label ${escapeHtml(orderNo)}">
+          <div class="olHead">
+            <div>
+              <div class="olOrderNo">#${escapeHtml(orderNo)}</div>
+              <div class="olCustomer">${escapeHtml(order.customer_name || order.name || "Customer")}</div>
+              <div class="olCreated">${escapeHtml(createdLabel)}</div>
+            </div>
+            <div class="olState">
+              <span class="olPill">${escapeHtml(laneLabel)}</span>
+              <span class="olPill">${escapeHtml(paymentLabel)}</span>
+            </div>
+          </div>
+          <div class="olMeta">
+            <div class="olMetaCard"><div class="olMetaLabel">Parcels</div><div class="olMetaValue">${escapeHtml(String(parcelCount || 0))}</div></div>
+            <div class="olMetaCard"><div class="olMetaLabel">Units</div><div class="olMetaValue">${escapeHtml(String(totalUnits || 0))}</div></div>
+            <div class="olMetaCard"><div class="olMetaLabel">Weight</div><div class="olMetaValue">${escapeHtml(weightKg > 0 ? `${weightKg.toFixed(2)} kg` : "-")}</div></div>
+            <div class="olMetaCard"><div class="olMetaLabel">Boxes (plan)</div><div class="olMetaValue">${escapeHtml(String(packingPlan?.estimatedBoxes || 0))}</div></div>
+          </div>
+          <div class="olAddress">
+            <div class="olAddressLabel">Delivery Address</div>
+            ${addressLines.map((line) => `<div class="olAddressLine">${line}</div>`).join("") || `<div class="olAddressLine">No address on file.</div>`}
+          </div>
+          <div class="olCode">
+            <div class="olCodeText">${escapeHtml(barcodeValue)}</div>
+            <div class="olCodeSvg">${barcodeSvg}</div>
+          </div>
+        </section>
+      </body>
+      </html>
+    `;
+
+    const win = window.open("", "_blank", "width=1080,height=760");
+    if (!win) return false;
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+    return true;
+  }
+
   function buildShopifyTemplateInvoiceUrl({ orderName, orderNo, legacyResourceId, templateKey }) {
     const template = SHOPIFY_PRINT_TEMPLATE_CONFIG[templateKey];
     if (!template || !Number.isInteger(Number(template.multiplier))) return "";
@@ -6870,11 +7979,6 @@ async function startOrder(orderNo) {
   async function printShopifyTemplate(order, templateKey = "deliveryNote") {
     if (!order) return false;
     const template = SHOPIFY_PRINT_TEMPLATE_CONFIG[templateKey];
-    const configuredPrinterId = Number(template?.printerId);
-    if (!Number.isInteger(configuredPrinterId) || configuredPrinterId <= 0) {
-      appendDebug(`Print template failed for ${String(templateKey)}: missing valid printerId in config`);
-      return false;
-    }
     const orderNo = String(order.name || "").replace("#", "").trim();
     let orderData = order;
 
@@ -6922,11 +8026,11 @@ async function startOrder(orderNo) {
         ? "Print docs"
         : "Template";
     const payload = {
-      printerId: configuredPrinterId,
       title: `${templateLabel} ${orderName || `#${orderNo}`}`,
       invoiceUrl,
       usePdfUri: true,
-      source: "Scan Station"
+      source: "Scan Station",
+      documentType: templateKey
     };
 
     try {
@@ -7340,6 +8444,7 @@ async function startOrder(orderNo) {
       if (dispatchFulfillmentBoard) {
         dispatchFulfillmentBoard.innerHTML = `<div class="dispatchRecentEmpty">Could not load recently fulfilled orders.</div>`;
       }
+      updateDispatchFulfillmentHistoryKpis([], []);
       if (dispatchStamp) dispatchStamp.textContent = "Dispatch: error";
     }
   }
@@ -7432,7 +8537,10 @@ async function startOrder(orderNo) {
     const showFlocs = view === "flocs";
     const showFulfillment = view === "fulfillment-history";
     const showStock = view === "stock";
+    const showBuy = view === "buy";
+    const showMake = view === "make";
     const showPriceManager = view === "price-manager";
+    const showAgentCommissions = view === "agent-commissions";
     const showDispatchSettings = view === "dispatch-settings";
     const showLogs = view === "logs";
     const showAdmin = view === "admin";
@@ -7465,9 +8573,21 @@ async function startOrder(orderNo) {
       viewStock.hidden = !showStock;
       viewStock.classList.toggle("flView--active", showStock);
     }
+    if (viewBuy) {
+      viewBuy.hidden = !showBuy;
+      viewBuy.classList.toggle("flView--active", showBuy);
+    }
+    if (viewMake) {
+      viewMake.hidden = !showMake;
+      viewMake.classList.toggle("flView--active", showMake);
+    }
     if (viewPriceManager) {
       viewPriceManager.hidden = !showPriceManager;
       viewPriceManager.classList.toggle("flView--active", showPriceManager);
+    }
+    if (viewAgentCommissions) {
+      viewAgentCommissions.hidden = !showAgentCommissions;
+      viewAgentCommissions.classList.toggle("flView--active", showAgentCommissions);
     }
     if (viewDispatchSettings) {
       viewDispatchSettings.hidden = !showDispatchSettings;
@@ -7490,7 +8610,10 @@ async function startOrder(orderNo) {
     navNewOrder?.classList.toggle("flNavBtn--active", showFlocs);
     navFulfillment?.classList.toggle("flNavBtn--active", showFulfillment);
     navStock?.classList.toggle("flNavBtn--active", showStock);
+    navBuy?.classList.toggle("flNavBtn--active", showBuy);
+    navMake?.classList.toggle("flNavBtn--active", showMake);
     navPriceManager?.classList.toggle("flNavBtn--active", showPriceManager);
+    navAgentCommissions?.classList.toggle("flNavBtn--active", showAgentCommissions);
     navDispatchSettings?.classList.toggle("flNavBtn--active", showDispatchSettings);
     navLogs?.classList.toggle("flNavBtn--active", showLogs);
     navFooterAdmin?.classList.toggle("flNavBtn--active", showAdmin);
@@ -7508,7 +8631,10 @@ async function startOrder(orderNo) {
       }
     }
     navStock?.setAttribute("aria-selected", showStock ? "true" : "false");
+    navBuy?.setAttribute("aria-selected", showBuy ? "true" : "false");
+    navMake?.setAttribute("aria-selected", showMake ? "true" : "false");
     navPriceManager?.setAttribute("aria-selected", showPriceManager ? "true" : "false");
+    navAgentCommissions?.setAttribute("aria-selected", showAgentCommissions ? "true" : "false");
     navDispatchSettings?.setAttribute("aria-selected", showDispatchSettings ? "true" : "false");
     navLogs?.setAttribute("aria-selected", showLogs ? "true" : "false");
     navFooterAdmin?.setAttribute("aria-selected", showAdmin ? "true" : "false");
@@ -7525,9 +8651,15 @@ async function startOrder(orderNo) {
     } else if (showFlowcharts) {
       statusExplain("Flowchart logic reference loaded.", "info");
     } else if (showStock) {
-      statusExplain("Stock take ready.", "info");
+      statusExplain("Stock ready.", "info");
+    } else if (showBuy) {
+      statusExplain("Buy workspace ready.", "info");
+    } else if (showMake) {
+      statusExplain("Make workspace ready.", "info");
     } else if (showPriceManager) {
       statusExplain("Price manager ready.", "info");
+    } else if (showAgentCommissions) {
+      statusExplain("Agent commissions ready.", "info");
     } else if (showDispatchSettings) {
       statusExplain("Dispatch settings loaded.", "info");
     } else if (showLogs) {
@@ -7552,10 +8684,10 @@ async function startOrder(orderNo) {
     ["/flocs", "flocs"],
     ["/fulfillment-history", "fulfillment-history"],
     ["/stock", "stock"],
+    ["/buy", "buy"],
+    ["/make", "make"],
     ["/price-manager", "price-manager"],
-    ["/dispatch-settings", "dispatch-settings"],
-    ["/logs", "logs"],
-    ["/admin", "admin"]
+    ["/agent-commissions", "agent-commissions"]
   ]);
 
   const VIEW_ROUTE_MAP = {
@@ -7566,10 +8698,10 @@ async function startOrder(orderNo) {
     flocs: "/flocs",
     "fulfillment-history": "/fulfillment-history",
     stock: "/stock",
+    buy: "/buy",
+    make: "/make",
     "price-manager": "/price-manager",
-    "dispatch-settings": "/dispatch-settings",
-    logs: "/logs",
-    admin: "/admin"
+    "agent-commissions": "/agent-commissions"
   };
 
   const docsState = {
@@ -7600,11 +8732,11 @@ async function startOrder(orderNo) {
     const { stockTab, stockMode } = pendingStockIntent;
     pendingStockIntent = null;
     if (stockTab) {
-      const tabBtn = document.querySelector(`.stock-tabBtn[data-tab="${stockTab}"]`);
+      const tabBtn = document.querySelector(`[data-stock-tab-target="${stockTab}"]`) || document.querySelector(`.stock-tabBtn[data-tab="${stockTab}"]`);
       tabBtn?.click();
     }
     if (stockMode) {
-      const modeBtn = document.querySelector(`.stock-modeBtn[data-mode="${stockMode}"]`);
+      const modeBtn = document.querySelector(`[data-stock-mode-target="${stockMode}"]`) || document.querySelector(`.stock-modeBtn[data-mode="${stockMode}"]`);
       modeBtn?.click();
     }
   }
@@ -7654,6 +8786,11 @@ async function startOrder(orderNo) {
   function normalizeSettingsState(rawSettings) {
     const source = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
     const sticker = source.sticker && typeof source.sticker === "object" ? source.sticker : {};
+    const stickerCalibration =
+      sticker.calibration && typeof sticker.calibration === "object" ? sticker.calibration : {};
+    const printers = source.printers && typeof source.printers === "object" ? source.printers : {};
+    const printerDocuments =
+      printers.documents && typeof printers.documents === "object" ? printers.documents : printers;
     const printHistory = source.printHistory && typeof source.printHistory === "object" ? source.printHistory : {};
     const relay = source.relay && typeof source.relay === "object" ? source.relay : {};
     const controller = source.controller && typeof source.controller === "object" ? source.controller : {};
@@ -7665,13 +8802,36 @@ async function startOrder(orderNo) {
     const truckCollection = notificationEvents.truckCollection && typeof notificationEvents.truckCollection === "object"
       ? notificationEvents.truckCollection
       : {};
+    const clampNumber = (value, fallback, min, max) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return fallback;
+      if (parsed < min) return min;
+      if (parsed > max) return max;
+      return parsed;
+    };
 
     const shelfLifeMonths = Math.max(1, Math.trunc(Number(sticker.shelfLifeMonths) || 12));
     const defaultButtonQty = Math.max(1, Math.trunc(Number(sticker.defaultButtonQty) || 50));
     const commandLanguage = String(sticker.commandLanguage || "PPLB").trim().toUpperCase() || "PPLB";
+    const layoutProfile = String(sticker.layoutProfile || "continuous_4up").trim().toLowerCase() || "continuous_4up";
     const stickerPrinterId = Number.isInteger(Number(sticker.stickerPrinterId))
       ? Number(sticker.stickerPrinterId)
       : null;
+    const normalizePrinterId = (value) => {
+      const parsed = Number(value);
+      return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+    };
+    const calibration = {
+      xOffsetMm: clampNumber(stickerCalibration.xOffsetMm, 0, -12, 12),
+      yOffsetMm: clampNumber(stickerCalibration.yOffsetMm, 0, -12, 12),
+      labelWidthMm: clampNumber(stickerCalibration.labelWidthMm, 22, 8, 60),
+      labelHeightMm: clampNumber(stickerCalibration.labelHeightMm, 16, 8, 80),
+      columnGapMm: clampNumber(stickerCalibration.columnGapMm, 3, 0, 30),
+      line1YMm: clampNumber(stickerCalibration.line1YMm, 2, 0, 40),
+      line2YMm: clampNumber(stickerCalibration.line2YMm, 6.5, 0, 50),
+      line3YMm: clampNumber(stickerCalibration.line3YMm, 11, 0, 70),
+      textRotation: Math.max(0, Math.min(3, Math.trunc(Number(stickerCalibration.textRotation) || 0)))
+    };
     const retentionDays = Math.max(1, Math.trunc(Number(printHistory.retentionDays) || 365));
 
     return {
@@ -7679,7 +8839,18 @@ async function startOrder(orderNo) {
         shelfLifeMonths,
         defaultButtonQty,
         commandLanguage,
+        layoutProfile: layoutProfile === "continuous_4up" ? layoutProfile : "continuous_4up",
+        calibration,
         stickerPrinterId: Number.isInteger(stickerPrinterId) && stickerPrinterId > 0 ? stickerPrinterId : null
+      },
+      printers: {
+        documents: {
+          deliveryNote: normalizePrinterId(printerDocuments.deliveryNote),
+          printDocs: normalizePrinterId(printerDocuments.printDocs),
+          taxInvoice: normalizePrinterId(printerDocuments.taxInvoice),
+          parcelStickers: normalizePrinterId(printerDocuments.parcelStickers),
+          lineItemStickers: normalizePrinterId(printerDocuments.lineItemStickers)
+        }
       },
       printHistory: {
         retentionDays
@@ -7736,6 +8907,36 @@ async function startOrder(orderNo) {
     if (settingsStickerCommandLanguage) {
       settingsStickerCommandLanguage.value = String(settingsState.sticker?.commandLanguage || "PPLB");
     }
+    if (settingsStickerLayoutProfile) {
+      settingsStickerLayoutProfile.value = String(settingsState.sticker?.layoutProfile || "continuous_4up");
+    }
+    if (settingsStickerXOffsetMm) {
+      settingsStickerXOffsetMm.value = String(settingsState.sticker?.calibration?.xOffsetMm ?? 0);
+    }
+    if (settingsStickerYOffsetMm) {
+      settingsStickerYOffsetMm.value = String(settingsState.sticker?.calibration?.yOffsetMm ?? 0);
+    }
+    if (settingsStickerLabelWidthMm) {
+      settingsStickerLabelWidthMm.value = String(settingsState.sticker?.calibration?.labelWidthMm ?? 22);
+    }
+    if (settingsStickerLabelHeightMm) {
+      settingsStickerLabelHeightMm.value = String(settingsState.sticker?.calibration?.labelHeightMm ?? 16);
+    }
+    if (settingsStickerColumnGapMm) {
+      settingsStickerColumnGapMm.value = String(settingsState.sticker?.calibration?.columnGapMm ?? 3);
+    }
+    if (settingsStickerLine1YMm) {
+      settingsStickerLine1YMm.value = String(settingsState.sticker?.calibration?.line1YMm ?? 2);
+    }
+    if (settingsStickerLine2YMm) {
+      settingsStickerLine2YMm.value = String(settingsState.sticker?.calibration?.line2YMm ?? 6.5);
+    }
+    if (settingsStickerLine3YMm) {
+      settingsStickerLine3YMm.value = String(settingsState.sticker?.calibration?.line3YMm ?? 11);
+    }
+    if (settingsStickerTextRotation) {
+      settingsStickerTextRotation.value = String(settingsState.sticker?.calibration?.textRotation ?? 0);
+    }
     if (settingsPrintRetentionDays) {
       settingsPrintRetentionDays.value = String(settingsState.printHistory?.retentionDays ?? 365);
     }
@@ -7788,9 +8989,29 @@ async function startOrder(orderNo) {
   }
 
   function collectSettingsFormPayload() {
+    const clampNumber = (value, fallback, min, max) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return fallback;
+      if (parsed < min) return min;
+      if (parsed > max) return max;
+      return parsed;
+    };
     const shelfLifeMonths = Math.max(1, Math.trunc(Number(settingsStickerShelfLifeMonths?.value) || 12));
     const defaultButtonQty = Math.max(1, Math.trunc(Number(settingsStickerDefaultQty?.value) || 50));
     const commandLanguage = String(settingsStickerCommandLanguage?.value || "PPLB").trim().toUpperCase() || "PPLB";
+    const layoutProfile =
+      String(settingsStickerLayoutProfile?.value || "continuous_4up").trim().toLowerCase() || "continuous_4up";
+    const calibration = {
+      xOffsetMm: clampNumber(settingsStickerXOffsetMm?.value, 0, -12, 12),
+      yOffsetMm: clampNumber(settingsStickerYOffsetMm?.value, 0, -12, 12),
+      labelWidthMm: clampNumber(settingsStickerLabelWidthMm?.value, 22, 8, 60),
+      labelHeightMm: clampNumber(settingsStickerLabelHeightMm?.value, 16, 8, 80),
+      columnGapMm: clampNumber(settingsStickerColumnGapMm?.value, 3, 0, 30),
+      line1YMm: clampNumber(settingsStickerLine1YMm?.value, 2, 0, 40),
+      line2YMm: clampNumber(settingsStickerLine2YMm?.value, 6.5, 0, 50),
+      line3YMm: clampNumber(settingsStickerLine3YMm?.value, 11, 0, 70),
+      textRotation: Math.max(0, Math.min(3, Math.trunc(Number(settingsStickerTextRotation?.value) || 0)))
+    };
     const retentionDays = Math.max(1, Math.trunc(Number(settingsPrintRetentionDays?.value) || 365));
     const stickerPrinterId = Number(settingsState?.sticker?.stickerPrinterId);
     return {
@@ -7798,7 +9019,14 @@ async function startOrder(orderNo) {
         shelfLifeMonths,
         defaultButtonQty,
         commandLanguage,
+        layoutProfile: layoutProfile === "continuous_4up" ? layoutProfile : "continuous_4up",
+        calibration,
         stickerPrinterId: Number.isInteger(stickerPrinterId) && stickerPrinterId > 0 ? stickerPrinterId : null
+      },
+      printers: {
+        documents: {
+          ...(settingsState?.printers?.documents || {})
+        }
       },
       printHistory: {
         retentionDays
@@ -7906,6 +9134,54 @@ async function startOrder(orderNo) {
     return settingsTemplateRows;
   }
 
+  function getAssignedPrinterIdForRole(roleKey) {
+    if (roleKey === "sticker") {
+      const printerId = Number(settingsState?.sticker?.stickerPrinterId);
+      return Number.isInteger(printerId) && printerId > 0 ? printerId : null;
+    }
+    const printerId = Number(settingsState?.printers?.documents?.[roleKey]);
+    return Number.isInteger(printerId) && printerId > 0 ? printerId : null;
+  }
+
+  function getPrinterRoleDefinition(roleKey) {
+    return PRINTER_ROLE_DEFINITIONS.find((role) => role.key === roleKey) || null;
+  }
+
+  function getAssignedPrinterRoleKeys(printerId) {
+    const id = Number(printerId);
+    if (!Number.isInteger(id) || id <= 0) return [];
+    return PRINTER_ROLE_DEFINITIONS.filter((role) => getAssignedPrinterIdForRole(role.key) === id).map((role) => role.key);
+  }
+
+  function renderSettingsPrinterAssignments(printers = []) {
+    if (!settingsPrinterAssignments) return;
+    const options = [
+      `<option value="">Use PrintNode default</option>`,
+      ...printers.map((printer) => {
+        const id = Number(printer?.id);
+        const name = String(printer?.name || printer?.description || `Printer ${id || "-"}`);
+        return `<option value="${Number.isInteger(id) ? id : ""}">${escapeHtml(name)}${Number.isInteger(id) ? ` (${id})` : ""}</option>`;
+      })
+    ].join("");
+    settingsPrinterAssignments.innerHTML = PRINTER_ROLE_DEFINITIONS.map((role) => {
+      const selected = getAssignedPrinterIdForRole(role.key);
+      return `
+        <label class="settingsPrinterCard">
+          <strong>${escapeHtml(role.label)}</strong>
+          <span>${escapeHtml(role.description)}</span>
+          <select data-action="settings-assign-printer" data-role-key="${escapeHtml(role.key)}">
+            ${options}
+          </select>
+        </label>
+      `;
+    }).join("");
+    settingsPrinterAssignments.querySelectorAll("select[data-role-key]").forEach((select) => {
+      const roleKey = String(select.getAttribute("data-role-key") || "").trim();
+      const selected = getAssignedPrinterIdForRole(roleKey);
+      select.value = selected ? String(selected) : "";
+    });
+  }
+
   async function sendSettingsNotificationTest(eventKey) {
     setSettingsNotificationsStatus("Saving notification settings and sending test...");
     await persistSystemSettings(collectSettingsFormPayload());
@@ -7926,12 +9202,12 @@ async function startOrder(orderNo) {
   }
 
   function renderSettingsPrintersTable(printers = []) {
+    renderSettingsPrinterAssignments(Array.isArray(printers) ? printers : []);
     if (!settingsPrintersList) return;
     if (!Array.isArray(printers) || !printers.length) {
       settingsPrintersList.innerHTML = `<div class="dispatchRecentEmpty">No printers available.</div>`;
       return;
     }
-    const selectedPrinterId = Number(settingsState?.sticker?.stickerPrinterId);
     const rows = printers
       .map((printer) => {
         const id = Number(printer?.id);
@@ -7949,23 +9225,22 @@ async function startOrder(orderNo) {
               ? "Online"
               : "Offline"
             : String(printer?.state || printer?.computer?.state || "Unknown");
-        const selected = Number.isInteger(id) && Number.isInteger(selectedPrinterId) && id === selectedPrinterId;
+        const assignedRoles = getAssignedPrinterRoleKeys(id);
+        const roleBadges = assignedRoles.length
+          ? `<div class="settingsPrinterRoleBadges">${assignedRoles
+              .map((roleKey) => {
+                const role = getPrinterRoleDefinition(roleKey);
+                return `<span class="settingsPrinterRoleBadge">${escapeHtml(role?.label || roleKey)}</span>`;
+              })
+              .join("")}</div>`
+          : `<span class="dispatchRecentEmpty">Unassigned</span>`;
         return `
           <tr data-printer-id="${Number.isInteger(id) ? id : ""}">
             <td>${Number.isInteger(id) ? id : "-"}</td>
             <td>${escapeHtml(name)}</td>
             <td>${escapeHtml(computer)}</td>
             <td>${escapeHtml(online)}</td>
-            <td>
-              <button
-                class="dispatchSelectionBtn"
-                type="button"
-                data-action="settings-select-sticker-printer"
-                data-printer-id="${Number.isInteger(id) ? id : ""}"
-                ${selected ? "disabled" : ""}>
-                ${selected ? "Sticker printer" : "Use for stickers"}
-              </button>
-            </td>
+            <td>${roleBadges}</td>
           </tr>`;
       })
       .join("");
@@ -7977,7 +9252,7 @@ async function startOrder(orderNo) {
             <th scope="col">Printer</th>
             <th scope="col">Computer</th>
             <th scope="col">Status</th>
-            <th scope="col">Actions</th>
+            <th scope="col">Assigned</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -8387,7 +9662,13 @@ async function startOrder(orderNo) {
 
     try {
       const res = await fetch(`${API_BASE}/docs`, { headers: { Accept: "application/json" } });
-      if (!res.ok) throw new Error(`Docs index fetch failed: ${res.status}`);
+      if (!res.ok) {
+        const message =
+          res.status === 429
+            ? "Documentation is temporarily busy. Please retry in a moment."
+            : `Docs index fetch failed: ${res.status}`;
+        throw new Error(message);
+      }
       const payload = await res.json();
       docsState.topics = Array.isArray(payload.topics) ? payload.topics : [];
 
@@ -8449,9 +9730,11 @@ async function startOrder(orderNo) {
   const viewInitializers = {
     flocs: initFlocsView,
     stock: initStockView,
+    buy: initBuyView,
+    make: initMakeView,
     docs: initDocsView,
     "price-manager": initPriceManagerView,
-    admin: initAdminView
+    "agent-commissions": initAgentCommissionsView
   };
 
   function normalizePath(path) {
@@ -8538,25 +9821,17 @@ async function startOrder(orderNo) {
 
   setDispatchRotaryInputEnabled(true, { notify: false });
 
-  const ADMIN_UNLOCKED_KEY = "fl_admin_unlocked";
-  const applyAdminMenuVisibility = (visible) => {
-    if (navFlowcharts) navFlowcharts.hidden = !visible;
-    if (navPriceManager) navPriceManager.hidden = !visible;
-    if (navDispatchSettings) navDispatchSettings.hidden = !visible;
-    if (navLogs) navLogs.hidden = !visible;
-
-    if (!visible) {
-      const activeView = document.querySelector(".flView.flView--active")?.id;
-      const nonCoreViews = new Set(["viewDocs", "viewFlowcharts", "viewPriceManager", "viewDispatchSettings", "viewLogs"]);
-      if (activeView && nonCoreViews.has(activeView)) {
-        switchMainView("scan");
-      }
-    }
+  const applyAdminMenuVisibility = () => {
+    if (navFlowcharts) navFlowcharts.hidden = true;
+    if (navPriceManager) navPriceManager.hidden = false;
+    if (navDispatchSettings) navDispatchSettings.hidden = true;
+    if (navLogs) navLogs.hidden = true;
   };
-  applyAdminMenuVisibility(localStorage.getItem(ADMIN_UNLOCKED_KEY) === "true");
+  applyAdminMenuVisibility();
 
   document.addEventListener("keydown", async (e) => {
     const key = String(e.key || "");
+    const normalizedKey = key.toLowerCase();
     const activeView = document.querySelector(".flView.flView--active")?.id;
     const target = e.target;
     const targetTag = String(target?.tagName || "").toLowerCase();
@@ -8565,6 +9840,21 @@ async function startOrder(orderNo) {
       targetTag === "textarea" ||
       targetTag === "select" ||
       Boolean(target?.isContentEditable);
+
+    if (
+      activeView === "viewScan" &&
+      !inEditable &&
+      !e.altKey &&
+      !e.shiftKey &&
+      (e.ctrlKey || e.metaKey) &&
+      normalizedKey === "a"
+    ) {
+      const selectedAny = selectAllDispatchOrders();
+      if (selectedAny) {
+        e.preventDefault();
+        return;
+      }
+    }
 
     if (activeView === "viewScan" && !inEditable && dispatchRotaryInputEnabled) {
       const controllerConnected = isDispatchControllerConnected(dispatchControllerState);
@@ -8614,13 +9904,6 @@ async function startOrder(orderNo) {
       }
     }
 
-    if (e.shiftKey && e.altKey && String(e.key || "").toLowerCase() === "a") {
-      const nowVisible = navDispatchSettings?.hidden !== true;
-      const next = !nowVisible;
-      applyAdminMenuVisibility(next);
-      localStorage.setItem(ADMIN_UNLOCKED_KEY, String(next));
-      statusExplain(next ? "Admin menu unlocked." : "Admin menu hidden.", "info");
-    }
   });
 
   const DISPATCH_NOTES_KEY = "fl_dispatch_notes";
@@ -8830,22 +10113,34 @@ async function startOrder(orderNo) {
     }
   });
 
-  settingsPrintersList?.addEventListener("click", async (event) => {
+  settingsPrinterAssignments?.addEventListener("change", async (event) => {
     const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const selectButton = target.closest('button[data-action="settings-select-sticker-printer"]');
-    if (!selectButton) return;
-    const printerId = Number(selectButton.dataset.printerId);
-    if (!Number.isInteger(printerId) || printerId <= 0) return;
-    selectButton.disabled = true;
-    setSettingsSaveStatus(`Saving sticker printer ${printerId}...`);
+    if (!(target instanceof HTMLSelectElement)) return;
+    if (target.dataset.action !== "settings-assign-printer") return;
+    const roleKey = String(target.dataset.roleKey || "").trim();
+    if (!roleKey) return;
+    const printerId = Number(target.value);
+    const nextPrinterId = Number.isInteger(printerId) && printerId > 0 ? printerId : null;
+    const role = getPrinterRoleDefinition(roleKey);
+    target.disabled = true;
+    setSettingsSaveStatus(`Saving ${role?.label || roleKey} printer...`);
     try {
-      await persistSystemSettings({ sticker: { stickerPrinterId: printerId } });
-      setSettingsSaveStatus(`Sticker printer set to ${printerId}.`, "ok");
+      if (roleKey === "sticker") {
+        await persistSystemSettings({ sticker: { stickerPrinterId: nextPrinterId } });
+      } else {
+        await persistSystemSettings({
+          printers: {
+            documents: {
+              [roleKey]: nextPrinterId
+            }
+          }
+        });
+      }
+      setSettingsSaveStatus(`${role?.label || roleKey} printer updated.`, "ok");
       renderSettingsPrintersTable(settingsPrinterRows);
     } catch (error) {
       setSettingsSaveStatus(String(error?.message || error), "err");
-      selectButton.disabled = false;
+      target.disabled = false;
     }
   });
 
@@ -9102,6 +10397,21 @@ async function startOrder(orderNo) {
     }
     if (actionType === "close-legend-modal") {
       setDispatchLegendOpen(false);
+      return true;
+    }
+    if (actionType === "track-waybill") {
+      const waybillNo = String(action.dataset.waybillNo || "").trim();
+      if (!waybillNo) {
+        statusExplain("No waybill available for this order.", "warn");
+        return true;
+      }
+      window.open("https://swe.pperfect.com/", "_blank", "noopener,noreferrer");
+      try {
+        await navigator.clipboard?.writeText(waybillNo);
+        statusExplain(`Waybill ${waybillNo} copied to clipboard.`, "ok");
+      } catch {
+        statusExplain(`Opened SWE for waybill ${waybillNo}. Clipboard copy failed.`, "warn");
+      }
       return true;
     }
     if (actionType === "toggle-docs") return true;
@@ -9426,6 +10736,19 @@ async function startOrder(orderNo) {
       statusExplain(`Packing plan printed for ${orderNo}.`, "ok");
       return true;
     }
+    if (actionType === "print-order-label") {
+      if (!orderNo) return true;
+      setDispatchProgress(4, `Printing order label for ${orderNo}`);
+      logDispatchEvent(`Printing 150x100 order label for order ${orderNo}.`);
+      const ok = printOrderLabel(orderNo);
+      if (!ok) {
+        statusExplain("Pop-up blocked for order label.", "warn");
+        logDispatchEvent("Order label blocked by popup settings.");
+        return true;
+      }
+      statusExplain(`Order label printed for ${orderNo}.`, "ok");
+      return true;
+    }
     if (actionType === "print-box") {
       const order = orderNo ? dispatchOrderCache.get(orderNo) : null;
       if (!orderNo || !order) {
@@ -9598,11 +10921,13 @@ async function startOrder(orderNo) {
       if (isMultiToggle) {
         if (dispatchSelectedOrders.has(orderNo)) dispatchSelectedOrders.delete(orderNo);
         else dispatchSelectedOrders.add(orderNo);
-      } else {
-        dispatchSelectedOrders.clear();
-        dispatchSelectedOrders.add(orderNo);
+        syncDispatchSelectionUI();
+        return;
       }
+      dispatchSelectedOrders.clear();
+      dispatchSelectedOrders.add(orderNo);
       syncDispatchSelectionUI();
+      openDispatchOrderModal(orderNo);
       return;
     }
 
@@ -9705,12 +11030,35 @@ async function startOrder(orderNo) {
 
   dispatchFulfillmentBoard?.addEventListener("click", (event) => {
     const loadMoreButton = event.target.closest('button[data-action="recent-load-more"]');
-    if (!loadMoreButton) return;
-    const laneId = String(loadMoreButton.dataset.laneId || "").trim();
-    const nextCount = Number(loadMoreButton.dataset.nextCount || 0);
-    if (!laneId || !Number.isFinite(nextCount) || nextCount <= 0) return;
-    dispatchFulfillmentLaneVisibleCounts.set(laneId, nextCount);
-    renderDispatchRecentlyShipped(dispatchFulfilledLatest);
+    if (loadMoreButton) {
+      const laneId = String(loadMoreButton.dataset.laneId || "").trim();
+      const nextCount = Number(loadMoreButton.dataset.nextCount || 0);
+      if (!laneId || !Number.isFinite(nextCount) || nextCount <= 0) return;
+      dispatchFulfillmentLaneVisibleCounts.set(laneId, nextCount);
+      renderDispatchRecentlyShipped(dispatchFulfilledLatest);
+      return;
+    }
+    const trackButton = event.target.closest('button[data-action="track-waybill"]');
+    if (trackButton) {
+      void handleDispatchAction(trackButton);
+      return;
+    }
+    const row = event.target.closest(".dispatchRecentCompactRow[data-order-key]");
+    if (!row) return;
+    const orderKey = String(row.dataset.orderKey || "").trim();
+    if (!orderKey) return;
+    void openDispatchFulfilledOrderModal(orderKey);
+  });
+
+  dispatchFulfillmentBoard?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.target.closest("button")) return;
+    const row = event.target.closest(".dispatchRecentCompactRow[data-order-key]");
+    if (!row) return;
+    const orderKey = String(row.dataset.orderKey || "").trim();
+    if (!orderKey) return;
+    event.preventDefault();
+    void openDispatchFulfilledOrderModal(orderKey);
   });
 
   dispatchBoard?.addEventListener("focusout", async (e) => {

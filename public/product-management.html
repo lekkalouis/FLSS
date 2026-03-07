@@ -75,7 +75,9 @@ const API='/api/v1/product-management';
 const j=(id)=>document.getElementById(id);
 const tabs=['dashboard','products','bom','packaging','pricing','cost','sync'];
 const tabsEl=j('tabs');
-function showTab(name){tabs.forEach(t=>{j('tab-'+t).hidden=t!==name;});document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));if(name==='dashboard')loadDashboard();if(name==='products')loadProducts();if(name==='sync')loadSync();}
+const tabSet=new Set(tabs);
+function requestedTab(){const hash=String(location.hash||'').replace(/^#/,'').toLowerCase();return tabSet.has(hash)?hash:'dashboard';}
+function showTab(name,{updateHash=true}={}){const next=tabSet.has(name)?name:'dashboard';tabs.forEach(t=>{j('tab-'+t).hidden=t!==next;});document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===next));if(updateHash){const nextHash='#'+next;if(location.hash!==nextHash)history.replaceState(null,'',nextHash);}if(next==='dashboard')loadDashboard();if(next==='products')loadProducts();if(next==='sync')loadSync();}
 tabs.forEach((t,i)=>{const b=document.createElement('button');b.className='tab'+(i===0?' active':'');b.textContent=t;b.dataset.tab=t;b.onclick=()=>showTab(t);tabsEl.appendChild(b);});
 const post=(path,body)=>fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
 
@@ -98,7 +100,8 @@ j('run-cost').onclick=async()=>{const r=await fetch(`${API}/cost/${Number(j('q-p
 j('sync-now').onclick=async()=>{j('sync-out').textContent=JSON.stringify(await post('/sync/now',{}),null,2);};
 j('backup-now').onclick=async()=>{j('sync-out').textContent=JSON.stringify(await post('/backups/snapshot',{}),null,2);};
 
-showTab('dashboard');
+window.addEventListener('hashchange',()=>showTab(requestedTab(),{updateHash:false}));
+showTab(requestedTab(),{updateHash:false});
 </script>
 </body>
 </html>

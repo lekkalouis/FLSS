@@ -30,7 +30,6 @@ import {
 } from "../services/pricingResolver.js";
 
 const router = Router();
-const LIVE_ORDER_LOCATION_ID = 67495329839;
 const ORDER_STATUS_TAG_PREFIX = "stat:";
 const ORDER_STATUS_TAG_DEFAULT = `${ORDER_STATUS_TAG_PREFIX}new`;
 
@@ -664,6 +663,466 @@ async function resolveDraftLineTargetPrice({ lineItem, tier, retailPriceMap }) {
   }
 
   return { targetPrice: basePrice ?? fallbackRetail ?? 0, basePrice: basePrice ?? fallbackRetail ?? 0, ruleMatched: 'base_price_fallback' };
+}
+
+const DRAFT_ORDER_CALCULATION_TIMEOUT_MS = 30_000;
+const DRAFT_ORDER_POLL_INTERVAL_MS = 1_000;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseShopifyResponseBody(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+async function readShopifyResponse(resp) {
+  const text = await resp.text();
+  return {
+    text,
+    data: parseShopifyResponseBody(text)
+  };
+}
+
+function buildDraftOrderAdminUrl(draftOrderId) {
+  const key = String(draftOrderId || "").trim();
+  if (!key) return null;
+  return `https://${config.SHOPIFY_STORE}.myshopify.com/admin/draft_orders/${key}`;
+}
+
+function buildOrderAdminUrl(orderId) {
+  const key = String(orderId || "").trim();
+  if (!key) return null;
+  return `https://${config.SHOPIFY_STORE}.myshopify.com/admin/orders/${key}`;
+}
+
+function normalizeShopifyAdminPath(locationHeader) {
+  const raw = String(locationHeader || "").trim();
+  if (!raw) return null;
+  try {
+    const baseOrigin = `https://${config.SHOPIFY_STORE}.myshopify.com`;
+    const parsed = new URL(raw, baseOrigin);
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return null;
+  }
+}
+
+function extractDraftOrderIdFromPath(pathname) {
+  const match = String(pathname || "").match(/\/draft_orders\/(\d+)(?:\.json)?/i);
+  return match?.[1] || null;
+}
+
+function parseRetryAfterMs(resp, fallbackMs = DRAFT_ORDER_POLL_INTERVAL_MS) {
+  const retryAfter = Number(resp?.headers?.get?.("retry-after"));
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    return Math.max(250, Math.ceil(retryAfter * 1000));
+  }
+  return fallbackMs;
+}
+
+async function buildShopifyDraftOrderPayload({
+  customerId,
+  lineItems,
+  priceTier,
+  billingAddress,
+  shippingAddress,
+  poNumber,
+  shippingMethod,
+  shippingPrice,
+  shippingBaseTotal,
+  shippingService,
+  shippingQuoteNo,
+  estimatedParcels,
+  deliveryDate,
+  invoiceEmail,
+  customerTags,
+  orderTags: requestOrderTags,
+  tags: requestTags,
+  vatNumber,
+  companyName,
+  paymentTerms
+}) {
+  const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
+  const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
+  const resolvedInvoiceEmail = normalizeEmailValue(invoiceEmail || customerMetafields?.account_email || null);
+  const tierResolution = resolveCustomerTier({
+    customerTier: customerMetafields?.tier || priceTier,
+    customerTags: normalizeTagList(customerTags),
+    defaultTier: "public"
+  });
+  const tier = tierResolution.tier;
+
+  await ensureCustomerDeliveryType(base, customerId, shippingMethod, customerMetafields);
+
+  const variantIds = lineItems
+    .map((line) => Number(line?.variantId || line?.variant_id))
+    .filter((id) => Number.isFinite(id));
+  const retailPriceMap = await fetchVariantBasePrices(variantIds);
+
+  const pricingSummary = [];
+  let fallbackUsed = false;
+  const resolvedLines = [];
+
+  for (const lineItem of lineItems) {
+    const quantity = Math.max(1, Math.floor(Number(lineItem?.quantity || 1)));
+    const variantId = Number(lineItem?.variantId || lineItem?.variant_id);
+    const sku = lineItem?.sku || null;
+
+    const { targetPrice, basePrice, ruleMatched } = await resolveDraftLineTargetPrice({
+      lineItem,
+      tier,
+      retailPriceMap
+    });
+
+    const safeBase = toMoney(basePrice);
+    const safeTarget = toMoney(targetPrice);
+
+    if (!Number.isFinite(variantId)) {
+      fallbackUsed = true;
+      resolvedLines.push({
+        title: lineItem?.title || sku || "Custom item",
+        quantity,
+        price: String((safeTarget ?? safeBase ?? 0).toFixed(2))
+      });
+      pricingSummary.push(
+        createPricingSummaryLine({
+          sku,
+          variantId: null,
+          basePrice: safeBase,
+          targetPrice: safeTarget ?? safeBase,
+          discountApplied: 0,
+          priceTier: tier,
+          ruleMatched: "custom_line_item"
+        })
+      );
+      continue;
+    }
+
+    const resolvedLine = {
+      variant_id: variantId,
+      quantity
+    };
+
+    let discountApplied = 0;
+    if (safeBase != null && safeTarget != null && safeTarget < safeBase) {
+      discountApplied = toMoney(safeBase - safeTarget) || 0;
+      resolvedLine.applied_discount = {
+        description: `Tier pricing (${tier})`,
+        value: discountApplied.toFixed(2),
+        value_type: "fixed_amount",
+        amount: discountApplied.toFixed(2)
+      };
+    } else if (safeBase != null && safeTarget != null && safeTarget > safeBase) {
+      fallbackUsed = true;
+      console.warn("Draft order tier target exceeds base price; defaulting to Shopify base price", {
+        variantId,
+        tier,
+        basePrice: safeBase,
+        targetPrice: safeTarget
+      });
+    }
+
+    resolvedLines.push(resolvedLine);
+    pricingSummary.push(
+      createPricingSummaryLine({
+        sku,
+        variantId,
+        basePrice: safeBase,
+        targetPrice: discountApplied > 0 ? safeTarget : safeBase ?? safeTarget,
+        discountApplied,
+        priceTier: tier,
+        ruleMatched
+      })
+    );
+  }
+
+  const pricingHash = buildPricingHash({
+    tier,
+    currency: "ZAR",
+    signatures: pricingSummary.map((line) => ({
+      variant_id: line.variantId,
+      quantity: Math.max(
+        1,
+        Math.floor(
+          Number(
+            (
+              lineItems.find((entry) => Number(entry?.variantId || entry?.variant_id) === Number(line.variantId)) || {}
+            ).quantity || 1
+          )
+        )
+      ),
+      resolved_unit_price: line.targetPrice || line.basePrice || 0,
+      source: line.discountApplied > 0 ? "discount_fallback" : line.ruleMatched || "retail"
+    }))
+  });
+
+  const extraOrderTags = [
+    ...normalizeTagList(requestOrderTags),
+    ...normalizeTagList(requestTags)
+  ];
+  const orderTags = buildOrderTags({
+    shippingMethod,
+    customerTags,
+    extraTags: extraOrderTags
+  });
+  const mergedOrderTags = dedupeTagsCaseInsensitive(orderTags);
+
+  const draftMetafields = [];
+  if (deliveryDate) {
+    draftMetafields.push({
+      namespace: "custom",
+      key: "delivery_date",
+      type: "single_line_text_field",
+      value: String(deliveryDate)
+    });
+  }
+  if (shippingMethod) {
+    draftMetafields.push({
+      namespace: "custom",
+      key: "delivery_type",
+      type: "single_line_text_field",
+      value: String(shippingMethod)
+    });
+  }
+  if (vatNumber) {
+    draftMetafields.push({
+      namespace: "custom",
+      key: "vat_number",
+      type: "single_line_text_field",
+      value: String(vatNumber)
+    });
+  }
+  if (companyName) {
+    draftMetafields.push({
+      namespace: "custom",
+      key: "company_name",
+      type: "single_line_text_field",
+      value: String(companyName)
+    });
+  }
+  const resolvedPaymentTerms = paymentTerms || customerMetafields?.payment_terms || null;
+  if (resolvedPaymentTerms) {
+    draftMetafields.push({
+      namespace: "custom",
+      key: "payment_terms",
+      type: "single_line_text_field",
+      value: String(resolvedPaymentTerms)
+    });
+  }
+  const paymentBeforeShippingRequired = parseBooleanLike(
+    customerMetafields?.payment_before_shipping ?? customerMetafields?.payment_before_delivery
+  );
+  if (paymentBeforeShippingRequired != null) {
+    draftMetafields.push({
+      namespace: "custom",
+      key: CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY,
+      type: "single_line_text_field",
+      value: paymentBeforeShippingRequired ? "true" : "false"
+    });
+  }
+  const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
+  if (Number.isFinite(shippingAmount)) {
+    draftMetafields.push({
+      namespace: "custom",
+      key: "shipping_amount",
+      type: "number_decimal",
+      value: String(shippingAmount)
+    });
+  }
+  const estimatedParcelsValue = Number(estimatedParcels);
+  if (Number.isFinite(estimatedParcelsValue)) {
+    draftMetafields.push({
+      namespace: "custom",
+      key: "estimated_parcels",
+      type: "number_integer",
+      value: String(Math.round(estimatedParcelsValue))
+    });
+  }
+
+  const shippingSubtotal = resolveShippingSubtotalValue({
+    shippingMethod,
+    shippingBaseTotal,
+    shippingPrice
+  });
+
+  const noteParts = [];
+  if (poNumber) noteParts.push(`PO: ${poNumber}`);
+
+  const draftOrder = {
+    customer: customerId ? { id: customerId } : undefined,
+    email: resolvedInvoiceEmail || undefined,
+    line_items: resolvedLines,
+    note: noteParts.join(" | ") || undefined,
+    billing_address: normalizeOrderAddress(billingAddress),
+    shipping_address: normalizeOrderAddress(shippingAddress),
+    note_attributes: [
+      ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
+      ...(shippingQuoteNo ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }] : []),
+      ...(shippingSubtotal != null ? [{ name: "shipping_subtotal", value: shippingSubtotal }] : []),
+      { name: "price_tier", value: tier || "public" },
+      { name: "source", value: "FLSS" },
+      { name: "flss_pricing_hash", value: pricingHash }
+    ],
+    metafields: draftMetafields.length ? draftMetafields : undefined
+  };
+
+  if (mergedOrderTags.length) {
+    draftOrder.tags = mergedOrderTags.join(", ");
+  }
+
+  const shippingLine = buildShippingLine({
+    shippingMethod,
+    shippingPrice,
+    shippingBaseTotal,
+    shippingService
+  });
+  if (shippingLine) {
+    draftOrder.shipping_line = shippingLine;
+  }
+
+  return {
+    base,
+    draftPayload: { draft_order: draftOrder },
+    pricingSummary,
+    pricing: {
+      tier,
+      fallbackUsed,
+      hash: pricingHash,
+      tierConflict: tierResolution.conflict
+    },
+    resolvedTier: tier,
+    resolvedInvoiceEmail
+  };
+}
+
+async function createDraftOrderAndWait({
+  base,
+  draftPayload,
+  timeoutMs = DRAFT_ORDER_CALCULATION_TIMEOUT_MS,
+  pollIntervalMs = DRAFT_ORDER_POLL_INTERVAL_MS
+}) {
+  const createResp = await shopifyFetch(`${base}/draft_orders.json`, {
+    method: "POST",
+    body: JSON.stringify(draftPayload)
+  });
+  const createResult = await readShopifyResponse(createResp);
+
+  if (!createResp.ok) {
+    const draftOrderId = createResult.data?.draft_order?.id || null;
+    return {
+      ok: false,
+      stage: "create",
+      status: createResp.status,
+      statusText: createResp.statusText,
+      body: createResult.data,
+      draftOrderId,
+      draftAdminUrl: buildDraftOrderAdminUrl(draftOrderId)
+    };
+  }
+
+  const immediateDraft = createResult.data?.draft_order || null;
+  const immediateDraftId = immediateDraft?.id ? String(immediateDraft.id) : null;
+  if (createResp.status !== 202) {
+    return {
+      ok: true,
+      draft: immediateDraft,
+      draftOrderId: immediateDraftId,
+      draftAdminUrl: buildDraftOrderAdminUrl(immediateDraftId)
+    };
+  }
+
+  const locationPath =
+    normalizeShopifyAdminPath(createResp.headers.get("location")) ||
+    (immediateDraftId ? `${base}/draft_orders/${immediateDraftId}.json` : null);
+  const draftOrderId = immediateDraftId || extractDraftOrderIdFromPath(locationPath);
+  const draftAdminUrl = buildDraftOrderAdminUrl(draftOrderId);
+  if (!locationPath) {
+    return {
+      ok: false,
+      stage: "poll",
+      status: 502,
+      statusText: "MISSING_DRAFT_LOCATION",
+      body: createResult.data,
+      message: "Shopify draft calculation did not provide a poll location.",
+      draftOrderId,
+      draftAdminUrl
+    };
+  }
+
+  const deadlineAt = Date.now() + Math.max(1_000, Number(timeoutMs) || DRAFT_ORDER_CALCULATION_TIMEOUT_MS);
+  let lastBody = createResult.data;
+  let nextDelayMs = parseRetryAfterMs(createResp, pollIntervalMs);
+
+  while (Date.now() < deadlineAt) {
+    await sleep(Math.min(nextDelayMs, Math.max(1, deadlineAt - Date.now())));
+    const pollResp = await shopifyFetch(locationPath, { method: "GET" });
+    const pollResult = await readShopifyResponse(pollResp);
+    lastBody = pollResult.data;
+
+    if (!pollResp.ok) {
+      return {
+        ok: false,
+        stage: "poll",
+        status: pollResp.status,
+        statusText: pollResp.statusText,
+        body: pollResult.data,
+        draftOrderId,
+        draftAdminUrl
+      };
+    }
+
+    if (pollResp.status === 202) {
+      nextDelayMs = parseRetryAfterMs(pollResp, pollIntervalMs);
+      continue;
+    }
+
+    const draft = pollResult.data?.draft_order || null;
+    const resolvedDraftId = draft?.id ? String(draft.id) : draftOrderId;
+    return {
+      ok: true,
+      draft,
+      draftOrderId: resolvedDraftId,
+      draftAdminUrl: buildDraftOrderAdminUrl(resolvedDraftId)
+    };
+  }
+
+  return {
+    ok: false,
+    stage: "poll_timeout",
+    status: 504,
+    statusText: "DRAFT_CALCULATION_TIMEOUT",
+    body: lastBody,
+    message: "Shopify draft tax and shipping calculation did not finish within 30 seconds.",
+    draftOrderId,
+    draftAdminUrl
+  };
+}
+
+async function completeDraftOrder({ base, draftOrderId, paymentPending = true }) {
+  const completionPath = `${base}/draft_orders/${draftOrderId}/complete.json${
+    paymentPending ? "?payment_pending=true" : ""
+  }`;
+  const resp = await shopifyFetch(completionPath, {
+    method: "POST",
+    body: JSON.stringify({ draft_order: { id: draftOrderId } })
+  });
+  const result = await readShopifyResponse(resp);
+  const order = result.data?.order || null;
+  const orderId = order?.id ? String(order.id) : null;
+
+  return {
+    ok: resp.ok,
+    status: resp.status,
+    statusText: resp.statusText,
+    body: result.data,
+    order,
+    orderAdminUrl: buildOrderAdminUrl(orderId)
+  };
 }
 
 function buildOrderTags({ shippingMethod, customerTags, extraTags }) {
@@ -1864,12 +2323,16 @@ router.post("/shopify/draft-orders", async (req, res) => {
       shippingPrice,
       shippingBaseTotal,
       shippingService,
+      shippingQuoteNo,
       estimatedParcels,
       deliveryDate,
       invoiceEmail,
       customerTags,
       orderTags: requestOrderTags,
-      tags: requestTags
+      tags: requestTags,
+      vatNumber,
+      companyName,
+      paymentTerms
     } = req.body || {};
 
     if (!customerId) {
@@ -1879,238 +2342,47 @@ router.post("/shopify/draft-orders", async (req, res) => {
       return badRequest(res, "Missing lineItems");
     }
 
-    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
-    const resolvedInvoiceEmail = normalizeEmailValue(invoiceEmail || customerMetafields?.account_email || null);
-    const tierResolution = resolveCustomerTier({
-      customerTier: customerMetafields?.tier || priceTier,
-      customerTags: normalizeTagList(customerTags),
-      defaultTier: "public"
-    });
-    const tier = tierResolution.tier;
-
-    await ensureCustomerDeliveryType(base, customerId, shippingMethod, customerMetafields);
-
-    const variantIds = lineItems
-      .map((line) => Number(line?.variantId || line?.variant_id))
-      .filter((id) => Number.isFinite(id));
-    const retailPriceMap = await fetchVariantBasePrices(variantIds);
-
-    const pricingSummary = [];
-    let fallbackUsed = false;
-
-    const resolvedLines = [];
-    for (const lineItem of lineItems) {
-      const quantity = Math.max(1, Math.floor(Number(lineItem?.quantity || 1)));
-      const variantId = Number(lineItem?.variantId || lineItem?.variant_id);
-      const sku = lineItem?.sku || null;
-
-      const { targetPrice, basePrice, ruleMatched } = await resolveDraftLineTargetPrice({
-        lineItem,
-        tier,
-        retailPriceMap
-      });
-
-      const safeBase = toMoney(basePrice);
-      const safeTarget = toMoney(targetPrice);
-
-      if (!Number.isFinite(variantId)) {
-        fallbackUsed = true;
-        resolvedLines.push({
-          title: lineItem?.title || sku || "Custom item",
-          quantity,
-          price: String((safeTarget ?? safeBase ?? 0).toFixed(2))
-        });
-        pricingSummary.push(
-          createPricingSummaryLine({
-            sku,
-            variantId: null,
-            basePrice: safeBase,
-            targetPrice: safeTarget ?? safeBase,
-            discountApplied: 0,
-            priceTier: tier,
-            ruleMatched: "custom_line_item"
-          })
-        );
-        continue;
-      }
-
-      const resolvedLine = {
-        variant_id: variantId,
-        quantity
-      };
-
-      let discountApplied = 0;
-      if (safeBase != null && safeTarget != null && safeTarget < safeBase) {
-        discountApplied = toMoney(safeBase - safeTarget) || 0;
-        resolvedLine.applied_discount = {
-          description: `Tier pricing (${tier})`,
-          value: discountApplied.toFixed(2),
-          value_type: "fixed_amount",
-          amount: discountApplied.toFixed(2)
-        };
-      } else if (safeBase != null && safeTarget != null && safeTarget > safeBase) {
-        fallbackUsed = true;
-        console.warn("Draft order tier target exceeds base price; defaulting to Shopify base price", {
-          variantId,
-          tier,
-          basePrice: safeBase,
-          targetPrice: safeTarget
-        });
-      }
-
-      resolvedLines.push(resolvedLine);
-      pricingSummary.push(
-        createPricingSummaryLine({
-          sku,
-          variantId,
-          basePrice: safeBase,
-          targetPrice: discountApplied > 0 ? safeTarget : safeBase ?? safeTarget,
-          discountApplied,
-          priceTier: tier,
-          ruleMatched
-        })
-      );
-    }
-
-    const pricingHash = buildPricingHash({
-      tier,
-      currency: "ZAR",
-      signatures: pricingSummary.map((line) => ({
-        variant_id: line.variantId,
-        quantity: Math.max(1, Math.floor(Number((lineItems.find((entry) => Number(entry?.variantId || entry?.variant_id) === Number(line.variantId)) || {}).quantity || 1))),
-        resolved_unit_price: line.targetPrice || line.basePrice || 0,
-        source: line.discountApplied > 0 ? "discount_fallback" : line.ruleMatched || "retail"
-      }))
-    });
-
-    const extraOrderTags = [
-      ...normalizeTagList(requestOrderTags),
-      ...normalizeTagList(requestTags)
-    ];
-    const orderTags = buildOrderTags({
-      shippingMethod,
-      customerTags,
-      extraTags: extraOrderTags
-    });
-    const mergedOrderTags = dedupeTagsCaseInsensitive(orderTags);
-
-    const draftMetafields = [];
-    if (deliveryDate) {
-      draftMetafields.push({
-        namespace: "custom",
-        key: "delivery_date",
-        type: "single_line_text_field",
-        value: String(deliveryDate)
-      });
-    }
-    if (shippingMethod) {
-      draftMetafields.push({
-        namespace: "custom",
-        key: "delivery_type",
-        type: "single_line_text_field",
-        value: String(shippingMethod)
-      });
-    }
-    if (customerMetafields?.payment_terms) {
-      draftMetafields.push({
-        namespace: "custom",
-        key: "payment_terms",
-        type: "single_line_text_field",
-        value: String(customerMetafields.payment_terms)
-      });
-    }
-    const paymentBeforeShippingRequired = parseBooleanLike(
-      customerMetafields?.payment_before_shipping ?? customerMetafields?.payment_before_delivery
-    );
-    if (paymentBeforeShippingRequired != null) {
-      draftMetafields.push({
-        namespace: "custom",
-        key: CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY,
-        type: "single_line_text_field",
-        value: paymentBeforeShippingRequired ? "true" : "false"
-      });
-    }
-    const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
-    if (Number.isFinite(shippingAmount)) {
-      draftMetafields.push({
-        namespace: "custom",
-        key: "shipping_amount",
-        type: "number_decimal",
-        value: String(shippingAmount)
-      });
-    }
-    const estimatedParcelsValue = Number(estimatedParcels);
-    if (Number.isFinite(estimatedParcelsValue)) {
-      draftMetafields.push({
-        namespace: "custom",
-        key: "estimated_parcels",
-        type: "number_integer",
-        value: String(Math.round(estimatedParcelsValue))
-      });
-    }
-
-    const shippingSubtotal = resolveShippingSubtotalValue({
-      shippingMethod,
-      shippingBaseTotal,
-      shippingPrice
-    });
-
-    const payload = {
-      draft_order: {
-        customer: customerId ? { id: customerId } : undefined,
-        email: resolvedInvoiceEmail || undefined,
-        line_items: resolvedLines,
-        tags: mergedOrderTags.join(", "),
-        note: poNumber ? `PO: ${poNumber}` : undefined,
-        billing_address: normalizeOrderAddress(billingAddress),
-        shipping_address: normalizeOrderAddress(shippingAddress),
-        note_attributes: [
-          ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
-          ...(shippingSubtotal != null ? [{ name: "shipping_subtotal", value: shippingSubtotal }] : []),
-          { name: "price_tier", value: tier || "public" },
-          { name: "source", value: "FLSS" },
-          { name: "flss_pricing_hash", value: pricingHash }
-        ],
-        metafields: draftMetafields.length ? draftMetafields : undefined
-      }
-    };
-
-    const shippingLine = buildShippingLine({
+    const draftRequest = await buildShopifyDraftOrderPayload({
+      customerId,
+      lineItems,
+      priceTier,
+      billingAddress,
+      shippingAddress,
+      poNumber,
       shippingMethod,
       shippingPrice,
       shippingBaseTotal,
-      shippingService
+      shippingService,
+      shippingQuoteNo,
+      estimatedParcels,
+      deliveryDate,
+      invoiceEmail,
+      customerTags,
+      orderTags: requestOrderTags,
+      tags: requestTags,
+      vatNumber,
+      companyName,
+      paymentTerms
     });
-    if (shippingLine) payload.draft_order.shipping_line = shippingLine;
-
-    const resp = await shopifyFetch(`${base}/draft_orders.json`, {
-      method: "POST",
-      body: JSON.stringify(payload)
+    const draftResult = await createDraftOrderAndWait({
+      base: draftRequest.base,
+      draftPayload: draftRequest.draftPayload
     });
 
-    const text = await resp.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!resp.ok) {
-      return res.status(resp.status).json({
+    if (!draftResult.ok) {
+      return res.status(draftResult.status).json({
         error: "SHOPIFY_UPSTREAM",
-        status: resp.status,
-        statusText: resp.statusText,
-        body: data,
-        pricingSummary
+        status: draftResult.status,
+        statusText: draftResult.statusText,
+        message: draftResult.message || "Draft order creation failed.",
+        body: draftResult.body,
+        draftOrderId: draftResult.draftOrderId,
+        draftAdminUrl: draftResult.draftAdminUrl,
+        pricingSummary: draftRequest.pricingSummary
       });
     }
 
-    const d = data.draft_order || {};
-    const adminUrl = d.id
-      ? `https://${config.SHOPIFY_STORE}.myshopify.com/admin/draft_orders/${d.id}`
-      : null;
+    const d = draftResult.draft || {};
 
     return res.json({
       ok: true,
@@ -2118,15 +2390,10 @@ router.post("/shopify/draft-orders", async (req, res) => {
         id: d.id,
         name: d.name,
         invoiceUrl: d.invoice_url || null,
-        adminUrl
+        adminUrl: draftResult.draftAdminUrl
       },
-      pricing: {
-        tier,
-        fallbackUsed,
-        hash: pricingHash,
-        tierConflict: tierResolution.conflict
-      },
-      pricingSummary
+      pricing: draftRequest.pricing,
+      pricingSummary: draftRequest.pricingSummary
     });
   } catch (err) {
     console.error("Shopify draft order create error:", err);
@@ -2423,32 +2690,32 @@ router.post("/shopify/draft-orders/complete", async (req, res) => {
     }
 
     const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const resp = await shopifyFetch(`${base}/draft_orders/${draftOrderId}/complete.json`, {
-      method: "POST",
-      body: JSON.stringify({ draft_order: { id: draftOrderId } })
+    const completion = await completeDraftOrder({
+      base,
+      draftOrderId,
+      paymentPending: true
     });
 
-    const text = await resp.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!resp.ok) {
-      return res.status(resp.status).json({
+    if (!completion.ok) {
+      return res.status(completion.status).json({
         error: "SHOPIFY_UPSTREAM",
-        status: resp.status,
-        statusText: resp.statusText,
-        body: data
+        status: completion.status,
+        statusText: completion.statusText,
+        body: completion.body
       });
     }
 
-    const order = data.order || null;
+    const order = completion.order || null;
     return res.json({
       ok: true,
-      order: order ? { id: order.id, name: order.name, orderNumber: order.order_number } : null
+      order: order
+        ? {
+            id: order.id,
+            name: order.name,
+            orderNumber: order.order_number,
+            adminUrl: completion.orderAdminUrl
+          }
+        : null
     });
   } catch (err) {
     console.error("Shopify draft order complete error:", err);
@@ -2479,6 +2746,7 @@ router.post("/shopify/orders", async (req, res) => {
       billingAddress,
       shippingAddress,
       lineItems,
+      priceTier,
       customerTags,
       orderTags: requestOrderTags,
       tags: requestTags
@@ -2491,190 +2759,100 @@ router.post("/shopify/orders", async (req, res) => {
       return badRequest(res, "Missing lineItems");
     }
 
-    const base = `/admin/api/${config.SHOPIFY_API_VERSION}`;
-    const customerMetafields = await fetchCustomerCustomMetafields(base, customerId);
-    const resolvedInvoiceEmail = normalizeEmailValue(invoiceEmail || customerMetafields?.account_email || null);
-    const tierResolution = resolveCustomerTier({
-      customerTier: customerMetafields?.tier || null,
-      customerTags: normalizeTagList(customerTags),
-      defaultTier: "public"
-    });
-    const tier = tierResolution.tier;
-    await ensureCustomerDeliveryType(base, customerId, shippingMethod, customerMetafields);
-
-    const noteParts = [];
-    if (poNumber) noteParts.push(`PO: ${poNumber}`);
-
-    const metafields = [];
-    if (deliveryDate) {
-      metafields.push({
-        namespace: "custom",
-        key: "delivery_date",
-        type: "single_line_text_field",
-        value: String(deliveryDate)
-      });
-    }
-    if (shippingMethod) {
-      metafields.push({
-        namespace: "custom",
-        key: "delivery_type",
-        type: "single_line_text_field",
-        value: String(shippingMethod)
-      });
-    }
-    if (vatNumber) {
-      metafields.push({
-        namespace: "custom",
-        key: "vat_number",
-        type: "single_line_text_field",
-        value: String(vatNumber)
-      });
-    }
-    if (companyName) {
-      metafields.push({
-        namespace: "custom",
-        key: "company_name",
-        type: "single_line_text_field",
-        value: String(companyName)
-      });
-    }
-    const resolvedPaymentTerms = paymentTerms || customerMetafields?.payment_terms || null;
-    if (resolvedPaymentTerms) {
-      metafields.push({
-        namespace: "custom",
-        key: "payment_terms",
-        type: "single_line_text_field",
-        value: String(resolvedPaymentTerms)
-      });
-    }
-    const paymentBeforeShippingRequired = parseBooleanLike(
-      customerMetafields?.payment_before_shipping ?? customerMetafields?.payment_before_delivery
-    );
-    if (paymentBeforeShippingRequired != null) {
-      metafields.push({
-        namespace: "custom",
-        key: CUSTOMER_PAYMENT_BEFORE_DELIVERY_FALLBACK_KEY,
-        type: "single_line_text_field",
-        value: paymentBeforeShippingRequired ? "true" : "false"
-      });
-    }
-    const shippingAmount = Number(shippingBaseTotal ?? shippingPrice);
-    if (Number.isFinite(shippingAmount)) {
-      metafields.push({
-        namespace: "custom",
-        key: "shipping_amount",
-        type: "number_decimal",
-        value: String(shippingAmount)
-      });
-    }
-    const estimatedParcelsValue = Number(estimatedParcels);
-    if (Number.isFinite(estimatedParcelsValue)) {
-      metafields.push({
-        namespace: "custom",
-        key: "estimated_parcels",
-        type: "number_integer",
-        value: String(Math.round(estimatedParcelsValue))
-      });
-    }
-
-    const shippingSubtotal = resolveShippingSubtotalValue({
-      shippingMethod,
-      shippingBaseTotal,
-      shippingPrice
-    });
-
-    const orderPayload = {
-      order: {
-        customer: { id: customerId },
-        email: resolvedInvoiceEmail || undefined,
-        note: noteParts.join(" | "),
-        line_items: lineItems.map((li) => {
-          const entry = {
-            quantity: li.quantity || 1
-          };
-          if (li.variantId) {
-            entry.variant_id = li.variantId;
-          } else {
-            entry.title = li.title || li.sku || "Custom item";
-            if (li.price != null) entry.price = String(li.price);
-          }
-          if (li.sku) entry.sku = li.sku;
-          if (li.price != null && !entry.price) entry.price = String(li.price);
-          return entry;
-        }),
-        billing_address: normalizeOrderAddress(billingAddress),
-        shipping_address: normalizeOrderAddress(shippingAddress),
-        note_attributes: [
-          ...(poNumber ? [{ name: "po_number", value: String(poNumber) }] : []),
-          ...(shippingQuoteNo
-            ? [{ name: "shipping_quote_no", value: String(shippingQuoteNo) }]
-            : []),
-          ...(shippingSubtotal != null ? [{ name: "shipping_subtotal", value: shippingSubtotal }] : []),
-          { name: "price_tier", value: tier || "public" },
-          { name: "source", value: "FLSS" }
-        ],
-        metafields: metafields.length ? metafields : undefined,
-        financial_status: "pending",
-        location_id: LIVE_ORDER_LOCATION_ID
-      }
-    };
-
-    const extraOrderTags = [
-      ...normalizeTagList(requestOrderTags),
-      ...normalizeTagList(requestTags)
-    ];
-    const orderTags = buildOrderTags({
-      shippingMethod,
-      customerTags,
-      extraTags: extraOrderTags
-    });
-    const mergedOrderTags = dedupeTagsCaseInsensitive(orderTags);
-    if (mergedOrderTags.length) {
-      orderPayload.order.tags = mergedOrderTags.join(", ");
-    }
-
-    const shippingLine = buildShippingLine({
+    const draftRequest = await buildShopifyDraftOrderPayload({
+      customerId,
+      lineItems,
+      priceTier,
+      billingAddress,
+      shippingAddress,
+      poNumber,
       shippingMethod,
       shippingPrice,
       shippingBaseTotal,
-      shippingService
+      shippingService,
+      shippingQuoteNo,
+      estimatedParcels,
+      deliveryDate,
+      invoiceEmail,
+      customerTags,
+      orderTags: requestOrderTags,
+      tags: requestTags,
+      vatNumber,
+      companyName,
+      paymentTerms
     });
-    if (shippingLine) orderPayload.order.shipping_lines = [shippingLine];
-
-    const resp = await shopifyFetch(`${base}/orders.json`, {
-      method: "POST",
-      body: JSON.stringify(orderPayload)
+    const draftResult = await createDraftOrderAndWait({
+      base: draftRequest.base,
+      draftPayload: draftRequest.draftPayload
     });
 
-    const text = await resp.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-
-    if (!resp.ok) {
-      return res.status(resp.status).json({
+    if (!draftResult.ok) {
+      console.error("Shopify live order draft preparation failed:", {
+        customerId,
+        draftOrderId: draftResult.draftOrderId,
+        tier: draftRequest.resolvedTier,
+        pricingSummary: draftRequest.pricingSummary,
+        stage: draftResult.stage,
+        status: draftResult.status,
+        message: draftResult.message || draftResult.statusText
+      });
+      return res.status(draftResult.status).json({
         error: "SHOPIFY_UPSTREAM",
-        status: resp.status,
-        statusText: resp.statusText,
-        body: data
+        status: draftResult.status,
+        statusText: draftResult.statusText,
+        message: draftResult.message || "Shopify draft calculation failed before order completion.",
+        body: draftResult.body,
+        draftOrderId: draftResult.draftOrderId,
+        draftAdminUrl: draftResult.draftAdminUrl,
+        creationMode: "draft_auto_complete",
+        pricing: draftRequest.pricing,
+        pricingSummary: draftRequest.pricingSummary
       });
     }
 
-    const order = data.order || {};
-    const adminUrl = order.id
-      ? `https://${config.SHOPIFY_STORE}.myshopify.com/admin/orders/${order.id}`
-      : null;
+    const completion = await completeDraftOrder({
+      base: draftRequest.base,
+      draftOrderId: draftResult.draftOrderId,
+      paymentPending: true
+    });
+
+    if (!completion.ok) {
+      console.error("Shopify live order draft completion failed:", {
+        customerId,
+        draftOrderId: draftResult.draftOrderId,
+        tier: draftRequest.resolvedTier,
+        pricingSummary: draftRequest.pricingSummary,
+        status: completion.status,
+        body: completion.body
+      });
+      return res.status(completion.status).json({
+        error: "SHOPIFY_UPSTREAM",
+        status: completion.status,
+        statusText: completion.statusText,
+        message: "Draft order was created but could not be completed automatically.",
+        body: completion.body,
+        draftOrderId: draftResult.draftOrderId,
+        draftAdminUrl: draftResult.draftAdminUrl,
+        creationMode: "draft_auto_complete",
+        pricing: draftRequest.pricing,
+        pricingSummary: draftRequest.pricingSummary
+      });
+    }
+
+    const order = completion.order || {};
     return res.json({
       ok: true,
+      creationMode: "draft_auto_complete",
+      draftOrderId: draftResult.draftOrderId,
+      draftAdminUrl: draftResult.draftAdminUrl,
       order: {
         id: order.id,
         name: order.name,
         orderNumber: order.order_number,
-        adminUrl
-      }
+        adminUrl: completion.orderAdminUrl
+      },
+      pricing: draftRequest.pricing,
+      pricingSummary: draftRequest.pricingSummary
     });
   } catch (err) {
     console.error("Shopify order create error:", err);
@@ -3325,12 +3503,16 @@ router.get("/shopify/orders/fulfilled/recent", async (req, res) => {
 
     const data = await resp.json();
     const ordersRaw = Array.isArray(data.orders) ? data.orders : [];
+    const orderIds = ordersRaw.filter((order) => !order?.cancelled_at).map((order) => order.id);
+    const parcelCountMap = await batchFetchOrderParcelCounts(base, orderIds);
 
     const orders = ordersRaw
       .filter((order) => !order.cancelled_at)
       .map((order) => {
         const shipping = order.shipping_address || {};
         const customer = order.customer || {};
+        const parcelCountFromTag = parseParcelCountFromTags(order.tags);
+        const parcelCountFromMeta = parcelCountMap.get(String(order.id)) ?? null;
         const companyName =
           (shipping.company && shipping.company.trim()) ||
           (customer?.default_address?.company && customer.default_address.company.trim());
@@ -3351,6 +3533,43 @@ router.get("/shopify/orders/fulfilled/recent", async (req, res) => {
           : [];
 
         const fulfillments = Array.isArray(order.fulfillments) ? order.fulfillments : [];
+        const normalizedFulfillments = fulfillments.map((fulfillment, index) => {
+          const trackingNumbers = Array.isArray(fulfillment?.tracking_numbers)
+            ? fulfillment.tracking_numbers.filter(Boolean)
+            : [];
+          if (!trackingNumbers.length && fulfillment?.tracking_number) {
+            trackingNumbers.push(fulfillment.tracking_number);
+          }
+          const trackingInfo = Array.isArray(fulfillment?.tracking_info)
+            ? fulfillment.tracking_info
+            : [];
+          const trackingUrl =
+            trackingInfo.find((info) => info.url)?.url || fulfillment?.tracking_url || "";
+          const trackingCompany =
+            trackingInfo.find((info) => info.company)?.company ||
+            fulfillment?.tracking_company ||
+            "";
+          const fulfillmentLineItems = Array.isArray(fulfillment?.line_items)
+            ? fulfillment.line_items.map((lineItem) => ({
+                id: lineItem?.id ?? null,
+                line_item_id: lineItem?.line_item_id ?? null,
+                quantity: Number(lineItem?.quantity) || 0
+              }))
+            : [];
+          return {
+            id: fulfillment?.id ?? null,
+            name: fulfillment?.name || `F${index + 1}`,
+            status: fulfillment?.status || "",
+            shipment_status: fulfillment?.shipment_status || "",
+            cancelled_at: fulfillment?.cancelled_at || null,
+            created_at: fulfillment?.created_at || null,
+            updated_at: fulfillment?.updated_at || null,
+            tracking_numbers: trackingNumbers,
+            tracking_url: trackingUrl,
+            tracking_company: trackingCompany,
+            line_items: fulfillmentLineItems
+          };
+        });
         const latestFulfillment = fulfillments
           .slice()
           .sort(
@@ -3388,10 +3607,44 @@ router.get("/shopify/orders/fulfilled/recent", async (req, res) => {
         return {
           id: order.id,
           name: order.name,
+          order_number: order.name ? String(order.name).replace(/^#/, "") : "",
           customer_name: customerName,
+          created_at: order.processed_at || order.created_at || null,
+          updated_at: order.updated_at || null,
           tags: order.tags || "",
+          delivery_date:
+            Array.isArray(order.note_attributes)
+              ? order.note_attributes.find((attr) => String(attr?.name || "").toLowerCase() === "delivery_date")?.value || null
+              : null,
           fulfilled_at: fulfilledAt,
+          parcel_count: parcelCountFromMeta ?? parcelCountFromTag,
+          parcel_count_from_meta: parcelCountFromMeta,
+          parcel_count_from_tag: parcelCountFromTag,
+          shipping_address: {
+            name: shipping.name || customerName,
+            company: shipping.company || companyName || "",
+            address1: shipping.address1 || "",
+            address2: shipping.address2 || "",
+            city: shipping.city || "",
+            province: shipping.province || "",
+            zip: shipping.zip || "",
+            country: shipping.country || "",
+            phone: shipping.phone || ""
+          },
+          shipping_city: shipping.city || "",
+          shipping_postal: shipping.zip || "",
+          shipping_address1: shipping.address1 || "",
+          shipping_address2: shipping.address2 || "",
+          shipping_province: shipping.province || "",
+          shipping_country: shipping.country || "",
+          shipping_phone: shipping.phone || "",
+          shipping_lines: (order.shipping_lines || []).map((line) => ({
+            title: line.title || "",
+            code: line.code || "",
+            price: line.price || ""
+          })),
           line_items: lineItems,
+          fulfillments: normalizedFulfillments,
           fulfillment: latestFulfillment
             ? {
                 id: latestFulfillment.id,
@@ -3399,7 +3652,9 @@ router.get("/shopify/orders/fulfilled/recent", async (req, res) => {
                 shipment_status: latestFulfillment.shipment_status || "",
                 tracking_numbers: trackingNumbers,
                 tracking_url: trackingUrl,
-                tracking_company: trackingCompany
+                tracking_company: trackingCompany,
+                created_at: latestFulfillment.created_at || null,
+                updated_at: latestFulfillment.updated_at || null
               }
             : null
         };

@@ -3,6 +3,27 @@ import { getDb } from "../db/sqlite.js";
 const SETTINGS_KEY = "global";
 
 const ALLOWED_STICKER_LANGUAGES = new Set(["PPLB", "PPLA", "ZPL"]);
+const ALLOWED_STICKER_LAYOUT_PROFILES = new Set(["continuous_4up"]);
+
+const DEFAULT_STICKER_CALIBRATION = Object.freeze({
+  xOffsetMm: 0,
+  yOffsetMm: 0,
+  labelWidthMm: 22,
+  labelHeightMm: 16,
+  columnGapMm: 3,
+  line1YMm: 2,
+  line2YMm: 6.5,
+  line3YMm: 11,
+  textRotation: 0
+});
+
+const DEFAULT_DOCUMENT_PRINTERS = Object.freeze({
+  deliveryNote: 74467271,
+  printDocs: 74901099,
+  taxInvoice: 74467271,
+  parcelStickers: 74901099,
+  lineItemStickers: 74901099
+});
 
 const DEFAULT_NOTIFICATION_EVENTS = Object.freeze({
   pickupReady: {
@@ -26,7 +47,12 @@ export const DEFAULT_SYSTEM_SETTINGS = Object.freeze({
     shelfLifeMonths: 12,
     defaultButtonQty: 50,
     commandLanguage: "PPLB",
-    stickerPrinterId: null
+    stickerPrinterId: null,
+    layoutProfile: "continuous_4up",
+    calibration: { ...DEFAULT_STICKER_CALIBRATION }
+  },
+  printers: {
+    documents: { ...DEFAULT_DOCUMENT_PRINTERS }
   },
   printHistory: {
     retentionDays: 365
@@ -59,6 +85,16 @@ function asFiniteInt(value, fallback, options = {}) {
   if (normalized < min) return min;
   if (normalized > max) return max;
   return normalized;
+}
+
+function asFiniteNumber(value, fallback, options = {}) {
+  const min = Number.isFinite(options.min) ? options.min : Number.MIN_SAFE_INTEGER;
+  const max = Number.isFinite(options.max) ? options.max : Number.MAX_SAFE_INTEGER;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  if (parsed < min) return min;
+  if (parsed > max) return max;
+  return parsed;
 }
 
 function normalizeBool(value, fallback = false) {
@@ -101,6 +137,19 @@ function normalizeNullableEmail(value) {
   return email;
 }
 
+function normalizeDocumentPrinterMap(input, defaults = DEFAULT_DOCUMENT_PRINTERS) {
+  const source = input && typeof input === "object" ? input : {};
+  return Object.keys(defaults).reduce((acc, key) => {
+    const fallback = defaults[key] == null ? null : asFiniteInt(defaults[key], null, { min: 1 });
+    const raw = source[key];
+    acc[key] =
+      raw == null || raw === ""
+        ? fallback
+        : asFiniteInt(raw, fallback, { min: 1 });
+    return acc;
+  }, {});
+}
+
 function normalizeEmailList(value) {
   if (Array.isArray(value)) {
     return Array.from(
@@ -139,6 +188,7 @@ function normalizeNotificationEventSettings(eventSource = {}, defaults = {}) {
 export function normalizeSystemSettings(rawSettings = {}) {
   const source = rawSettings && typeof rawSettings === "object" ? rawSettings : {};
   const stickerSource = source.sticker && typeof source.sticker === "object" ? source.sticker : {};
+  const printersSource = source.printers && typeof source.printers === "object" ? source.printers : {};
   const printHistorySource = source.printHistory && typeof source.printHistory === "object"
     ? source.printHistory
     : {};
@@ -153,6 +203,14 @@ export function normalizeSystemSettings(rawSettings = {}) {
   const commandLanguage = String(stickerSource.commandLanguage || DEFAULT_SYSTEM_SETTINGS.sticker.commandLanguage)
     .trim()
     .toUpperCase();
+  const layoutProfile = String(stickerSource.layoutProfile || DEFAULT_SYSTEM_SETTINGS.sticker.layoutProfile)
+    .trim()
+    .toLowerCase();
+  const calibrationSource =
+    stickerSource.calibration && typeof stickerSource.calibration === "object"
+      ? stickerSource.calibration
+      : {};
+  const calibrationTextRotationRaw = Number(calibrationSource.textRotation);
 
   const stickerPrinterId = stickerSource.stickerPrinterId == null || stickerSource.stickerPrinterId === ""
     ? null
@@ -173,7 +231,66 @@ export function normalizeSystemSettings(rawSettings = {}) {
       commandLanguage: ALLOWED_STICKER_LANGUAGES.has(commandLanguage)
         ? commandLanguage
         : DEFAULT_SYSTEM_SETTINGS.sticker.commandLanguage,
-      stickerPrinterId
+      stickerPrinterId,
+      layoutProfile: ALLOWED_STICKER_LAYOUT_PROFILES.has(layoutProfile)
+        ? layoutProfile
+        : DEFAULT_SYSTEM_SETTINGS.sticker.layoutProfile,
+      calibration: {
+        xOffsetMm: asFiniteNumber(
+          calibrationSource.xOffsetMm,
+          DEFAULT_STICKER_CALIBRATION.xOffsetMm,
+          { min: -12, max: 12 }
+        ),
+        yOffsetMm: asFiniteNumber(
+          calibrationSource.yOffsetMm,
+          DEFAULT_STICKER_CALIBRATION.yOffsetMm,
+          { min: -12, max: 12 }
+        ),
+        labelWidthMm: asFiniteNumber(
+          calibrationSource.labelWidthMm,
+          DEFAULT_STICKER_CALIBRATION.labelWidthMm,
+          { min: 8, max: 60 }
+        ),
+        labelHeightMm: asFiniteNumber(
+          calibrationSource.labelHeightMm,
+          DEFAULT_STICKER_CALIBRATION.labelHeightMm,
+          { min: 8, max: 80 }
+        ),
+        columnGapMm: asFiniteNumber(
+          calibrationSource.columnGapMm,
+          DEFAULT_STICKER_CALIBRATION.columnGapMm,
+          { min: 0, max: 30 }
+        ),
+        line1YMm: asFiniteNumber(
+          calibrationSource.line1YMm,
+          DEFAULT_STICKER_CALIBRATION.line1YMm,
+          { min: 0, max: 40 }
+        ),
+        line2YMm: asFiniteNumber(
+          calibrationSource.line2YMm,
+          DEFAULT_STICKER_CALIBRATION.line2YMm,
+          { min: 0, max: 50 }
+        ),
+        line3YMm: asFiniteNumber(
+          calibrationSource.line3YMm,
+          DEFAULT_STICKER_CALIBRATION.line3YMm,
+          { min: 0, max: 70 }
+        ),
+        textRotation:
+          Number.isInteger(calibrationTextRotationRaw) &&
+          calibrationTextRotationRaw >= 0 &&
+          calibrationTextRotationRaw <= 3
+            ? calibrationTextRotationRaw
+            : DEFAULT_STICKER_CALIBRATION.textRotation
+      }
+    },
+    printers: {
+      documents: normalizeDocumentPrinterMap(
+        printersSource.documents && typeof printersSource.documents === "object"
+          ? printersSource.documents
+          : printersSource,
+        DEFAULT_DOCUMENT_PRINTERS
+      )
     },
     printHistory: {
       retentionDays: asFiniteInt(
@@ -259,6 +376,14 @@ export function patchSystemSettings(partialSettings = {}) {
     sticker: {
       ...(current.sticker || {}),
       ...(incoming.sticker || {})
+    },
+    printers: {
+      ...(current.printers || {}),
+      ...(incoming.printers || {}),
+      documents: {
+        ...(current.printers?.documents || {}),
+        ...(incoming.printers?.documents || {})
+      }
     },
     printHistory: {
       ...(current.printHistory || {}),

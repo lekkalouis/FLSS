@@ -13,6 +13,7 @@ import { NOTIFICATION_EVENT_KEYS } from '../src/services/notificationTemplateReg
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const templatesFile = path.join(__dirname, '..', 'data', 'liquid-templates.json');
+process.env.LOCAL_DB_PATH = path.join(__dirname, '..', 'data', 'test-app.sqlite');
 
 function startServer() {
   const { app } = createApp();
@@ -80,6 +81,16 @@ test('system settings API loads defaults and persists updates', async () => {
     assert.equal(initialBody.ok, true);
     assert.equal(typeof initialBody.settings.sticker.shelfLifeMonths, 'number');
     assert.equal(typeof initialBody.settings.printHistory.retentionDays, 'number');
+    assert.equal(initialBody.settings.sticker.layoutProfile, 'continuous_4up');
+    assert.equal(initialBody.settings.sticker.calibration.xOffsetMm, 0);
+    assert.equal(initialBody.settings.sticker.calibration.yOffsetMm, 0);
+    assert.equal(initialBody.settings.sticker.calibration.labelWidthMm, 22);
+    assert.equal(initialBody.settings.sticker.calibration.labelHeightMm, 16);
+    assert.equal(initialBody.settings.sticker.calibration.columnGapMm, 3);
+    assert.equal(initialBody.settings.sticker.calibration.line1YMm, 2);
+    assert.equal(initialBody.settings.sticker.calibration.line2YMm, 6.5);
+    assert.equal(initialBody.settings.sticker.calibration.line3YMm, 11);
+    assert.equal(initialBody.settings.sticker.calibration.textRotation, 0);
     assert.equal(initialBody.settings.controller.showOnScreenButtons, true);
     assert.equal(initialBody.settings.controller.requireConnectedRemote, true);
     assert.equal(initialBody.settings.controller.highVisibilityMode, true);
@@ -94,7 +105,19 @@ test('system settings API loads defaults and persists updates', async () => {
           shelfLifeMonths: 18,
           defaultButtonQty: 64,
           commandLanguage: 'PPLB',
-          stickerPrinterId: 4567
+          stickerPrinterId: 4567,
+          layoutProfile: 'continuous_4up',
+          calibration: {
+            xOffsetMm: 1.7,
+            yOffsetMm: -2.3,
+            labelWidthMm: 24.1,
+            labelHeightMm: 17.4,
+            columnGapMm: 3.3,
+            line1YMm: 2.2,
+            line2YMm: 6.9,
+            line3YMm: 11.8,
+            textRotation: 7
+          }
         },
         printHistory: {
           retentionDays: 180
@@ -125,6 +148,16 @@ test('system settings API loads defaults and persists updates', async () => {
     assert.equal(updateBody.settings.sticker.shelfLifeMonths, 18);
     assert.equal(updateBody.settings.sticker.defaultButtonQty, 64);
     assert.equal(updateBody.settings.sticker.stickerPrinterId, 4567);
+    assert.equal(updateBody.settings.sticker.layoutProfile, 'continuous_4up');
+    assert.equal(updateBody.settings.sticker.calibration.xOffsetMm, 1.7);
+    assert.equal(updateBody.settings.sticker.calibration.yOffsetMm, -2.3);
+    assert.equal(updateBody.settings.sticker.calibration.labelWidthMm, 24.1);
+    assert.equal(updateBody.settings.sticker.calibration.labelHeightMm, 17.4);
+    assert.equal(updateBody.settings.sticker.calibration.columnGapMm, 3.3);
+    assert.equal(updateBody.settings.sticker.calibration.line1YMm, 2.2);
+    assert.equal(updateBody.settings.sticker.calibration.line2YMm, 6.9);
+    assert.equal(updateBody.settings.sticker.calibration.line3YMm, 11.8);
+    assert.equal(updateBody.settings.sticker.calibration.textRotation, 0);
     assert.equal(updateBody.settings.printHistory.retentionDays, 180);
     assert.equal(updateBody.settings.controller.showOnScreenButtons, false);
     assert.equal(updateBody.settings.controller.requireConnectedRemote, false);
@@ -146,6 +179,8 @@ test('system settings API loads defaults and persists updates', async () => {
     const verifyBody = await verifyResponse.json();
     assert.equal(verifyBody.ok, true);
     assert.equal(verifyBody.settings.sticker.stickerPrinterId, 4567);
+    assert.equal(verifyBody.settings.sticker.layoutProfile, 'continuous_4up');
+    assert.equal(verifyBody.settings.sticker.calibration.textRotation, 0);
     assert.equal(verifyBody.settings.printHistory.retentionDays, 180);
     assert.equal(verifyBody.settings.controller.showOnScreenButtons, false);
     assert.equal(verifyBody.settings.controller.highVisibilityMode, true);
@@ -154,6 +189,39 @@ test('system settings API loads defaults and persists updates', async () => {
       'pack@example.com',
       'floor@example.com'
     ]);
+
+    const clampResponse = await fetch(`${baseUrl}/api/v1/system/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sticker: {
+          layoutProfile: 'unsupported-layout',
+          calibration: {
+            xOffsetMm: 999,
+            yOffsetMm: -999,
+            labelWidthMm: 1,
+            labelHeightMm: 500,
+            columnGapMm: -5,
+            line1YMm: -1,
+            line2YMm: 999,
+            line3YMm: 999,
+            textRotation: -1
+          }
+        }
+      })
+    });
+    assert.equal(clampResponse.status, 200);
+    const clampBody = await clampResponse.json();
+    assert.equal(clampBody.settings.sticker.layoutProfile, 'continuous_4up');
+    assert.equal(clampBody.settings.sticker.calibration.xOffsetMm, 12);
+    assert.equal(clampBody.settings.sticker.calibration.yOffsetMm, -12);
+    assert.equal(clampBody.settings.sticker.calibration.labelWidthMm, 8);
+    assert.equal(clampBody.settings.sticker.calibration.labelHeightMm, 80);
+    assert.equal(clampBody.settings.sticker.calibration.columnGapMm, 0);
+    assert.equal(clampBody.settings.sticker.calibration.line1YMm, 0);
+    assert.equal(clampBody.settings.sticker.calibration.line2YMm, 50);
+    assert.equal(clampBody.settings.sticker.calibration.line3YMm, 70);
+    assert.equal(clampBody.settings.sticker.calibration.textRotation, 0);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -1093,4 +1161,82 @@ return {
   assert.match(staleSnapshot.status, /^Sensor missing \(stale\)/);
   assert.equal(staleSnapshot.sensorIndicatorState.ok, false);
   assert.equal(staleSnapshot.lastEnvironmentForHeader.current.temperatureC, 22.25);
+});
+
+test('order modal exposes 150x100 order label print action and popup renderer', async () => {
+  const appJs = await fs.readFile(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  assert.match(appJs, /data-action="print-order-label"/);
+  assert.match(appJs, /function printOrderLabel\(orderNo\)/);
+  assert.match(appJs, /@page \{ size: 150mm 100mm; margin: 0; \}/);
+  assert.match(appJs, /if \(actionType === "print-order-label"\)/);
+});
+
+test('sticker calibration controls and order-label style hooks are present in index', async () => {
+  const indexHtml = await fs.readFile(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+
+  assert.match(indexHtml, /id="settingsStickerLayoutProfile"/);
+  assert.match(indexHtml, /id="settingsStickerXOffsetMm"/);
+  assert.match(indexHtml, /id="settingsStickerYOffsetMm"/);
+  assert.match(indexHtml, /id="settingsStickerLabelWidthMm"/);
+  assert.match(indexHtml, /id="settingsStickerLabelHeightMm"/);
+  assert.match(indexHtml, /id="settingsStickerColumnGapMm"/);
+  assert.match(indexHtml, /id="settingsStickerLine1YMm"/);
+  assert.match(indexHtml, /id="settingsStickerLine2YMm"/);
+  assert.match(indexHtml, /id="settingsStickerLine3YMm"/);
+  assert.match(indexHtml, /id="settingsStickerTextRotation"/);
+  assert.match(indexHtml, /\.orderLabel150x100/);
+});
+
+test('printnode best-before sticker builder uses configurable calibration values', async () => {
+  const printnodeRoute = await fs.readFile(path.join(__dirname, '..', 'src', 'routes', 'printnode.js'), 'utf8');
+
+  assert.match(printnodeRoute, /const calibration = settings\?\.sticker\?\.calibration \|\| \{\};/);
+  assert.match(printnodeRoute, /labelWidthMm/);
+  assert.match(printnodeRoute, /labelHeightMm/);
+  assert.match(printnodeRoute, /columnGapMm/);
+  assert.match(printnodeRoute, /line1YMm/);
+  assert.match(printnodeRoute, /line2YMm/);
+  assert.match(printnodeRoute, /line3YMm/);
+  assert.match(printnodeRoute, /textRotation/);
+  assert.match(printnodeRoute, /A\$\{x\},\$\{lineOneY\},\$\{textRotation\}/);
+});
+
+test('legacy unified-operations entrypoints redirect into integrated routes', async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const cases = [
+      ['/admin', '/stock'],
+      ['/purchase-orders.html', '/buy'],
+      ['/manufacturing.html', '/make'],
+      ['/product-management.html', '/stock?section=inventory&tab=raw-materials'],
+      ['/dispatch-settings', '/stock?notice=tool-retired'],
+      ['/logs', '/stock?notice=tool-retired']
+    ];
+
+    for (const [source, target] of cases) {
+      const response = await fetch(`${baseUrl}${source}`, { redirect: 'manual' });
+      assert.equal(response.status, 302, `${source} should redirect`);
+      assert.equal(response.headers.get('location'), target);
+    }
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('main index uses unified stock-buy-make shell without embedded admin iframe', async () => {
+  const indexHtml = await fs.readFile(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+
+  assert.match(indexHtml, /id="navBuy"/);
+  assert.match(indexHtml, /id="navMake"/);
+  assert.match(indexHtml, /id="navAgentCommissions"/);
+  assert.match(indexHtml, /id="viewBuy"/);
+  assert.match(indexHtml, /id="viewMake"/);
+  assert.match(indexHtml, /id="viewAgentCommissions"/);
+  assert.match(indexHtml, /data-stock-primary="inventory"/);
+  assert.match(indexHtml, /data-stock-primary="batches"/);
+  assert.match(indexHtml, /data-stock-primary="stocktakes"/);
+  assert.doesNotMatch(indexHtml, /<iframe/i);
+  assert.doesNotMatch(indexHtml, /id="viewAdmin"/);
+  assert.doesNotMatch(indexHtml, /id="navFooterAdmin"/);
 });

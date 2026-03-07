@@ -1,412 +1,361 @@
-import { PRODUCT_LIST } from "./products.js";
-import { PO_CATALOG, PO_CATALOG_ITEMS } from "./purchase-order-catalog.js";
 import { resolveFlavourColor } from "./flavour-map.js";
 
 let stockInitialized = false;
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 export function initStockView() {
   if (stockInitialized) return;
   stockInitialized = true;
 
-  const API_BASE = "/api/v1/shopify";
-  const LOG_STORAGE_KEY = "fl_stock_log_v2";
-
-  const poCatalog = PO_CATALOG_ITEMS;
-  const poCatalogGroups = PO_CATALOG;
-
-
+  const API_BASE = "/api/v1";
   const els = {
     root: document.getElementById("viewStock"),
-    search: document.getElementById("stock-search"),
-    location: document.getElementById("stock-location"),
-    modeBtns: document.querySelectorAll(".stock-modeBtn[data-mode]"),
-    areaTabs: document.querySelectorAll(".stock-tabBtn[data-tab]"),
-    stockArea: document.getElementById("stock-stockArea"),
-    purchaseArea: document.getElementById("stock-purchaseArea"),
-    table: document.getElementById("stock-table"),
-    tbody: document.getElementById("stock-tableBody"),
-    log: document.getElementById("stock-log"),
-    poGrid: document.getElementById("po-grid"),
-    poSupplier: document.getElementById("po-supplier"),
-    poNote: document.getElementById("po-note"),
-    poSubmit: document.getElementById("po-submit"),
-    poToast: document.getElementById("po-toast"),
-    poOpenTable: document.getElementById("po-openTable"),
-    poTabBtns: document.querySelectorAll(".stock-tabBtn[data-po-tab]"),
-    poCreatePanel: document.getElementById("po-createPanel"),
-    poReceivePanel: document.getElementById("po-receivePanel")
+    primaryTabs: Array.from(document.querySelectorAll("[data-stock-primary]")),
+    inventoryTabs: Array.from(document.querySelectorAll("[data-stock-inventory-tab]")),
+    primaryPanels: {
+      inventory: document.getElementById("stockPanelInventory"),
+      batches: document.getElementById("stockPanelBatches"),
+      stocktakes: document.getElementById("stockPanelStocktakes")
+    },
+    inventoryPanels: {
+      products: document.getElementById("stockInventoryProducts"),
+      materials: document.getElementById("stockInventoryMaterials")
+    },
+    search: document.getElementById("stockSearch"),
+    location: document.getElementById("stockLocation"),
+    productsBody: document.getElementById("stockProductsBody"),
+    materialsBody: document.getElementById("stockMaterialsBody"),
+    batchesBody: document.getElementById("stockBatchesBody"),
+    stocktakeScope: document.getElementById("stocktakeScope"),
+    stocktakeSearch: document.getElementById("stocktakeSearch"),
+    stocktakeBody: document.getElementById("stocktakeBody"),
+    stocktakeSubmit: document.getElementById("stocktakeSubmit"),
+    stocktakeStatus: document.getElementById("stocktakeStatus"),
+    stocktakeHistory: document.getElementById("stocktakeHistory"),
+    auditFilters: document.getElementById("stockAuditFilters"),
+    auditBody: document.getElementById("stockAuditBody"),
+    auditStatus: document.getElementById("stockAuditStatus")
   };
-
-  const finishedGoods = PRODUCT_LIST.filter((p) => !p.isRawMaterial);
-
-  const flavourColor = (flavour) => resolveFlavourColor(flavour);
 
   const state = {
-    tab: "stock",
-    mode: "read",
-    poTab: "create",
-    stock: new Map(finishedGoods.map((i) => [i.sku, 0])),
-    log: [],
-    poQty: new Map(),
-    locationId: null,
-    missingBySku: new Map()
+    primaryTab: "inventory",
+    inventoryTab: "products",
+    products: [],
+    materials: [],
+    batches: [],
+    stocktakes: [],
+    auditRows: [],
+    locations: [],
+    stocktakeCounts: new Map()
   };
 
-  function num(v) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
+  function filteredProducts() {
+    const query = String(els.search?.value || "").trim().toLowerCase();
+    return state.products.filter((product) => {
+      const haystack = `${product.sku} ${product.title} ${product.flavour || ""}`.toLowerCase();
+      return !query || haystack.includes(query);
+    });
   }
 
-  function setToast(msg) {
-    if (!els.poToast) return;
-    els.poToast.hidden = false;
-    els.poToast.textContent = msg;
-    setTimeout(() => {
-      if (els.poToast) els.poToast.hidden = true;
-    }, 2800);
+  function filteredMaterials() {
+    const query = String(els.search?.value || "").trim().toLowerCase();
+    return state.materials.filter((material) => {
+      const haystack = `${material.sku} ${material.title} ${material.category} ${material.preferred_supplier?.name || ""}`.toLowerCase();
+      return !query || haystack.includes(query);
+    });
   }
 
-  function addLog(entry) {
-    state.log.unshift({ ts: new Date().toLocaleString(), ...entry });
-    state.log = state.log.slice(0, 200);
-    localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(state.log));
-    renderLog();
+  function filteredStocktakeItems() {
+    const query = String(els.stocktakeSearch?.value || "").trim().toLowerCase();
+    const scope = String(els.stocktakeScope?.value || "full");
+    const products = state.products
+      .filter((product) => scope === "full" || scope === "finished-goods")
+      .map((product) => ({
+        entity_type: "product",
+        key: `product:${product.sku}`,
+        sku: product.sku,
+        title: product.title,
+        category: "Finished good",
+        current: Number(product.on_hand || 0)
+      }));
+    const materials = state.materials
+      .filter((material) => scope === "full" || scope === "raw-materials")
+      .map((material) => ({
+        entity_type: "material",
+        key: `material:${material.id}`,
+        material_id: material.id,
+        sku: material.sku,
+        title: material.title,
+        category: material.category,
+        current: Number(material.on_hand || 0)
+      }));
+    return [...products, ...materials].filter((item) => {
+      const haystack = `${item.sku} ${item.title} ${item.category}`.toLowerCase();
+      return !query || haystack.includes(query);
+    });
   }
 
-  function renderLog() {
-    if (!els.log) return;
-    if (!state.log.length) {
-      els.log.innerHTML = `<div class="stock-logEntry">No updates yet.</div>`;
-      return;
-    }
-    els.log.innerHTML = state.log
-      .map((l) => `<div class="stock-logEntry"><span>${l.ts}</span> <strong>${l.sku}</strong> ${l.msg}</div>`)
-      .join("");
+  function setPrimaryTab(tab) {
+    state.primaryTab = tab;
+    els.primaryTabs.forEach((button) => {
+      const active = button.dataset.stockPrimary === tab;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    Object.entries(els.primaryPanels).forEach(([key, panel]) => {
+      if (!panel) return;
+      panel.hidden = key !== tab;
+    });
+  }
+
+  function setInventoryTab(tab) {
+    state.inventoryTab = tab;
+    els.inventoryTabs.forEach((button) => {
+      const active = button.dataset.stockInventoryTab === tab;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    Object.entries(els.inventoryPanels).forEach(([key, panel]) => {
+      if (!panel) return;
+      panel.hidden = key !== tab;
+    });
+  }
+
+  function renderProducts() {
+    if (!els.productsBody) return;
+    const rows = filteredProducts();
+    els.productsBody.innerHTML = rows.length
+      ? rows.map((product) => `
+          <tr>
+            <td><strong>${escapeHtml(product.sku)}</strong></td>
+            <td>${escapeHtml(product.title)}</td>
+            <td><span class="stock-flavourBadge" style="--flavour-color:${resolveFlavourColor(product.flavour)}">${escapeHtml(product.flavour || "-")}</span></td>
+            <td>${Number(product.on_hand || 0)}</td>
+            <td>${Number(product.committed || 0)}</td>
+            <td class="${Number(product.available || 0) < 0 ? "stock-neg" : ""}">${Number(product.available || 0)}</td>
+            <td>${Number(product.incoming || 0)}</td>
+            <td><span class="stock-statusBadge stock-statusBadge--${escapeHtml(product.status || "ok")}">${escapeHtml(product.status || "ok")}</span></td>
+          </tr>
+        `).join("")
+      : `<tr><td colspan="8" class="stock-emptyCell">No products match this filter.</td></tr>`;
+  }
+
+  function renderMaterials() {
+    if (!els.materialsBody) return;
+    const rows = filteredMaterials();
+    els.materialsBody.innerHTML = rows.length
+      ? rows.map((material) => `
+          <tr>
+            <td><span class="stock-materialIcon">${escapeHtml(material.icon || "*")}</span></td>
+            <td><strong>${escapeHtml(material.sku)}</strong></td>
+            <td>${escapeHtml(material.title)}</td>
+            <td>${escapeHtml(material.category)}</td>
+            <td>${escapeHtml(material.preferred_supplier?.name || "Missing supplier")}</td>
+            <td>${Number(material.on_hand || 0)}</td>
+            <td>${Number(material.allocated || 0)}</td>
+            <td class="${Number(material.available || 0) <= Number(material.reorder_point || 0) ? "stock-neg" : ""}">${Number(material.available || 0)}</td>
+            <td>${Number(material.reorder_point || 0)}</td>
+            <td>${Number(material.lead_time_days || 0)}d</td>
+          </tr>
+        `).join("")
+      : `<tr><td colspan="10" class="stock-emptyCell">No materials match this filter.</td></tr>`;
+  }
+
+  function renderBatches() {
+    if (!els.batchesBody) return;
+    els.batchesBody.innerHTML = state.batches.length
+      ? state.batches.map((batch) => `
+          <tr>
+            <td><strong>${escapeHtml(batch.batch_code)}</strong></td>
+            <td>${escapeHtml(batch.batch_type)}</td>
+            <td>${escapeHtml(batch.product_sku || batch.material_title || "-")}</td>
+            <td>${escapeHtml(batch.supplier_name || "-")}</td>
+            <td>${Number(batch.qty_total || 0)}</td>
+            <td>${Number(batch.qty_remaining || 0)}</td>
+            <td>${escapeHtml(batch.purchase_order_name || batch.manufacturing_order_id || "-")}</td>
+            <td>${escapeHtml(batch.expiry_date || "-")}</td>
+          </tr>
+        `).join("")
+      : `<tr><td colspan="8" class="stock-emptyCell">No batches recorded yet.</td></tr>`;
+  }
+
+  function renderStocktakeRows() {
+    if (!els.stocktakeBody) return;
+    const items = filteredStocktakeItems().slice(0, 60);
+    els.stocktakeBody.innerHTML = items.length
+      ? items.map((item) => {
+          const value = state.stocktakeCounts.get(item.key) ?? item.current;
+          return `
+            <tr data-stocktake-key="${escapeHtml(item.key)}">
+              <td>${escapeHtml(item.entity_type)}</td>
+              <td><strong>${escapeHtml(item.sku)}</strong></td>
+              <td>${escapeHtml(item.title)}</td>
+              <td>${escapeHtml(item.category)}</td>
+              <td>${Number(item.current || 0)}</td>
+              <td><input class="stock-qtyInput" type="number" step="1" data-stocktake-count value="${Number(value || 0)}" /></td>
+            </tr>
+          `;
+        }).join("")
+      : `<tr><td colspan="6" class="stock-emptyCell">No stocktake items match this filter.</td></tr>`;
+  }
+
+  function renderStocktakeHistory() {
+    if (!els.stocktakeHistory) return;
+    els.stocktakeHistory.innerHTML = state.stocktakes.length
+      ? state.stocktakes.map((row) => `
+          <article class="stock-historyCard">
+            <strong>#${row.id}</strong>
+            <span>${escapeHtml(row.scope)}</span>
+            <span>${escapeHtml(row.status)}</span>
+            <span>${escapeHtml(row.closed_at || row.created_at || "-")}</span>
+          </article>
+        `).join("")
+      : `<div class="stock-emptyCard">No stocktakes have been recorded yet.</div>`;
+  }
+
+  function renderAuditRows() {
+    if (!els.auditBody) return;
+    els.auditBody.innerHTML = state.auditRows.length
+      ? state.auditRows.map((row) => `
+          <tr>
+            <td>${escapeHtml(row.occurred_at || "-")}</td>
+            <td>${escapeHtml(row.surface || "-")}</td>
+            <td>${escapeHtml(row.action || "-")}</td>
+            <td>${escapeHtml(row.entity_type || "-")}</td>
+            <td>${escapeHtml(row.entity_id || "-")}</td>
+            <td>${escapeHtml(row.status || "-")}</td>
+          </tr>
+        `).join("")
+      : `<tr><td colspan="6" class="stock-emptyCell">No audit rows found.</td></tr>`;
   }
 
   async function loadLocations() {
     if (!els.location) return;
-    const resp = await fetch(`${API_BASE}/locations`);
-    const payload = await resp.json().catch(() => ({}));
-    if (!resp.ok) return;
-    const locations = Array.isArray(payload.locations) ? payload.locations : [];
-    els.location.innerHTML = locations.map((l) => `<option value="${l.id}">${l.name || l.id}</option>`).join("");
-    if (locations[0]) {
-      state.locationId = Number(locations[0].id);
-      els.location.value = String(state.locationId);
+    const resp = await fetch("/api/v1/shopify/locations");
+    const body = await resp.json().catch(() => ({}));
+    const locations = Array.isArray(body.locations) ? body.locations : [];
+    state.locations = locations;
+    els.location.innerHTML = locations.length
+      ? locations.map((location) => `<option value="${location.id}">${escapeHtml(location.name || location.id)}</option>`).join("")
+      : `<option value="">Primary</option>`;
+  }
+
+  async function loadInventory() {
+    const resp = await fetch(`${API_BASE}/inventory/overview`);
+    const body = await resp.json().catch(() => ({}));
+    state.products = Array.isArray(body.products) ? body.products : [];
+    state.materials = Array.isArray(body.materials) ? body.materials : [];
+    renderProducts();
+    renderMaterials();
+    renderStocktakeRows();
+  }
+
+  async function loadBatches() {
+    const resp = await fetch(`${API_BASE}/inventory/batches`);
+    const body = await resp.json().catch(() => ({}));
+    state.batches = Array.isArray(body.batches) ? body.batches : [];
+    renderBatches();
+  }
+
+  async function loadStocktakes() {
+    const resp = await fetch(`${API_BASE}/inventory/stocktakes`);
+    const body = await resp.json().catch(() => ({}));
+    state.stocktakes = Array.isArray(body.stocktakes) ? body.stocktakes : [];
+    renderStocktakeHistory();
+  }
+
+  async function loadAudit() {
+    const formData = new FormData(els.auditFilters);
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+      if (String(value || "").trim()) params.set(key, String(value));
     }
-  }
-
-  async function loadStock() {
-    const variantIds = finishedGoods.map((i) => i.variantId).filter(Boolean);
-    if (!variantIds.length) return;
-    const resp = await fetch(`${API_BASE}/inventory-levels?variantIds=${variantIds.join(",")}${state.locationId ? `&locationId=${state.locationId}` : ""}`);
-    const payload = await resp.json().catch(() => ({}));
-    if (!resp.ok) return;
-    const levels = Array.isArray(payload.levels) ? payload.levels : [];
-    const byVar = new Map(levels.map((l) => [Number(l.variantId), Number(l.available || 0)]));
-    finishedGoods.forEach((item) => state.stock.set(item.sku, Math.floor(num(byVar.get(Number(item.variantId))))));
-  }
-
-  async function loadMissingForOpenOrders() {
-    const resp = await fetch(`${API_BASE}/orders/open`);
-    const payload = await resp.json().catch(() => ({}));
-    state.missingBySku = new Map();
-    if (!resp.ok) return;
-    const orders = Array.isArray(payload.orders) ? payload.orders : [];
-    orders.forEach((o) => {
-      (o.line_items || []).forEach((li) => {
-        const key = String(li.sku || "").trim();
-        if (!key) return;
-        state.missingBySku.set(key, (state.missingBySku.get(key) || 0) + Math.max(0, num(li.quantity_remaining ?? li.quantity)));
-      });
-    });
-  }
-
-  function filteredItems() {
-    const q = String(els.search?.value || "").trim().toLowerCase();
-    return finishedGoods.filter((i) => !q || `${i.sku} ${i.title} ${i.flavour || ""}`.toLowerCase().includes(q));
-  }
-
-  const countGroups = [
-    { title: "200ml", skus: ["FL002", "FL008", "FL014", "FL026", "FL035", "FL038", "FL041"] },
-    { title: "500g Bags", skus: ["FL003", "FL009", "FL015", "FL027", "FL032", "FL036", "FL039", "FL042"] },
-    { title: "1kg", skus: ["FL004", "FL010", "FL016", "FL028", "FL033", "FL037", "FL043"] },
-    { title: "Curry Mix", skus: ["FL031", "FL032", "FL033"] },
-    { title: "Popcorn Sprinkle", skus: ["FL050", "FL053", "FL056", "FL059", "FL062", "FL065"] },
-    { title: "Tubs", skus: ["FL005-1", "FL017-1"] },
-    { title: "Other", skus: ["FLBS001", "GBOX"] }
-  ];
-
-  function groupedItems(items) {
-    const bySku = new Map(items.map((item) => [item.sku, item]));
-    const assigned = new Set();
-    const groups = countGroups
-      .map((group) => {
-        const groupItems = group.skus.map((sku) => bySku.get(sku)).filter(Boolean);
-        groupItems.forEach((item) => assigned.add(item.sku));
-        return { title: group.title, items: groupItems };
-      })
-      .filter((group) => group.items.length > 0);
-
-    const ungrouped = items.filter((item) => !assigned.has(item.sku));
-    if (ungrouped.length) groups.push({ title: "More Products", items: ungrouped });
-    return groups;
-  }
-
-  function renderMissingSummary() {
-    // Missing summary chips removed by design; shortages remain visible in table column.
-  }
-
-  function rowMarkup(item) {
-    const current = num(state.stock.get(item.sku));
-    const demand = num(state.missingBySku.get(item.sku));
-    const missing = Math.max(0, demand - current);
-    const crateUnits = Math.max(0, Math.floor(num(item.crateUnits)));
-    const crateControl = crateUnits
-      ? `<button class="stock-iconBtn" type="button" data-action="crate">🧺 +${crateUnits}</button> <span data-crate-count>0</span>`
-      : `<span class="stock-muted">—</span>`;
-    return `
-      <tr data-sku="${item.sku}" data-crates="0" data-crate-units="${crateUnits}">
-        <td><strong>${item.sku}</strong></td>
-        <td>${item.title}</td>
-        <td><span class="stock-flavourBadge" style="--flavour-color:${flavourColor(item.flavour)}">${item.flavour || "-"}</span></td>
-        <td class="${current < 0 ? "stock-neg" : ""}" data-current>${current}</td>
-        <td class="stock-countCol"><input class="stock-qtyInput" type="number" min="0" step="1" data-manual /></td>
-        <td class="stock-countCol">${crateControl}</td>
-        <td class="stock-countCol" data-new-total>${current}</td>
-        <td class="stock-countCol" data-diff>0</td>
-        <td class="stock-countCol"><button class="stock-actionBtn" type="button" data-action="set">Set</button></td>
-        <td class="stock-makeCol">${missing}</td>
-      </tr>
-    `;
-  }
-
-  function renderTable() {
-    if (!els.tbody) return;
-    const groups = groupedItems(filteredItems());
-    els.tbody.innerHTML = groups
-      .map((group) => {
-        const header = `<tr class="stock-groupRow"><td colspan="10">${group.title}</td></tr>`;
-        return `${header}${group.items.map(rowMarkup).join("")}`;
-      })
-      .join("");
-    updateModeUI();
-  }
-
-  function updateRowTotals(row) {
-    const current = num(row.querySelector("[data-current]")?.textContent);
-    const manual = Math.max(0, Math.floor(num(row.querySelector("[data-manual]")?.value)));
-    const crates = Math.max(0, Math.floor(num(row.dataset.crates)));
-    const crateUnits = Math.max(0, Math.floor(num(row.dataset.crateUnits)));
-    const next = manual + crates * crateUnits;
-    const diff = next - current;
-    row.querySelector("[data-new-total]").textContent = String(next);
-    row.querySelector("[data-diff]").textContent = String(diff);
-  }
-
-  async function setInventory(item, nextValue, modeForLog) {
-    const resp = await fetch(`${API_BASE}/inventory-levels/set`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ variantId: item.variantId, mode: "count", value: nextValue, locationId: state.locationId })
-    });
-    const payload = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error(payload?.message || "Stock update failed");
-    const available = Math.floor(num(payload?.level?.available));
-    state.stock.set(item.sku, available);
-    addLog({ sku: item.sku, msg: `${modeForLog}: ${nextValue} (Δ ${nextValue - num(payload?.previous?.available || 0)})` });
-  }
-
-  function updateModeUI() {
-    els.table.dataset.mode = state.mode;
-    const isRead = state.mode === "read";
-    const isMake = state.mode === "make";
-    els.root.dataset.mode = state.mode;
-    els.root.dataset.tab = state.tab;
-    els.tbody?.querySelectorAll("[data-manual], .stock-iconBtn, .stock-actionBtn").forEach((el) => {
-      el.disabled = isRead || isMake;
-    });
-    renderMissingSummary();
-  }
-
-  function poMeta(item) {
-    const parts = [item.sku || "No SKU", item.uom || "unit"];
-    if (item.rollSize) parts.push(`${item.rollSize} / roll`);
-    if (item.flavour) parts.push(item.flavour);
-    return parts.join(" • ");
-  }
-
-  function poIconChip(item) {
-    const accent = flavourColor(item.flavour);
-    const isLabelRoll = item.uom === "roll" && String(item.sku || "").startsWith("LBL-");
-    const variantClass = isLabelRoll ? " stock-poIcon--labelRoll" : "";
-    const icon = item.icon || "📦";
-    return `<span class="stock-poIcon${variantClass}" style="--flavour-color:${accent}" aria-hidden="true">${icon}</span>`;
-  }
-
-  function renderPOGrid() {
-    if (!els.poGrid) return;
-    els.poGrid.innerHTML = poCatalogGroups
-      .map((group) => `
-        <section class="stock-poGroup">
-          <h4>${group.title}</h4>
-          ${(group.items || []).map((p) => {
-            const qty = Math.max(0, Math.floor(num(state.poQty.get(p.sku))));
-            return `<article class="stock-poItem"><div>${poIconChip(p)}</div><div><div class="name">${p.title}</div><div class="meta">${poMeta(p)}</div></div><input type="number" min="0" step="1" data-po-sku="${p.sku}" class="stock-qtyInput" value="${qty}" /></article>`;
-          }).join("")}
-        </section>
-      `)
-      .join("");
-  }
-
-  async function createPO() {
-    const lines = poCatalog
-      .map((p) => ({ sku: p.sku, title: p.title, quantity: Math.max(0, Math.floor(num(state.poQty.get(p.sku)))) }))
-      .filter((l) => l.quantity > 0);
-    if (!lines.length) return;
-    const resp = await fetch(`${API_BASE}/purchase-orders`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ supplierName: String(els.poSupplier?.value || ""), note: String(els.poNote?.value || ""), lines })
-    });
-    const payload = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error(payload?.message || "Could not create PO");
-    setToast("Purchase order draft created successfully.");
-    state.poQty.clear();
-    renderPOGrid();
-    await loadOpenPOs();
-  }
-
-  async function loadOpenPOs() {
-    if (!els.poOpenTable) return;
-    const resp = await fetch(`${API_BASE}/purchase-orders/open`);
-    const payload = await resp.json().catch(() => ({}));
-    const list = resp.ok ? (payload.purchaseOrders || []) : [];
-    els.poOpenTable.innerHTML = list
-      .map((po) => {
-        const lineCount = (po.line_items || []).reduce((s, l) => s + num(l.quantity), 0);
-        return `<tr data-po-id="${po.id}"><td>${po.name || po.id}</td><td>${new Date(po.created_at || Date.now()).toLocaleString()}</td><td>${lineCount}</td><td><button class="stock-actionBtn" data-po-action="receive">Receive</button> <button class="stock-actionBtn" data-po-action="print" ${po.adminUrl ? "" : "disabled"}>Print docs</button></td></tr>`;
-      })
-      .join("") || `<tr><td colspan="4" class="stock-muted">No open PO drafts found.</td></tr>`;
-  }
-
-  function switchTab(tab) {
-    state.tab = tab;
-    els.stockArea.hidden = tab !== "stock";
-    els.purchaseArea.hidden = tab !== "purchase";
-    els.areaTabs.forEach((b) => b.classList.toggle("is-active", b.dataset.tab === tab));
-  }
-
-  function switchPoTab(tab) {
-    state.poTab = tab;
-    els.poCreatePanel.hidden = tab !== "create";
-    els.poReceivePanel.hidden = tab !== "receive";
-    els.poTabBtns.forEach((b) => b.classList.toggle("is-active", b.dataset.poTab === tab));
-  }
-
-  try {
-    const raw = localStorage.getItem(LOG_STORAGE_KEY);
-    state.log = raw ? JSON.parse(raw) : [];
-  } catch {
-    state.log = [];
-  }
-
-  els.search?.addEventListener("input", renderTable);
-  els.location?.addEventListener("change", async () => {
-    state.locationId = Number(els.location.value);
-    await loadStock();
-    renderTable();
-  });
-
-  els.modeBtns.forEach((b) => b.addEventListener("click", () => {
-    state.mode = b.dataset.mode;
-    els.modeBtns.forEach((x) => x.classList.toggle("is-active", x === b));
-    updateModeUI();
-  }));
-
-  els.areaTabs.forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
-  els.poTabBtns.forEach((b) => b.addEventListener("click", async () => {
-    switchPoTab(b.dataset.poTab);
-    if (b.dataset.poTab === "receive") await loadOpenPOs();
-  }));
-
-  els.tbody?.addEventListener("input", (e) => {
-    const row = e.target.closest("tr");
-    if (!row) return;
-    if (e.target.matches("[data-manual]")) updateRowTotals(row);
-  });
-
-  els.tbody?.addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-action]");
-    if (!btn) return;
-    const row = btn.closest("tr");
-    if (!row) return;
-    if (btn.dataset.action === "crate") {
-      row.dataset.crates = String(num(row.dataset.crates) + 1);
-      const countEl = row.querySelector("[data-crate-count]");
-      if (countEl) countEl.textContent = String(row.dataset.crates);
-      updateRowTotals(row);
-      return;
+    const resp = await fetch(`${API_BASE}/audit/log?${params.toString()}`);
+    const body = await resp.json().catch(() => ({}));
+    state.auditRows = Array.isArray(body.rows) ? body.rows : [];
+    if (els.auditStatus) {
+      els.auditStatus.textContent = `Loaded ${state.auditRows.length} audit row${state.auditRows.length === 1 ? "" : "s"}.`;
     }
-    if (btn.dataset.action === "set") {
-      const sku = row.dataset.sku;
-      const item = finishedGoods.find((i) => i.sku === sku);
-      if (!item?.variantId) return;
-      const nextVal = Math.floor(num(row.querySelector("[data-new-total]")?.textContent));
-      const current = num(state.stock.get(sku));
-      const diff = nextVal - current;
-      try {
-        await setInventory(item, nextVal, "count");
-        state.stock.set(sku, nextVal);
-        addLog({ sku, msg: `count set to ${nextVal} (diff ${diff >= 0 ? "+" : ""}${diff})` });
-        renderTable();
-      } catch (err) {
-        addLog({ sku, msg: `update failed: ${String(err.message || err)}` });
-      }
-    }
-  });
+    renderAuditRows();
+  }
 
-  els.poGrid?.addEventListener("input", (e) => {
-    const input = e.target.closest("input[data-po-sku]");
-    if (!input) return;
-    state.poQty.set(input.dataset.poSku, Math.max(0, Math.floor(num(input.value))));
-  });
-
-  els.poSubmit?.addEventListener("click", async () => {
+  async function submitStocktake() {
+    const items = filteredStocktakeItems().slice(0, 60);
+    const lines = items
+      .map((item) => {
+        const counted = Number(state.stocktakeCounts.get(item.key));
+        return {
+          entity_type: item.entity_type,
+          product_sku: item.entity_type === "product" ? item.sku : undefined,
+          material_id: item.entity_type === "material" ? item.material_id : undefined,
+          counted_qty: Number.isFinite(counted) ? counted : item.current
+        };
+      })
+      .filter((line) => Number.isFinite(line.counted_qty));
+    els.stocktakeSubmit.disabled = true;
+    if (els.stocktakeStatus) els.stocktakeStatus.textContent = "Closing stocktake...";
     try {
-      await createPO();
-    } catch (err) {
-      setToast(String(err?.message || err));
+      const resp = await fetch(`${API_BASE}/inventory/stocktakes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope: String(els.stocktakeScope?.value || "full"),
+          location_key: String(els.location?.value || "primary"),
+          lines,
+          actor_type: "ui",
+          actor_id: "stock"
+        })
+      });
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(body?.error || body?.message || "Could not create stocktake");
+      if (els.stocktakeStatus) els.stocktakeStatus.textContent = `Stocktake #${body.stocktake?.id || "?"} closed.`;
+      state.stocktakeCounts.clear();
+      await Promise.all([loadInventory(), loadStocktakes(), loadAudit()]);
+    } catch (error) {
+      if (els.stocktakeStatus) els.stocktakeStatus.textContent = String(error?.message || error);
+    } finally {
+      els.stocktakeSubmit.disabled = false;
     }
-  });
+  }
 
-  els.poOpenTable?.addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-po-action]");
-    if (!btn) return;
-    const row = btn.closest("tr[data-po-id]");
+  els.primaryTabs.forEach((button) => {
+    button.addEventListener("click", () => setPrimaryTab(button.dataset.stockPrimary));
+  });
+  els.inventoryTabs.forEach((button) => {
+    button.addEventListener("click", () => setInventoryTab(button.dataset.stockInventoryTab));
+  });
+  els.search?.addEventListener("input", () => {
+    renderProducts();
+    renderMaterials();
+  });
+  els.stocktakeSearch?.addEventListener("input", renderStocktakeRows);
+  els.stocktakeScope?.addEventListener("change", renderStocktakeRows);
+  els.stocktakeBody?.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-stocktake-count]");
+    if (!input) return;
+    const row = input.closest("[data-stocktake-key]");
     if (!row) return;
-    if (btn.dataset.poAction === "print") {
-      window.open(`https://${location.host}/purchase-orders`, "_blank", "noopener,noreferrer");
-      return;
-    }
-    if (btn.dataset.poAction === "receive") {
-      setToast("PO receive logged. Print templates can be triggered from Shopify OrderPrinterPro.");
-      addLog({ sku: row.dataset.poId, msg: "PO marked as received (manual template print required)." });
-      row.remove();
-    }
+    state.stocktakeCounts.set(row.dataset.stocktakeKey, Number(input.value || 0));
+  });
+  els.stocktakeSubmit?.addEventListener("click", submitStocktake);
+  els.auditFilters?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void loadAudit();
   });
 
   Promise.resolve()
     .then(loadLocations)
-    .then(loadStock)
-    .then(loadMissingForOpenOrders)
+    .then(() => Promise.all([loadInventory(), loadBatches(), loadStocktakes(), loadAudit()]))
     .then(() => {
-      renderPOGrid();
-      renderTable();
-      renderLog();
-      switchTab("stock");
-      switchPoTab("create");
-      updateModeUI();
+      setPrimaryTab("inventory");
+      setInventoryTab("products");
     });
 }

@@ -2813,9 +2813,13 @@ ${state.customer.email || ""}${
 
       if (!resp.ok || !data.ok) {
         console.error("Draft order create error:", text);
+        const recoveryUrl = data?.draftAdminUrl || data?.draftOrder?.adminUrl || null;
+        if (recoveryUrl) {
+          window.open(recoveryUrl, "_blank", "noopener");
+        }
         showToast(
           "Draft order failed: " +
-            (data?.body?.errors || resp.statusText || "unknown"),
+            (data?.message || data?.body?.errors || resp.statusText || "unknown"),
           "err"
         );
         return;
@@ -2928,6 +2932,7 @@ ${state.customer.email || ""}${
       billingAddress,
       shippingAddress,
       customerTags: state.customerTags,
+      priceTier: state.priceTier,
       lineItems: items.map((li) => ({
         sku: li.sku,
         title: li.title,
@@ -2957,9 +2962,13 @@ ${state.customer.email || ""}${
 
       if (!resp.ok || !data.ok) {
         console.error("Order create error:", text);
+        const recoveryUrl = data?.draftAdminUrl || data?.draftOrder?.adminUrl || null;
+        if (recoveryUrl) {
+          window.open(recoveryUrl, "_blank", "noopener");
+        }
         showToast(
           "Order create failed: " +
-            (data?.body?.errors || resp.statusText || "unknown"),
+            (data?.message || data?.body?.errors || resp.statusText || "unknown"),
           "err"
         );
         return;
@@ -3110,13 +3119,21 @@ ${state.customer.email || ""}${
         console.error("Draft order complete error:", text);
         showToast(
           "Draft order convert failed: " +
-            (data?.body?.errors || resp.statusText || "unknown"),
+            (data?.message || data?.body?.errors || resp.statusText || "unknown"),
           "err"
         );
         return;
       }
 
       showToast(`Draft converted to order ${data.order?.name || ""}`.trim(), "ok");
+      const openUrl =
+        data.order?.adminUrl ||
+        data.order?.orderStatusUrl ||
+        data.order?.order_status_url ||
+        null;
+      if (openUrl) {
+        window.open(openUrl, "_blank", "noopener");
+      }
       state.lastDraftOrderId = null;
       renderConvertButton();
     } catch (e) {

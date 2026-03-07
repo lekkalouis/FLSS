@@ -131,27 +131,53 @@ function mmToDots(mm, dpi = 203) {
   return Math.round((numeric / 25.4) * dpi);
 }
 
+function normalizeCalibrationNumber(value, fallback) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
 function buildPplbStickerRaw({
   quantity = 52,
   bestBeforeTitleLine,
   bestBeforeDateLine,
-  batchLine
+  batchLine,
+  calibration = {}
 }) {
   const qty = Math.max(4, Math.trunc(Number(quantity) || 52));
   const roundedQty = Math.ceil(qty / 4) * 4;
   const rows = Math.max(1, roundedQty / 4);
 
+  const normalizedCalibration = {
+    xOffsetMm: normalizeCalibrationNumber(calibration?.xOffsetMm, 0),
+    yOffsetMm: normalizeCalibrationNumber(calibration?.yOffsetMm, 0),
+    labelWidthMm: normalizeCalibrationNumber(calibration?.labelWidthMm, 22),
+    labelHeightMm: normalizeCalibrationNumber(calibration?.labelHeightMm, 16),
+    columnGapMm: normalizeCalibrationNumber(calibration?.columnGapMm, 3),
+    line1YMm: normalizeCalibrationNumber(calibration?.line1YMm, 2),
+    line2YMm: normalizeCalibrationNumber(calibration?.line2YMm, 6.5),
+    line3YMm: normalizeCalibrationNumber(calibration?.line3YMm, 11),
+    textRotation:
+      Number.isInteger(Number(calibration?.textRotation)) &&
+      Number(calibration?.textRotation) >= 0 &&
+      Number(calibration?.textRotation) <= 3
+        ? Number(calibration?.textRotation)
+        : 0
+  };
+
   const rollWidthDots = mmToDots(100);
-  const labelHeightDots = mmToDots(16);
+  const labelHeightDots = mmToDots(normalizedCalibration.labelHeightMm);
   const gapDots = mmToDots(3);
-  const labelWidthDots = mmToDots(22);
-  const columnGapDots = mmToDots(3);
+  const labelWidthDots = mmToDots(normalizedCalibration.labelWidthMm);
+  const columnGapDots = mmToDots(normalizedCalibration.columnGapMm);
+  const xOffsetDots = mmToDots(normalizedCalibration.xOffsetMm);
+  const yOffsetDots = mmToDots(normalizedCalibration.yOffsetMm);
   const rowContentWidthDots = (labelWidthDots * 4) + (columnGapDots * 3);
   const leftMarginDots = Math.max(0, Math.floor((rollWidthDots - rowContentWidthDots) / 2));
 
-  const lineOneY = Math.max(6, mmToDots(2));
-  const lineTwoY = Math.max(lineOneY + 14, mmToDots(6.5));
-  const lineThreeY = Math.max(lineTwoY + 14, mmToDots(11));
+  const lineOneY = Math.max(0, mmToDots(normalizedCalibration.line1YMm) + yOffsetDots);
+  const lineTwoY = Math.max(0, mmToDots(normalizedCalibration.line2YMm) + yOffsetDots);
+  const lineThreeY = Math.max(0, mmToDots(normalizedCalibration.line3YMm) + yOffsetDots);
+  const textRotation = normalizedCalibration.textRotation;
 
   const lines = [
     "I8,A,001",
@@ -164,10 +190,10 @@ function buildPplbStickerRaw({
   for (let row = 0; row < rows; row += 1) {
     lines.push("N");
     for (let col = 0; col < 4; col += 1) {
-      const x = leftMarginDots + (col * (labelWidthDots + columnGapDots)) + 6;
-      lines.push(`A${x},${lineOneY},0,1,1,1,N,"${bestBeforeTitleLine}"`);
-      lines.push(`A${x},${lineTwoY},0,1,1,1,N,"${bestBeforeDateLine}"`);
-      lines.push(`A${x},${lineThreeY},0,1,1,1,N,"${batchLine}"`);
+      const x = leftMarginDots + (col * (labelWidthDots + columnGapDots)) + 6 + xOffsetDots;
+      lines.push(`A${x},${lineOneY},${textRotation},1,1,1,N,"${bestBeforeTitleLine}"`);
+      lines.push(`A${x},${lineTwoY},${textRotation},1,1,1,N,"${bestBeforeDateLine}"`);
+      lines.push(`A${x},${lineThreeY},${textRotation},1,1,1,N,"${batchLine}"`);
     }
     lines.push("P1");
   }
@@ -175,6 +201,7 @@ function buildPplbStickerRaw({
   return {
     roundedQty,
     rows,
+    calibration: normalizedCalibration,
     raw: `${lines.join("\n")}\n`
   };
 }
@@ -188,6 +215,32 @@ function selectStickerPrinterId(explicitPrinterId) {
   } catch {
     // Ignore settings read failures, fallback to default printer.
   }
+  return resolveDefaultPrinterId();
+}
+
+function getConfiguredDocumentPrinterId(documentType) {
+  const key = String(documentType || "").trim();
+  if (!key) return null;
+  try {
+    const configured = Number(getSystemSettings()?.printers?.documents?.[key]);
+    if (Number.isInteger(configured) && configured > 0) return configured;
+  } catch {
+    // Ignore settings read failures, fallback to route defaults.
+  }
+  return null;
+}
+
+function selectDocumentPrinterId(documentType, explicitPrinterId, options = {}) {
+  const explicit = Number(explicitPrinterId);
+  if (Number.isInteger(explicit) && explicit > 0) return explicit;
+
+  const configured = getConfiguredDocumentPrinterId(documentType);
+  if (Number.isInteger(configured) && configured > 0) return configured;
+
+  if (String(documentType || "").trim() === "deliveryNote") {
+    return selectDeliveryNotePrinterId(options.orderNo || "");
+  }
+
   return resolveDefaultPrinterId();
 }
 
@@ -550,6 +603,7 @@ router.post("/printnode/print-best-before-stickers", async (req, res) => {
     const commandLanguage = String(settings?.sticker?.commandLanguage || "PPLB").trim().toUpperCase() || "PPLB";
     const shelfLifeMonths = Number(settings?.sticker?.shelfLifeMonths) || 12;
     const defaultQty = Number(settings?.sticker?.defaultButtonQty) || 50;
+    const calibration = settings?.sticker?.calibration || {};
     const requestedQty = Number(input.quantity);
     const baseQty = Number.isFinite(requestedQty) && requestedQty > 0 ? Math.trunc(requestedQty) : defaultQty;
     const roundedQty = Math.ceil(baseQty / 4) * 4;
@@ -586,7 +640,8 @@ router.post("/printnode/print-best-before-stickers", async (req, res) => {
       quantity: roundedQty,
       bestBeforeTitleLine,
       bestBeforeDateLine,
-      batchLine
+      batchLine,
+      calibration
     });
     const rawBase64 = Buffer.from(payload.raw, "utf8").toString("base64");
     const result = await sendPrintNodeJob({
@@ -607,7 +662,8 @@ router.post("/printnode/print-best-before-stickers", async (req, res) => {
         bestBeforeTitleLine,
         bestBeforeDateLine,
         bestBeforeLine,
-        batchLine
+        batchLine,
+        calibration: payload.calibration
       }
     });
 
@@ -693,11 +749,9 @@ router.post("/printnode/print-delivery-note", async (req, res) => {
 
     if (!requirePrintNodeConfigured(res, { allowDeliveryPrinterFallback: true })) return;
 
-    const explicitPrinterId = Number(printerId);
-    const selectedPrinterId =
-      Number.isInteger(explicitPrinterId) && explicitPrinterId > 0
-        ? explicitPrinterId
-        : selectDeliveryNotePrinterId(deliveryNote.orderNo);
+    const selectedPrinterId = selectDocumentPrinterId("deliveryNote", printerId, {
+      orderNo: deliveryNote.orderNo
+    });
 
     const pdfBase64 = await buildDeliveryNotePdfBase64(deliveryNote);
     const result = await sendPrintNodeJob({
@@ -735,7 +789,7 @@ router.post("/printnode/print-delivery-note", async (req, res) => {
 
 router.post("/printnode/print-url", async (req, res) => {
   try {
-    const { invoiceUrl, title, printerId, usePdfUri, source } = req.body || {};
+    const { invoiceUrl, title, printerId, usePdfUri, source, documentType } = req.body || {};
 
     if (!invoiceUrl) {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Missing invoiceUrl" });
@@ -754,14 +808,16 @@ router.post("/printnode/print-url", async (req, res) => {
       return res.status(400).json({ error: "BAD_REQUEST", message: "Invalid invoiceUrl" });
     }
 
+    const selectedPrinterId = selectDocumentPrinterId(documentType, printerId);
+
     if (usePdfUri) {
       const result = await sendPrintNodeJob({
         pdfUri: String(url),
         title,
-        printerId,
+        printerId: selectedPrinterId,
         source: source || "Flippen Lekka Scan Station",
         jobType: "print_url",
-        metadata: { invoiceUrl: String(url), mode: "pdf_uri" },
+        metadata: { invoiceUrl: String(url), mode: "pdf_uri", documentType: documentType || null },
         route: "POST /printnode/print-url"
       });
 
@@ -807,10 +863,10 @@ router.post("/printnode/print-url", async (req, res) => {
     const result = await sendPrintNodeJob({
       pdfBase64: buffer.toString("base64"),
       title,
-      printerId,
+      printerId: selectedPrinterId,
       source: source || "Flippen Lekka Scan Station",
       jobType: "print_url",
-      metadata: { invoiceUrl: String(url), mode: "pdf_download" },
+      metadata: { invoiceUrl: String(url), mode: "pdf_download", documentType: documentType || null },
       route: "POST /printnode/print-url"
     });
 
