@@ -4981,6 +4981,25 @@ async function startOrder(orderNo) {
   function renderDispatchBoard(orders) {
     if (!dispatchBoard) return;
 
+    const markerInkPalette = [
+      "#0f172a",
+      "#1d4ed8",
+      "#7c3aed",
+      "#be123c",
+      "#b45309",
+      "#047857",
+      "#0f766e"
+    ];
+    const markerColorForOrder = (orderValue) => {
+      const seed = String(orderValue || "");
+      if (!seed) return markerInkPalette[0];
+      let hash = 0;
+      for (let i = 0; i < seed.length; i += 1) {
+        hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+      }
+      return markerInkPalette[hash % markerInkPalette.length];
+    };
+
     const now = Date.now();
     const maxAgeMs = MAX_ORDER_AGE_HOURS * 60 * 60 * 1000;
     dispatchOrderCache.clear();
@@ -5052,6 +5071,7 @@ async function startOrder(orderNo) {
       const postal = o.shipping_postal || "";
       const created = o.created_at ? new Date(o.created_at).toLocaleTimeString() : "";
       const orderNo = String(o.name || "").replace("#", "").trim();
+      const markerColor = markerColorForOrder(orderNo || o.id || title);
       const packingState = getPackingState(o);
       if (orderNo) activeOrders.add(orderNo);
       const { fulfillmentRows, fulfilledQtyByLineItemId } = getOrderFulfillmentSummary(o);
@@ -5092,7 +5112,7 @@ async function startOrder(orderNo) {
       }
 
       return `
-        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} dispatchCard--${missingSeverity}" data-order-no="${orderNo}" ${combinedStyle}>
+        <div class="dispatchCard ${isSelected ? "is-selected" : ""} ${combinedGroup ? "is-combined" : ""} dispatchCard--${missingSeverity}" data-order-no="${orderNo}" ${combinedStyle} style="--marker-color:${markerColor};">
           <div class="dispatchCardTitle">
             <span class="dispatchCardTitleText">${title}</span>
             <span class="dispatchCardMissingDot dispatchCardMissingDot--${missingSeverity}" aria-label="${missingSeverity} shortage status"></span>
