@@ -115,6 +115,7 @@ Operator workflow docs:
 Technical and maintenance docs:
 
 - [docs/api-reference.md](docs/api-reference.md)
+- [docs/customer-accounts-api-setup-flss-2.2-march-2026.md](docs/customer-accounts-api-setup-flss-2.2-march-2026.md)
 - [docs/build-guide.md](docs/build-guide.md)
 - [docs/config-reference.md](docs/config-reference.md)
 - [docs/data-model.md](docs/data-model.md)
