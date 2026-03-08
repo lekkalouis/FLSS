@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Portal</title>
+  <link rel="stylesheet" href="/theme.css" />
+  <style>
+    body { margin: 0; font-family: Inter, Arial, sans-serif; background: #f8faff; color: #1f2937; }
+    .wrap { width: min(1100px, calc(100vw - 2rem)); margin: 1rem auto 2rem; display: grid; gap: .9rem; }
+    .card { background: #fff; border: 1px solid #dbe5f5; border-radius: 14px; padding: 1rem; box-shadow: 0 8px 24px rgba(15,23,42,.05); }
+    h1, h2 { margin: 0 0 .6rem; }
+    .meta { color: #64748b; font-size: .9rem; }
+    .materials { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .7rem; }
+    .item { border: 1px solid #dbe5f5; border-radius: 12px; padding: .75rem; }
+    .item h3 { margin: 0 0 .4rem; font-size: 1rem; }
+    .tag { display:inline-block; font-size: .72rem; font-weight:700; padding: .2rem .45rem; border-radius: 999px; background:#e0e7ff; color:#3730a3; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+    label { display: grid; gap: .25rem; font-size: .87rem; }
+    input, textarea { border: 1px solid #bfd1ef; border-radius: 8px; padding: .52rem .58rem; font: inherit; }
+    textarea { min-height: 88px; }
+    button { border: 0; border-radius: 10px; padding: .58rem .85rem; color:#fff; background:#2563eb; font-weight: 600; cursor: pointer; }
+    pre { white-space: pre-wrap; background:#0f172a; color:#e2e8f0; border-radius: 10px; padding: .8rem; }
+    @media (max-width: 780px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Agent Marketing Portal</h1>
+      <p class="meta" id="customerMeta">Checking Shopify customer session…</p>
+    </section>
+
+    <section class="card">
+      <h2>Promo Material Library</h2>
+      <div id="materials" class="materials"></div>
+    </section>
+
+    <section class="card">
+      <h2>Generate Marketing Material</h2>
+      <div class="grid">
+        <label>Campaign goal<input id="campaignGoal" placeholder="Launch a monthly retail push" /></label>
+        <label>Offer<input id="offer" placeholder="Buy 5, get 1 free" /></label>
+        <label>Audience<input id="audience" placeholder="Independent grocery stores" /></label>
+        <label>Channel<input id="channel" placeholder="WhatsApp + Instagram" /></label>
+      </div>
+      <label style="margin-top:.6rem;">Product focus (comma separated)
+        <input id="productFocus" placeholder="Biltong sticks, Chili bites" />
+      </label>
+      <label style="margin-top:.6rem;">Call to action
+        <textarea id="callToAction" placeholder="Reply to reserve your stock allocation"></textarea>
+      </label>
+      <div style="margin-top:.7rem;"><button type="button" id="generateBtn">Generate</button></div>
+      <pre id="output">Your generated campaign copy will appear here.</pre>
+    </section>
+  </main>
+
+  <script>
+    const API_BASE = '/api/v1/customer-accounts/agent-portal';
+    const query = window.location.search;
+
+    function querySuffix() {
+      return query ? query : '';
+    }
+
+    async function apiGet(path) {
+      const response = await fetch(`${API_BASE}${path}${querySuffix()}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    async function apiPost(path, body) {
+      const response = await fetch(`${API_BASE}${path}${querySuffix()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    function renderMaterials(materials) {
+      const host = document.getElementById('materials');
+      host.innerHTML = '';
+      materials.forEach((item) => {
+        const el = document.createElement('article');
+        el.className = 'item';
+        el.innerHTML = `
+          <span class="tag">${item.type.toUpperCase()}</span>
+          <h3>${item.title}</h3>
+          <p class="meta">${item.description}</p>
+          <p class="meta" style="margin:.4rem 0;">Audience: ${item.audience}</p>
+          <a href="${item.url}" target="_blank" rel="noreferrer">Open material</a>
+        `;
+        host.appendChild(el);
+      });
+    }
+
+    async function init() {
+      try {
+        const session = await apiGet('/session');
+        document.getElementById('customerMeta').textContent = `Signed in with Shopify Customer Account: ${session.customer.displayName}`;
+
+        const materials = await apiGet('/promo-materials');
+        renderMaterials(materials.materials || []);
+      } catch (err) {
+        document.getElementById('customerMeta').textContent = `Could not load session: ${err.message}`;
+      }
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const payload = {
+        campaignGoal: document.getElementById('campaignGoal').value,
+        offer: document.getElementById('offer').value,
+        audience: document.getElementById('audience').value,
+        channel: document.getElementById('channel').value,
+        productFocus: document.getElementById('productFocus').value,
+        callToAction: document.getElementById('callToAction').value
+      };
+
+      const output = document.getElementById('output');
+      output.textContent = 'Generating…';
+      try {
+        const result = await apiPost('/generate-marketing-material', payload);
+        output.textContent = `# ${result.material.headline}\n\n${result.material.message}`;
+      } catch (err) {
+        output.textContent = `Generation failed: ${err.message}`;
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

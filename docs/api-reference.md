@@ -156,6 +156,9 @@ PUT /customer-accounts/me
 GET /customer-accounts/catalog
 GET /customer-accounts/orders
 POST /customer-accounts/orders
+GET /customer-accounts/agent-portal/session
+GET /customer-accounts/agent-portal/promo-materials
+POST /customer-accounts/agent-portal/generate-marketing-material
 ```
 
 ## 7. Shopify proxy and dispatch flows
